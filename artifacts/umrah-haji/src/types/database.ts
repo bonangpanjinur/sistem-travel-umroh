@@ -11,7 +11,8 @@ export type AppRole =
   | 'equipment'
   | 'agent'
   | 'sub_agent'
-  | 'customer';
+  | 'customer'
+  | 'jamaah';
 
 export type BookingStatus = 
   | 'pending'
@@ -100,7 +101,7 @@ export interface Hotel {
   id: string;
   name: string;
   city: string;
-  star_rating: number;
+  star_rating: number | null;
   address: string | null;
   distance_to_masjid: string | null;
   facilities: string[] | null;
@@ -232,6 +233,7 @@ export interface Booking {
   base_price: number;
   addons_price: number;
   discount_amount: number;
+  discount_label?: string | null;
   total_price: number;
   paid_amount: number;
   remaining_amount: number;
@@ -239,6 +241,8 @@ export interface Booking {
   booking_status: BookingStatus;
   payment_status: PaymentStatus;
   notes: string | null;
+  payment_deadline?: string | null;
+  room_breakdown?: Record<string, number> | null;
   created_at: string;
   updated_at: string;
   // Relations
@@ -262,11 +266,13 @@ export interface Payment {
   payment_code: string;
   amount: number;
   payment_method: string | null;
+  payment_type: string | null;
   bank_name: string | null;
   account_number: string | null;
   account_name: string | null;
   proof_url: string | null;
   status: PaymentStatus;
+  transaction_id: string | null;
   verified_at: string | null;
   verified_by: string | null;
   notes: string | null;

@@ -1,10 +1,9 @@
 {
   "buildCommand": "pnpm run build",
   "outputDirectory": "artifacts/umrah-haji/dist/public",
-  "framework": "vite",
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
   ]

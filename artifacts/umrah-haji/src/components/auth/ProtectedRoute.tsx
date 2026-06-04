@@ -166,6 +166,8 @@ export default function ProtectedRoute({
 
   // Super admin bypasses dynamic permission checks (no useDynamicMenus subscription)
   const isSuper = isSuperAdmin();
+  // Path staf internal yang tunduk pada dynamic permission check.
+  // /agent dikecualikan karena agen memiliki sistem izin tersendiri (role check saja).
   const isStaffPath =
     location.pathname.startsWith('/admin') ||
     location.pathname.startsWith('/operational') ||

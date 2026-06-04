@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams, useSearchParams, Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,7 +9,8 @@ import { StepReviewDynamic } from "./steps/StepReviewDynamic";
 import { StepRoomAllocation } from "./steps/StepRoomAllocation";
 import { PICSelectionStepImproved } from "./PICSelectionStepImproved";
 import { useBookingWizardDynamic, RoomAllocation, PICData } from "@/hooks/useBookingWizardDynamic";
-import { Loader2, ArrowLeft, BedDouble, Users, Building2, Ticket } from "lucide-react";
+import { Loader2, ArrowLeft, BedDouble, Users, Building2, Ticket, LogIn } from "lucide-react";
+import { Clock, AlertCircle } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/format";
@@ -18,6 +19,24 @@ import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
 import { LoginSuggestionDialog } from "./LoginSuggestionDialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { useSeatHold, formatHoldRemaining } from "@/hooks/useSeatHold";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { toast } from "sonner";
+import {
+  buildDraftKey,
+  buildAutoSubmitKey,
+  saveBookingDraft,
+  loadBookingDraft,
+  clearBookingDraft,
+} from "@/lib/bookingDraft";
 
 const MONTHS = [
   { value: "01", label: "Januari" },
@@ -36,8 +55,15 @@ const MONTHS = [
 
 export type BookingStep = 'rooms' | 'passengers' | 'pic' | 'review';
 
-const STEPS: { id: BookingStep; label: string }[] = [
+const STEPS_DEFAULT: { id: BookingStep; label: string }[] = [
   { id: 'rooms', label: 'Pilih Kamar' },
+  { id: 'passengers', label: 'Data Jamaah' },
+  { id: 'pic', label: 'Sumber Pendaftaran' },
+  { id: 'review', label: 'Review & Bayar' },
+];
+
+// Haji: skip alokasi kamar (harga per usia, akomodasi diatur operator)
+const STEPS_HAJI: { id: BookingStep; label: string }[] = [
   { id: 'passengers', label: 'Data Jamaah' },
   { id: 'pic', label: 'Sumber Pendaftaran' },
   { id: 'review', label: 'Review & Bayar' },
@@ -69,9 +95,9 @@ export function BookingWizard() {
   const { data: packageInfo } = useQuery({
     queryKey: ['package-info', packageId],
     queryFn: async () => {
-      const { data, error } = await supabase.from('packages').select('id, name, code, duration_days, package_type').eq('id', packageId!).single();
+      const { data, error } = await supabase.from('packages').select('id, name, code, duration_days, package_type, booking_mode, currency').eq('id', packageId!).single();
       if (error) throw error;
-      return data;
+      return data as any;
     },
     enabled: !!packageId,
   });
@@ -79,7 +105,7 @@ export function BookingWizard() {
   const { data: departureInfo } = useQuery({
     queryKey: ['departure-info', initialDepartureId],
     queryFn: async () => {
-      const { data, error } = await supabase.from('departures').select('id, departure_date, return_date, flight_number, price_quad, price_triple, price_double, price_single').eq('id', initialDepartureId).single();
+      const { data, error } = await supabase.from('departures').select('id, departure_date, return_date, flight_number, price_quad, price_triple, price_double, price_single, price_adult, price_child, price_infant, currency').eq('id', initialDepartureId).single();
       if (error) throw error;
       return data as any;
     },
@@ -105,13 +131,113 @@ export function BookingWizard() {
     },
   });
 
+  // bookingMode sudah tersedia dari packageInfo, tapi hook dipanggil sebelum packageInfo ready.
+  // Kita baca dari searchParams atau default 'umroh' — akan di-sync setelah packageInfo loaded.
+  const earlyBookingMode = searchParams.get('booking_mode') || 'umroh';
+
   const {
     currentStep, setCurrentStep, formData, updateFormData, isSubmitting, submitBooking,
-    updateRoomAllocation, picState, setPicState, picValidation, isValidatingPIC
-  } = useBookingWizardDynamic(packageId!, initialDepartureId, initialRoomAllocation, picData, initialPax);
+    updateRoomAllocation, addHajiPassenger, removeHajiPassenger, isHaji: isHajiFromHook,
+    picState, setPicState, picValidation, isValidatingPIC,
+    cancellationAgreed, setCancellationAgreed,
+  } = useBookingWizardDynamic(packageId!, initialDepartureId, initialRoomAllocation, picData, initialPax, earlyBookingMode);
+
+  const [paymentStepValid, setPaymentStepValid] = useState(true);
+  const [loginGate, setLoginGate] = useState(false);
+  const [resumed, setResumed] = useState(false);
+  const [seatLostAfterLogin, setSeatLostAfterLogin] = useState(false);
+
+  // Persist guest wizard state per departure to survive login redirect
+  const draftKey = buildDraftKey(packageId, initialDepartureId);
+  const restoredRef = useRef(false);
+  const autoSubmittedRef = useRef(false);
+
+  // Restore draft on mount (after login or refresh) — TTL aware
+  useEffect(() => {
+    if (!draftKey || restoredRef.current) return;
+    restoredRef.current = true;
+    const result = loadBookingDraft<any>(draftKey);
+    if (result.status === 'expired') {
+      toast.warning('Draft booking sebelumnya telah kedaluwarsa', {
+        description: 'Silakan isi ulang data jamaah Anda.',
+      });
+      // Pastikan auto-submit flag juga hilang
+      try { sessionStorage.removeItem(buildAutoSubmitKey(draftKey)); } catch {}
+      return;
+    }
+    if (result.status !== 'ok') return;
+    const draft = result.payload || {};
+    if (draft?.passengers?.length) {
+      updateFormData({
+        passengers: draft.passengers,
+        notes: draft.notes,
+        paymentMode: draft.paymentMode,
+        dpAmount: draft.dpAmount,
+        savingsPlanId: draft.savingsPlanId,
+      });
+    }
+    if (draft?.picState) setPicState(draft.picState);
+    if (draft?.cancellationAgreed != null) setCancellationAgreed(draft.cancellationAgreed);
+    if (draft?.currentStep) setCurrentStep(draft.currentStep);
+    setResumed(true);
+    toast.success('Data booking Anda dipulihkan', {
+      description: 'Lanjutkan dari tempat terakhir tanpa perlu mengisi ulang.',
+      duration: 4000,
+    });
+  }, [draftKey]);
+
+  // Continuously persist draft (untuk guest, dan juga untuk user login agar
+  // refresh halaman tidak menghapus progres). Menggunakan TTL envelope.
+  useEffect(() => {
+    if (!draftKey) return;
+    saveBookingDraft(draftKey, {
+      passengers: formData.passengers,
+      notes: formData.notes,
+      paymentMode: formData.paymentMode,
+      dpAmount: formData.dpAmount,
+      savingsPlanId: formData.savingsPlanId,
+      picState,
+      cancellationAgreed,
+      currentStep,
+    });
+  }, [draftKey, formData, picState, cancellationAgreed, currentStep]);
+
+  const bookingMode = (packageInfo as any)?.booking_mode || earlyBookingMode;
+  // isHaji dari hook (early) atau dari packageInfo setelah loaded
+  const isHaji = bookingMode === 'haji' || isHajiFromHook;
+  const STEPS = isHaji ? STEPS_HAJI : STEPS_DEFAULT;
+
+  // Seat hold (BOOK-FIX3) — 15 menit lock kursi selama wizard
+  const requestedPax = Math.max(initialPax || 1, 1);
+  const { remainingMs, error: holdError, expiresAt } = useSeatHold(initialDepartureId, requestedPax);
+  const holdExpired = !!expiresAt && remainingMs === 0;
+
+  // Deteksi seat hold gagal setelah login (kursi diambil orang lain selama proses login)
+  useEffect(() => {
+    if (!user || !draftKey) return;
+    const flag = sessionStorage.getItem(buildAutoSubmitKey(draftKey));
+    if (flag === '1' && holdError === 'insufficient_capacity') {
+      setSeatLostAfterLogin(true);
+      try { sessionStorage.removeItem(buildAutoSubmitKey(draftKey)); } catch {}
+      toast.error('Kursi sudah terisi penuh', {
+        description: 'Saat Anda login, kursi habis diambil jamaah lain. Silakan pilih tanggal keberangkatan lain.',
+        duration: 8000,
+      });
+    }
+  }, [user, draftKey, holdError]);
+
+  // Saat mode haji & step aktif adalah 'rooms' (state awal), pindahkan ke 'passengers'
+  useEffect(() => {
+    if (isHaji && currentStep === 'rooms') {
+      setCurrentStep('passengers');
+    }
+  }, [isHaji, currentStep, setCurrentStep]);
 
   const currentStepIndex = STEPS.findIndex(s => s.id === currentStep);
   const totalPassengers = formData.passengers.length;
+
+  // Validasi mode pembayaran (Step 4) — dihitung penuh di StepReviewDynamic dengan totalPrice
+  const paymentValid = paymentStepValid;
 
   const handleNext = () => {
     const nextIndex = currentStepIndex + 1;
@@ -124,9 +250,70 @@ export function BookingWizard() {
   };
 
   const handleSubmit = async () => {
+    // Guest gate: require login before creating booking + payment
+    if (!user) {
+      setLoginGate(true);
+      return;
+    }
+    if (holdError === 'insufficient_capacity' || holdExpired) {
+      toast.error('Kursi tidak tersedia. Silakan refresh atau pilih tanggal lain.');
+      return;
+    }
     const result = await submitBooking();
-    if (result?.bookingId) navigate(`/booking/success/${result.bookingId}`);
+    if (result?.bookingId) {
+      // Release seat hold once booking is confirmed (server-side booking_count already incremented)
+      try {
+        await (supabase.rpc as any)('release_seat_hold', {
+          _session_id: sessionStorage.getItem('seat-hold-session-id'),
+          _departure_id: initialDepartureId,
+        });
+      } catch {}
+      // Clear draft + auto-submit flag on success
+      clearBookingDraft(draftKey);
+      navigate(`/booking/success/${result.bookingId}`);
+    }
   };
+
+  const goLogin = (mode: 'login' | 'register') => {
+    // Pastikan draft tersimpan dengan TTL terbaru sebelum redirect
+    saveBookingDraft(draftKey, {
+      passengers: formData.passengers,
+      notes: formData.notes,
+      paymentMode: formData.paymentMode,
+      dpAmount: formData.dpAmount,
+      savingsPlanId: formData.savingsPlanId,
+      picState,
+      cancellationAgreed,
+      currentStep,
+    });
+    if (draftKey) sessionStorage.setItem(buildAutoSubmitKey(draftKey), '1');
+    const back = encodeURIComponent(window.location.pathname + window.location.search);
+    const path = mode === 'register' ? '/auth/register' : '/auth/login';
+    navigate(`${path}?redirect=${back}`);
+  };
+
+  // Auto-submit setelah login: tunggu sampai draft ter-restore, PIC tervalidasi,
+  // seat hold valid, dan ada di step review. Kalau gagal validasi, jangan paksa submit.
+  useEffect(() => {
+    if (!user || !draftKey || autoSubmittedRef.current) return;
+    const shouldAuto = sessionStorage.getItem(buildAutoSubmitKey(draftKey));
+    if (shouldAuto !== '1') return;
+    if (currentStep !== 'review') return;
+    if (isSubmitting) return;
+    if (isValidatingPIC) return;
+    if (!picValidation.isValid) return;
+    if (holdError === 'insufficient_capacity' || holdExpired) return;
+    if (cancellationAgreed === false) return;
+
+    autoSubmittedRef.current = true;
+    sessionStorage.removeItem(buildAutoSubmitKey(draftKey));
+    toast.info('Melanjutkan proses booking Anda...', { duration: 2500 });
+    const t = setTimeout(() => { handleSubmit(); }, 400);
+    return () => clearTimeout(t);
+  }, [
+    user, draftKey, currentStep, isSubmitting, isValidatingPIC,
+    picValidation.isValid, holdError, holdExpired, cancellationAgreed,
+  ]);
 
   if (authLoading) {
     return <div className="flex items-center justify-center min-h-[400px]"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
@@ -186,11 +373,20 @@ export function BookingWizard() {
               <span className="text-muted-foreground">Jamaah:</span>
               <span className="font-medium">{totalPassengers} orang</span>
             </div>
-            <div className="flex items-center gap-2">
-              <BedDouble className="h-4 w-4 text-muted-foreground" />
-              <span className="text-muted-foreground">Kamar:</span>
-              <span className="font-medium">{roomSummary.join(', ')}</span>
-            </div>
+            {!isHaji && (
+              <div className="flex items-center gap-2">
+                <BedDouble className="h-4 w-4 text-muted-foreground" />
+                <span className="text-muted-foreground">Kamar:</span>
+                <span className="font-medium">{roomSummary.join(', ') || '-'}</span>
+              </div>
+            )}
+            {isHaji && (
+              <div className="flex items-center gap-2">
+                <Ticket className="h-4 w-4 text-muted-foreground" />
+                <span className="text-muted-foreground">Mode:</span>
+                <Badge variant="outline" className="text-xs">Haji</Badge>
+              </div>
+            )}
             {picLabel && (
               <div className="flex items-center gap-2">
                 <Building2 className="h-4 w-4 text-muted-foreground" />
@@ -201,6 +397,50 @@ export function BookingWizard() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Seat hold countdown — BOOK-FIX3 */}
+      {expiresAt && !holdExpired && (
+        <Alert className="border-primary/30 bg-primary/5">
+          <Clock className="h-4 w-4 text-primary" />
+          <AlertDescription className="text-sm">
+            Kursi Anda dikunci selama <strong className="font-mono">{formatHoldRemaining(remainingMs)}</strong>.
+            Selesaikan booking sebelum waktu habis agar tidak diambil orang lain.
+          </AlertDescription>
+        </Alert>
+      )}
+      {seatLostAfterLogin && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            Maaf, kursi yang Anda kunci sudah habis diambil jamaah lain saat proses login.
+            Data Anda tetap tersimpan — silakan pilih tanggal keberangkatan lain di halaman paket.
+          </AlertDescription>
+        </Alert>
+      )}
+      {resumed && !seatLostAfterLogin && (
+        <Alert className="border-emerald-500/30 bg-emerald-500/5">
+          <Clock className="h-4 w-4 text-emerald-600" />
+          <AlertDescription className="text-sm">
+            Progres booking Anda berhasil dipulihkan. Periksa kembali data sebelum konfirmasi.
+          </AlertDescription>
+        </Alert>
+      )}
+      {holdError === 'insufficient_capacity' && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            Kuota tidak mencukupi untuk {requestedPax} jamaah. Mungkin sudah ada user lain yang sedang booking — coba kurangi jumlah atau pilih tanggal lain.
+          </AlertDescription>
+        </Alert>
+      )}
+      {holdExpired && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            Waktu kunci kursi telah habis. Refresh halaman untuk mengunci ulang sebelum melanjutkan.
+          </AlertDescription>
+        </Alert>
+      )}
 
       <StepIndicator steps={STEPS} currentStep={currentStep} />
 
@@ -223,6 +463,14 @@ export function BookingWizard() {
             <StepPassengersDynamic
               passengers={formData.passengers}
               onUpdate={(passengers) => updateFormData({ passengers })}
+              isHaji={isHaji}
+              departurePrices={departureInfo ? {
+                price_adult: (departureInfo as any)?.price_adult ?? 0,
+                price_child: (departureInfo as any)?.price_child ?? 0,
+                price_infant: (departureInfo as any)?.price_infant ?? 0,
+              } : undefined}
+              onAddPassenger={addHajiPassenger}
+              onRemovePassenger={removeHajiPassenger}
             />
           )}
           {currentStep === 'pic' && (
@@ -244,6 +492,7 @@ export function BookingWizard() {
               formData={formData}
               packageInfo={packageInfo as any}
               departureInfo={departureInfo}
+              isHaji={isHaji}
               departurePrices={departureInfo ? {
                 price_quad: departureInfo.price_quad ?? 0,
                 price_triple: departureInfo.price_triple ?? 0,
@@ -255,6 +504,15 @@ export function BookingWizard() {
               } : undefined}
               onCouponApplied={(discount, code) => updateFormData({ notes: `coupon:${code}` })}
               onUpdatePassengers={(passengers) => updateFormData({ passengers })}
+              cancellationAgreed={cancellationAgreed ?? undefined}
+              onCancellationAgreedChange={setCancellationAgreed}
+              paymentMode={formData.paymentMode || 'full'}
+              dpAmount={formData.dpAmount || 0}
+              savingsPlanId={formData.savingsPlanId}
+              onPaymentModeChange={(mode, dp, savingsId) =>
+                updateFormData({ paymentMode: mode, dpAmount: dp, savingsPlanId: savingsId })
+              }
+              onPaymentValidityChange={setPaymentStepValid}
             />
           )}
         </CardContent>
@@ -263,7 +521,15 @@ export function BookingWizard() {
       <div className="flex justify-between">
         <Button variant="outline" onClick={handlePrev} disabled={currentStepIndex === 0}>Sebelumnya</Button>
         {currentStep === 'review' ? (
-          <Button onClick={handleSubmit} disabled={isSubmitting || !picValidation.isValid}>
+          <Button
+            onClick={handleSubmit}
+            disabled={
+              isSubmitting ||
+              !picValidation.isValid ||
+              cancellationAgreed === false ||
+              !paymentValid
+            }
+          >
             {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Memproses...</> : 'Konfirmasi Booking'}
           </Button>
         ) : (
@@ -275,6 +541,34 @@ export function BookingWizard() {
           </Button>
         )}
       </div>
+
+      <Dialog open={loginGate} onOpenChange={setLoginGate}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <LogIn className="h-5 w-5 text-primary" />
+              Login untuk Melanjutkan Pembayaran
+            </DialogTitle>
+            <DialogDescription>
+              Data booking Anda sudah kami simpan. Silakan login atau daftar untuk
+              memproses pembayaran dengan aman dan mengakses tiket, dokumen, serta
+              status visa Anda.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">
+            Kursi Anda tetap dikunci selama proses login. Setelah berhasil masuk,
+            booking akan otomatis dibuat tanpa perlu mengisi ulang.
+          </div>
+          <DialogFooter className="flex gap-2 sm:flex-row">
+            <Button variant="outline" className="flex-1" onClick={() => goLogin('register')}>
+              Daftar Akun Baru
+            </Button>
+            <Button className="flex-1" onClick={() => goLogin('login')}>
+              Login Sekarang
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

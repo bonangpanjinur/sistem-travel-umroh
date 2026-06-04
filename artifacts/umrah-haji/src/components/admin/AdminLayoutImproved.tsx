@@ -23,6 +23,7 @@ import {
   User,
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useAdminNotifications } from '@/hooks/useAdminNotifications';
 import { useState, useEffect, useMemo, lazy, Suspense, useCallback, useRef, memo } from 'react';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -99,6 +100,19 @@ const DynamicIcon = ({ name, className }: { name?: string; className?: string })
   const IconComponent = getMenuIcon(name);
   return <IconComponent className={className} />;
 };
+
+function NotificationBellContainer() {
+  const { notifications, unreadCount, markAsRead, markAllAsRead, clearAll } = useAdminNotifications();
+  return (
+    <NotificationBell
+      notifications={notifications}
+      unreadCount={unreadCount}
+      onMarkAsRead={markAsRead}
+      onMarkAllAsRead={markAllAsRead}
+      onClearAll={clearAll}
+    />
+  );
+}
 
 function AdminLayoutImproved() {
   const { user, profile, signOut } = useAuth();
@@ -396,7 +410,7 @@ function AdminLayoutImproved() {
               <Suspense fallback={<Skeleton className="h-8 w-32 rounded-lg" />}>
                 <CommandPalette />
               </Suspense>
-              <NotificationBell notifications={[]} unreadCount={0} onMarkAsRead={() => {}} onMarkAllAsRead={() => {}} onClearAll={() => {}} />
+              <NotificationBellContainer />
             </div>
           </header>
 

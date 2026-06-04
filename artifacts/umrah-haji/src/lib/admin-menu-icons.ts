@@ -13,10 +13,14 @@ import {
   Ticket, Globe, Contact2, Banknote,
   FileCheck, FileText, FileCog, FileBarChart, FileSearch,
   Plane, Building, Hotel, Bus, Store,
-  LifeBuoy, MessageSquare, Megaphone,
+  LifeBuoy, MessageSquare, Megaphone, HelpCircle,
   ShieldAlert, ShieldCheck, KeyRound, Palette, ScanSearch,
   MessageCircle, Layers, Settings, Circle,
   ListOrdered, LayoutGrid, LineChart,
+  Webhook, Target, Navigation, Plug, Database, Crown,
+  PackageOpen, ClipboardCheck, ArrowDownToLine, ArrowUpFromLine,
+  Radio, Mail, Bell, BellRing, MessagesSquare, WifiOff, Image,
+  Trophy, Landmark, Smile, Sparkles,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -26,6 +30,9 @@ const ShieldQuestion = ShieldAlert;
 const PersonStanding = User;
 // ChartLine may not exist — alias LineChart
 const ChartLine = LineChart;
+// MessageSquareDot / BrainCircuit may not exist — alias fallbacks
+const MessageSquareDot = MessageSquare;
+const BrainCircuit = Sparkles;
 
 export const ADMIN_MENU_ICONS: Record<string, LucideIcon> = {
   LayoutDashboard, BarChart3, BarChart2, Package, CalendarDays, CalendarClock,
@@ -36,11 +43,16 @@ export const ADMIN_MENU_ICONS: Record<string, LucideIcon> = {
   Ticket, Globe, Contact2, Banknote,
   FileCheck, FileText, FileCog, FileBarChart, FileSearch,
   Plane, Building, Hotel, Bus, Store,
-  LifeBuoy, MessageSquare, Megaphone,
+  LifeBuoy, MessageSquare, Megaphone, HelpCircle,
   ShieldAlert, ShieldCheck, ShieldQuestion, KeyRound, Palette, ScanSearch,
   MessageCircle, Layers, Settings, ListOrdered, LayoutGrid, LineChart,
   ChartLine, PersonStanding,
   Circle,
+  Webhook, Target, Navigation, Plug, Database, Crown,
+  PackageOpen, ClipboardCheck, ArrowDownToLine, ArrowUpFromLine,
+  Radio, Mail, Bell, BellRing, MessagesSquare, WifiOff, Image,
+  Trophy, Landmark, Smile, Sparkles,
+  MessageSquareDot, BrainCircuit,
 };
 
 /** Resolve an icon by name, falling back to Circle when unknown/missing. */

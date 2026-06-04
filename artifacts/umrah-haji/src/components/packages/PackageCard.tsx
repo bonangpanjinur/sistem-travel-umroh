@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Calendar, Clock, Star, Plane, MapPin, Users, Hotel, Building2, ChevronRight, Info } from 'lucide-react';
+import { Calendar, Clock, Star, Plane, MapPin, Users, Hotel, Building2, ChevronRight, Info, Heart } from 'lucide-react';
 
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -8,6 +8,9 @@ import { Package } from '@/types/database';
 import { formatCurrency, getPackageTypeLabel, formatDuration, formatDate } from '@/lib/format';
 import { slugify } from '@/lib/slug';
 import { cn } from '@/lib/utils';
+import { useWishlist } from '@/hooks/useWishlist';
+import { PackageLabelBadges } from '@/components/packages/PackageLabelBadges';
+import { usePackageLabelsMap } from '@/hooks/usePackageLabels';
 import {
   Tooltip,
   TooltipContent,
@@ -56,6 +59,7 @@ export function PackageCard({
   showSeats = true
 }: PackageCardProps) {
   const isTabungan = (pkg.package_type as string) === 'tabungan';
+  const { isWishlisted, toggle: toggleWishlist } = useWishlist();
   
   // Get open future departures
   const openFutureDepartures = (pkg.departures || [])
@@ -104,7 +108,25 @@ export function PackageCard({
     return packagePrices.length > 0 ? Math.min(...packagePrices) : 0;
   };
   
-  const lowestPrice = getLowestPrice();
+  const rawLowestPrice = getLowestPrice();
+  
+  // Calculate discount
+  const discountAmount = (pkg as any).discount_amount || 0;
+  const discountPercentage = (pkg as any).discount_percentage || 0;
+  
+  let lowestPrice = rawLowestPrice;
+  let originalPrice = 0;
+  
+  if (discountAmount > 0 || discountPercentage > 0) {
+    originalPrice = rawLowestPrice;
+    if (discountPercentage > 0) {
+      lowestPrice = rawLowestPrice * (1 - discountPercentage / 100);
+    }
+    if (discountAmount > 0) {
+      lowestPrice = lowestPrice - discountAmount;
+    }
+    lowestPrice = Math.max(0, lowestPrice);
+  }
 
   // Calculate seat availability
   const getTotalQuota = () => {
@@ -196,18 +218,48 @@ export function PackageCard({
                 💰 Termurah
               </Badge>
             )}
+            {(discountAmount > 0 || discountPercentage > 0) && (
+              <Badge className="bg-amber-500 text-black border-none text-[10px] font-bold uppercase tracking-wider animate-pulse">
+                🎉 DISKON {discountPercentage > 0 ? `${discountPercentage}%` : ''}
+              </Badge>
+            )}
+            <CustomLabelBadges packageId={pkg.id} />
           </div>
+
+          {/* Wishlist Button */}
+          <button
+            onClick={(e) => { e.preventDefault(); toggleWishlist(pkg.id); }}
+            className={cn(
+              "absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-sm border transition-all duration-200 active:scale-90 z-10",
+              isWishlisted(pkg.id)
+                ? "bg-rose-500/90 border-rose-400"
+                : "bg-black/30 border-white/20 hover:bg-black/50"
+            )}
+            aria-label={isWishlisted(pkg.id) ? "Hapus dari wishlist" : "Simpan ke wishlist"}
+          >
+            <Heart className={cn(
+              "h-3.5 w-3.5 transition-colors",
+              isWishlisted(pkg.id) ? "fill-white text-white" : "text-white"
+            )} />
+          </button>
 
           {/* Price Overlay */}
           <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between">
             <div className="text-white">
               <p className="text-[10px] uppercase tracking-widest opacity-80 font-medium">Mulai dari</p>
-              <p className={cn(
-                "text-2xl font-bold leading-none",
-                isRoyal ? "text-amber-400" : "text-white"
-              )}>
-                {formatCurrency(lowestPrice)}
-              </p>
+              <div className="flex flex-col">
+                {originalPrice > 0 && (
+                  <p className="text-xs line-through opacity-60 decoration-rose-500 decoration-2">
+                    {formatCurrency(originalPrice, pkg.currency)}
+                  </p>
+                )}
+                <p className={cn(
+                  "text-2xl font-bold leading-none",
+                  isRoyal ? "text-amber-400" : "text-white"
+                )}>
+                  {formatCurrency(lowestPrice, pkg.currency)}
+                </p>
+              </div>
             </div>
             {showDuration && (
               <div className="flex items-center gap-1.5 text-white bg-white/10 backdrop-blur-md px-2.5 py-1.5 rounded-full border border-white/10">
@@ -452,7 +504,7 @@ export function PackageCard({
           <div className="mt-auto pt-4 border-t flex items-center justify-between">
             <div>
               <p className="text-[10px] text-muted-foreground uppercase font-bold">Harga Mulai</p>
-              <p className="text-lg font-bold text-primary">{formatCurrency(lowestPrice)}</p>
+              <p className="text-lg font-bold text-primary">{formatCurrency(lowestPrice, pkg.currency)}</p>
             </div>
             <Button asChild size="sm" className="rounded-full px-6">
               <Link to={`/packages/${pkg.id}-${slugify(pkg.name)}`}>Detail</Link>
@@ -495,7 +547,7 @@ export function PackageCard({
         </p>
         
         <div className="mt-auto flex items-center justify-between">
-          <p className="font-bold text-primary">{formatCurrency(lowestPrice)}</p>
+          <p className="font-bold text-primary">{formatCurrency(lowestPrice, pkg.currency)}</p>
           <Link 
             to={`/packages/${pkg.id}-${slugify(pkg.name)}`}
             className="text-xs font-bold flex items-center gap-1 text-slate-400 group-hover:text-primary transition-colors"
@@ -506,4 +558,11 @@ export function PackageCard({
       </CardContent>
     </Card>
   );
+}
+
+function CustomLabelBadges({ packageId }: { packageId: string }) {
+  const { data: map } = usePackageLabelsMap();
+  const labels = map?.[packageId] ?? [];
+  if (labels.length === 0) return null;
+  return <PackageLabelBadges labels={labels} />;
 }

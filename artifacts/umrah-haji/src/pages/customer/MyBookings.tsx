@@ -12,8 +12,10 @@ import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import { 
   Calendar, CreditCard, Users, Eye, Upload, 
-  Clock, CheckCircle, XCircle, AlertCircle, Loader2 
+  Clock, CheckCircle, XCircle, AlertCircle, Loader2, Filter
 } from "lucide-react";
+import { useState } from "react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const STATUS_CONFIG = {
   pending: { label: 'Menunggu', color: 'bg-yellow-100 text-yellow-800', icon: Clock },
@@ -35,6 +37,8 @@ const PAYMENT_STATUS_CONFIG = {
 export default function MyBookings() {
   const { user, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const [filterYear, setFilterYear] = useState<string>("all");
+  const [filterPayment, setFilterPayment] = useState<string>("all");
 
   const { data: bookings, isLoading } = useQuery({
     queryKey: ['my-bookings', user?.id],
@@ -96,7 +100,35 @@ export default function MyBookings() {
   return (
     <PublicLayout>
       <div className="container py-8">
-        <h1 className="text-2xl font-bold mb-6">Booking Saya</h1>
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+          <h1 className="text-2xl font-bold">Booking Saya</h1>
+          <div className="flex items-center gap-2">
+            <Filter className="h-4 w-4 text-muted-foreground" />
+            <Select value={filterYear} onValueChange={setFilterYear}>
+              <SelectTrigger className="w-28 h-8 text-sm">
+                <SelectValue placeholder="Tahun" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Tahun</SelectItem>
+                {Array.from(new Set(bookings?.map(b => b.created_at ? new Date(b.created_at).getFullYear().toString() : null).filter((y): y is string => y !== null) ?? [])).sort((a, b) => Number(b) - Number(a)).map(y => (
+                  <SelectItem key={y} value={y}>{y}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={filterPayment} onValueChange={setFilterPayment}>
+              <SelectTrigger className="w-36 h-8 text-sm">
+                <SelectValue placeholder="Status Bayar" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Status</SelectItem>
+                <SelectItem value="pending">Belum Bayar</SelectItem>
+                <SelectItem value="partial">Sebagian</SelectItem>
+                <SelectItem value="paid">Lunas</SelectItem>
+                <SelectItem value="refunded">Refund</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
 
         {isLoading ? (
           <div className="space-y-4">
@@ -115,7 +147,17 @@ export default function MyBookings() {
           </Card>
         ) : (
           <div className="space-y-4">
-            {bookings.map((booking) => {
+            {(() => {
+              const filtered = (bookings ?? []).filter((b: any) => {
+                const yearMatch = filterYear === "all" || new Date(b.created_at).getFullYear().toString() === filterYear;
+                const paymentMatch = filterPayment === "all" || b.payment_status === filterPayment;
+                return yearMatch && paymentMatch;
+              });
+              if (filtered.length === 0) return [(
+                <Card key="empty"><CardContent className="py-10 text-center text-muted-foreground">Tidak ada booking yang sesuai filter.</CardContent></Card>
+              )];
+              return filtered;
+            })().map((booking: any) => {
               const departure = booking.departure as any;
               const pkg = departure?.package;
               const statusConfig = STATUS_CONFIG[booking.booking_status as keyof typeof STATUS_CONFIG];

@@ -11,15 +11,22 @@ import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
+import { Progress } from '@/components/ui/progress';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { 
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow 
 } from '@/components/ui/table';
 import { formatCurrency } from '@/lib/format';
 import { toast } from 'sonner';
+import { format } from 'date-fns';
+import { id as idLocale } from 'date-fns/locale';
+import { Link } from 'react-router-dom';
 import { 
   Wallet, CreditCard, FileText, Search, 
   CheckCircle, XCircle, Clock, TrendingUp,
-  Calendar, User, ArrowRight, Filter
+  Calendar, User, ArrowRight, Filter,
+  PiggyBank, PhoneCall, AlertTriangle, ExternalLink,
+  CheckCheck, ArrowUpRight,
 } from 'lucide-react';
 
 export default function AdminSavings() {
@@ -66,6 +73,25 @@ export default function AdminSavings() {
       
       if (error) throw error;
       return data || [];
+    },
+  });
+
+  // Fetch converted savings plans (Tabungan Dikonversi)
+  const { data: convertedPlans = [], isLoading: convertedLoading } = useQuery({
+    queryKey: ['admin', 'savings-converted'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('savings_plans')
+        .select(`
+          *,
+          package:packages(name, type),
+          customer:customers(full_name, phone, user:users(email)),
+          booking:bookings!converted_booking_id(id, booking_code, total_price, status, created_at)
+        `)
+        .eq('status', 'converted')
+        .order('updated_at', { ascending: false });
+      if (error) throw error;
+      return (data || []) as any[];
     },
   });
 
@@ -135,6 +161,31 @@ export default function AdminSavings() {
         : 0,
     };
   }, [plans, payments]);
+
+  // Converted plans stats & search
+  const [convertedSearch, setConvertedSearch] = useState('');
+  const convertedStats = useMemo(() => {
+    const withBalance = convertedPlans.filter((p: any) => {
+      const total = p.booking?.total_price ?? p.target_amount ?? 0;
+      return (total - (p.paid_amount ?? 0)) > 0;
+    });
+    const totalOutstanding = convertedPlans.reduce((sum: number, p: any) => {
+      const total = p.booking?.total_price ?? p.target_amount ?? 0;
+      return sum + Math.max(0, total - (p.paid_amount ?? 0));
+    }, 0);
+    return { withBalance: withBalance.length, totalOutstanding };
+  }, [convertedPlans]);
+
+  const filteredConverted = useMemo(() => {
+    if (!convertedSearch.trim()) return convertedPlans;
+    const q = convertedSearch.toLowerCase();
+    return convertedPlans.filter((p: any) =>
+      (p.customer?.full_name || '').toLowerCase().includes(q) ||
+      (p.customer?.phone || '').includes(q) ||
+      (p.booking?.booking_code || '').toLowerCase().includes(q) ||
+      (p.package?.name || '').toLowerCase().includes(q)
+    );
+  }, [convertedPlans, convertedSearch]);
 
   // Verify payment mutation
   const verifyPaymentMutation = useMutation({
@@ -287,6 +338,15 @@ export default function AdminSavings() {
             {stats.pendingPayments > 0 && (
               <Badge variant="destructive" className="h-5 px-1.5 text-[10px]">
                 {stats.pendingPayments}
+              </Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="converted" className="gap-2">
+            <PiggyBank className="h-4 w-4" />
+            Dikonversi
+            {convertedStats.withBalance > 0 && (
+              <Badge className="h-5 px-1.5 text-[10px] bg-amber-500 text-white">
+                {convertedStats.withBalance}
               </Badge>
             )}
           </TabsTrigger>
@@ -563,6 +623,226 @@ export default function AdminSavings() {
                     ))}
                   </TableBody>
                 </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Converted Tab */}
+        <TabsContent value="converted" className="space-y-4">
+          {/* Summary cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <Card>
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="p-2 rounded-full bg-teal-100 dark:bg-teal-900/30">
+                  <CheckCheck className="h-5 w-5 text-teal-600" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Total Dikonversi</p>
+                  <p className="text-2xl font-bold">{convertedPlans.length}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className={convertedStats.withBalance > 0 ? 'border-amber-300 dark:border-amber-700' : ''}>
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="p-2 rounded-full bg-amber-100 dark:bg-amber-900/30">
+                  <AlertTriangle className="h-5 w-5 text-amber-600" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Masih Ada Sisa Tagihan</p>
+                  <p className="text-2xl font-bold text-amber-600">{convertedStats.withBalance}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className={convertedStats.totalOutstanding > 0 ? 'border-orange-300 dark:border-orange-700' : ''}>
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="p-2 rounded-full bg-orange-100 dark:bg-orange-900/30">
+                  <CreditCard className="h-5 w-5 text-orange-600" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Total Outstanding</p>
+                  <p className="text-xl font-bold text-orange-600">{formatCurrency(convertedStats.totalOutstanding)}</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {convertedStats.withBalance > 0 && (
+            <Alert className="border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-700">
+              <AlertTriangle className="h-4 w-4 text-amber-600" />
+              <AlertDescription className="text-amber-800 dark:text-amber-300">
+                <strong>{convertedStats.withBalance} jamaah</strong> masih memiliki sisa tagihan setelah konversi.
+                Segera lakukan follow-up untuk pelunasan.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {/* Search */}
+          <div className="relative max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Cari nama, telepon, atau kode booking..."
+              value={convertedSearch}
+              onChange={(e) => setConvertedSearch(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <PiggyBank className="h-5 w-5 text-teal-600" />
+                Tabungan Dikonversi ke Booking
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {convertedLoading ? (
+                <div className="space-y-3">
+                  {[1, 2, 3].map((i) => <Skeleton key={i} className="h-16" />)}
+                </div>
+              ) : filteredConverted.length === 0 ? (
+                <div className="py-12 text-center text-muted-foreground">
+                  <PiggyBank className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                  <p className="font-medium">Belum ada tabungan yang dikonversi</p>
+                  <p className="text-sm mt-1">Tabungan yang berhasil dikonversi ke booking akan muncul di sini</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Customer</TableHead>
+                        <TableHead>Paket</TableHead>
+                        <TableHead>Booking</TableHead>
+                        <TableHead>Tgl Konversi</TableHead>
+                        <TableHead className="text-right">Total Booking</TableHead>
+                        <TableHead className="text-right">Sudah Bayar</TableHead>
+                        <TableHead className="text-right">Sisa Tagihan</TableHead>
+                        <TableHead>Tindakan</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredConverted.map((plan: any) => {
+                        const totalBooking = plan.booking?.total_price ?? plan.target_amount ?? 0;
+                        const paid = plan.paid_amount ?? 0;
+                        const outstanding = Math.max(0, totalBooking - paid);
+                        const pct = totalBooking > 0 ? Math.min(100, (paid / totalBooking) * 100) : 0;
+                        const isLunas = outstanding <= 0;
+                        const phone = plan.customer?.phone || '';
+                        const waMessage = encodeURIComponent(
+                          `Halo ${plan.customer?.full_name || 'Bapak/Ibu'}, kami dari Vinstour menginformasikan bahwa tabungan Anda telah berhasil dikonversi ke booking ${plan.booking?.booking_code || ''}. Sisa tagihan yang perlu dilunasi adalah ${formatCurrency(outstanding)}. Mohon segera melakukan pembayaran. Terima kasih 🙏`
+                        );
+                        const waUrl = `https://wa.me/${phone.replace(/\D/g, '')}?text=${waMessage}`;
+
+                        return (
+                          <TableRow
+                            key={plan.id}
+                            className={!isLunas ? 'bg-amber-50/50 dark:bg-amber-950/10 hover:bg-amber-50 dark:hover:bg-amber-950/20' : ''}
+                          >
+                            {/* Customer */}
+                            <TableCell>
+                              <div>
+                                <p className="font-medium text-sm">{plan.customer?.full_name || '-'}</p>
+                                <p className="text-xs text-muted-foreground">{phone || '-'}</p>
+                              </div>
+                            </TableCell>
+
+                            {/* Package */}
+                            <TableCell>
+                              <p className="text-sm">{plan.package?.name || '-'}</p>
+                            </TableCell>
+
+                            {/* Booking code */}
+                            <TableCell>
+                              {plan.booking ? (
+                                <Link
+                                  to={`/admin/bookings/${plan.booking.id}`}
+                                  className="flex items-center gap-1 text-primary hover:underline text-sm font-mono"
+                                >
+                                  {plan.booking.booking_code}
+                                  <ExternalLink className="h-3 w-3" />
+                                </Link>
+                              ) : (
+                                <span className="text-muted-foreground text-xs">-</span>
+                              )}
+                            </TableCell>
+
+                            {/* Conversion date */}
+                            <TableCell>
+                              <p className="text-sm text-muted-foreground">
+                                {plan.updated_at
+                                  ? format(new Date(plan.updated_at), 'd MMM yyyy', { locale: idLocale })
+                                  : '-'}
+                              </p>
+                            </TableCell>
+
+                            {/* Total booking */}
+                            <TableCell className="text-right">
+                              <p className="text-sm font-medium">{formatCurrency(totalBooking)}</p>
+                            </TableCell>
+
+                            {/* Paid */}
+                            <TableCell className="text-right">
+                              <p className="text-sm text-emerald-600 font-medium">{formatCurrency(paid)}</p>
+                              <Progress value={pct} className="h-1.5 mt-1 w-16 ml-auto" />
+                            </TableCell>
+
+                            {/* Outstanding */}
+                            <TableCell className="text-right">
+                              {isLunas ? (
+                                <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30">
+                                  <CheckCheck className="h-3 w-3 mr-1" /> LUNAS
+                                </Badge>
+                              ) : (
+                                <div>
+                                  <p className="text-sm font-bold text-amber-700 dark:text-amber-400">
+                                    {formatCurrency(outstanding)}
+                                  </p>
+                                  <p className="text-[10px] text-muted-foreground">{(100 - pct).toFixed(0)}% belum bayar</p>
+                                </div>
+                              )}
+                            </TableCell>
+
+                            {/* Actions */}
+                            <TableCell>
+                              <div className="flex items-center gap-1.5">
+                                {!isLunas && phone && (
+                                  <a
+                                    href={waUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                  >
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="h-8 border-green-500 text-green-600 hover:bg-green-50 dark:hover:bg-green-950/20 px-2"
+                                      title="Follow up via WhatsApp"
+                                    >
+                                      <PhoneCall className="h-3.5 w-3.5 mr-1" />
+                                      Follow Up
+                                    </Button>
+                                  </a>
+                                )}
+                                {plan.booking && (
+                                  <Link to={`/admin/bookings/${plan.booking.id}`}>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-8 px-2"
+                                      title="Lihat detail booking"
+                                    >
+                                      <ArrowUpRight className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </Link>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
               )}
             </CardContent>
           </Card>

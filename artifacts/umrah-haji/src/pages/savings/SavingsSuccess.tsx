@@ -10,8 +10,9 @@ import { formatCurrency } from '@/lib/format';
 import { toast } from 'sonner';
 import { 
   CheckCircle, Wallet, Calendar, Receipt,
-  Home, User, ArrowRight, Building2, Copy
+  Home, User, ArrowRight, Building2, Copy, CalendarClock
 } from 'lucide-react';
+import { SavingsScheduleList } from '@/components/savings/SavingsScheduleList';
 import { useState } from 'react';
 
 export default function SavingsSuccess() {
@@ -236,6 +237,18 @@ export default function SavingsSuccess() {
               </CardContent>
             </Card>
           )}
+
+          {/* Jadwal Cicilan yang Digenerate Otomatis */}
+          <div className="text-left mb-8">
+            <div className="flex items-center gap-2 mb-3">
+              <CalendarClock className="h-5 w-5 text-primary" />
+              <h2 className="text-lg font-semibold">Jadwal Cicilan Anda</h2>
+            </div>
+            <p className="text-sm text-muted-foreground mb-4">
+              Jadwal setoran bulanan telah digenerate secara otomatis. Bayar sesuai jadwal agar tabungan Anda tetap on-track.
+            </p>
+            <SavingsScheduleList savingsPlanId={planId} />
+          </div>
 
           {/* Action Buttons */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center">

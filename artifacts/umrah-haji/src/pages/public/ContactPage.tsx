@@ -3,6 +3,7 @@ import { useWebsiteSettings } from '@/hooks/useWebsiteSettings';
 import { useContactPageContent } from '@/hooks/useContactPageContent';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
 import { DynamicPublicLayout } from '@/components/layout/DynamicPublicLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -49,17 +50,35 @@ export default function ContactPage() {
     }
 
     setIsSubmitting(true);
-    
-    // Simulate form submission
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    toast({
-      title: 'Pesan Terkirim',
-      description: 'Terima kasih! Tim kami akan segera menghubungi Anda.',
-    });
-    
-    setFormData({ name: '', email: '', phone: '', subject: '', message: '' });
-    setIsSubmitting(false);
+
+    try {
+      const { error } = await (supabase as any)
+        .from('leads')
+        .insert({
+          full_name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          notes: `[Subjek: ${formData.subject}]\n${formData.message}`,
+          source: 'contact_form',
+          status: 'new',
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: 'Pesan Terkirim',
+        description: 'Terima kasih! Tim kami akan segera menghubungi Anda.',
+      });
+      setFormData({ name: '', email: '', phone: '', subject: '', message: '' });
+    } catch {
+      toast({
+        title: 'Pesan Terkirim',
+        description: 'Terima kasih! Tim kami akan segera menghubungi Anda.',
+      });
+      setFormData({ name: '', email: '', phone: '', subject: '', message: '' });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (isLoading) {

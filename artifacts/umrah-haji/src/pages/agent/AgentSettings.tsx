@@ -30,6 +30,13 @@ const agentProfileSchema = z.object({
   city: z.string().optional(),
   province: z.string().optional(),
   bio: z.string().optional(),
+  // AGEN-ADD1: Bank account info for commission withdrawals
+  bank_name: z.string().optional(),
+  bank_account_number: z.string().optional().refine(
+    (v) => !v || /^[0-9-]{6,30}$/.test(v),
+    "Nomor rekening hanya boleh berisi angka & tanda hubung (6-30 karakter)"
+  ),
+  bank_account_name: z.string().optional(),
 });
 
 type AgentProfileFormData = z.infer<typeof agentProfileSchema>;
@@ -53,6 +60,9 @@ export default function AgentSettings() {
       city: profile?.city || "",
       province: profile?.province || "",
       bio: (profile as any)?.bio || "",
+      bank_name: agentData?.bank_name || "",
+      bank_account_number: agentData?.bank_account_number || "",
+      bank_account_name: agentData?.bank_account_name || "",
     },
   });
 
@@ -152,6 +162,9 @@ export default function AgentSettings() {
         .from("agents")
         .update({
           company_name: data.company_name,
+          bank_name: data.bank_name || null,
+          bank_account_number: data.bank_account_number || null,
+          bank_account_name: data.bank_account_name || null,
           updated_at: new Date().toISOString(),
         })
         .eq("id", agentData.id);
@@ -342,6 +355,57 @@ export default function AgentSettings() {
                     </FormItem>
                   )}
                 />
+              </div>
+
+              {/* Bank Account — for commission withdrawal */}
+              <div className="space-y-4 pt-4 border-t">
+                <div>
+                  <h4 className="text-sm font-semibold">Rekening Bank Penarikan Komisi</h4>
+                  <p className="text-xs text-muted-foreground">
+                    Komisi akan ditransfer ke rekening ini saat Anda melakukan penarikan dana.
+                  </p>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <FormField
+                    control={form.control}
+                    name="bank_name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Nama Bank</FormLabel>
+                        <FormControl>
+                          <Input placeholder="BCA / Mandiri / BNI / BRI / ..." {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="bank_account_number"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Nomor Rekening</FormLabel>
+                        <FormControl>
+                          <Input inputMode="numeric" placeholder="1234567890" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="bank_account_name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Nama Pemilik Rekening</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Sesuai buku tabungan" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
               </div>
 
               <Button type="submit" disabled={isLoading}>

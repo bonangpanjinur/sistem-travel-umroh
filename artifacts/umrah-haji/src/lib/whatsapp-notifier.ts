@@ -106,7 +106,29 @@ export async function sendWhatsAppBulk(
 export type TemplateVars = Record<string, string | number>;
 
 export function renderTemplate(template: string, vars: TemplateVars): string {
-  return template.replace(/\{(\w+)\}/g, (_, key) => String(vars[key] ?? `{${key}}`));
+  const rendered = template.replace(/\{(\w+)\}/g, (match, key) =>
+    key in vars ? String(vars[key]) : match
+  );
+  // Remove lines that still contain unresolved {variable} placeholders
+  // so optional variables don't leave dangling text
+  return rendered
+    .split("\n")
+    .filter((line) => !/\{[a-zA-Z_]\w*\}/.test(line))
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n") // collapse triple+ blank lines
+    .trim();
+}
+
+/**
+ * Returns the full URL for a portal deep link.
+ * Uses window.location.origin so it works in any environment
+ * (dev, staging, production) without hardcoding the domain.
+ */
+export function getPortalUrl(path: string = "/jamaah"): string {
+  if (typeof window !== "undefined") {
+    return `${window.location.origin}${path}`;
+  }
+  return path;
 }
 
 /** Default templates (used when DB templates are not available) */
@@ -126,8 +148,11 @@ export const DEFAULT_TEMPLATES = {
 
 Terima kasih telah mempercayakan perjalanan ibadah Anda kepada kami. 🙏
 
+📱 Pantau status booking Anda:
+{link_portal}
+
 Informasi lebih lanjut: {nomor_cs}`,
-    variables: ["nama", "kode_booking", "nama_paket", "tanggal_berangkat", "total_harga", "terbayar", "sisa_bayar", "nomor_cs"],
+    variables: ["nama", "kode_booking", "nama_paket", "tanggal_berangkat", "total_harga", "terbayar", "sisa_bayar", "nomor_cs", "link_portal"],
   },
 
   PAYMENT_CONFIRM: {
@@ -144,8 +169,11 @@ Informasi lebih lanjut: {nomor_cs}`,
 
 Jazakallahu khairan atas kepercayaan Anda. 🙏
 
+📱 Lihat riwayat pembayaran Anda:
+{link_portal}
+
 Info: {nomor_cs}`,
-    variables: ["nama", "kode_booking", "jumlah_bayar", "tanggal_bayar", "total_terbayar", "sisa_bayar", "nomor_cs"],
+    variables: ["nama", "kode_booking", "jumlah_bayar", "tanggal_bayar", "total_terbayar", "sisa_bayar", "nomor_cs", "link_portal"],
   },
 
   PAYMENT_LUNAS: {
@@ -161,8 +189,11 @@ Alhamdulillah, pembayaran Anda untuk paket *{nama_paket}* telah LUNAS.
 
 Kami akan segera memproses dokumen perjalanan Anda. Mohon lengkapi persyaratan dokumen jika belum.
 
+📱 Akses portal jamaah Anda:
+{link_portal}
+
 Informasi: {nomor_cs} 🙏`,
-    variables: ["nama", "nama_paket", "kode_booking", "tanggal_berangkat", "nomor_cs"],
+    variables: ["nama", "nama_paket", "kode_booking", "tanggal_berangkat", "nomor_cs", "link_portal"],
   },
 
   DOCUMENT_READY: {
@@ -177,8 +208,11 @@ Keberangkatan: {tanggal_berangkat}
 
 Silakan hubungi kami untuk pengambilan dokumen.
 
+📱 Pantau dokumen Anda di portal:
+{link_portal}
+
 Info: {nomor_cs} 🙏`,
-    variables: ["nama", "jenis_dokumen", "nama_paket", "tanggal_berangkat", "nomor_cs"],
+    variables: ["nama", "jenis_dokumen", "nama_paket", "tanggal_berangkat", "nomor_cs", "link_portal"],
   },
 
   DEPARTURE_REMINDER: {
@@ -197,8 +231,11 @@ Keberangkatan Umrah/Haji Anda tinggal *{sisa_hari} hari* lagi!
 Pastikan dokumen perjalanan Anda sudah lengkap.
 Semoga menjadi haji/umrah yang mabrur! 🤲
 
+📱 Cek itinerary perjalanan Anda:
+{link_portal}
+
 Info: {nomor_cs}`,
-    variables: ["nama", "sisa_hari", "tanggal_berangkat", "nomor_penerbangan", "hotel_makkah", "titik_kumpul", "nomor_cs"],
+    variables: ["nama", "sisa_hari", "tanggal_berangkat", "nomor_penerbangan", "hotel_makkah", "titik_kumpul", "nomor_cs", "link_portal"],
   },
 
   EQUIPMENT_READY: {
@@ -226,6 +263,154 @@ Info: {nomor_cs} 🙏`,
 
 {nomor_cs}`,
     variables: ["nama", "isi_pesan", "nomor_cs"],
+  },
+
+  STORE_ORDER_CONFIRMED: {
+    name: "Toko — Pesanan Dikonfirmasi",
+    template: `Assalamu'alaikum {nama} 🕌
+
+✅ *Pesanan Anda Dikonfirmasi!*
+
+🛍️ No. Pesanan: *{no_pesanan}*
+💰 Total: *{total}*
+📦 Jumlah Item: {jumlah_item}
+
+Pesanan Anda sedang kami proses dan akan segera dikirimkan. Kami akan menginformasikan nomor resi pengiriman setelah barang dikirim.
+
+Terima kasih telah berbelanja di Toko Vinstour! 🙏
+
+Info: {nomor_cs}`,
+    variables: ["nama", "no_pesanan", "total", "jumlah_item", "nomor_cs"],
+  },
+
+  STORE_ORDER_SHIPPED: {
+    name: "Toko — Pesanan Dikirim",
+    template: `Assalamu'alaikum {nama} 🕌
+
+🚚 *Pesanan Anda Sudah Dikirim!*
+
+🛍️ No. Pesanan: *{no_pesanan}*
+📦 Kurir: *{kurir}* {layanan}
+🔢 No. Resi: *{no_resi}*
+📅 Estimasi Tiba: {estimasi_tiba}
+
+Pantau pengiriman Anda dengan nomor resi di atas melalui website kurir.
+
+Semoga perlengkapan ibadah Anda segera sampai! 🙏
+
+Info: {nomor_cs}`,
+    variables: ["nama", "no_pesanan", "kurir", "layanan", "no_resi", "estimasi_tiba", "nomor_cs"],
+  },
+
+  STORE_ORDER_DELIVERED: {
+    name: "Toko — Pesanan Diterima",
+    template: `Assalamu'alaikum {nama} 🕌
+
+🎉 *Pesanan Anda Telah Diterima!*
+
+🛍️ No. Pesanan: *{no_pesanan}*
+
+Alhamdulillah, pesanan Anda sudah sampai! Semoga perlengkapan ibadah Anda bermanfaat dan menjadi bekal perjalanan ke Tanah Suci yang mabrur. 🤲
+
+Jika ada pertanyaan atau kendala, silakan hubungi kami.
+
+Barakallahu fiikum 🕌
+
+Info: {nomor_cs}`,
+    variables: ["nama", "no_pesanan", "nomor_cs"],
+  },
+
+  STORE_PAYMENT_AWAITING: {
+    name: "Toko — Menunggu Pembayaran",
+    template: `Assalamu'alaikum {nama} 🕌
+
+⏳ *Pesanan Menunggu Pembayaran*
+
+🛍️ No. Pesanan: *{no_pesanan}*
+💰 Total yang harus dibayar: *{total}*
+
+Silakan lakukan transfer dan konfirmasi pembayaran kepada admin kami agar pesanan segera diproses.
+
+Jangan lupa simpan bukti transfer Anda ya! 📋
+
+Info & konfirmasi: {nomor_cs}`,
+    variables: ["nama", "no_pesanan", "total", "nomor_cs"],
+  },
+
+  SAVINGS_CICILAN_DITERIMA: {
+    name: "Tabungan — Cicilan Diterima",
+    template: `Assalamu'alaikum {nama} 🕌
+
+✅ *Cicilan Tabungan Diterima!*
+
+📦 Paket: *{nama_paket}*
+💰 Jumlah Cicilan: *{jumlah_cicilan}*
+📅 Tanggal: {tanggal}
+💳 Total Terkumpul: {total_terkumpul}
+🎯 Target: {target}
+⏳ Sisa: *{sisa}*
+
+Jazakallahu khairan, semoga tabungan Anda segera lunas. 🙏
+
+Info: {nomor_cs}`,
+    variables: ["nama", "nama_paket", "jumlah_cicilan", "tanggal", "total_terkumpul", "target", "sisa", "nomor_cs"],
+  },
+
+  SAVINGS_CICILAN_DITOLAK: {
+    name: "Tabungan — Cicilan Ditolak",
+    template: `Assalamu'alaikum {nama} 🕌
+
+❌ *Cicilan Tabungan Ditolak*
+
+📦 Paket: *{nama_paket}*
+💰 Jumlah: {jumlah_cicilan}
+📅 Tanggal: {tanggal}
+
+📋 Alasan: _{alasan}_
+
+Mohon lakukan pembayaran ulang atau hubungi kami untuk informasi lebih lanjut.
+
+Info: {nomor_cs}`,
+    variables: ["nama", "nama_paket", "jumlah_cicilan", "tanggal", "alasan", "nomor_cs"],
+  },
+
+  SAVINGS_REMINDER: {
+    name: "Tabungan — Pengingat Cicilan",
+    template: `Assalamu'alaikum {nama} 🕌
+
+⏰ *Pengingat Cicilan Tabungan*
+
+📦 Paket: *{nama_paket}*
+💰 Cicilan Bulan Ini: *{jumlah_cicilan}*
+💳 Terkumpul: {total_terkumpul} dari {target}
+📅 Target Lunas: {target_date}
+
+Jangan lupa lakukan pembayaran cicilan agar tabungan Anda tetap berjalan lancar. 🙏
+
+Pembayaran via transfer ke rekening kami:
+{info_rekening}
+
+Info: {nomor_cs}`,
+    variables: ["nama", "nama_paket", "jumlah_cicilan", "total_terkumpul", "target", "target_date", "info_rekening", "nomor_cs"],
+  },
+
+  SAVINGS_LUNAS: {
+    name: "Tabungan — Lunas",
+    template: `Assalamu'alaikum {nama} 🕌
+
+🎉 *Alhamdulillah — Tabungan Lunas!*
+
+Selamat! Tabungan Umroh Anda untuk paket *{nama_paket}* telah LUNAS.
+
+💰 Total Terkumpul: *{total_terkumpul}*
+📅 Lunas pada: {tanggal}
+
+Tim kami akan segera menghubungi Anda untuk proses konfirmasi booking dan persiapan keberangkatan. 🕌✈️
+
+Semoga menjadi umroh yang mabrur! 🤲
+
+Info: {nomor_cs}`,
+    variables: ["nama", "nama_paket", "total_terkumpul", "tanggal", "nomor_cs"],
   },
 };
 

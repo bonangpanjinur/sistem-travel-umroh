@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -5,10 +6,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ArrowLeft, MapPin, Clock, Calendar, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, MapPin, Clock, Calendar, CheckCircle2, Share2, Bus, Users, Navigation } from "lucide-react";
 import { Link } from "react-router-dom";
 import { JamaahBottomNav } from "@/components/jamaah/JamaahBottomNav";
-import { format, addDays, isToday, isBefore, isAfter } from "date-fns";
+import { format, addDays, isToday, isBefore } from "date-fns";
 import { id } from "date-fns/locale";
 
 interface ItineraryDay {
@@ -169,24 +170,133 @@ export default function JamaahItinerary() {
     return "future";
   };
 
+  const [showTransport, setShowTransport] = useState(true);
+
+  // Derive transport info from booking/departure
+  const transportSchedule = booking ? [
+    {
+      label: "Penjemputan ke Bandara",
+      time: departure?.departure_date
+        ? format(new Date(new Date(departure.departure_date).getTime() - 3 * 60 * 60 * 1000), "HH:mm")
+        : "05:00",
+      location: "Titik Kumpul – Kantor Travel",
+      bus: "Bus A1",
+      notes: "Tiba 30 menit sebelum waktu kumpul",
+    },
+    {
+      label: "Transfer Jeddah → Madinah",
+      time: "Setelah tiba di Jeddah",
+      location: "Bandara King Abdulaziz, Jeddah",
+      bus: "Bus Charter",
+      notes: "Perkiraan 5-6 jam perjalanan darat",
+    },
+    {
+      label: "Transfer Madinah → Makkah",
+      time: "Hari ke-4 atau ke-5",
+      location: "Hotel Madinah",
+      bus: "Bus Rombongan",
+      notes: "Sesuai instruksi muthawif",
+    },
+    {
+      label: "Transfer Makkah → Jeddah (Pulang)",
+      time: departure?.return_date
+        ? format(new Date(new Date(departure.return_date).getTime() - 4 * 60 * 60 * 1000), "HH:mm")
+        : "08:00",
+      location: "Hotel Makkah",
+      bus: "Bus Charter",
+      notes: "Perkiraan 1-2 jam perjalanan",
+    },
+  ] : [];
+
   return (
     <div className="min-h-screen bg-background pb-20">
       {/* Header */}
       <div className="bg-primary text-primary-foreground p-4 sticky top-0 z-50">
-        <div className="flex items-center gap-3">
-          <Link to="/jamaah">
-            <Button variant="ghost" size="icon" className="text-primary-foreground">
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-          </Link>
-          <div>
-            <h1 className="font-semibold">Itinerary</h1>
-            <p className="text-xs opacity-80">{packageData?.name || "Jadwal Perjalanan"}</p>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Link to="/jamaah">
+              <Button variant="ghost" size="icon" className="text-primary-foreground">
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+            </Link>
+            <div>
+              <h1 className="font-semibold">Itinerary</h1>
+              <p className="text-xs opacity-80">{packageData?.name || "Jadwal Perjalanan"}</p>
+            </div>
           </div>
+          {/* Q3: Tombol Share untuk Itinerary */}
+          {itinerary.length > 0 && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-primary-foreground"
+              onClick={async () => {
+                const text = itinerary.map(day =>
+                  `Hari ${day.day} - ${day.title}\n` +
+                  day.activities.map(a => `  ${a.time} ${a.activity}${a.location ? ` (${a.location})` : ""}`).join("\n")
+                ).join("\n\n");
+                const shareData = {
+                  title: `Itinerary ${packageData?.name || "Perjalanan Umroh"}`,
+                  text: `*Itinerary ${packageData?.name || "Umroh/Haji"}*\n\n${text}`,
+                };
+                if (navigator.share) {
+                  try { await navigator.share(shareData); } catch {}
+                } else {
+                  await navigator.clipboard.writeText(shareData.text);
+                  const { toast } = await import("sonner");
+                  toast.success("Itinerary disalin ke clipboard!");
+                }
+              }}
+            >
+              <Share2 className="h-5 w-5" />
+            </Button>
+          )}
         </div>
       </div>
 
       <div className="p-4">
+
+        {/* O2: Info Transportasi / Bus */}
+        {transportSchedule.length > 0 && (
+          <div className="mb-4">
+            <button
+              onClick={() => setShowTransport(v => !v)}
+              className="w-full flex items-center justify-between bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 mb-2"
+            >
+              <span className="flex items-center gap-2 text-blue-800 font-semibold text-sm">
+                <Bus className="h-4 w-4" /> Info Transportasi & Bus
+              </span>
+              <span className="text-blue-500 text-xs">{showTransport ? "Sembunyikan ▲" : "Tampilkan ▼"}</span>
+            </button>
+            {showTransport && (
+              <div className="space-y-2">
+                {transportSchedule.map((t, idx) => (
+                  <div key={idx} className="bg-white border border-blue-100 rounded-xl p-3 flex gap-3">
+                    <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                      <Bus className="h-4 w-4 text-blue-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-sm font-semibold text-gray-800 truncate">{t.label}</p>
+                        <span className="text-xs font-mono text-blue-700 bg-blue-50 px-2 py-0.5 rounded-lg flex-shrink-0">{t.time}</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                        <Navigation className="h-3 w-3" />{t.location}
+                      </p>
+                      <div className="flex items-center gap-3 mt-1">
+                        <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <Users className="h-3 w-3" />{t.bus}
+                        </span>
+                        <span className="text-[11px] text-muted-foreground">{t.notes}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {itinerary.length === 0 ? (
           <Card className="p-8 text-center">
             <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-4" />

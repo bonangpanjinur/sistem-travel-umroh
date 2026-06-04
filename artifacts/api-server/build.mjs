@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { build as esbuild } from "esbuild";
 import esbuildPluginPino from "esbuild-plugin-pino";
-import { rm } from "node:fs/promises";
+import { rm, cp, stat, mkdir } from "node:fs/promises";
 
 // Plugins (e.g. 'esbuild-plugin-pino') may use `require` to resolve dependencies
 globalThis.require = createRequire(import.meta.url);
@@ -29,6 +29,8 @@ async function buildAll() {
     // - use path traversal to read files (e.g. @google-cloud/secret-manager loads sibling .proto files)
     external: [
       "*.node",
+      "pdfkit",
+      "xlsx",
       "sharp",
       "better-sqlite3",
       "sqlite3",
@@ -46,6 +48,7 @@ async function buildAll() {
       "dtrace-provider",
       "isolated-vm",
       "lightningcss",
+      "pg",
       "pg-native",
       "oracledb",
       "mongodb-client-encryption",
@@ -118,6 +121,31 @@ globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
     `,
     },
   });
+
+  // Copy SQL migration files into dist so they are available at runtime.
+  // These copies are optional — if the source directories/files are missing the
+  // build continues without error (Supabase is the canonical SQL store).
+
+  const sqlDist = path.resolve(distDir, "sql");
+  const srcSql  = path.resolve(artifactDir, "src/sql");
+
+  try {
+    await stat(srcSql);
+    await cp(srcSql, sqlDist, { recursive: true });
+    console.log("✓ src/sql copied to dist/sql/");
+  } catch {
+    await mkdir(sqlDist, { recursive: true });
+    console.log("ℹ src/sql not found — skipping SQL copy (using Supabase migrations)");
+  }
+
+  const rootSql = path.resolve(artifactDir, "../../sql/MASTER_FRESH_INSTALL.sql");
+  try {
+    await stat(rootSql);
+    await cp(rootSql, path.resolve(sqlDist, "01_schema.sql"));
+    console.log("✓ MASTER_FRESH_INSTALL.sql copied to dist/sql/01_schema.sql");
+  } catch {
+    console.log("ℹ MASTER_FRESH_INSTALL.sql not found — skipping");
+  }
 }
 
 buildAll().catch((err) => {

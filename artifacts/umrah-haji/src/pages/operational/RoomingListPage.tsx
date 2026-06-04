@@ -13,6 +13,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   BedDouble, Users, Plus, Trash2, UserPlus,
   Download, Hotel, Filter, GripVertical, Printer, FileSpreadsheet, FileText
@@ -44,7 +45,7 @@ interface ExtendedDeparture extends DepartureRow {
 
 interface ExtendedDeparturePassenger {
   customer_id: string;
-  customer: Pick<CustomerRow, "id" | "full_name" | "gender"> | null;
+  customer: Pick<CustomerRow, "id" | "full_name" | "gender" | "mahram_name" | "mahram_relation"> | null;
   booking: { departure_id: string } | null;
 }
 
@@ -57,6 +58,7 @@ export default function RoomingListPage() {
   const [selectedRoom, setSelectedRoom] = useState<ExtendedRoomAssignment | null>(null);
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
   const [previewPdfUrl, setPreviewPdfUrl] = useState<string>("");
+  const [selectedPassengerIds, setSelectedPassengerIds] = useState<Set<string>>(new Set());
   const [roomFormData, setRoomFormData] = useState({
     room_number: "",
     room_type: "quad",
@@ -126,7 +128,7 @@ export default function RoomingListPage() {
         .from("booking_passengers")
         .select(`
           customer_id,
-          customer:customers(id, full_name, gender),
+          customer:customers(id, full_name, gender, mahram_name, mahram_relation),
           booking:bookings!inner(departure_id)
         `)
         .eq("booking.departure_id", selectedDepartureId);
@@ -173,19 +175,16 @@ export default function RoomingListPage() {
   });
 
   const assignPassengerMutation = useMutation({
-    mutationFn: async ({ roomId, customerId }: { roomId: string; customerId: string }) => {
-      const { error } = await supabase
-        .from("room_occupants")
-        .insert({
-          room_assignment_id: roomId,
-          customer_id: customerId,
-        });
+    mutationFn: async ({ roomId, customerIds }: { roomId: string; customerIds: string[] }) => {
+      const rows = customerIds.map(cid => ({ room_assignment_id: roomId, customer_id: cid }));
+      const { error } = await supabase.from("room_occupants").insert(rows);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["room-assignments"] });
       queryClient.invalidateQueries({ queryKey: ["unassigned-passengers"] });
-      toast.success("Jamaah berhasil ditempatkan");
+      toast.success(`${variables.customerIds.length} jamaah berhasil ditempatkan`);
+      setSelectedPassengerIds(new Set());
     },
     onError: (error: Error) => {
       toast.error("Gagal menempatkan jamaah: " + error.message);
@@ -220,6 +219,52 @@ export default function RoomingListPage() {
       toast.success("Kamar berhasil dihapus");
     },
   });
+
+  // Fetch multi-mahram data for unassigned passengers
+  const { data: allMahrams = [] } = useQuery({
+    queryKey: ['all-customer-mahrams', selectedDepartureId],
+    enabled: !!selectedDepartureId,
+    queryFn: async () => {
+      if (!unassignedPassengers || unassignedPassengers.length === 0) return [];
+      const customerIds = (unassignedPassengers || [])
+        .map(p => p.customer_id)
+        .filter(Boolean);
+      if (customerIds.length === 0) return [];
+      const { data, error } = await (supabase.from('customer_mahrams' as any) as any)
+        .select('customer_id, mahram_name, mahram_relation, relation_category')
+        .in('customer_id', customerIds);
+      if (error) return [];
+      return (data as any[]) || [];
+    },
+    staleTime: 1000 * 60 * 2,
+  });
+
+  const mahramsByCustomer = (allMahrams as any[]).reduce<Record<string, any[]>>((acc, m) => {
+    if (!acc[m.customer_id]) acc[m.customer_id] = [];
+    acc[m.customer_id].push(m);
+    return acc;
+  }, {});
+
+  const relationLabel = (cat: string) => {
+    const map: Record<string, string> = { suami: 'Suami', istri: 'Istri', anak: 'Anak', ayah: 'Ayah', ibu: 'Ibu', saudara: 'Saudara', kakek: 'Kakek', nenek: 'Nenek', cucu: 'Cucu', lainnya: 'Mahram' };
+    return map[cat] || cat;
+  };
+
+  // Auto-select family: pick all unassigned passengers who are mahrams of this customer
+  const autoSelectFamily = (customerId: string) => {
+    const myMahrams = mahramsByCustomer[customerId] || [];
+    const mahramNames = myMahrams.map((m: any) => (m.mahram_name || '').toLowerCase());
+    const next = new Set(selectedPassengerIds);
+    next.add(customerId);
+    (unassignedPassengers || []).forEach(p => {
+      if (!p.customer_id) return;
+      const name = (p.customer?.full_name || '').toLowerCase();
+      if (mahramNames.some(mn => mn && name.includes(mn.split(' ')[0]))) {
+        next.add(p.customer_id);
+      }
+    });
+    setSelectedPassengerIds(next);
+  };
 
   const selectedDeparture = departures?.find(d => d.id === selectedDepartureId);
   const hotels = selectedDeparture ? [
@@ -692,37 +737,98 @@ export default function RoomingListPage() {
       </Dialog>
 
       {/* Assign Passenger Dialog */}
-      <Dialog open={assignPassengerDialogOpen} onOpenChange={setAssignPassengerDialogOpen}>
-        <DialogContent>
+      <Dialog open={assignPassengerDialogOpen} onOpenChange={(open) => { setAssignPassengerDialogOpen(open); if (!open) setSelectedPassengerIds(new Set()); }}>
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Tambah Jamaah ke Kamar {selectedRoom?.room_number}</DialogTitle>
           </DialogHeader>
-          <div className="py-4">
-            <h4 className="text-sm font-semibold mb-2">Jamaah Belum Terassign</h4>
-            <ScrollArea className="h-[200px] pr-4">
-              {unassignedPassengers?.length === 0 ? (
-                <p className="text-xs text-muted-foreground">Semua jamaah sudah terassign atau tidak ada jamaah untuk keberangkatan ini.</p>
+          <div className="py-2">
+            {/* Capacity info */}
+            {selectedRoom && (
+              <div className="flex items-center gap-2 mb-3 text-xs text-muted-foreground bg-muted/40 rounded-md px-3 py-2">
+                <Users className="h-3.5 w-3.5" />
+                <span>Kapasitas: {selectedRoom.capacity} orang · Terisi: {selectedRoom.occupants?.length || 0} · Sisa: {(selectedRoom.capacity || 0) - (selectedRoom.occupants?.length || 0)}</span>
+              </div>
+            )}
+            <h4 className="text-sm font-semibold mb-2">Pilih Jamaah (multi-pilih)</h4>
+            <ScrollArea className="h-[260px] pr-2">
+              {!unassignedPassengers || unassignedPassengers.length === 0 ? (
+                <p className="text-xs text-muted-foreground text-center py-6">Semua jamaah sudah ditempatkan atau belum ada jamaah terdaftar.</p>
               ) : (
-                <ul className="space-y-1">
-                  {unassignedPassengers?.map((p) => (
-                    <li key={p.customer_id} className="flex items-center justify-between text-sm">
-                      <span>{p.customer?.full_name}</span>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => selectedRoom && assignPassengerMutation.mutate({ roomId: selectedRoom.id, customerId: p.customer_id })}
-                        disabled={assignPassengerMutation.isPending}
+                <div className="space-y-1.5">
+                  {unassignedPassengers.map((p) => {
+                    const isChecked = selectedPassengerIds.has(p.customer_id);
+                    const gender = p.customer?.gender;
+                    const mahrams = mahramsByCustomer[p.customer_id] || [];
+                    const legacyMahram = p.customer?.mahram_name;
+                    return (
+                      <div
+                        key={p.customer_id}
+                        className={`rounded-lg border transition-colors ${isChecked ? 'bg-primary/5 border-primary/40' : 'hover:bg-muted/50'}`}
                       >
-                        Assign
-                      </Button>
-                    </li>
-                  ))}
-                </ul>
+                        <label className="flex items-start gap-3 px-3 py-2.5 cursor-pointer w-full">
+                          <Checkbox
+                            checked={isChecked}
+                            onCheckedChange={(checked) => {
+                              const next = new Set(selectedPassengerIds);
+                              if (checked) next.add(p.customer_id);
+                              else next.delete(p.customer_id);
+                              setSelectedPassengerIds(next);
+                            }}
+                            className="mt-0.5"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-sm font-medium leading-tight">{p.customer?.full_name || '-'}</span>
+                              {gender && (
+                                <Badge variant={gender === 'male' ? 'default' : 'secondary'} className="text-[10px] h-4 px-1.5">
+                                  {gender === 'male' ? 'L' : 'P'}
+                                </Badge>
+                              )}
+                            </div>
+                            {mahrams.length > 0 ? (
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {mahrams.map((m: any, i: number) => (
+                                  <span key={i} className="text-[10px] bg-emerald-100 text-emerald-800 rounded-full px-1.5 py-0.5">
+                                    {relationLabel(m.relation_category || m.mahram_relation || 'mahram')}: {m.mahram_name}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : legacyMahram ? (
+                              <p className="text-[11px] text-muted-foreground mt-0.5">
+                                Mahram: {legacyMahram} ({p.customer?.mahram_relation})
+                              </p>
+                            ) : null}
+                          </div>
+                          {mahrams.length > 0 && (
+                            <button
+                              type="button"
+                              title="Pilih sekeluarga"
+                              onClick={(e) => { e.preventDefault(); autoSelectFamily(p.customer_id); }}
+                              className="text-[10px] text-emerald-700 hover:text-emerald-900 font-medium shrink-0 mt-0.5 border border-emerald-200 rounded px-1.5 py-0.5 hover:bg-emerald-50"
+                            >
+                              + Keluarga
+                            </button>
+                          )}
+                        </label>
+                      </div>
+                    );
+                  })}
+                </div>
               )}
             </ScrollArea>
+            {selectedPassengerIds.size > 0 && (
+              <p className="text-xs text-primary mt-2 font-medium">{selectedPassengerIds.size} jamaah dipilih</p>
+            )}
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAssignPassengerDialogOpen(false)}>Tutup</Button>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => { setAssignPassengerDialogOpen(false); setSelectedPassengerIds(new Set()); }}>Batal</Button>
+            <Button
+              onClick={() => selectedRoom && selectedPassengerIds.size > 0 && assignPassengerMutation.mutate({ roomId: selectedRoom.id, customerIds: Array.from(selectedPassengerIds) })}
+              disabled={assignPassengerMutation.isPending || selectedPassengerIds.size === 0 || !selectedRoom}
+            >
+              {assignPassengerMutation.isPending ? 'Menyimpan...' : `Tempatkan ${selectedPassengerIds.size > 0 ? `(${selectedPassengerIds.size})` : ''}`}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

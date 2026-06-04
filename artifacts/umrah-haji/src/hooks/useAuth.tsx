@@ -27,6 +27,8 @@ interface AuthContextType {
   isAdmin: () => boolean;
   isSuperAdmin: () => boolean;
   isStaff: () => boolean;
+  isAgent: () => boolean;
+  isCustomer: () => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -59,6 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(false);
       // Hard signOut to clear corrupted token in storage (fire & forget)
       supabase.auth.signOut().catch(() => {});
+      // Token will be cleared by supabase.auth.signOut()
       // Redirect to login if user is on a protected area
       const path = window.location.pathname;
       const isProtected =
@@ -97,14 +100,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(session?.user ?? null);
 
         if (session?.user) {
-          // Dedupe: skip refetch on TOKEN_REFRESHED / USER_UPDATED for same user
-          if (lastFetchedUserIdRef.current === session.user.id) {
-            dlog('[Auth] Skipping refetch - same user ID:', session.user.id);
-            setIsLoading(false);
-            return;
-          }
-          dlog('[Auth] Fetching user data for new user:', session.user.id);
-          fetchUserData(session.user.id);
+          // Check session version
+          (async () => {
+            const { data: profileData } = await supabase
+              .from('profiles')
+              .select('session_version')
+              .eq('id', session.user.id)
+              .maybeSingle();
+            
+            const currentVersion = profileData?.session_version || 1;
+            const sessionVersionKey = `session_version_${session.user.id}`;
+            const storedVersion = parseInt(localStorage.getItem(sessionVersionKey) || '0');
+
+            if (storedVersion !== 0 && currentVersion > storedVersion) {
+              console.warn('[Auth] Session revoked in background');
+              localStorage.removeItem(sessionVersionKey);
+              handleInvalidSession();
+              return;
+            }
+            
+            if (storedVersion === 0) {
+              localStorage.setItem(sessionVersionKey, currentVersion.toString());
+            }
+
+            // Dedupe: skip refetch on TOKEN_REFRESHED / USER_UPDATED for same user
+            if (lastFetchedUserIdRef.current === session.user.id) {
+              dlog('[Auth] Skipping refetch - same user ID:', session.user.id);
+              setIsLoading(false);
+              return;
+            }
+            dlog('[Auth] Fetching user data for new user:', session.user.id);
+            fetchUserData(session.user.id);
+          })();
         } else {
           dlog('[Auth] No session user - clearing profile and roles');
           lastFetchedUserIdRef.current = null;
@@ -162,7 +189,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Sync logout across tabs
     const handleStorage = (e: StorageEvent) => {
-      if (e.key && e.key.includes('supabase.auth.token') && !e.newValue) {
+      if (e.key && (e.key.includes('supabase.auth.token') || e.key === 'vinstour_access_token') && !e.newValue) {
         dlog('[Auth] Storage event - auth token cleared (logout from another tab)', {
           key: e.key,
           timestamp: new Date().toISOString()
@@ -265,6 +292,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     dlog('[Auth] signOut - clearing all auth state', {
       timestamp: new Date().toISOString()
     });
+    // Token will be cleared by supabase.auth.signOut()
     await supabase.auth.signOut();
     lastFetchedUserIdRef.current = null;
     setUser(null);
@@ -279,20 +307,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return roles.includes(role);
   };
 
+  /**
+   * Staf internal — punya akses ke panel admin (/admin, /operational, /hr).
+   * Agent & sub_agent adalah mitra eksternal, bukan staf internal.
+   * Customer & jamaah tidak termasuk.
+   */
   const isStaff = (): boolean => {
-    // Basic check for any staff role
-    const staffRoles: AppRole[] = ['super_admin', 'owner', 'branch_manager', 'finance', 'sales', 'marketing', 'operational', 'equipment', 'agent'];
-    return roles.some(role => staffRoles.includes(role));
+    const internalStaffRoles: AppRole[] = [
+      'super_admin', 'owner', 'branch_manager',
+      'finance', 'sales', 'marketing', 'operational', 'equipment',
+    ];
+    return roles.some(role => internalStaffRoles.includes(role));
   };
 
+  /**
+   * Admin — owner ke atas; berwenang mengelola pengguna, cabang, dan pengaturan.
+   */
   const isAdmin = (): boolean => {
-    // Strict admin check
     const adminRoles: AppRole[] = ['super_admin', 'owner', 'branch_manager'];
     return roles.some(role => adminRoles.includes(role));
   };
 
   const isSuperAdmin = (): boolean => {
     return roles.includes('super_admin');
+  };
+
+  /**
+   * Agen eksternal (agent atau sub_agent).
+   * Mereka memiliki portal sendiri di /agent, terpisah dari admin.
+   */
+  const isAgent = (): boolean => {
+    return roles.some(role => (['agent', 'sub_agent'] as AppRole[]).includes(role));
+  };
+
+  /**
+   * Pengguna publik yang sudah terdaftar (customer atau jamaah).
+   * Mereka hanya bisa mengakses portal pribadi di /jamaah dan /customer.
+   */
+  const isCustomer = (): boolean => {
+    return roles.some(role => (['customer', 'jamaah'] as AppRole[]).includes(role));
   };
 
   return (
@@ -311,6 +364,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAdmin,
         isSuperAdmin,
         isStaff,
+        isAgent,
+        isCustomer,
       }}
     >
       {children}

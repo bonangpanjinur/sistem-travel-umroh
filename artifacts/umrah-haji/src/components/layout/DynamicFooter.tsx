@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { useTheme } from '@/lib/themes/useTheme';
 import { Phone, Mail, MapPin, Facebook, Instagram, Youtube } from 'lucide-react';
 import { useWebsiteSettings, WebsiteSettings } from '@/hooks/useWebsiteSettings';
 import { Crown } from 'lucide-react';
@@ -54,7 +55,7 @@ interface DynamicFooterProps {
 export function DynamicFooter({ tenantSettings }: DynamicFooterProps = {}) {
   const { data: mainSettings } = useWebsiteSettings();
   const settings = tenantSettings || mainSettings;
-  const isRoyal = settings?.template === 'royal';
+  const { isDark } = useTheme(settings); const isRoyal = isDark;
   
   const companyName = settings?.company_name || 'UmrohTravel';
   const tagline = settings?.tagline || 'Perjalanan Suci Anda';

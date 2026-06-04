@@ -1,0 +1,88 @@
+{
+  "name": "Vinstour Travel — Umroh & Haji",
+  "short_name": "Vinstour",
+  "description": "Platform manajemen Umroh & Haji digital. Pantau perjalanan ibadah, dokumen, itinerary, dan panduan ibadah.",
+  "start_url": "/jamaah",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0f2518",
+  "theme_color": "#15803d",
+  "orientation": "portrait-primary",
+  "lang": "id",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "48x48",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "/images/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/images/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/images/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/images/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/opengraph.jpg",
+      "sizes": "1200x630",
+      "type": "image/jpeg",
+      "form_factor": "wide",
+      "label": "Vinstour Travel Portal"
+    }
+  ],
+  "categories": ["travel", "lifestyle"],
+  "shortcuts": [
+    {
+      "name": "Portal Jamaah",
+      "short_name": "Portal",
+      "description": "Buka portal jamaah Anda",
+      "url": "/jamaah",
+      "icons": [{ "src": "/images/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Waktu Sholat",
+      "short_name": "Sholat",
+      "description": "Cek jadwal waktu sholat",
+      "url": "/jamaah/waktu-sholat",
+      "icons": [{ "src": "/images/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Panduan Ibadah",
+      "short_name": "Panduan",
+      "description": "Panduan doa dan ibadah umroh",
+      "url": "/jamaah/panduan-ibadah",
+      "icons": [{ "src": "/images/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Cek Status Booking",
+      "short_name": "Booking",
+      "description": "Cek status booking perjalanan",
+      "url": "/cek-booking",
+      "icons": [{ "src": "/images/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

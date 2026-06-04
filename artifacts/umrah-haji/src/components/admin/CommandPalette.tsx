@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   CommandDialog,
@@ -7,11 +7,13 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
+  CommandSeparator,
 } from "@/components/ui/command";
 import { useDynamicMenus } from "@/hooks/useDynamicMenus";
 import { getMenuIcon } from "@/lib/admin-menu-icons";
+import { supabase } from "@/integrations/supabase/client";
+import { User, ShoppingCart, Loader2 } from "lucide-react";
 
-// Keyword mappings for better search
 const keywordMap: Record<string, string> = {
   'dashboard': 'beranda home overview',
   'analytics': 'statistik grafik chart',
@@ -63,13 +65,23 @@ const keywordMap: Record<string, string> = {
   'settings': 'setting konfigurasi pengaturan',
 };
 
+interface DataResult {
+  id: string;
+  label: string;
+  sublabel: string;
+  path: string;
+  type: 'booking' | 'customer';
+}
+
 export function CommandPalette() {
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [dataResults, setDataResults] = useState<DataResult[]>([]);
+  const [searching, setSearching] = useState(false);
   const navigate = useNavigate();
 
   const { menus } = useDynamicMenus();
 
-  // Convert dynamic menus to command palette format using tree-shaken icon registry
   const commandItems = useMemo(() => {
     return menus.map(menu => ({
       label: menu.label,
@@ -78,6 +90,62 @@ export function CommandPalette() {
       keywords: keywordMap[menu.key] || menu.label.toLowerCase(),
     }));
   }, [menus]);
+
+  // Data search with debounce
+  const searchData = useCallback(async (q: string) => {
+    if (q.trim().length < 2) {
+      setDataResults([]);
+      return;
+    }
+    setSearching(true);
+    try {
+      const sanitized = q.trim().replace(/[%_]/g, '');
+      const [bookingRes, customerRes] = await Promise.all([
+        supabase
+          .from('bookings')
+          .select('id, booking_code, customer:customers(full_name)')
+          .or(`booking_code.ilike.%${sanitized}%`)
+          .limit(5),
+        supabase
+          .from('customers')
+          .select('id, full_name, phone')
+          .or(`full_name.ilike.%${sanitized}%,phone.ilike.%${sanitized}%`)
+          .limit(5),
+      ]);
+
+      const results: DataResult[] = [];
+      for (const b of bookingRes.data || []) {
+        const c = (b.customer as any);
+        results.push({
+          id: b.id,
+          label: b.booking_code,
+          sublabel: c?.full_name || '',
+          path: `/admin/bookings/${b.id}`,
+          type: 'booking',
+        });
+      }
+      for (const c of customerRes.data || []) {
+        results.push({
+          id: c.id,
+          label: c.full_name,
+          sublabel: c.phone || '',
+          path: `/admin/customers/${c.id}`,
+          type: 'customer',
+        });
+      }
+      setDataResults(results);
+    } catch {
+      setDataResults([]);
+    } finally {
+      setSearching(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!open) { setDataResults([]); setQuery(""); return; }
+    const t = setTimeout(() => searchData(query), 300);
+    return () => clearTimeout(t);
+  }, [query, open, searchData]);
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -97,9 +165,47 @@ export function CommandPalette() {
 
   return (
     <CommandDialog open={open} onOpenChange={setOpen}>
-      <CommandInput placeholder="Cari halaman... (Ctrl+K)" />
+      <CommandInput
+        placeholder="Cari halaman, kode booking, nama jamaah... (Ctrl+K)"
+        value={query}
+        onValueChange={setQuery}
+      />
       <CommandList>
-        <CommandEmpty>Tidak ditemukan.</CommandEmpty>
+        <CommandEmpty>
+          {searching ? (
+            <div className="flex items-center justify-center gap-2 py-4 text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>Mencari...</span>
+            </div>
+          ) : (
+            "Tidak ditemukan."
+          )}
+        </CommandEmpty>
+
+        {dataResults.length > 0 && (
+          <>
+            <CommandGroup heading="Hasil Pencarian Data">
+              {dataResults.map(item => (
+                <CommandItem
+                  key={`data-${item.type}-${item.id}`}
+                  value={`${item.label} ${item.sublabel}`}
+                  onSelect={() => handleSelect(item.path)}
+                >
+                  {item.type === 'booking'
+                    ? <ShoppingCart className="mr-2 h-4 w-4 text-blue-500" />
+                    : <User className="mr-2 h-4 w-4 text-emerald-500" />
+                  }
+                  <div className="flex flex-col">
+                    <span className="font-medium">{item.label}</span>
+                    {item.sublabel && <span className="text-xs text-muted-foreground">{item.sublabel}</span>}
+                  </div>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+            <CommandSeparator />
+          </>
+        )}
+
         <CommandGroup heading="Navigasi Admin">
           {commandItems.map((item) => (
             <CommandItem

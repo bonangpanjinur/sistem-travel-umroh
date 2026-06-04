@@ -53,7 +53,8 @@ export default function StaticPage() {
 }
 
 // Simple markdown to HTML converter
-function markdownToHtml(md: string): string {
+function markdownToHtml(md: string | null | undefined): string {
+  if (!md) return "";
   return md
     .replace(/^### (.+)$/gm, '<h3>$1</h3>')
     .replace(/^## (.+)$/gm, '<h2>$1</h2>')

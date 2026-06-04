@@ -1,4 +1,5 @@
 import { useState } from "react";
+import * as XLSX from "xlsx";
 import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,18 +15,21 @@ import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import {
   Search, Plus, Check, Users, Box, BarChart3, Package as PackageIcon,
-  Loader2, AlertTriangle, User, ChevronRight, Settings, Database
+  Loader2, AlertTriangle, User, ChevronRight, Settings, Database, RotateCcw, Download,
 } from "lucide-react";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
-import { EquipmentDistributionDialog } from "@/components/operational/equipment/EquipmentDistributionDrawer";
+import { EquipmentDistributionDialogWithPhoto } from "@/components/operational/equipment/EquipmentDistributionDrawerWithPhoto";
 import { AddStockDialog } from "@/components/operational/equipment/AddStockDialog";
 import { MasterDataTab } from "@/components/operational/equipment/MasterDataTab";
 import { EquipmentRealizationTab } from "@/components/operational/equipment/EquipmentRealizationTab";
 import { PrintManifest } from "@/components/operational/equipment/PrintManifest";
+import { EquipmentReturnDialog } from "@/components/operational/equipment/EquipmentReturnDialog";
+import { EquipmentConfirmationTabWithPhoto } from "@/components/operational/equipment/EquipmentConfirmationTabWithPhoto";
+import { EquipmentStockPerDeparture } from "@/components/operational/equipment/EquipmentStockPerDeparture";
 
 export interface EquipmentItem {
   id: string;
@@ -34,6 +38,8 @@ export interface EquipmentItem {
   stock_quantity: number;
   category?: string;
   low_stock_threshold?: number;
+  has_sizes?: boolean;
+  available_sizes?: string[];
 }
 
 export interface Distribution {
@@ -69,6 +75,10 @@ export default function EquipmentPage() {
   const [showMasterData, setShowMasterData] = useState(false);
   const [showRealization, setShowRealization] = useState(false);
   const [showManifest, setShowManifest] = useState(false);
+  const [isReturnDialogOpen, setIsReturnDialogOpen] = useState(false);
+  const [returnJamaah, setReturnJamaah] = useState<Passenger | null>(null);
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [showStockReport, setShowStockReport] = useState(false);
 
   // Fetch packages
   const { data: packages } = useQuery({
@@ -127,11 +137,7 @@ export default function EquipmentPage() {
           is_main_passenger, passenger_type
         `)
         .eq("booking.departure_id", selectedDeparture);
-      if (error) {
-        console.error("passengers query error:", error);
-        throw error;
-      }
-      console.log("passengers query result:", data);
+      if (error) throw error;
       return (data || []) as Passenger[];
     },
     enabled: !!selectedDeparture,
@@ -227,11 +233,7 @@ export default function EquipmentPage() {
         p_distributions: inserts
       });
       
-      if (error) {
-        console.error("bulk_distribute error:", error);
-        throw error;
-      }
-      console.log("bulk_distribute result:", data);
+      if (error) throw error;
       return data;
     },
     onSuccess: (count) => {
@@ -247,6 +249,11 @@ export default function EquipmentPage() {
     setIsDistDialogOpen(true);
   };
 
+  const handleOpenReturn = (p: Passenger) => {
+    setReturnJamaah(p);
+    setIsReturnDialogOpen(true);
+  };
+
   const handleStockClick = (itemId: string) => {
     setAddStockPreselect(itemId);
     setIsAddStockOpen(true);
@@ -255,6 +262,47 @@ export default function EquipmentPage() {
   const hasDeparture = !!selectedDeparture;
   const selectedPkgName = packages?.find(p => p.id === selectedPackage)?.name;
   const selectedDepDate = departures?.find(d => d.id === selectedDeparture);
+
+  // E6 — Export distribusi perlengkapan ke Excel
+  const exportDistribusiExcel = () => {
+    if (!distributions || distributions.length === 0) {
+      toast.error("Belum ada data distribusi untuk diekspor");
+      return;
+    }
+    const depDate = selectedDepDate ? format(new Date(selectedDepDate.departure_date), "dd-MM-yyyy", { locale: localeId }) : "";
+    const rows = (passengers || []).map((p, idx) => {
+      const applicable = getApplicableItems(p.customer?.gender, p.passenger_type);
+      const status = getJamaahStatus(p.customer_id, p.customer?.gender, p.passenger_type);
+      const receivedItems = applicable
+        .filter(item => (distributions || []).some(d => d.equipment_id === item.id && d.customer_id === p.customer_id))
+        .map(i => i.name)
+        .join(", ");
+      const missingItems = applicable
+        .filter(item => !(distributions || []).some(d => d.equipment_id === item.id && d.customer_id === p.customer_id))
+        .map(i => i.name)
+        .join(", ");
+      return {
+        "No":              idx + 1,
+        "Nama Jamaah":     p.customer.full_name,
+        "L/P":             p.customer?.gender === "male" || p.customer?.gender === "Laki-laki" ? "L" : "P",
+        "Tipe Pax":        p.passenger_type || "adult",
+        "Item Diterima":   receivedItems || "-",
+        "Item Belum":      missingItems || "-",
+        "Selesai":         `${status.completed}/${status.total}`,
+        "Progress (%)":    Math.round(status.pct),
+        "Status":          status.completed === status.total && status.total > 0 ? "✓ Selesai" : "⏳ Belum Selesai",
+      };
+    });
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws["!cols"] = [4, 30, 5, 10, 40, 40, 10, 12, 15].map(w => ({ wch: w }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Distribusi Perlengkapan");
+    XLSX.writeFile(wb, `Distribusi-Perlengkapan-${selectedPkgName || "Paket"}-${depDate}.xlsx`);
+    toast.success("Export Excel distribusi perlengkapan berhasil!");
+  };
+
+  // E5 — Low stock items
+  const lowStockItems = (items || []).filter(item => item.stock_quantity <= (item.low_stock_threshold || 10));
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -267,6 +315,12 @@ export default function EquipmentPage() {
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => setShowRealization(true)}>
             <BarChart3 className="h-4 w-4 mr-1.5" /> Realisasi
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setShowConfirmation(true)} disabled={!selectedDeparture}>
+            <Check className="h-4 w-4 mr-1.5" /> Konfirmasi
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setShowStockReport(true)} disabled={!selectedDeparture}>
+            <BarChart3 className="h-4 w-4 mr-1.5" /> Laporan Stok
           </Button>
           <Button variant="outline" size="sm" onClick={() => setShowManifest(true)} disabled={!selectedDeparture}>
             <Search className="h-4 w-4 mr-1.5" /> Manifest
@@ -326,6 +380,31 @@ export default function EquipmentPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* E5 — Low stock alert banner */}
+      {lowStockItems.length > 0 && (
+        <div className="flex items-start gap-3 p-4 rounded-lg bg-amber-50 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-800">
+          <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+          <div className="space-y-2 flex-1">
+            <p className="font-semibold text-sm text-amber-800 dark:text-amber-200">
+              Stok Rendah — {lowStockItems.length} item perlu diisi ulang
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {lowStockItems.map(item => (
+                <Badge
+                  key={item.id}
+                  variant="destructive"
+                  className="text-xs cursor-pointer hover:opacity-80 transition-opacity"
+                  onClick={() => handleStockClick(item.id)}
+                >
+                  {item.name} (sisa: {item.stock_quantity})
+                </Badge>
+              ))}
+            </div>
+            <p className="text-[11px] text-amber-600 dark:text-amber-400">Klik badge untuk tambah stok langsung.</p>
+          </div>
+        </div>
+      )}
 
       {!hasDeparture ? (
         <div className="flex flex-col items-center justify-center py-20 text-center space-y-4 bg-muted/10 rounded-xl border-2 border-dashed">
@@ -432,7 +511,19 @@ export default function EquipmentPage() {
                   <CardTitle className="text-lg">Daftar Jamaah</CardTitle>
                   <p className="text-xs text-muted-foreground">Kelola distribusi per individu</p>
                 </div>
-                <Badge variant="secondary">{filteredPassengers.length} Orang</Badge>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={exportDistribusiExcel}
+                    disabled={!distributions?.length}
+                    title="Export laporan distribusi ke Excel"
+                  >
+                    <Download className="h-4 w-4 mr-1.5" />
+                    Export Excel
+                  </Button>
+                  <Badge variant="secondary">{filteredPassengers.length} Orang</Badge>
+                </div>
               </CardHeader>
               <CardContent className="flex-1 p-0">
                 <div className="overflow-x-auto">
@@ -491,15 +582,34 @@ export default function EquipmentPage() {
                                 </div>
                               </TableCell>
                               <TableCell className="text-right">
-                                <Button 
-                                  size="sm" 
-                                  variant={isComplete ? "outline" : "default"}
-                                  className={`h-8 px-3 ${isComplete ? 'border-green-200 text-green-700 hover:bg-green-50' : ''}`}
-                                  onClick={() => handleOpenDist(p)}
-                                >
-                                  {isComplete ? <Check className="h-3.5 w-3.5 mr-1" /> : <Plus className="h-3.5 w-3.5 mr-1" />}
-                                  {isComplete ? 'Lengkap' : 'Kelola'}
-                                </Button>
+                                <div className="flex items-center justify-end gap-1.5">
+                                  {status.completed > 0 && (
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="h-8 px-2 border-amber-200 text-amber-700 hover:bg-amber-50"
+                                            onClick={() => handleOpenReturn(p)}
+                                          >
+                                            <RotateCcw className="h-3.5 w-3.5" />
+                                          </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>Retur Perlengkapan</TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  )}
+                                  <Button
+                                    size="sm"
+                                    variant={isComplete ? "outline" : "default"}
+                                    className={`h-8 px-3 ${isComplete ? 'border-green-200 text-green-700 hover:bg-green-50' : ''}`}
+                                    onClick={() => handleOpenDist(p)}
+                                  >
+                                    {isComplete ? <Check className="h-3.5 w-3.5 mr-1" /> : <Plus className="h-3.5 w-3.5 mr-1" />}
+                                    {isComplete ? 'Lengkap' : 'Kelola'}
+                                  </Button>
+                                </div>
                               </TableCell>
                             </TableRow>
                           );
@@ -523,7 +633,7 @@ export default function EquipmentPage() {
 
       {/* Dialogs */}
       {selectedJamaah && (
-        <EquipmentDistributionDialog
+        <EquipmentDistributionDialogWithPhoto
           open={isDistDialogOpen}
           onOpenChange={setIsDistDialogOpen}
           jamaahId={selectedJamaah.customer_id}
@@ -540,6 +650,16 @@ export default function EquipmentPage() {
         items={items || []}
         preselectedItemId={addStockPreselect}
       />
+
+      {returnJamaah && (
+        <EquipmentReturnDialog
+          open={isReturnDialogOpen}
+          onOpenChange={setIsReturnDialogOpen}
+          jamaahId={returnJamaah.customer_id}
+          jamaahName={returnJamaah.customer.full_name}
+          departureId={selectedDeparture}
+        />
+      )}
 
       <Dialog open={showMasterData} onOpenChange={setShowMasterData}>
         <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
@@ -568,6 +688,37 @@ export default function EquipmentPage() {
             distributions={distributions}
             departureName={selectedPkgName}
             departureDate={selectedDepDate?.departure_date}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* B8: Konfirmasi Penerimaan Perlengkapan */}
+      <Dialog open={showConfirmation} onOpenChange={setShowConfirmation}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Check className="h-5 w-5 text-green-600" />
+              Konfirmasi Penerimaan Perlengkapan
+            </DialogTitle>
+          </DialogHeader>
+          <EquipmentConfirmationTabWithPhoto departureId={selectedDeparture} />
+        </DialogContent>
+      </Dialog>
+
+      {/* B10: Laporan Stok Per Keberangkatan */}
+      <Dialog open={showStockReport} onOpenChange={setShowStockReport}>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <BarChart3 className="h-5 w-5 text-blue-600" />
+              Laporan Stok Per Keberangkatan
+            </DialogTitle>
+          </DialogHeader>
+          <EquipmentStockPerDeparture
+            departureId={selectedDeparture}
+            departureName={selectedPkgName && selectedDepDate
+              ? `${selectedPkgName} — ${format(new Date(selectedDepDate.departure_date), "dd MMMM yyyy", { locale: localeId })}`
+              : selectedPkgName}
           />
         </DialogContent>
       </Dialog>

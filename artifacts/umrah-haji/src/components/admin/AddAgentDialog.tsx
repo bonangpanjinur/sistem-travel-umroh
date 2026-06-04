@@ -60,8 +60,10 @@ export default function AddAgentDialog({ open, onOpenChange, parentAgentId = nul
         throw new Error("Nama dan email wajib diisi");
       }
 
-      const { data, error } = await supabase.functions.invoke('create-agent', {
-        body: {
+      const res = await fetch('/api/agents/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           fullName: form.fullName,
           email: form.email,
           phone: form.phone,
@@ -73,11 +75,11 @@ export default function AddAgentDialog({ open, onOpenChange, parentAgentId = nul
           npwp: form.npwp,
           branchId: form.branchId || null,
           parentAgentId: parentAgentId || (form.parentAgentId === "none" ? null : form.parentAgentId),
-        },
+        }),
       });
 
-      if (error) throw new Error(error.message || "Gagal membuat agent");
-      if (data?.error) throw new Error(data.error);
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || "Gagal membuat agent");
 
       return data;
     },

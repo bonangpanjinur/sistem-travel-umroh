@@ -2,6 +2,8 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useOfflineCache } from "@/hooks/useOfflineCache";
+import { OfflineBanner } from "@/components/OfflineBanner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -78,6 +80,8 @@ export default function JamaahDocuments() {
   const [notes, setNotes] = useState("");
   const [uploading, setUploading] = useState(false);
 
+  const [packageFilter, setPackageFilter] = useState<"all" | "haji" | "umroh">("all");
+
   const { data: customer } = useQuery({
     queryKey: ["jamaah-customer", user?.id],
     queryFn: async () => {
@@ -91,6 +95,26 @@ export default function JamaahDocuments() {
       return data;
     },
     enabled: !!user?.id,
+  });
+
+  const { data: activeBookingPackage } = useQuery({
+    queryKey: ["jamaah-booking-package", customer?.id],
+    queryFn: async () => {
+      if (!customer?.id) return null;
+      const { data } = await supabase
+        .from("bookings")
+        .select("departure:departures(package:packages(name, code))")
+        .eq("customer_id", customer.id)
+        .in("booking_status", ["confirmed", "processing"])
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const name: string = (data as any)?.departure?.package?.name || "";
+      if (name.toLowerCase().includes("haji")) return "haji";
+      if (name.toLowerCase().includes("umroh") || name.toLowerCase().includes("umrah")) return "umroh";
+      return null;
+    },
+    enabled: !!customer?.id,
   });
 
   const { data: documentTypes } = useQuery({
@@ -127,7 +151,7 @@ export default function JamaahDocuments() {
   const allowedExts: string[] = selectedType?.allowed_extensions ?? ["jpg", "jpeg", "png", "pdf"];
   const acceptAttr = allowedExts.map((e) => `.${e}`).join(",");
 
-  const { data: documents, isLoading } = useQuery({
+  const { data: documentsRaw, isLoading } = useQuery({
     queryKey: ["jamaah-documents", customer?.id],
     queryFn: async () => {
       if (!customer?.id) return [];
@@ -141,6 +165,11 @@ export default function JamaahDocuments() {
     },
     enabled: !!customer?.id,
   });
+  // J3 — offline cache: fallback ke localStorage jika offline / belum ada data
+  const documents = useOfflineCache<any[]>(
+    `jamaah-documents:${customer?.id || "guest"}`,
+    documentsRaw,
+  );
 
   // Required document checklist progress
   const requiredProgress = useMemo(() => {
@@ -195,6 +224,17 @@ export default function JamaahDocuments() {
         notes: notes || null,
       });
       if (insErr) throw insErr;
+
+      // Kirim notifikasi realtime ke admin via tabel notifications (payload channel)
+      try {
+        await (supabase as any).from('notifications').insert({
+          type: 'document',
+          title: 'Dokumen Baru Diunggah',
+          message: `${customer?.full_name || 'Jamaah'} mengunggah dokumen baru. Silakan verifikasi.`,
+          is_read: false,
+          link: '/admin/document-verification',
+        }).then(() => {});
+      } catch {}
     },
     onSuccess: () => {
       toast.success("Dokumen berhasil diunggah. Menunggu verifikasi staff.");
@@ -253,6 +293,27 @@ export default function JamaahDocuments() {
       </div>
 
       <div className="p-4 space-y-4">
+        <OfflineBanner />
+        {/* Package Type Filter */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {activeBookingPackage && (
+            <Badge variant="outline" className={activeBookingPackage === 'haji' ? 'border-green-500 text-green-700 bg-green-50' : 'border-blue-500 text-blue-700 bg-blue-50'}>
+              Paket {activeBookingPackage === 'haji' ? 'Haji' : 'Umroh'} Aktif
+            </Badge>
+          )}
+          <div className="flex gap-1 ml-auto">
+            {(["all", "haji", "umroh"] as const).map(f => (
+              <button
+                key={f}
+                onClick={() => setPackageFilter(f)}
+                className={`text-xs px-3 py-1 rounded-full border font-medium transition-colors ${packageFilter === f ? 'bg-primary text-primary-foreground border-primary' : 'border-muted text-muted-foreground hover:border-primary/40'}`}
+              >
+                {f === 'all' ? 'Semua' : f === 'haji' ? 'Haji' : 'Umroh'}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Progress Card */}
         <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
           <CardContent className="p-4">
@@ -282,6 +343,93 @@ export default function JamaahDocuments() {
             )}
           </CardContent>
         </Card>
+
+        {/* F8: Checklist Dokumen Wajib */}
+        {documentTypes && documentTypes.filter((t: any) => t.is_required).length > 0 && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4 text-primary" />
+                Checklist Dokumen Wajib
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {documentTypes
+                .filter((t: any) => {
+                  if (!t.is_required) return false;
+                  if (packageFilter === "all") return true;
+                  const n = (t.name || "").toLowerCase();
+                  const c = (t.code || "").toLowerCase();
+                  if (packageFilter === "haji") return n.includes("haji") || c.includes("haji") || (!n.includes("umroh") && !n.includes("umrah") && !c.includes("umroh") && !c.includes("umrah"));
+                  if (packageFilter === "umroh") return n.includes("umroh") || n.includes("umrah") || c.includes("umroh") || c.includes("umrah") || (!n.includes("haji") && !c.includes("haji"));
+                  return true;
+                })
+                .map((docType: any) => {
+                  const uploaded = documents?.find(
+                    (d: any) => d.document_type?.id === docType.id && d.status !== "rejected"
+                  );
+                  const verified = uploaded?.status === "verified";
+                  const pending = uploaded?.status === "pending";
+                  const rejected = documents?.find(
+                    (d: any) => d.document_type?.id === docType.id && d.status === "rejected"
+                  );
+
+                  return (
+                    <div
+                      key={docType.id}
+                      className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${
+                        verified
+                          ? "bg-green-50 border-green-200"
+                          : pending
+                          ? "bg-yellow-50 border-yellow-200"
+                          : rejected
+                          ? "bg-red-50 border-red-200"
+                          : "bg-muted/30 border-muted"
+                      }`}
+                    >
+                      <div className="flex-shrink-0">
+                        {verified ? (
+                          <CheckCircle2 className="h-5 w-5 text-green-600" />
+                        ) : pending ? (
+                          <Clock className="h-5 w-5 text-yellow-600" />
+                        ) : rejected ? (
+                          <AlertCircle className="h-5 w-5 text-red-600" />
+                        ) : (
+                          <div className="h-5 w-5 rounded-full border-2 border-muted-foreground/30" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium">{docType.name}</p>
+                        {docType.description && (
+                          <p className="text-xs text-muted-foreground">{docType.description}</p>
+                        )}
+                      </div>
+                      <span
+                        className={`text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0 ${
+                          verified
+                            ? "bg-green-100 text-green-700"
+                            : pending
+                            ? "bg-yellow-100 text-yellow-700"
+                            : rejected
+                            ? "bg-red-100 text-red-700"
+                            : "bg-muted text-muted-foreground"
+                        }`}
+                      >
+                        {verified ? "✓ Terverifikasi" : pending ? "Menunggu" : rejected ? "Ditolak" : "Belum Upload"}
+                      </span>
+                    </div>
+                  );
+                })}
+              {progressPct === 100 && (
+                <div className="text-center py-2">
+                  <p className="text-sm font-semibold text-green-700">
+                    🎉 Semua dokumen wajib sudah terverifikasi!
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Upload Button */}
         <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { toast } from "sonner";
 import { Palette, Type, Layout, Image, Settings2, Eye, Sliders, LayoutTemplate, Square, Menu, Wallet, MessageCircle, Users, Search, MessageSquare, HelpCircle, Bell, Settings, FileText, MessageCircleMore, Package, CreditCard, Building2 } from "lucide-react";
 import { ThemeSelector } from "@/components/admin/appearance/ThemeSelector";
 import { ColorSettings } from "@/components/admin/appearance/ColorSettings";
@@ -10,6 +11,7 @@ import { PageBuilder } from "@/components/admin/appearance/PageBuilder";
 import { LivePreview } from "@/components/admin/appearance/LivePreview";
 import { CustomSectionEditor } from "@/components/admin/appearance/CustomSectionEditor";
 import { TemplateSelector } from "@/components/admin/appearance/TemplateSelector";
+import { LayoutVariantEditor } from "@/components/admin/appearance/LayoutVariantEditor";
 import { NavLinksEditor } from "@/components/admin/appearance/NavLinksEditor";
 import { AboutPageEditor } from "@/components/admin/appearance/AboutPageEditor";
 import { SavingsPageEditor } from "@/components/admin/appearance/SavingsPageEditor";
@@ -24,7 +26,6 @@ import { WhatsAppButtonSettings } from "@/components/admin/appearance/WhatsAppBu
 import { PackageListCustomization } from "@/components/admin/appearance/PackageListCustomization";
 import { BankAccountsSettings } from "@/components/admin/appearance/BankAccountsSettings";
 import { DocumentLayoutEditor } from "@/components/admin/appearance/DocumentLayoutEditor";
-import { DocumentSettingsForm } from "@/components/admin/DocumentSettingsForm";
 import { useWebsiteSettings, useThemePresets, useUpdateWebsiteSettings } from "@/hooks/useWebsiteSettings";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -96,7 +97,10 @@ export default function AdminAppearance() {
         footer_address: data.company_address,
       });
     } catch (error) {
-      console.error("Sync to website settings failed:", error);
+      toast.error(
+        "Sync ke pengaturan website gagal: " +
+          (error instanceof Error ? error.message : "unknown")
+      );
     }
   };
 
@@ -236,14 +240,6 @@ export default function AdminAppearance() {
             <Square className="h-4 w-4" />
             <span>Card Paket</span>
           </TabsTrigger>
-          <TabsTrigger value="document-settings" className="gap-2 py-2">
-            <FileText className="h-4 w-4" />
-            <span>Pengaturan Invoice</span>
-          </TabsTrigger>
-          <TabsTrigger value="document-layout" className="gap-2 py-2">
-            <LayoutTemplate className="h-4 w-4" />
-            <span>Layout Dokumen</span>
-          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="template">
@@ -269,6 +265,7 @@ export default function AdminAppearance() {
         </TabsContent>
 
         <TabsContent value="layout">
+          {settings && <div className="mb-6"><LayoutVariantEditor settings={settings} /></div>}
           {settings && <PageBuilder settings={settings} />}
         </TabsContent>
 
@@ -399,13 +396,7 @@ export default function AdminAppearance() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="document-settings">
-          <DocumentSettingsForm />
-        </TabsContent>
 
-        <TabsContent value="document-layout">
-          <DocumentLayoutEditor />
-        </TabsContent>
 
         <TabsContent value="bank-accounts">
           <BankAccountsSettings />

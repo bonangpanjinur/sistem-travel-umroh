@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { addMonths, differenceInDays, format, parseISO, isAfter, isBefore } from "date-fns";
@@ -26,13 +26,40 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Loader2, Pencil, Upload, FileText, CheckCircle, Clock, XCircle, Eye, Trash2, AlertTriangle, AlertCircle } from "lucide-react";
+import { Loader2, Pencil, Upload, FileText, CheckCircle, Clock, XCircle, Eye, Trash2, AlertTriangle, AlertCircle, Plus, Heart, ChevronsUpDown, Check, Download } from "lucide-react";
+import { DocumentPreviewModal } from "./DocumentPreviewModal";
+import { cn } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
 
 type Customer = Database["public"]["Tables"]["customers"]["Row"];
+type CustomerMahram = Database["public"]["Tables"]["customer_mahrams"]["Row"];
 type GenderType = Database["public"]["Enums"]["gender_type"];
+
+// Mapping hubungan mahram timbal balik
+const RECIPROCAL_RELATIONS: Record<string, string> = {
+  suami: "istri",
+  istri: "suami",
+  ayah: "anak",
+  ibu: "anak",
+  anak: "ayah", // atau ibu, tapi untuk simplifikasi pakai ayah
+  saudara: "saudara",
+  paman: "keponakan",
+  kakek: "cucu",
+  nenek: "cucu",
+  cucu: "kakek", // atau nenek
+  keponakan: "paman",
+};
 
 interface EditCustomerDialogProps {
   customer: Customer;
@@ -43,6 +70,8 @@ interface EditCustomerDialogProps {
 export function EditCustomerDialog({ customer, trigger, onSuccess }: EditCustomerDialogProps) {
   const [open, setOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("personal");
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewDoc, setPreviewDoc] = useState<{ url: string; name: string } | null>(null);
   const queryClient = useQueryClient();
 
   const [formData, setFormData] = useState({
@@ -61,6 +90,8 @@ export function EditCustomerDialog({ customer, trigger, onSuccess }: EditCustome
     address: "",
     city: "",
     province: "",
+    district: "",
+    village: "",
     postal_code: "",
     // Paspor
     passport_number: "",
@@ -77,6 +108,8 @@ export function EditCustomerDialog({ customer, trigger, onSuccess }: EditCustome
   });
 
   const [uploading, setUploading] = useState<Record<string, boolean>>({});
+  const [familySearch, setFamilySearch] = useState("");
+  const [familySearchOpen, setFamilySearchOpen] = useState(false);
 
   // Fetch document types
   const { data: documentTypes } = useQuery({
@@ -132,6 +165,31 @@ export function EditCustomerDialog({ customer, trigger, onSuccess }: EditCustome
         .gte("booking.departure.departure_date", today);
       if (error) throw error;
       return data;
+    },
+  });
+
+  // Fetch customers for family/mahram selection (unified query)
+  const { data: familyCustomers, isLoading: loadingFamilyCustomers } = useQuery({
+    queryKey: ["customers-for-family", familySearch],
+    enabled: open && familySearchOpen,
+    queryFn: async () => {
+      let query = supabase
+        .from("customers")
+        .select("id, full_name, phone, email")
+        .neq("id", customer.id)
+        .order("full_name");
+
+      if (familySearch.trim()) {
+        const sanitized = familySearch.replace(/[%_()\\*?{}[\]]/g, "");
+        if (sanitized.trim()) {
+          query = query.or(
+            `full_name.ilike.%${sanitized}%,phone.ilike.%${sanitized}%,email.ilike.%${sanitized}%`
+          );
+        }
+      }
+      const { data, error } = await query.limit(20);
+      if (error) throw error;
+      return data || [];
     },
   });
 
@@ -207,13 +265,15 @@ export function EditCustomerDialog({ customer, trigger, onSuccess }: EditCustome
         address: customer.address || "",
         city: customer.city || "",
         province: customer.province || "",
+        district: customer.district || "",
+        village: customer.village || "",
         postal_code: customer.postal_code || "",
         passport_number: customer.passport_number || "",
         passport_expiry: customer.passport_expiry || "",
         father_name: customer.father_name || "",
         mother_name: customer.mother_name || "",
-        mahram_name: customer.mahram_name || "",
-        mahram_relation: customer.mahram_relation || "",
+        mahram_name: "",
+        mahram_relation: "",
         emergency_contact_name: customer.emergency_contact_name || "",
         emergency_contact_phone: customer.emergency_contact_phone || "",
         emergency_contact_relation: customer.emergency_contact_relation || "",
@@ -221,10 +281,29 @@ export function EditCustomerDialog({ customer, trigger, onSuccess }: EditCustome
     }
   }, [customer, open]);
 
+  // Fetch mahrams for this customer
+  const { data: mahrams, refetch: refetchMahrams } = useQuery({
+    queryKey: ["customer-mahrams", customer.id],
+    enabled: open,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("customer_mahrams")
+        .select("*")
+        .eq("customer_id", customer.id)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Update customer mutation
   const updateMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
       const updatePayload: any = { ...data };
-      
+      // Remove fields that shouldn't be updated
+      delete updatePayload.mahram_name;
+      delete updatePayload.mahram_relation;
+
       // Clean up empty strings for optional fields
       Object.keys(updatePayload).forEach(key => {
         if (updatePayload[key] === "") {
@@ -320,519 +399,639 @@ export function EditCustomerDialog({ customer, trigger, onSuccess }: EditCustome
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    updateMutation.mutate(formData);
-  };
+  const [newMahram, setNewMahram] = useState({
+    mahram_name: "",
+    mahram_relation: "",
+    notes: "",
+    mahram_customer_id: ""
+  });
 
-  const handleChange = (field: keyof typeof formData, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-  };
+  const addMahramMutation = useMutation({
+    mutationFn: async (m: typeof newMahram) => {
+      // If mahram_customer_id is provided, fetch the customer name
+      let mahramName = m.mahram_name;
+      if (m.mahram_customer_id) {
+        const selectedCustomer = familyCustomers?.find(c => c.id === m.mahram_customer_id);
+        if (selectedCustomer) {
+          mahramName = selectedCustomer.full_name;
+        }
+      }
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "verified":
-        return <Badge className="bg-green-100 text-green-800"><CheckCircle className="h-3 w-3 mr-1" />Terverifikasi</Badge>;
-      case "rejected":
-        return <Badge className="bg-red-100 text-red-800"><XCircle className="h-3 w-3 mr-1" />Ditolak</Badge>;
-      case "uploaded":
-        return <Badge className="bg-blue-100 text-blue-800"><Clock className="h-3 w-3 mr-1" />Menunggu Verifikasi</Badge>;
-      default:
-        return <Badge className="bg-amber-100 text-amber-800"><Clock className="h-3 w-3 mr-1" />Pending</Badge>;
+      // Insert mahram untuk customer A
+      const { error: insertError } = await supabase
+        .from("customer_mahrams" as any)
+        .insert({
+          customer_id: customer.id,
+          mahram_name: mahramName,
+          mahram_relation: m.mahram_relation,
+          mahram_customer_id: m.mahram_customer_id || null,
+          notes: m.notes
+        });
+
+      if (insertError) throw insertError;
+
+      // Jika ada mahram_customer_id, buat hubungan timbal balik untuk customer B
+      if (m.mahram_customer_id) {
+        const reciprocalRelation = RECIPROCAL_RELATIONS[m.mahram_relation] || "lainnya";
+        
+        const { error: reciprocalError } = await supabase
+          .from("customer_mahrams" as any)
+          .insert({
+            customer_id: m.mahram_customer_id,
+            mahram_name: customer.full_name,
+            mahram_relation: reciprocalRelation,
+            mahram_customer_id: customer.id,
+            notes: "Hubungan timbal balik otomatis"
+          });
+          
+        if (reciprocalError) {
+          console.warn("Gagal membuat hubungan timbal balik:", reciprocalError);
+        }
+      }
+    },
+    onSuccess: () => {
+      toast.success("Mahram berhasil ditambahkan");
+      setNewMahram({ mahram_name: "", mahram_relation: "", notes: "", mahram_customer_id: "" });
+      refetchMahrams();
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Gagal menambah mahram");
     }
-  };
+  });
+
+  const deleteMahramMutation = useMutation({
+    mutationFn: async (mahramId: string) => {
+      // Find the mahram to get the reciprocal info
+      const mahramToDelete = mahrams?.find(m => m.id === mahramId);
+      
+      // Delete the primary mahram record
+      const { error } = await supabase.from("customer_mahrams" as any).delete().eq("id", mahramId);
+      if (error) throw error;
+
+      // If it has a reciprocal customer link, try to delete that too
+      if (mahramToDelete?.mahram_customer_id) {
+        await supabase
+          .from("customer_mahrams" as any)
+          .delete()
+          .eq("customer_id", mahramToDelete.mahram_customer_id)
+          .eq("mahram_customer_id", customer.id);
+      }
+    },
+    onSuccess: () => {
+      toast.success("Mahram berhasil dihapus");
+      refetchMahrams();
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Gagal menghapus mahram");
+    }
+  });
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         {trigger || (
-          <Button variant="outline" size="sm">
-            <Pencil className="h-4 w-4 mr-2" />
-            Edit
+          <Button variant="ghost" size="icon">
+            <Pencil className="h-4 w-4" />
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit Data Jamaah</DialogTitle>
           <DialogDescription>
-            Perbarui informasi dan dokumen jamaah. Pastikan data yang diisi sudah benar.
+            Perbarui informasi lengkap jamaah {customer.full_name}
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit}>
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-5">
-              <TabsTrigger value="personal">Data Diri</TabsTrigger>
-              <TabsTrigger value="contact">Kontak</TabsTrigger>
-              <TabsTrigger value="passport">Paspor</TabsTrigger>
-              <TabsTrigger value="emergency">Darurat</TabsTrigger>
-              <TabsTrigger value="documents">Dokumen</TabsTrigger>
-            </TabsList>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid grid-cols-5 w-full">
+            <TabsTrigger value="personal">Data Diri</TabsTrigger>
+            <TabsTrigger value="contact">Kontak & Alamat</TabsTrigger>
+            <TabsTrigger value="passport">Paspor</TabsTrigger>
+            <TabsTrigger value="family">Keluarga & Mahram</TabsTrigger>
+            <TabsTrigger value="documents">Dokumen</TabsTrigger>
+          </TabsList>
 
-            {/* Data Diri Tab */}
-            <TabsContent value="personal" className="space-y-4 mt-4">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="full_name">Nama Lengkap *</Label>
-                  <Input
-                    id="full_name"
-                    value={formData.full_name}
-                    onChange={(e) => handleChange("full_name", e.target.value)}
-                    placeholder="Sesuai paspor/KTP"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="nik">NIK (KTP)</Label>
-                  <Input
-                    id="nik"
-                    value={formData.nik}
-                    onChange={(e) => handleChange("nik", e.target.value)}
-                    placeholder="16 digit"
-                    maxLength={16}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="gender">Jenis Kelamin</Label>
-                  <Select
-                    value={formData.gender}
-                    onValueChange={(val) => handleChange("gender", val)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Pilih jenis kelamin" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="male">Laki-laki</SelectItem>
-                      <SelectItem value="female">Perempuan</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="birth_place">Tempat Lahir</Label>
-                  <Input
-                    id="birth_place"
-                    value={formData.birth_place}
-                    onChange={(e) => handleChange("birth_place", e.target.value)}
-                    placeholder="Kota kelahiran"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="birth_date">Tanggal Lahir</Label>
-                  <Input
-                    id="birth_date"
-                    type="date"
-                    value={formData.birth_date}
-                    onChange={(e) => handleChange("birth_date", e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="blood_type">Golongan Darah</Label>
-                  <Select
-                    value={formData.blood_type}
-                    onValueChange={(val) => handleChange("blood_type", val)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Pilih golongan darah" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="A">A</SelectItem>
-                      <SelectItem value="B">B</SelectItem>
-                      <SelectItem value="AB">AB</SelectItem>
-                      <SelectItem value="O">O</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="marital_status">Status Pernikahan</Label>
-                  <Select
-                    value={formData.marital_status}
-                    onValueChange={(val) => handleChange("marital_status", val)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Pilih status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="single">Belum Menikah</SelectItem>
-                      <SelectItem value="married">Menikah</SelectItem>
-                      <SelectItem value="divorced">Cerai</SelectItem>
-                      <SelectItem value="widowed">Duda/Janda</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </TabsContent>
-
-            {/* Kontak Tab */}
-            <TabsContent value="contact" className="space-y-4 mt-4">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="phone">No. Telepon</Label>
-                  <Input
-                    id="phone"
-                    value={formData.phone}
-                    onChange={(e) => handleChange("phone", e.target.value)}
-                    placeholder="08xxxxxxxxxx"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => handleChange("email", e.target.value)}
-                    placeholder="email@example.com"
-                  />
-                </div>
-              </div>
+          <TabsContent value="personal" className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="address">Alamat Lengkap</Label>
-                <Textarea
-                  id="address"
-                  value={formData.address}
-                  onChange={(e) => handleChange("address", e.target.value)}
-                  placeholder="Jalan, RT/RW, Kelurahan, Kecamatan"
-                  rows={3}
-                />
-              </div>
-              <IndonesiaLocationSelect
-                province={formData.province}
-                city={formData.city}
-                onProvinceChange={(value) => handleChange("province", value)}
-                onCityChange={(value) => handleChange("city", value)}
-              />
-              <div className="space-y-2">
-                <Label htmlFor="postal_code">Kode Pos</Label>
+                <Label htmlFor="full_name">Nama Lengkap (Sesuai Paspor) *</Label>
                 <Input
-                  id="postal_code"
-                  value={formData.postal_code}
-                  onChange={(e) => handleChange("postal_code", e.target.value)}
-                  placeholder="12345"
-                  maxLength={5}
+                  id="full_name"
+                  value={formData.full_name}
+                  onChange={e => setFormData({ ...formData, full_name: e.target.value })}
                 />
               </div>
-            </TabsContent>
-
-            {/* Paspor Tab */}
-            <TabsContent value="passport" className="space-y-4 mt-4">
-              {/* Passport Validation Alert */}
-              {passportValidation && (
-                <Alert 
-                  variant={passportValidation.type === "error" ? "destructive" : "default"}
-                  className={
-                    passportValidation.type === "warning" 
-                      ? "border-amber-500 bg-amber-50 dark:bg-amber-950/30" 
-                      : passportValidation.type === "success"
-                      ? "border-green-500 bg-green-50 dark:bg-green-950/30"
-                      : ""
-                  }
+              <div className="space-y-2">
+                <Label htmlFor="nik">NIK</Label>
+                <Input
+                  id="nik"
+                  value={formData.nik}
+                  onChange={e => setFormData({ ...formData, nik: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="gender">Jenis Kelamin</Label>
+                <Select
+                  value={formData.gender}
+                  onValueChange={value => setFormData({ ...formData, gender: value as GenderType })}
                 >
-                  <passportValidation.icon className={`h-4 w-4 ${
-                    passportValidation.type === "warning" 
-                      ? "text-amber-600" 
-                      : passportValidation.type === "success"
-                      ? "text-green-600"
-                      : ""
-                  }`} />
-                  <AlertDescription className={
-                    passportValidation.type === "warning" 
-                      ? "text-amber-800 dark:text-amber-200" 
-                      : passportValidation.type === "success"
-                      ? "text-green-800 dark:text-green-200"
-                      : ""
-                  }>
-                    {passportValidation.message}
-                    {passportValidation.type === "warning" && passportValidation.departures && passportValidation.departures.length > 1 && (
-                      <div className="mt-2 text-sm">
-                        <strong>Keberangkatan lain yang terpengaruh:</strong>
-                        <ul className="list-disc ml-4 mt-1">
-                          {passportValidation.departures.slice(1).map((dep, idx) => (
-                            <li key={idx}>{dep.packageName} - {dep.date} (kurang {dep.daysShort} hari)</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                  </AlertDescription>
-                </Alert>
-              )}
+                  <SelectTrigger>
+                    <SelectValue placeholder="Pilih jenis kelamin" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="male">Laki-laki</SelectItem>
+                    <SelectItem value="female">Perempuan</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="marital_status">Status Pernikahan</Label>
+                <Select
+                  value={formData.marital_status}
+                  onValueChange={value => setFormData({ ...formData, marital_status: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Pilih status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Belum Kawin">Belum Kawin</SelectItem>
+                    <SelectItem value="Kawin">Kawin</SelectItem>
+                    <SelectItem value="Cerai Hidup">Cerai Hidup</SelectItem>
+                    <SelectItem value="Cerai Mati">Cerai Mati</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="birth_place">Tempat Lahir</Label>
+                <Input
+                  id="birth_place"
+                  value={formData.birth_place}
+                  onChange={e => setFormData({ ...formData, birth_place: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="birth_date">Tanggal Lahir</Label>
+                <Input
+                  id="birth_date"
+                  type="date"
+                  value={formData.birth_date}
+                  onChange={e => setFormData({ ...formData, birth_date: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="blood_type">Golongan Darah</Label>
+                <Select
+                  value={formData.blood_type}
+                  onValueChange={value => setFormData({ ...formData, blood_type: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Pilih golongan darah" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="A">A</SelectItem>
+                    <SelectItem value="B">B</SelectItem>
+                    <SelectItem value="AB">AB</SelectItem>
+                    <SelectItem value="O">O</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </TabsContent>
 
-              <div className="grid gap-4 sm:grid-cols-2">
+          <TabsContent value="contact" className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="phone">No. WhatsApp</Label>
+                <Input
+                  id="phone"
+                  value={formData.phone}
+                  onChange={e => setFormData({ ...formData, phone: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={e => setFormData({ ...formData, email: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="address">Alamat Lengkap</Label>
+              <Textarea
+                id="address"
+                value={formData.address}
+                onChange={e => setFormData({ ...formData, address: e.target.value })}
+              />
+            </div>
+            <IndonesiaLocationSelect
+              province={formData.province}
+              city={formData.city}
+              district={formData.district}
+              village={formData.village}
+              onProvinceChange={val => setFormData({ ...formData, province: val })}
+              onCityChange={val => setFormData({ ...formData, city: val })}
+              onDistrictChange={val => setFormData({ ...formData, district: val })}
+              onVillageChange={val => setFormData({ ...formData, village: val })}
+            />
+            <div className="space-y-2">
+              <Label htmlFor="postal_code">Kode Pos</Label>
+              <Input
+                id="postal_code"
+                value={formData.postal_code}
+                onChange={e => setFormData({ ...formData, postal_code: e.target.value })}
+              />
+            </div>
+
+            <div className="mt-6 border-t pt-4">
+              <h4 className="text-sm font-medium mb-4">Kontak Darurat</h4>
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="passport_number">Nomor Paspor</Label>
+                  <Label htmlFor="emergency_name">Nama Kontak Darurat</Label>
                   <Input
-                    id="passport_number"
-                    value={formData.passport_number}
-                    onChange={(e) => handleChange("passport_number", e.target.value)}
-                    placeholder="A1234567"
+                    id="emergency_name"
+                    value={formData.emergency_contact_name}
+                    onChange={e => setFormData({ ...formData, emergency_contact_name: e.target.value })}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="passport_expiry">Masa Berlaku</Label>
+                  <Label htmlFor="emergency_phone">No. Telp Darurat</Label>
                   <Input
-                    id="passport_expiry"
-                    type="date"
-                    value={formData.passport_expiry}
-                    onChange={(e) => handleChange("passport_expiry", e.target.value)}
-                    className={
-                      passportValidation?.type === "error" 
-                        ? "border-destructive" 
-                        : passportValidation?.type === "warning"
-                        ? "border-amber-500"
-                        : ""
-                    }
+                    id="emergency_phone"
+                    value={formData.emergency_contact_phone}
+                    onChange={e => setFormData({ ...formData, emergency_contact_phone: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2 col-span-2">
+                  <Label htmlFor="emergency_relation">Hubungan</Label>
+                  <Input
+                    id="emergency_relation"
+                    placeholder="Contoh: Suami, Istri, Anak, dll"
+                    value={formData.emergency_contact_relation}
+                    onChange={e => setFormData({ ...formData, emergency_contact_relation: e.target.value })}
                   />
                 </div>
               </div>
-              <div className="grid gap-4 sm:grid-cols-2">
+            </div>
+          </TabsContent>
+
+          <TabsContent value="passport" className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="passport_number">Nomor Paspor</Label>
+                <Input
+                  id="passport_number"
+                  value={formData.passport_number}
+                  onChange={e => setFormData({ ...formData, passport_number: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="passport_expiry">Tanggal Berlaku Hingga</Label>
+                <Input
+                  id="passport_expiry"
+                  type="date"
+                  value={formData.passport_expiry}
+                  onChange={e => setFormData({ ...formData, passport_expiry: e.target.value })}
+                />
+              </div>
+            </div>
+
+            {passportValidation && (
+              <Alert className={cn(
+                "border-2",
+                passportValidation.type === "error" && "border-red-500 bg-red-50",
+                passportValidation.type === "warning" && "border-yellow-500 bg-yellow-50",
+                passportValidation.type === "success" && "border-green-500 bg-green-50"
+              )}>
+                <AlertDescription className={cn(
+                  "flex items-start gap-3",
+                  passportValidation.type === "error" && "text-red-700",
+                  passportValidation.type === "warning" && "text-yellow-700",
+                  passportValidation.type === "success" && "text-green-700"
+                )}>
+                  <passportValidation.icon className="h-5 w-5 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="font-medium">{passportValidation.message}</p>
+                    {passportValidation.departures && passportValidation.departures.length > 1 && (
+                      <ul className="mt-2 text-sm list-disc list-inside">
+                        {passportValidation.departures.map((dep, idx) => (
+                          <li key={idx}>{dep.date} ({dep.packageName})</li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </AlertDescription>
+              </Alert>
+            )}
+          </TabsContent>
+
+          <TabsContent value="family" className="space-y-4 py-4">
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="father_name">Nama Ayah</Label>
+                  <Label htmlFor="father_name">Nama Ayah Kandung</Label>
                   <Input
                     id="father_name"
                     value={formData.father_name}
-                    onChange={(e) => handleChange("father_name", e.target.value)}
-                    placeholder="Nama ayah kandung"
+                    onChange={e => setFormData({ ...formData, father_name: e.target.value })}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="mother_name">Nama Ibu</Label>
+                  <Label htmlFor="mother_name">Nama Ibu Kandung</Label>
                   <Input
                     id="mother_name"
                     value={formData.mother_name}
-                    onChange={(e) => handleChange("mother_name", e.target.value)}
-                    placeholder="Nama ibu kandung"
+                    onChange={e => setFormData({ ...formData, mother_name: e.target.value })}
                   />
                 </div>
               </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="mahram_name">Nama Mahram</Label>
-                  <Input
-                    id="mahram_name"
-                    value={formData.mahram_name}
-                    onChange={(e) => handleChange("mahram_name", e.target.value)}
-                    placeholder="Untuk jamaah wanita"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="mahram_relation">Hubungan Mahram</Label>
-                  <Select
-                    value={formData.mahram_relation}
-                    onValueChange={(val) => handleChange("mahram_relation", val)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Pilih hubungan" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="suami">Suami</SelectItem>
-                      <SelectItem value="istri">Istri</SelectItem>
-                      <SelectItem value="ayah">Ayah</SelectItem>
-                      <SelectItem value="anak">Anak Laki-laki</SelectItem>
-                      <SelectItem value="saudara">Saudara Kandung</SelectItem>
-                      <SelectItem value="paman">Paman</SelectItem>
-                      <SelectItem value="kakek">Kakek</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </TabsContent>
 
-            {/* Kontak Darurat Tab */}
-            <TabsContent value="emergency" className="space-y-4 mt-4">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="emergency_contact_name">Nama Kontak Darurat</Label>
-                  <Input
-                    id="emergency_contact_name"
-                    value={formData.emergency_contact_name}
-                    onChange={(e) => handleChange("emergency_contact_name", e.target.value)}
-                    placeholder="Nama lengkap"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="emergency_contact_phone">No. Telepon Darurat</Label>
-                  <Input
-                    id="emergency_contact_phone"
-                    value={formData.emergency_contact_phone}
-                    onChange={(e) => handleChange("emergency_contact_phone", e.target.value)}
-                    placeholder="08xxxxxxxxxx"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="emergency_contact_relation">Hubungan</Label>
-                  <Select
-                    value={formData.emergency_contact_relation}
-                    onValueChange={(val) => handleChange("emergency_contact_relation", val)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Pilih hubungan" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="orang_tua">Orang Tua</SelectItem>
-                      <SelectItem value="suami_istri">Suami/Istri</SelectItem>
-                      <SelectItem value="anak">Anak</SelectItem>
-                      <SelectItem value="saudara">Saudara</SelectItem>
-                      <SelectItem value="kerabat">Kerabat</SelectItem>
-                      <SelectItem value="teman">Teman</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </TabsContent>
+              <div className="border-t pt-4">
+                <h4 className="text-sm font-medium mb-4 flex items-center gap-2">
+                  <Heart className="h-4 w-4 text-rose-500" />
+                  Daftar Mahram / Pendamping
+                </h4>
 
-            {/* Dokumen Tab */}
-            <TabsContent value="documents" className="space-y-4 mt-4">
-              <div className="space-y-4">
-                {documentTypes?.map((docType) => {
-                  const existingDoc = existingDocs?.find(d => d.document_type_id === docType.id);
-                  const isUploading = uploading[docType.id];
-
-                  return (
-                    <div key={docType.id} className="p-4 border rounded-lg">
-                      <div className="flex items-center justify-between mb-3">
-                        <div>
-                          <Label className="text-sm font-medium">{docType.name}</Label>
-                          {docType.is_required && (
-                            <Badge variant="outline" className="ml-2 text-xs">Wajib</Badge>
-                          )}
+                {/* Existing mahrams list */}
+                {mahrams && mahrams.length > 0 ? (
+                  <div className="space-y-2">
+                    {(mahrams as any[]).map((m: any) => (
+                      <div key={m.id} className="flex items-center justify-between p-2 bg-muted rounded-md text-sm">
+                        <div className="flex items-center gap-3">
+                          <Badge variant="outline" className="capitalize">
+                            {m.mahram_relation}
+                          </Badge>
+                          <span className="font-medium">{m.mahram_name}</span>
+                          {m.notes && <span className="text-muted-foreground text-xs italic">({m.notes})</span>}
                         </div>
-                        {existingDoc && getStatusBadge(existingDoc.status || "pending")}
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8 text-destructive"
+                          onClick={() => deleteMahramMutation.mutate(m.id)}
+                          disabled={deleteMahramMutation.isPending}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
-
-                      {existingDoc ? (
-                        <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                          <div className="flex items-center gap-3">
-                            <FileText className="h-8 w-8 text-muted-foreground" />
-                            <div>
-                              <p className="text-sm font-medium">{existingDoc.file_name || "Dokumen"}</p>
-                              <p className="text-xs text-muted-foreground">
-                                Upload: {new Date(existingDoc.created_at || "").toLocaleDateString("id-ID")}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => window.open(existingDoc.file_url, "_blank")}
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Label htmlFor={`replace-${docType.id}`} className="cursor-pointer">
-                              <Button type="button" variant="outline" size="sm" asChild disabled={isUploading}>
-                                <span>
-                                  {isUploading ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                  ) : (
-                                    <>
-                                      <Upload className="h-4 w-4 mr-1" />
-                                      Ganti
-                                    </>
-                                  )}
-                                </span>
-                              </Button>
-                            </Label>
-                            <input
-                              id={`replace-${docType.id}`}
-                              type="file"
-                              accept="image/*,.pdf"
-                              className="hidden"
-                              onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (file) {
-                                  if (file.size > 5 * 1024 * 1024) {
-                                    toast.error("Ukuran file maksimal 5MB");
-                                    return;
-                                  }
-                                  handleDocumentUpload(file, docType.id);
-                                }
-                                e.target.value = "";
-                              }}
-                            />
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="border-2 border-dashed rounded-lg p-6 text-center">
-                          <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                          <p className="text-sm text-muted-foreground mb-3">
-                            Belum ada dokumen
-                          </p>
-                          <Label htmlFor={`upload-${docType.id}`} className="cursor-pointer">
-                            <Button type="button" variant="outline" size="sm" asChild disabled={isUploading}>
-                              <span>
-                                {isUploading ? (
-                                  <>
-                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                    Mengupload...
-                                  </>
-                                ) : (
-                                  <>
-                                    <Upload className="h-4 w-4 mr-2" />
-                                    Upload {docType.name}
-                                  </>
-                                )}
-                              </span>
-                            </Button>
-                          </Label>
-                          <input
-                            id={`upload-${docType.id}`}
-                            type="file"
-                            accept="image/*,.pdf"
-                            className="hidden"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) {
-                                if (file.size > 5 * 1024 * 1024) {
-                                  toast.error("Ukuran file maksimal 5MB");
-                                  return;
-                                }
-                                handleDocumentUpload(file, docType.id);
-                              }
-                              e.target.value = "";
-                            }}
-                          />
-                          <p className="text-xs text-muted-foreground mt-2">
-                            Format: JPG, PNG, PDF (Maks 5MB)
-                          </p>
-                        </div>
-                      )}
-
-                      {existingDoc?.notes && existingDoc.status === "rejected" && (
-                        <div className="mt-2 p-2 bg-red-50 rounded text-sm text-red-700">
-                          <strong>Alasan penolakan:</strong> {existingDoc.notes}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-
-                {(!documentTypes || documentTypes.length === 0) && (
-                  <p className="text-muted-foreground text-center py-4">
-                    Tidak ada jenis dokumen yang dikonfigurasi
-                  </p>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-6 text-muted-foreground text-sm border-2 border-dashed rounded-md">
+                    Belum ada data mahram yang ditambahkan.
+                  </div>
                 )}
-              </div>
-            </TabsContent>
-          </Tabs>
 
-          <DialogFooter className="mt-6">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setOpen(false)}
-              disabled={updateMutation.isPending}
-            >
-              Batal
-            </Button>
-            <Button type="submit" disabled={updateMutation.isPending}>
-              {updateMutation.isPending && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
-              Simpan Perubahan
-            </Button>
-          </DialogFooter>
-        </form>
+                {/* Add new mahram form */}
+                <div className="pt-4 border-t space-y-3">
+                  <p className="text-sm font-medium">Tambah Mahram Baru</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label className="text-xs">Hubungan *</Label>
+                      <Select
+                        value={newMahram.mahram_relation}
+                        onValueChange={v => setNewMahram({ ...newMahram, mahram_relation: v })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Pilih hubungan" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Object.keys(RECIPROCAL_RELATIONS).map(rel => (
+                            <SelectItem key={rel} value={rel} className="capitalize">{rel}</SelectItem>
+                          ))}
+                          <SelectItem value="lainnya">Lainnya</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label className="text-xs">Cari Jamaah dari Database (Opsional)</Label>
+                      <Popover open={familySearchOpen} onOpenChange={setFamilySearchOpen}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            role="combobox"
+                            aria-expanded={familySearchOpen}
+                            className="w-full justify-between font-normal"
+                          >
+                            {newMahram.mahram_customer_id
+                              ? familyCustomers?.find((c) => c.id === newMahram.mahram_customer_id)?.full_name
+                              : "Pilih dari database..."}
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[300px] p-0">
+                          <Command shouldFilter={false}>
+                            <CommandInput 
+                              placeholder="Cari nama/WA..." 
+                              value={familySearch}
+                              onValueChange={setFamilySearch}
+                            />
+                            <CommandList>
+                              {loadingFamilyCustomers && <CommandEmpty>Mencari...</CommandEmpty>}
+                              {!loadingFamilyCustomers && familyCustomers?.length === 0 && (
+                                <CommandEmpty>Jamaah tidak ditemukan.</CommandEmpty>
+                              )}
+                              <CommandGroup>
+                                {familyCustomers?.map((c) => (
+                                  <CommandItem
+                                    key={c.id}
+                                    value={c.id}
+                                    onSelect={(currentValue) => {
+                                      setNewMahram({ 
+                                        ...newMahram, 
+                                        mahram_customer_id: currentValue,
+                                        mahram_name: c.full_name
+                                      });
+                                      setFamilySearchOpen(false);
+                                    }}
+                                  >
+                                    <Check
+                                      className={cn(
+                                        "mr-2 h-4 w-4",
+                                        newMahram.mahram_customer_id === c.id ? "opacity-100" : "opacity-0"
+                                      )}
+                                    />
+                                    <div className="flex flex-col">
+                                      <span>{c.full_name}</span>
+                                      <span className="text-xs text-muted-foreground">{c.phone || c.email}</span>
+                                    </div>
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-xs">Nama (Jika tidak ada di database)</Label>
+                    <Input
+                      placeholder="Masukkan nama lengkap"
+                      value={newMahram.mahram_name}
+                      onChange={e => setNewMahram({ ...newMahram, mahram_name: e.target.value })}
+                      disabled={!!newMahram.mahram_customer_id}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-xs">Catatan Tambahan</Label>
+                    <Input
+                      placeholder="Contoh: Menantu, Kakak Ipar, dll"
+                      value={newMahram.notes}
+                      onChange={e => setNewMahram({ ...newMahram, notes: e.target.value })}
+                    />
+                  </div>
+
+                  <Button 
+                    type="button" 
+                    className="w-full" 
+                    size="sm"
+                    onClick={() => {
+                      if (newMahram.mahram_name || newMahram.mahram_customer_id) {
+                        addMahramMutation.mutate(newMahram);
+                      }
+                      setFamilySearch("");
+                      setNewMahram({ mahram_name: "", mahram_relation: "", notes: "", mahram_customer_id: "" });
+                    }}
+                    disabled={addMahramMutation.isPending || (!newMahram.mahram_name && !newMahram.mahram_customer_id) || !newMahram.mahram_relation}
+                  >
+                    {addMahramMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
+                    Tambah ke Daftar
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="documents" className="space-y-4 py-4">
+            <div className="grid grid-cols-1 gap-4">
+              {documentTypes?.map(type => {
+                const doc = existingDocs?.find(d => d.document_type_id === type.id);
+                return (
+                  <div
+                    key={type.id}
+                    className="flex items-center justify-between p-4 border rounded-lg"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-primary/10 rounded-lg">
+                        <FileText className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm">{type.name}</p>
+                        {doc ? (
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="text-[10px] h-4 bg-green-50 text-green-700 border-green-200">
+                              Sudah Upload
+                            </Badge>
+                            <span className="text-[10px] text-muted-foreground">
+                              {format(new Date((doc.updated_at || doc.created_at) as string), "d MMM yyyy", { locale: idLocale })}
+                            </span>
+                          </div>
+                        ) : (
+                          <Badge variant="outline" className="text-[10px] h-4 bg-yellow-50 text-yellow-700 border-yellow-200">
+                            Belum Ada
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {doc && (
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setPreviewDoc({ url: doc.file_url, name: type.name });
+                              setPreviewOpen(true);
+                            }}
+                          >
+                            <Eye className="h-4 w-4 mr-2" />
+                            Lihat
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={async () => {
+                              try {
+                                const response = await fetch(doc.file_url);
+                                const blob = await response.blob();
+                                const url = window.URL.createObjectURL(blob);
+                                const link = document.createElement("a");
+                                link.href = url;
+                                link.download = `${type.name}-${customer.full_name}`.replace(/\s+/g, '_');
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
+                                window.URL.revokeObjectURL(url);
+                              } catch (error) {
+                                console.error("Download failed:", error);
+                                window.open(doc.file_url, "_blank");
+                              }
+                            }}
+                          >
+                            <Download className="h-4 w-4 mr-2" />
+                            Unduh
+                          </Button>
+                        </div>
+                      )}
+                      <div className="relative">
+                        <input
+                          type="file"
+                          id={`file-${type.id}`}
+                          className="hidden"
+                          accept="image/*,.pdf"
+                          onChange={e => {
+                            const file = e.target.files?.[0];
+                            if (file) handleDocumentUpload(file, type.id);
+                          }}
+                        />
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={uploading[type.id]}
+                          onClick={() => document.getElementById(`file-${type.id}`)?.click()}
+                        >
+                          {uploading[type.id] ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Upload className="h-4 w-4 mr-2" />
+                          )}
+                          {doc ? "Update" : "Upload"}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </TabsContent>
+        </Tabs>
+
+        <DocumentPreviewModal
+          open={previewOpen}
+          onOpenChange={setPreviewOpen}
+          documentUrl={previewDoc?.url || ""}
+          documentName={previewDoc?.name || ""}
+        />
+
+        <DialogFooter className="mt-6">
+          <Button variant="outline" onClick={() => setOpen(false)}>
+            Batal
+          </Button>
+          <Button
+            onClick={() => updateMutation.mutate(formData)}
+            disabled={updateMutation.isPending}
+          >
+            {updateMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+            Simpan Perubahan
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

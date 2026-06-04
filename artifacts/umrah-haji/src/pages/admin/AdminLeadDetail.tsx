@@ -41,7 +41,7 @@ import { useAuth } from "@/hooks/useAuth";
 import {
   ArrowLeft, Phone, Mail, Calendar, Package, User,
   Clock, MessageSquare, CheckCircle, XCircle, Edit, Trash2,
-  ArrowRight, Loader2
+  ArrowRight, Loader2, Link2, Copy
 } from "lucide-react";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
@@ -617,6 +617,36 @@ export default function AdminLeadDetail() {
                     <Phone className="h-4 w-4 mr-2" />
                     WhatsApp
                   </a>
+                </Button>
+              )}
+
+              {!isConverted && lead.package_interest && lead.package?.code && (
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => {
+                    const params = new URLSearchParams({
+                      lead_id: lead.id,
+                      ...(lead.full_name ? { name: lead.full_name } : {}),
+                      ...(lead.phone ? { phone: lead.phone } : {}),
+                      ...(lead.email ? { email: lead.email } : {}),
+                    });
+                    const slug = `${lead.package!.id}-${(lead.package!.code || '').toLowerCase()}`;
+                    const url = `${window.location.origin}/packages/${slug}?${params.toString()}`;
+                    navigator.clipboard.writeText(url).then(
+                      () => toast({ title: 'Link booking disalin', description: url }),
+                      () => toast({ title: 'Gagal menyalin', variant: 'destructive' as any }),
+                    );
+                    if (lead.phone) {
+                      const waText = encodeURIComponent(
+                        `Halo ${lead.full_name || ''}, silakan lanjutkan booking paket ${lead.package!.name} melalui link berikut:\n${url}`
+                      );
+                      window.open(`https://wa.me/${lead.phone.replace(/\D/g, '')}?text=${waText}`, '_blank');
+                    }
+                  }}
+                >
+                  <Link2 className="h-4 w-4 mr-2" />
+                  Generate Link Booking
                 </Button>
               )}
             </CardContent>

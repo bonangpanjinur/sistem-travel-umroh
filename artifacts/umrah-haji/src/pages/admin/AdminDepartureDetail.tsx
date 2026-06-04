@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -13,6 +14,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Table,
   TableBody,
@@ -49,7 +58,22 @@ import {
   ScanLine,
   Bug,
   CheckCircle2,
+  LockKeyhole,
   ChevronDown,
+  BedDouble,
+  ExternalLink,
+  CreditCard,
+  ChevronDownIcon,
+  Search,
+  Zap,
+  ClipboardCheck,
+  ShieldCheck,
+  Mail,
+  Bell,
+  TrendingUp,
+  UserCheck,
+  UserX,
+  Send,
 } from "lucide-react";
 import { DepartureForm } from "@/components/admin/forms/DepartureForm";
 import { LinkItineraryForm } from "@/components/admin/forms/LinkItineraryForm";
@@ -57,20 +81,26 @@ import { EquipmentRealizationTab } from "@/components/operational/equipment/Equi
 import { CheckinQRDialog } from "@/components/admin/departure/CheckinQRDialog";
 import { EditCustomerDialog } from "@/components/admin/EditCustomerDialog";
 import { DepartureRoomingTab } from "@/components/departure/DepartureRoomingTab";
+
+import { DepartureBudgetTab } from "@/components/departure/DepartureBudgetTab";
+import { useDepartureBudget, useDepartureCosts, computeBudgetSummary } from "@/hooks/useDepartureBudget";
+import { DepartureCertificateGenerator } from "@/components/departure/DepartureCertificateGenerator";
+import { PriceHistoryCard } from "@/components/admin/PriceHistoryCard";
+import { DepartureMarginCalculator } from "@/components/admin/financial/DepartureMarginCalculator";
+import { useMarginAlert } from "@/hooks/useMarginAlert";
+import { DeparturePreChecklist } from "@/components/admin/departure/DeparturePreChecklist";
+import { DepartureVisaSummary } from "@/components/admin/departure/DepartureVisaSummary";
+
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import QRCode from "qrcode";
+import * as XLSX from "xlsx";
 import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 
 export default function AdminDepartureDetail() {
   const { id } = useParams<{ id: string }>();
   
-  // Debug: log the id and component render
-  console.log("DepartureDetail - id from params:", id);
-  console.log("DepartureDetail - component mounted, id:", id);
-
-  // Debug: show current ID in UI
   const debugId = id;
 
   const queryClient = useQueryClient();
@@ -80,8 +110,25 @@ export default function AdminDepartureDetail() {
   const [activeTab, setActiveTab] = useState("info");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const [debugOpen, setDebugOpen] = useState(false);
   const [editingPassenger, setEditingPassenger] = useState<any>(null);
+
+  // K6 — Email manifest state
+  const [isEmailManifestOpen, setIsEmailManifestOpen] = useState(false);
+  const [manifestEmail, setManifestEmail] = useState("");
+  const [manifestEmailName, setManifestEmailName] = useState("");
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
+
+  // K8 — H-X notification state
+  const [sendingHX, setSendingHX] = useState<number | null>(null);
+
+  // K9 — Ringkasan budget di tab trigger
+  const { data: _budgets = [] } = useDepartureBudget(id || "");
+  const { data: _costs = [] } = useDepartureCosts(id || "");
+  const _budgetSummary = computeBudgetSummary(_budgets, _costs);
+  const totalBudgeted = _budgetSummary.reduce((s: number, r: any) => s + r.budgeted, 0);
+  const totalRealized = _budgetSummary.reduce((s: number, r: any) => s + r.realized, 0);
 
   // If no id, show error
   if (!id) {
@@ -134,22 +181,14 @@ export default function AdminDepartureDetail() {
         .neq("booking_status", "cancelled");
 
       if (bookingsError) {
-        console.error("Bookings error:", bookingsError);
         throw bookingsError;
       }
       if (!bookings || bookings.length === 0) {
-        console.log("No bookings for departure:", id);
         return [];
-      }
-      console.log("Bookings found:", bookings.length, "IDs:", bookings.map(b => b.id));
-      console.log("Bookings details:", JSON.stringify(bookings, null, 2));
-      if (bookings.length > 90) {
-        console.warn("⚠️ Close to 100 limit! Current bookings:", bookings.length);
       }
 
       const bookingIds = bookings.map((b) => b.id);
       const bookingMap = new Map(bookings.map((b) => [b.id, b]));
-      console.log("Querying booking_passengers with booking_ids:", bookingIds);
 
       // Step 2: Fetch booking_passengers for these bookings
       const { data: bps, error: bpsError } = await supabase
@@ -171,12 +210,7 @@ export default function AdminDepartureDetail() {
         .order("is_main_passenger", { ascending: false });
 
       if (bpsError) {
-        console.error("booking_passengers error:", bpsError);
         throw bpsError;
-      }
-      console.log("booking_passengers found:", bps?.length || 0);
-      if (bps?.length === 0) {
-        console.warn("⚠️ No passengers found! Check RLS or data in booking_passengers table");
       }
 
       // Step 3: Identify bookings missing a main_passenger row → build virtual passenger from booking.customer_id
@@ -267,6 +301,19 @@ export default function AdminDepartureDetail() {
     enabled: !!id,
   });
 
+  // Margin alert — watches HPP cache; fires toast when margin drops below target
+  // after any HPP mutation regardless of which tab is active.
+  useMarginAlert({
+    departureId: id || "",
+    paxCount: passengers?.length || 0,
+    priceQuad:   Number((departure as any)?.price_quad)   || 0,
+    priceTriple: Number((departure as any)?.price_triple) || 0,
+    priceDouble: Number((departure as any)?.price_double) || 0,
+    priceSingle: Number((departure as any)?.price_single) || 0,
+    targetPct: 20,
+    enabled: !!departure,
+  });
+
   // Fetch attendance records for this departure (real-time)
   const { data: attendance } = useQuery({
     queryKey: ["departure-attendance", id],
@@ -320,7 +367,7 @@ export default function AdminDepartureDetail() {
     return m;
   }, [attendance]);
 
-  // Filtered passengers based on UI filters
+  // Filtered passengers based on UI filters + search (K3)
   const filteredPassengers = useMemo(() => {
     if (!passengers) return [];
     return passengers.filter((p: any) => {
@@ -331,9 +378,24 @@ export default function AdminDepartureDetail() {
       if (typeFilter !== "all") {
         if ((p.passenger_type || "adult") !== typeFilter) return false;
       }
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const name = (p.customer?.full_name || "").toLowerCase();
+        const passport = (p.customer?.passport_number || "").toLowerCase();
+        const phone = (p.customer?.phone || "").toLowerCase();
+        const code = (p.booking?.booking_code || "").toLowerCase();
+        if (!name.includes(q) && !passport.includes(q) && !phone.includes(q) && !code.includes(q))
+          return false;
+      }
       return true;
     });
-  }, [passengers, statusFilter, typeFilter]);
+  }, [passengers, statusFilter, typeFilter, searchQuery]);
+
+  // Customer IDs for visa summary (K1)
+  const customerIds = useMemo(
+    () => (passengers || []).map((p: any) => p.customer?.id).filter(Boolean) as string[],
+    [passengers]
+  );
 
   const passengerStats = useMemo(() => {
     const stats = {
@@ -404,6 +466,154 @@ export default function AdminDepartureDetail() {
     },
     enabled: !!id,
   });
+
+  // K4 — Quick status change mutation
+  const statusMutation = useMutation({
+    mutationFn: async (newStatus: string) => {
+      const { error } = await supabase
+        .from("departures")
+        .update({ status: newStatus })
+        .eq("id", id!);
+      if (error) throw error;
+    },
+    onSuccess: (_, newStatus) => {
+      queryClient.invalidateQueries({ queryKey: ["admin-departure-detail", id] });
+      toast.success(`Status diubah ke: ${newStatus}`);
+    },
+    onError: (err: any) => toast.error("Gagal ubah status: " + err.message),
+  });
+
+  // K6 — Send manifest via email
+  const sendManifestEmail = async () => {
+    if (!manifestEmail.trim()) {
+      toast.error("Masukkan alamat email tujuan");
+      return;
+    }
+    if (!departure || !passengers || passengers.length === 0) {
+      toast.error("Tidak ada data jamaah untuk dikirim");
+      return;
+    }
+    setIsSendingEmail(true);
+    try {
+      const pkgName = departure.package?.name || "Manifest";
+      const depDate = departure.departure_date
+        ? format(new Date(departure.departure_date), "dd MMMM yyyy", { locale: localeId })
+        : "-";
+      const rows = (filteredPassengers.length > 0 ? filteredPassengers : passengers)
+        .map((p: any, i: number) => `
+          <tr style="background:${i % 2 === 0 ? "#f9fafb" : "#fff"}">
+            <td style="padding:6px 8px;border:1px solid #e5e7eb">${i + 1}</td>
+            <td style="padding:6px 8px;border:1px solid #e5e7eb">${p.customer?.full_name || "-"}</td>
+            <td style="padding:6px 8px;border:1px solid #e5e7eb">${p.customer?.gender === "male" ? "L" : "P"}</td>
+            <td style="padding:6px 8px;border:1px solid #e5e7eb">${p.customer?.passport_number || "-"}</td>
+            <td style="padding:6px 8px;border:1px solid #e5e7eb">${p.customer?.passport_expiry ? format(new Date(p.customer.passport_expiry), "dd/MM/yyyy") : "-"}</td>
+            <td style="padding:6px 8px;border:1px solid #e5e7eb">${(p.booking?.room_type || "-").toUpperCase()}</td>
+            <td style="padding:6px 8px;border:1px solid #e5e7eb">${p.room_number || "-"}</td>
+            <td style="padding:6px 8px;border:1px solid #e5e7eb">${p.customer?.phone || "-"}</td>
+          </tr>`)
+        .join("");
+      const body = `
+        <div style="font-family:Arial,sans-serif;max-width:900px;margin:0 auto">
+          <h2 style="color:#1e40af">✈️ Manifest Jamaah — ${pkgName}</h2>
+          <p><strong>Tanggal Berangkat:</strong> ${depDate}</p>
+          <p><strong>No. Flight:</strong> ${departure.flight_number || "-"} &nbsp;|&nbsp; <strong>Total Jamaah:</strong> ${passengers.length} orang</p>
+          <table style="width:100%;border-collapse:collapse;margin-top:16px;font-size:13px">
+            <thead>
+              <tr style="background:#1e40af;color:#fff">
+                <th style="padding:8px;border:1px solid #1e40af">No</th>
+                <th style="padding:8px;border:1px solid #1e40af">Nama Lengkap</th>
+                <th style="padding:8px;border:1px solid #1e40af">L/P</th>
+                <th style="padding:8px;border:1px solid #1e40af">No. Paspor</th>
+                <th style="padding:8px;border:1px solid #1e40af">Exp. Paspor</th>
+                <th style="padding:8px;border:1px solid #1e40af">Tipe Kamar</th>
+                <th style="padding:8px;border:1px solid #1e40af">No. Kamar</th>
+                <th style="padding:8px;border:1px solid #1e40af">Telepon</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+          <p style="margin-top:16px;color:#6b7280;font-size:12px">Dikirim oleh sistem Vinstour Travel • ${format(new Date(), "dd MMMM yyyy HH:mm", { locale: localeId })}</p>
+        </div>`;
+      const resp = await fetch("/api/email/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: manifestEmail.trim(),
+          toName: manifestEmailName.trim() || undefined,
+          template: "custom",
+          subject: `Manifest Jamaah — ${pkgName} (${depDate})`,
+          body,
+        }),
+      });
+      const result = await resp.json();
+      if (!resp.ok || !result.success) throw new Error(result.error || "Gagal mengirim email");
+      toast.success("Manifest berhasil dikirim ke " + manifestEmail);
+      setIsEmailManifestOpen(false);
+      setManifestEmail("");
+      setManifestEmailName("");
+    } catch (err: any) {
+      toast.error(err.message || "Gagal mengirim email manifest");
+    } finally {
+      setIsSendingEmail(false);
+    }
+  };
+
+  // K8 — Send H-X WA blast to all passengers with phone
+  const sendHXNotification = async (daysAhead: number) => {
+    if (!departure || !passengers || passengers.length === 0) {
+      toast.error("Tidak ada jamaah untuk dinotifikasi");
+      return;
+    }
+    const targets = passengers.filter((p: any) => p.customer?.phone);
+    if (targets.length === 0) {
+      toast.error("Tidak ada nomor WA yang tersedia");
+      return;
+    }
+    setSendingHX(daysAhead);
+    let successCount = 0;
+    let failCount = 0;
+    const pkgName = departure.package?.name || "Paket";
+    const depDate = departure.departure_date
+      ? format(new Date(departure.departure_date), "dd MMMM yyyy", { locale: localeId })
+      : "-";
+    const depAirport = departure.departure_airport?.code || "-";
+
+    for (const p of targets) {
+      try {
+        const resp = await fetch("/api/whatsapp/notification", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            phone: p.customer.phone,
+            name: p.customer.full_name,
+            type: "departure_reminder",
+            data: {
+              customerName: p.customer.full_name,
+              packageName: pkgName,
+              departureDate: depDate,
+              departureAirport: depAirport,
+              daysUntilDeparture: daysAhead,
+              flightNumber: departure.flight_number || "-",
+            },
+          }),
+        });
+        if (resp.ok) successCount++;
+        else failCount++;
+      } catch {
+        failCount++;
+      }
+    }
+    setSendingHX(null);
+    if (successCount > 0) toast.success(`H-${daysAhead} blast terkirim ke ${successCount} jamaah`);
+    if (failCount > 0) toast.error(`${failCount} pesan gagal terkirim`);
+  };
+
+  const STATUS_FLOW: Record<string, { next: string; label: string; color: string }> = {
+    open:     { next: "closed",   label: "Tutup Pendaftaran",  color: "bg-yellow-500 hover:bg-yellow-600" },
+    closed:   { next: "full",     label: "Tandai Penuh",       color: "bg-orange-500 hover:bg-orange-600" },
+    full:     { next: "departed", label: "Tandai Berangkat",   color: "bg-blue-600 hover:bg-blue-700" },
+    departed: { next: "open",     label: "Buka Kembali",       color: "bg-green-600 hover:bg-green-700" },
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -584,6 +794,138 @@ export default function AdminDepartureDetail() {
     toast.success("Rooming List PDF berhasil di-download");
   };
 
+  const exportManifestExcel = () => {
+    const sourceList = filteredPassengers.length > 0 ? filteredPassengers : passengers || [];
+    if (sourceList.length === 0 || !departure) {
+      toast.error("Tidak ada data jamaah untuk diekspor");
+      return;
+    }
+    const pkgName = departure.package?.name || "Manifest";
+
+    const rows = sourceList.map((p: any, idx: number) => ({
+      "No": idx + 1,
+      "Nama Lengkap": p.customer?.full_name || "-",
+      "L/P": p.customer?.gender === "male" ? "L" : "P",
+      "NIK": p.customer?.nik || "-",
+      "No. Paspor": p.customer?.passport_number || "-",
+      "Exp. Paspor": p.customer?.passport_expiry
+        ? format(new Date(p.customer.passport_expiry), "dd/MM/yyyy")
+        : "-",
+      "Tipe Kamar": (p.booking?.room_type || "-").toUpperCase(),
+      "No. Kamar": p.room_number || "-",
+      "Tipe Pax": (p.passenger_type || "adult").toUpperCase(),
+      "Telepon": p.customer?.phone || "-",
+      "Email": p.customer?.email || "-",
+      "Kode Booking": p.booking?.booking_code || "-",
+      "Status Check-in": p.customer?.id && attendanceMap.has(p.customer.id) ? "Sudah Check-in" : "Belum",
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws["!cols"] = [
+      { wch: 5 }, { wch: 30 }, { wch: 5 }, { wch: 18 }, { wch: 16 },
+      { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 18 },
+      { wch: 28 }, { wch: 16 }, { wch: 14 },
+    ];
+
+    const wbInfo = [
+      { "Keterangan": "Paket", "Nilai": pkgName },
+      { "Keterangan": "Tanggal Berangkat", "Nilai": departure.departure_date ? format(new Date(departure.departure_date), "dd MMMM yyyy", { locale: localeId }) : "-" },
+      { "Keterangan": "No. Penerbangan", "Nilai": departure.flight_number || "-" },
+      { "Keterangan": "Total Jamaah", "Nilai": sourceList.length },
+      { "Keterangan": "Dicetak", "Nilai": format(new Date(), "dd MMMM yyyy HH:mm", { locale: localeId }) },
+    ];
+    const wsInfo = XLSX.utils.json_to_sheet(wbInfo);
+    wsInfo["!cols"] = [{ wch: 20 }, { wch: 30 }];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, wsInfo, "Info");
+    XLSX.utils.book_append_sheet(wb, ws, "Manifest Jamaah");
+    XLSX.writeFile(wb, `Manifest-${pkgName}-${departure.departure_date}.xlsx`);
+    toast.success("Manifest Excel berhasil di-download");
+  };
+
+  const exportKeuanganExcel = async () => {
+    if (!departure) return;
+    const supabaseRaw: any = supabase;
+    const { data: bookings, error } = await supabaseRaw
+      .from("bookings")
+      .select(`
+        booking_code, total_price, paid_amount, payment_status,
+        booking_status, payment_deadline, created_at,
+        customer:customers(full_name, phone)
+      `)
+      .eq("departure_id", id!)
+      .neq("booking_status", "cancelled")
+      .order("booking_code");
+
+    if (error || !bookings?.length) {
+      toast.error("Tidak ada data keuangan untuk diekspor");
+      return;
+    }
+
+    const pkgName = departure.package?.name || "Keberangkatan";
+
+    const rows = bookings.map((b: any, idx: number) => ({
+      "No":                idx + 1,
+      "Kode Booking":      b.booking_code || "-",
+      "Nama Jamaah":       b.customer?.full_name || "-",
+      "Telepon":           b.customer?.phone || "-",
+      "Total Harga":       b.total_price || 0,
+      "Sudah Dibayar":     b.paid_amount || 0,
+      "Sisa Pembayaran":   Math.max(0, (b.total_price || 0) - (b.paid_amount || 0)),
+      "Status Pembayaran": b.payment_status || "-",
+      "Status Booking":    b.booking_status || "-",
+      "Batas Pelunasan":   b.payment_deadline
+        ? format(new Date(b.payment_deadline), "dd/MM/yyyy")
+        : "-",
+      "Tgl Booking":       b.created_at
+        ? format(new Date(b.created_at), "dd/MM/yyyy")
+        : "-",
+    }));
+
+    // Baris total
+    const totalHarga = bookings.reduce((s: number, b: any) => s + (b.total_price || 0), 0);
+    const totalBayar = bookings.reduce((s: number, b: any) => s + (b.paid_amount || 0), 0);
+    rows.push({
+      "No":                "" as any,
+      "Kode Booking":      "TOTAL",
+      "Nama Jamaah":       `${bookings.length} booking`,
+      "Telepon":           "",
+      "Total Harga":       totalHarga,
+      "Sudah Dibayar":     totalBayar,
+      "Sisa Pembayaran":   totalHarga - totalBayar,
+      "Status Pembayaran": "",
+      "Status Booking":    "",
+      "Batas Pelunasan":   "",
+      "Tgl Booking":       "",
+    });
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws["!cols"] = [
+      { wch: 4 }, { wch: 16 }, { wch: 28 }, { wch: 16 },
+      { wch: 18 }, { wch: 18 }, { wch: 18 },
+      { wch: 18 }, { wch: 16 }, { wch: 16 }, { wch: 14 },
+    ];
+
+    // Info sheet
+    const wsInfo = XLSX.utils.json_to_sheet([
+      { "Keterangan": "Paket",              "Nilai": pkgName },
+      { "Keterangan": "Tanggal Berangkat",  "Nilai": departure.departure_date ? format(new Date(departure.departure_date), "dd MMMM yyyy", { locale: localeId }) : "-" },
+      { "Keterangan": "No. Penerbangan",    "Nilai": departure.flight_number || "-" },
+      { "Keterangan": "Total Booking",      "Nilai": bookings.length },
+      { "Keterangan": "Total Tagihan",      "Nilai": formatCurrency(totalHarga) },
+      { "Keterangan": "Total Terbayar",     "Nilai": formatCurrency(totalBayar) },
+      { "Keterangan": "Total Sisa",         "Nilai": formatCurrency(totalHarga - totalBayar) },
+      { "Keterangan": "Dicetak",            "Nilai": format(new Date(), "dd MMMM yyyy HH:mm", { locale: localeId }) },
+    ]);
+    wsInfo["!cols"] = [{ wch: 20 }, { wch: 30 }];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, wsInfo, "Ringkasan");
+    XLSX.utils.book_append_sheet(wb, ws, "Rekap Keuangan");
+    XLSX.writeFile(wb, `Keuangan-${pkgName}-${departure.departure_date}.xlsx`);
+    toast.success("Rekap Keuangan Excel berhasil di-download");
+  };
 
   if (departureLoading) {
     return (
@@ -629,14 +971,44 @@ export default function AdminDepartureDetail() {
             </p>
           </div>
         </div>
-        <Button onClick={() => setIsFormOpen(true)}>
-          <Edit className="h-4 w-4 mr-2" />
-          Edit
-        </Button>
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* K4 — Quick status change */}
+          {departure?.status && STATUS_FLOW[departure.status as keyof typeof STATUS_FLOW] && (
+            <Button
+              size="sm"
+              className={STATUS_FLOW[departure.status as keyof typeof STATUS_FLOW].color + " text-white"}
+              onClick={() => statusMutation.mutate(STATUS_FLOW[departure.status as keyof typeof STATUS_FLOW].next)}
+              disabled={statusMutation.isPending}
+            >
+              <Zap className="h-3.5 w-3.5 mr-1.5" />
+              {STATUS_FLOW[departure.status as keyof typeof STATUS_FLOW].label}
+            </Button>
+          )}
+          <Button onClick={() => setIsFormOpen(true)}>
+            <Edit className="h-4 w-4 mr-2" />
+            Edit
+          </Button>
+        </div>
       </div>
+
+      {/* D5 — Lock banner saat status departed */}
+      {departure.status === 'departed' && (
+        <div className="flex items-start gap-3 p-4 rounded-lg bg-amber-50 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-800">
+          <LockKeyhole className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+          <div>
+            <p className="font-semibold text-sm text-amber-800 dark:text-amber-200">
+              Data Terproteksi — Jamaah Sudah Berangkat
+            </p>
+            <p className="text-xs text-amber-600 dark:text-amber-400">
+              Perubahan data tidak disarankan setelah jamaah berangkat. Gunakan tombol <strong>"Buka Kembali"</strong> di atas jika perlu mengedit.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+
         <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="info">Informasi</TabsTrigger>
           <TabsTrigger value="jamaah">Jemaah</TabsTrigger>
@@ -644,6 +1016,28 @@ export default function AdminDepartureDetail() {
           <TabsTrigger value="perlengkapan">Perlengkapan</TabsTrigger>
           <TabsTrigger value="itinerary">Itinerary</TabsTrigger>
           <TabsTrigger value="operasional">Operasional</TabsTrigger>
+
+        <TabsList className="flex w-full overflow-x-auto gap-0.5 h-auto flex-wrap">
+          <TabsTrigger value="info" className="text-xs">Informasi</TabsTrigger>
+          <TabsTrigger value="jamaah" className="text-xs">Jemaah</TabsTrigger>
+          <TabsTrigger value="checklist" className="text-xs flex items-center gap-1">
+            <ClipboardCheck className="h-3 w-3" />
+            Checklist
+          </TabsTrigger>
+          <TabsTrigger value="kamar" className="text-xs">Kamar</TabsTrigger>
+          <TabsTrigger value="perlengkapan" className="text-xs">Perlengkapan</TabsTrigger>
+          <TabsTrigger value="itinerary" className="text-xs">Itinerary</TabsTrigger>
+          <TabsTrigger value="budget" className="text-xs flex flex-col items-center gap-0.5">
+            <span>Budget</span>
+            {(totalBudgeted > 0 || totalRealized > 0) && (
+              <span className="text-[10px] font-normal text-muted-foreground leading-tight">
+                {formatCurrency(totalRealized)} / {formatCurrency(totalBudgeted)}
+              </span>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="harga" className="text-xs">Riwayat Harga</TabsTrigger>
+          <TabsTrigger value="operasional" className="text-xs">Operasional</TabsTrigger>
+
         </TabsList>
 
         {/* Tab: Informasi */}
@@ -871,6 +1265,146 @@ export default function AdminDepartureDetail() {
               </CardContent>
             </Card>
           </div>
+
+          {/* K8 — H-X Scheduled WA Notification */}
+          {departure.departure_date && departure.status !== 'departed' && (() => {
+            const daysLeft = Math.ceil(
+              (new Date(departure.departure_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+            );
+            const passengerCount = passengers?.filter((p: any) => p.customer?.phone).length || 0;
+            const hxOptions = [7, 3, 1];
+            return (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Bell className="h-5 w-5 text-amber-500" />
+                    Notifikasi H-X Keberangkatan
+                    <span className="text-sm font-normal text-muted-foreground ml-2">
+                      (H-{daysLeft > 0 ? daysLeft : 0} saat ini • {passengerCount} jamaah punya WA)
+                    </span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Kirim WA blast pengingat keberangkatan ke seluruh jamaah yang memiliki nomor WhatsApp.
+                  </p>
+                  <div className="flex flex-wrap gap-3">
+                    {hxOptions.map((day) => (
+                      <Button
+                        key={day}
+                        variant="outline"
+                        size="sm"
+                        className="border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-950/30"
+                        onClick={() => sendHXNotification(day)}
+                        disabled={sendingHX !== null || passengerCount === 0}
+                      >
+                        {sendingHX === day ? (
+                          <span className="animate-pulse">Mengirim...</span>
+                        ) : (
+                          <>
+                            <Bell className="h-3.5 w-3.5 mr-1.5" />
+                            Kirim H-{day} Blast
+                          </>
+                        )}
+                      </Button>
+                    ))}
+                  </div>
+                  {passengerCount === 0 && (
+                    <p className="text-xs text-destructive mt-2">Tidak ada nomor WA tersedia pada data jamaah.</p>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })()}
+
+          {/* K5 — Post-trip summary (only when departed) */}
+          {departure.status === 'departed' && (
+            <Card className="border-blue-200 dark:border-blue-800">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-blue-700 dark:text-blue-400">
+                  <TrendingUp className="h-5 w-5" />
+                  Ringkasan Post-Trip
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  <div className="rounded-lg bg-emerald-50 dark:bg-emerald-950/30 p-4 text-center">
+                    <UserCheck className="h-6 w-6 mx-auto text-emerald-600 mb-1" />
+                    <p className="text-2xl font-bold text-emerald-700">{passengerStats.checkedIn}</p>
+                    <p className="text-xs text-muted-foreground mt-1">Jamaah Berangkat</p>
+                  </div>
+                  <div className="rounded-lg bg-red-50 dark:bg-red-950/30 p-4 text-center">
+                    <UserX className="h-6 w-6 mx-auto text-red-500 mb-1" />
+                    <p className="text-2xl font-bold text-red-600">{passengerStats.total - passengerStats.checkedIn}</p>
+                    <p className="text-xs text-muted-foreground mt-1">Tidak Berangkat</p>
+                  </div>
+                  <div className="rounded-lg bg-blue-50 dark:bg-blue-950/30 p-4 text-center">
+                    <Users className="h-6 w-6 mx-auto text-blue-600 mb-1" />
+                    <p className="text-2xl font-bold text-blue-700">{passengerStats.total}</p>
+                    <p className="text-xs text-muted-foreground mt-1">Total Jamaah</p>
+                  </div>
+                  <div className="rounded-lg bg-primary/10 p-4 text-center">
+                    <TrendingUp className="h-6 w-6 mx-auto text-primary mb-1" />
+                    <p className="text-2xl font-bold text-primary">
+                      {passengerStats.total > 0
+                        ? Math.round((passengerStats.checkedIn / passengerStats.total) * 100)
+                        : 0}%
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">Tingkat Kehadiran</p>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Kehadiran</span>
+                    <span className="font-medium">{passengerStats.checkedIn}/{passengerStats.total} jamaah</span>
+                  </div>
+                  <div className="w-full bg-secondary h-2 rounded-full overflow-hidden">
+                    <div
+                      className="bg-emerald-500 h-full transition-all"
+                      style={{
+                        width: `${passengerStats.total > 0 ? Math.min(100, (passengerStats.checkedIn / passengerStats.total) * 100) : 0}%`
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 pt-2">
+                  <div className="rounded bg-muted/50 p-2 text-center">
+                    <p className="text-xs text-muted-foreground">Adult</p>
+                    <p className="font-semibold">{passengerStats.adult}</p>
+                  </div>
+                  <div className="rounded bg-muted/50 p-2 text-center">
+                    <p className="text-xs text-muted-foreground">Child</p>
+                    <p className="font-semibold">{passengerStats.child}</p>
+                  </div>
+                  <div className="rounded bg-muted/50 p-2 text-center">
+                    <p className="text-xs text-muted-foreground">Infant</p>
+                    <p className="font-semibold">{passengerStats.infant}</p>
+                  </div>
+                </div>
+
+                <div className="rounded-lg bg-muted/30 p-3 text-sm text-muted-foreground">
+                  <p className="font-medium text-foreground mb-1">Catatan Trip</p>
+                  <p>Keberangkatan <strong>{departure.package?.name}</strong> pada {departure.departure_date ? format(new Date(departure.departure_date), "dd MMMM yyyy", { locale: localeId }) : "-"} telah selesai. 
+                  Jamaah yang check-in: <strong>{passengerStats.checkedIn}</strong> dari <strong>{passengerStats.total}</strong> terdaftar ({passengerStats.total > 0 ? Math.round((passengerStats.checkedIn / passengerStats.total) * 100) : 0}% kehadiran).</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* K1 — Visa Status Summary */}
+          {customerIds.length > 0 && (
+            <DepartureVisaSummary departureId={id || ""} customerIds={customerIds} />
+          )}
+
+          {/* K7 — Sertifikat massal (hanya saat status = departed) */}
+          {departure.status === 'departed' && (passengers?.length || 0) > 0 && (
+            <DepartureCertificateGenerator
+              departure={departure as any}
+              passengers={passengers as any}
+            />
+          )}
         </TabsContent>
 
         {/* Tab: Jemaah */}
@@ -961,6 +1495,16 @@ export default function AdminDepartureDetail() {
                   )
                 </CardTitle>
                 <div className="flex items-center gap-2 flex-wrap">
+                  {/* K3 — Search jamaah by name */}
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                    <Input
+                      className="h-9 pl-8 w-48 text-sm"
+                      placeholder="Cari nama, paspor..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                  </div>
                   <Select value={statusFilter} onValueChange={setStatusFilter}>
                     <SelectTrigger className="h-9 w-[140px]">
                       <SelectValue placeholder="Status" />
@@ -994,24 +1538,59 @@ export default function AdminDepartureDetail() {
                     <ScanLine className="h-4 w-4 mr-2" />
                     QR Check-in
                   </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={filteredPassengers.length === 0}
+                      >
+                        <FileDown className="h-4 w-4 mr-2" />
+                        Export
+                        <ChevronDownIcon className="h-3 w-3 ml-1" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-52">
+                      <DropdownMenuLabel>Manifest Jamaah</DropdownMenuLabel>
+                      <DropdownMenuItem onClick={exportManifestPDF}>
+                        <FileDown className="h-4 w-4 mr-2 text-blue-600" />
+                        Manifest PDF (+ QR)
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={exportManifestExcel}>
+                        <FileDown className="h-4 w-4 mr-2 text-green-600" />
+                        Manifest Excel
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setIsEmailManifestOpen(true)}>
+                        <Mail className="h-4 w-4 mr-2 text-purple-600" />
+                        Kirim via Email
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuLabel>Kamar &amp; Keuangan</DropdownMenuLabel>
+                      <DropdownMenuItem onClick={exportRoomingListPDF}>
+                        <Printer className="h-4 w-4 mr-2 text-indigo-600" />
+                        Rooming List PDF
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={exportKeuanganExcel}>
+                        <CreditCard className="h-4 w-4 mr-2 text-amber-600" />
+                        Rekap Keuangan Excel
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={exportManifestPDF}
-                    disabled={filteredPassengers.length === 0}
+                    onClick={() => setActiveTab("kamar")}
+                    className="border-emerald-300 text-emerald-700 hover:bg-emerald-50"
                   >
-                    <FileDown className="h-4 w-4 mr-2" />
-                    Manifest
+                    <BedDouble className="h-4 w-4 mr-2" />
+                    Kelola Kamar
                   </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={exportRoomingListPDF}
-                    disabled={filteredPassengers.length === 0}
-                  >
-                    <Printer className="h-4 w-4 mr-2" />
-                    Rooming List
-                  </Button>
+                  <Link to={`/admin/room-assignments?departure=${id}`}>
+                    <Button size="sm" variant="ghost" className="text-primary">
+                      <ExternalLink className="h-4 w-4 mr-2" />
+                      Buka Rooming
+                    </Button>
+                  </Link>
                 </div>
               </div>
               {passengerStats.total > 0 && (
@@ -1166,11 +1745,20 @@ export default function AdminDepartureDetail() {
           </Card>
         </TabsContent>
 
+
         {/* Tab: Rooming */}
         <TabsContent value="rooming" className="space-y-6">
           <DepartureRoomingTab
             departureId={id}
             packageId={(departure as any)?.package?.id}
+
+        {/* Tab: Kamar & Rooming */}
+        <TabsContent value="kamar" className="space-y-4">
+          <DepartureRoomingTab
+            departureId={id}
+            hotelMakkah={departure.hotel_makkah as any}
+            hotelMadinah={departure.hotel_madinah as any}
+
           />
         </TabsContent>
 
@@ -1218,6 +1806,45 @@ export default function AdminDepartureDetail() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Tab: Pre-Departure Checklist — K2 */}
+        <TabsContent value="checklist" className="space-y-4">
+          <DeparturePreChecklist
+            departureId={id || ""}
+            departure={departure}
+            passengerStats={passengerStats}
+            passengers={passengers || []}
+          />
+        </TabsContent>
+
+        {/* Tab: Budget vs Realisasi — FITUR 06 */}
+        <TabsContent value="budget" className="space-y-4">
+          <DepartureBudgetTab departureId={id || ""} />
+        </TabsContent>
+
+        {/* Tab: Riwayat Harga */}
+        <TabsContent value="harga" className="space-y-4">
+          <DepartureMarginCalculator
+            departureId={id || ""}
+            paxCount={passengers?.length || 0}
+            priceQuad={departure?.price_quad || 0}
+            priceTriple={departure?.price_triple || 0}
+            priceDouble={departure?.price_double || 0}
+            priceSingle={departure?.price_single || 0}
+            packageName={departure?.package?.name}
+            departureDate={departure?.departure_date}
+          />
+          <PriceHistoryCard
+            departureId={id || ""}
+            packageId={departure?.package?.id}
+            currentPrices={{
+              price_quad: departure?.price_quad || 0,
+              price_triple: departure?.price_triple || 0,
+              price_double: departure?.price_double || 0,
+              price_single: departure?.price_single || 0,
+            }}
+          />
         </TabsContent>
 
         {/* Tab: Operasional */}
@@ -1301,6 +1928,63 @@ export default function AdminDepartureDetail() {
           }}
         />
       )}
+
+      {/* K6 — Email Manifest Dialog */}
+      <Dialog open={isEmailManifestOpen} onOpenChange={setIsEmailManifestOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Mail className="h-5 w-5 text-purple-600" />
+              Kirim Manifest via Email
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <p className="text-sm text-muted-foreground">
+              Manifest {passengers?.length || 0} jamaah akan dikirim sebagai tabel HTML ke alamat email di bawah.
+            </p>
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Email Tujuan <span className="text-destructive">*</span></label>
+                <Input
+                  type="email"
+                  placeholder="muthawif@example.com"
+                  value={manifestEmail}
+                  onChange={e => setManifestEmail(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && sendManifestEmail()}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Nama Penerima (opsional)</label>
+                <Input
+                  type="text"
+                  placeholder="Ustadz Muthawif / PIC"
+                  value={manifestEmailName}
+                  onChange={e => setManifestEmailName(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <Button
+                className="flex-1"
+                onClick={sendManifestEmail}
+                disabled={isSendingEmail || !manifestEmail.trim()}
+              >
+                {isSendingEmail ? (
+                  <span className="animate-pulse">Mengirim...</span>
+                ) : (
+                  <>
+                    <Send className="h-4 w-4 mr-2" />
+                    Kirim Manifest
+                  </>
+                )}
+              </Button>
+              <Button variant="outline" onClick={() => setIsEmailManifestOpen(false)} disabled={isSendingEmail}>
+                Batal
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

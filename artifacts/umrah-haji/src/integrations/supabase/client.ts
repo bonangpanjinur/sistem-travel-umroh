@@ -1,21 +1,38 @@
-// Supabase client for Replit environment.
-// Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY in Replit Secrets.
+/**
+ * Supabase client — migrated to use local Express proxy.
+ *
+ * The client now points to the same origin as the frontend.
+ * Vite proxies /auth/v1/* and /rest/v1/* to the Express API server (port 8080)
+ * which implements a Supabase-compatible interface backed by Neon Postgres.
+ *
+ * Original Supabase credentials are kept as fallback for environments where
+ * the local proxy is not running (e.g., a standalone Supabase deployment).
+ */
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
 const env = import.meta.env as Record<string, string | undefined>;
 
+// In the browser, window.location.origin gives us the Vite dev-server origin
+// (e.g. https://xxx.repl.co). Combined with the Vite proxy, this routes
+// Supabase client calls through the Express API server.
+const localOrigin =
+  typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5000';
+
+// Prefer the real Supabase URL if configured (existing deployments).
+// Fall back to local proxy origin so the app works without Supabase credentials.
 const SUPABASE_URL =
   env.VITE_SUPABASE_URL ||
   env.VITE_SUPABASE_PROJECT_URL ||
   env.VITE_SUPABASE_API_URL ||
-  '';
+  localOrigin;
 
 const SUPABASE_KEY =
   env.VITE_SUPABASE_PUBLISHABLE_KEY ||
   env.VITE_SUPABASE_ANON_KEY ||
   env.VITE_SUPABASE_KEY ||
-  '';
+  // Local dev key — accepted by the proxy (any non-empty string works)
+  'local-dev-anon-key';
 
 function isValidUrl(value: string): boolean {
   if (!value) return false;
@@ -27,38 +44,28 @@ function isValidUrl(value: string): boolean {
   }
 }
 
-const resolvedUrl = isValidUrl(SUPABASE_URL) ? SUPABASE_URL : '';
-const resolvedKey = SUPABASE_KEY.length > 20 ? SUPABASE_KEY : '';
-
-if (typeof window !== 'undefined') {
-  if (!resolvedUrl || !resolvedKey) {
-    console.error(
-      '[supabase] Konfigurasi tidak lengkap. ' +
-        'Tambahkan VITE_SUPABASE_URL dan VITE_SUPABASE_PUBLISHABLE_KEY di Replit Secrets ' +
-        'agar fitur autentikasi dan database berfungsi.'
-    );
-  }
-}
+const resolvedUrl = isValidUrl(SUPABASE_URL) ? SUPABASE_URL : localOrigin;
+const resolvedKey = SUPABASE_KEY || 'local-dev-anon-key';
 
 // Expose source for diagnostics (used by EnvDiagnostic component).
 export const supabaseConfigSource = {
   url: resolvedUrl,
-  urlSource: resolvedUrl ? 'env' : 'missing',
-  keySource: resolvedKey ? 'env' : 'missing',
+  urlSource: env.VITE_SUPABASE_URL ? 'env' : 'local-proxy',
+  keySource: env.VITE_SUPABASE_PUBLISHABLE_KEY ? 'env' : 'local-proxy',
   envKeysSeen: Object.keys(env).filter((k) => k.startsWith('VITE_SUPABASE')),
 } as const;
 
-// Use placeholder values when env vars are missing so the app can load
-// (auth/data calls will fail gracefully via error handling in hooks/components).
-const clientUrl = resolvedUrl || 'https://placeholder.supabase.co';
-const clientKey = resolvedKey || 'placeholder-key';
-
-// Import the supabase client like this:
-// import { supabase } from "@/integrations/supabase/client";
-export const supabase = createClient<Database>(clientUrl, clientKey, {
+export const supabase = createClient<Database>(resolvedUrl, resolvedKey, {
   auth: {
     storage: localStorage,
     persistSession: true,
     autoRefreshToken: true,
+    detectSessionInUrl: true,
+  },
+  global: {
+    headers: {
+      // Identify requests from the local proxy client
+      'x-client-info': 'vinstour-local-proxy/1.0',
+    },
   },
 });

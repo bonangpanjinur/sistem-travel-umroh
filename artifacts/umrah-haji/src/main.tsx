@@ -2,20 +2,57 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 
-// Register service worker with vite-plugin-pwa
+// Register service worker for push notifications
+// Skip when running inside an iframe or on Lovable preview hosts
+// to avoid stale-cache and navigation issues in the editor.
+const isInIframe = (() => {
+  try { return window.self !== window.top; } catch { return true; }
+})();
+const isPreviewHost =
+  window.location.hostname.includes("id-preview--") ||
+  window.location.hostname.includes("lovableproject.com");
+
 if ("serviceWorker" in navigator) {
-  window.addEventListener("load", async () => {
-    try {
-      // vite-plugin-pwa automatically registers the service worker
-      // This is just for additional error handling
-      const registrations = await navigator.serviceWorker.getRegistrations();
-      if (registrations.length > 0) {
-        console.log("Service Workers registered:", registrations);
+  if (isInIframe || isPreviewHost) {
+    // Cleanup any previously-registered SW so the preview is never wedged
+    navigator.serviceWorker.getRegistrations().then((regs) => {
+      regs.forEach((r) => r.unregister().catch(() => {}));
+    }).catch(() => {});
+  } else {
+    window.addEventListener("load", async () => {
+      try {
+        const registration = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+        console.log("SW registered:", registration.scope);
+
+        // ── PWA Update Detection ──
+        // When a new SW is installed and waiting, notify React app via window event.
+        const notifyUpdate = (reg: ServiceWorkerRegistration) => {
+          window.dispatchEvent(new CustomEvent("sw-update-available", { detail: { registration: reg } }));
+        };
+        if (registration.waiting) notifyUpdate(registration);
+        registration.addEventListener("updatefound", () => {
+          const installing = registration.installing;
+          if (!installing) return;
+          installing.addEventListener("statechange", () => {
+            if (installing.state === "installed" && navigator.serviceWorker.controller) {
+              notifyUpdate(registration);
+            }
+          });
+        });
+        // Reload once when new SW takes control
+        let refreshing = false;
+        navigator.serviceWorker.addEventListener("controllerchange", () => {
+          if (refreshing) return;
+          refreshing = true;
+          window.location.reload();
+        });
+        // Periodically check for updates (every 30 minutes)
+        setInterval(() => registration.update().catch(() => {}), 30 * 60 * 1000);
+      } catch (error) {
+        console.warn("SW registration failed:", error);
       }
-    } catch (error) {
-      console.warn("Error checking service workers:", error);
-    }
-  });
+    });
+  }
 }
 
 // Handle chunk load errors (failed to fetch dynamically imported module)
@@ -94,11 +131,17 @@ const hideInitialLoader = () => {
 const root = createRoot(document.getElementById("root")!);
 root.render(<App />);
 
-// Hide loader after React has started rendering using requestAnimationFrame
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => {
-    requestAnimationFrame(hideInitialLoader);
-  });
-} else {
+// CSS-FIX-1: Hide loader only AFTER ThemeProvider has applied user-defined CSS
+// variables (event 'theme-ready'). Falls back to a 1.5s timeout so the loader
+// never gets stuck if the theme query fails.
+let loaderHidden = false;
+const safeHideLoader = () => {
+  if (loaderHidden) return;
+  loaderHidden = true;
   requestAnimationFrame(hideInitialLoader);
-}
+};
+window.addEventListener('theme-ready', safeHideLoader, { once: true });
+setTimeout(safeHideLoader, 500);
+
+// Web Vitals monitoring (LCP, CLS, INP, FCP, TTFB)
+import("./lib/webVitals").then((m) => m.initWebVitals()).catch(() => {});

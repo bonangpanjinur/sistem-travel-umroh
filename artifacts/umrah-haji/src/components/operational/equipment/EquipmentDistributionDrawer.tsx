@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Package, CheckCircle2, Loader2, User, RotateCcw, AlertCircle } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Package, CheckCircle2, Loader2, User, RotateCcw, AlertCircle, Ruler } from "lucide-react";
 import { toast } from "sonner";
 
 interface EquipmentItem {
@@ -16,11 +17,14 @@ interface EquipmentItem {
   stock_quantity?: number;
   category?: string;
   low_stock_threshold?: number;
+  has_sizes?: boolean;
+  available_sizes?: string[];
 }
 
 interface ChecklistItem {
   equipmentId: string;
   quantity: number;
+  size?: string;
 }
 
 interface EquipmentDistributionDialogProps {
@@ -67,7 +71,7 @@ export function EquipmentDistributionDialog({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("equipment_distributions")
-        .select("equipment_id, quantity, status")
+        .select("equipment_id, quantity, status, size")
         .eq("customer_id", jamaahId)
         .eq("departure_id", departureId)
         .eq("status", "distributed");
@@ -81,7 +85,7 @@ export function EquipmentDistributionDialog({
     if (existingDistributions && existingDistributions.length > 0) {
       const newChecked = new Map<string, ChecklistItem>();
       existingDistributions.forEach((d: any) => {
-        newChecked.set(d.equipment_id, { equipmentId: d.equipment_id, quantity: d.quantity || 1 });
+        newChecked.set(d.equipment_id, { equipmentId: d.equipment_id, quantity: d.quantity || 1, size: d.size ?? undefined });
       });
       setCheckedItems(newChecked);
     } else if (existingDistributions) {
@@ -112,6 +116,14 @@ export function EquipmentDistributionDialog({
 
   const saveMutation = useMutation({
     mutationFn: async () => {
+      // Validate size requirements before saving
+      for (const [id, item] of checkedItems.entries()) {
+        const eq = allEquipmentItems?.find(e => e.id === id);
+        if (eq?.has_sizes && (eq.available_sizes?.length ?? 0) > 0 && !item.size) {
+          throw new Error(`Pilih ukuran untuk: ${eq.name}`);
+        }
+      }
+
       const existingIds = new Set(existingDistributions?.map((d: any) => d.equipment_id) || []);
       const newCheckedIds = new Set(checkedItems.keys());
       
@@ -120,11 +132,15 @@ export function EquipmentDistributionDialog({
 
       // 1. Handle Additions (Atomic)
       if (itemsToAdd.length > 0) {
-        const distributions = itemsToAdd.map(id => ({
-          equipment_id: id,
-          customer_id: jamaahId,
-          quantity: checkedItems.get(id)?.quantity || 1
-        }));
+        const distributions = itemsToAdd.map(id => {
+          const item = checkedItems.get(id);
+          return {
+            equipment_id: id,
+            customer_id: jamaahId,
+            quantity: item?.quantity || 1,
+            ...(item?.size ? { size: item.size } : {}),
+          };
+        });
 
         const { error } = await supabase.rpc('bulk_distribute_equipment', {
           p_departure_id: departureId,
@@ -195,8 +211,21 @@ export function EquipmentDistributionDialog({
     }
 
     const newChecked = new Map(checkedItems);
-    if (isChecked) newChecked.delete(id);
-    else newChecked.set(id, { equipmentId: id, quantity: 1 });
+    if (isChecked) {
+      newChecked.delete(id);
+    } else {
+      const defaultSize = item?.has_sizes && item.available_sizes?.length === 1
+        ? item.available_sizes[0]
+        : undefined;
+      newChecked.set(id, { equipmentId: id, quantity: 1, size: defaultSize });
+    }
+    setCheckedItems(newChecked);
+  };
+
+  const handleSizeChange = (id: string, size: string) => {
+    const newChecked = new Map(checkedItems);
+    const existing = newChecked.get(id);
+    if (existing) newChecked.set(id, { ...existing, size });
     setCheckedItems(newChecked);
   };
 
@@ -249,12 +278,12 @@ export function EquipmentDistributionDialog({
             </p>
             
             <div className="p-3 bg-muted rounded-md text-sm space-y-1 max-h-[300px] overflow-y-auto">
-              {Array.from(checkedItems.entries()).map(([eqId]) => {
+              {Array.from(checkedItems.entries()).map(([eqId, ci]) => {
                 const eq = allEquipmentItems?.find(e => e.id === eqId);
                 const isNew = !existingDistributions?.some(d => d.equipment_id === eqId);
                 return (
-                  <p key={eqId} className="flex items-center justify-between">
-                    <span>• {eq?.name}</span>
+                  <p key={eqId} className="flex items-center justify-between gap-2">
+                    <span>• {eq?.name}{ci.size ? <span className="text-muted-foreground ml-1">({ci.size})</span> : null}</span>
                     {isNew && <Badge className="text-[10px] h-4 bg-green-100 text-green-700 border-green-200">Baru</Badge>}
                   </p>
                 );
@@ -392,42 +421,84 @@ export function EquipmentDistributionDialog({
               <div className="space-y-2">
                 {equipmentItems.map((item) => {
                   const isChecked = checkedItems.has(item.id);
+                  const checkedItem = checkedItems.get(item.id);
                   const stock = item.stock_quantity || 0;
                   const threshold = item.low_stock_threshold || 5;
+                  const needsSize = item.has_sizes && (item.available_sizes?.length ?? 0) > 0;
+                  const missingSize = isChecked && needsSize && !checkedItem?.size;
 
                   return (
                     <div
                       key={item.id}
-                      onClick={() => handleCheckItem(item.id)}
-                      className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
+                      className={`rounded-lg border transition-all ${
                         isChecked
-                          ? 'bg-green-50 border-green-300 dark:bg-green-950/30 dark:border-green-700'
-                          : stock === 0 
-                            ? 'bg-muted/50 opacity-70 cursor-not-allowed'
+                          ? missingSize
+                            ? 'bg-amber-50 border-amber-300 dark:bg-amber-950/20'
+                            : 'bg-green-50 border-green-300 dark:bg-green-950/30 dark:border-green-700'
+                          : stock === 0
+                            ? 'bg-muted/50 opacity-70'
                             : 'hover:border-primary/50'
                       }`}
                     >
-                      <Checkbox checked={isChecked} className="h-5 w-5 pointer-events-none" />
-                      <Package className="h-4 w-4 text-muted-foreground shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">
-                          {item.name}
-                        </p>
-                        {item.description && (
-                          <p className="text-xs text-muted-foreground truncate">{item.description}</p>
-                        )}
-                      </div>
-                      <Badge
-                        variant="outline"
-                        className={`text-xs shrink-0 ${
-                          stock === 0 ? 'bg-red-50 text-red-700 border-red-200' :
-                          stock <= threshold ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                          'bg-green-50 text-green-700 border-green-200'
-                        }`}
+                      <div
+                        onClick={() => handleCheckItem(item.id)}
+                        className={`flex items-center gap-3 p-3 ${stock === 0 ? 'cursor-not-allowed' : 'cursor-pointer'}`}
                       >
-                        Stok: {stock}
-                      </Badge>
-                      {isChecked && <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0" />}
+                        <Checkbox checked={isChecked} className="h-5 w-5 pointer-events-none" />
+                        <Package className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{item.name}</p>
+                          {item.description && (
+                            <p className="text-xs text-muted-foreground truncate">{item.description}</p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          {needsSize && (
+                            <Badge variant="outline" className="text-xs gap-1 border-blue-200 text-blue-700 bg-blue-50">
+                              <Ruler className="h-2.5 w-2.5" /> Ukuran
+                            </Badge>
+                          )}
+                          <Badge
+                            variant="outline"
+                            className={`text-xs ${
+                              stock === 0 ? 'bg-red-50 text-red-700 border-red-200' :
+                              stock <= threshold ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                              'bg-green-50 text-green-700 border-green-200'
+                            }`}
+                          >
+                            Stok: {stock}
+                          </Badge>
+                          {isChecked && !missingSize && <CheckCircle2 className="h-5 w-5 text-green-600" />}
+                        </div>
+                      </div>
+
+                      {isChecked && needsSize && (
+                        <div className="px-3 pb-3 flex items-center gap-2">
+                          <Ruler className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                          <span className="text-xs text-muted-foreground">Pilih ukuran:</span>
+                          <Select
+                            value={checkedItem?.size ?? ""}
+                            onValueChange={(v) => handleSizeChange(item.id, v)}
+                          >
+                            <SelectTrigger
+                              className={`h-7 text-xs flex-1 max-w-[160px] ${missingSize ? 'border-amber-400' : ''}`}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <SelectValue placeholder={missingSize ? "⚠ Pilih ukuran..." : "Pilih..."} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {item.available_sizes?.map((s) => (
+                                <SelectItem key={s} value={s} className="text-xs">{s}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {checkedItem?.size && (
+                            <Badge className="text-xs bg-blue-100 text-blue-700 border-blue-200">
+                              {checkedItem.size}
+                            </Badge>
+                          )}
+                        </div>
+                      )}
                     </div>
                   );
                 })}

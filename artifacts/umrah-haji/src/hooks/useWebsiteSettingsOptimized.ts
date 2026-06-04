@@ -71,6 +71,8 @@ export interface WebsiteSettings {
   package_card_show_hotel: boolean | null;
   package_card_show_duration: boolean | null;
   package_card_show_departure: boolean | null;
+  layout_variant: Record<string, any> | null;
+  theme_overrides: Record<string, any> | null;
   created_at: string | null;
   updated_at: string | null;
 }
@@ -95,7 +97,8 @@ export interface ThemePreset {
 const SETTINGS_ID = "00000000-0000-0000-0000-000000000001";
 const SETTINGS_CACHE_KEY = "website-settings-cache";
 const SETTINGS_CACHE_TIME_KEY = "website-settings-cache-time";
-const CACHE_DURATION = 1000 * 60 * 60; // 1 hour
+// CSS-FIX-4: turunkan cache ke 5 menit agar perubahan admin cepat berlaku
+const CACHE_DURATION = 1000 * 60 * 5; // 5 minutes
 
 type WebsiteSettingsRow = Database['public']['Tables']['website_settings']['Row'];
 
@@ -158,6 +161,8 @@ const DEFAULT_SETTINGS: WebsiteSettings = {
   package_card_show_hotel: true,
   package_card_show_duration: true,
   package_card_show_departure: true,
+  layout_variant: null,
+  theme_overrides: null,
   created_at: null,
   updated_at: null,
 };
@@ -184,6 +189,8 @@ const mapWebsiteSettings = (data: WebsiteSettingsRow): WebsiteSettings => {
     package_card_show_duration: raw.package_card_show_duration !== false,
     package_card_show_departure: raw.package_card_show_departure !== false,
     hero_display_mode: raw.hero_display_mode ?? 'both',
+    layout_variant: (raw.layout_variant ?? null) as Record<string, any> | null,
+    theme_overrides: (raw.theme_overrides ?? null) as Record<string, any> | null,
   };
 };
 
@@ -237,8 +244,8 @@ const websiteSettingsSchema = z.object({
 export function useWebsiteSettings() {
   return useQuery({
     queryKey: ["website-settings"],
-    staleTime: Infinity,
-    gcTime: 1000 * 60 * 60,
+    staleTime: 1000 * 60 * 2, // CSS-FIX-4: 2 menit
+    gcTime: CACHE_DURATION,
     retry: 1,
     queryFn: async () => {
       // Cek cache terlebih dahulu

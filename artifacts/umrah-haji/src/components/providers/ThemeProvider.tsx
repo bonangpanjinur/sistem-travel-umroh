@@ -1,5 +1,8 @@
 import { ReactNode, useEffect, useMemo, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { useWebsiteSettings, WebsiteSettings } from '@/hooks/useWebsiteSettingsOptimized';
+import { getTheme, RADIUS_MAP, DENSITY_MAP } from '@/lib/themes/registry';
 
 interface ThemeProviderProps {
   children: ReactNode;
@@ -16,30 +19,32 @@ const PRELOADED_FONTS = new Set(['Inter', 'Plus Jakarta Sans']);
 function generateCSSVariables(settings: WebsiteSettings | null | undefined): Record<string, string> {
   if (!settings) return {};
 
+  const tokens = getTheme(settings.template);
+
   return {
-    '--primary': settings.primary_color || '142 70% 45%',
+    '--primary': settings.primary_color || tokens.colors.primary,
     '--primary-foreground': '0 0% 100%',
-    '--secondary': settings.secondary_color || '45 93% 47%',
+    '--secondary': settings.secondary_color || tokens.colors.secondary,
     '--secondary-foreground': '0 0% 0%',
-    '--accent': settings.accent_color || '142 60% 35%',
+    '--accent': settings.accent_color || tokens.colors.accent,
     '--accent-foreground': '0 0% 100%',
-    '--background': settings.background_color || '0 0% 100%',
-    '--foreground': settings.foreground_color || '142 20% 10%',
+    '--background': settings.background_color || tokens.colors.background,
+    '--foreground': settings.foreground_color || tokens.colors.foreground,
     '--muted': `${settings.background_color?.split(' ')[0] || '0'} 10% 94%`,
     '--muted-foreground': `${settings.foreground_color?.split(' ')[0] || '0'} 10% 45%`,
-    '--card': settings.background_color || '0 0% 100%',
-    '--card-foreground': settings.foreground_color || '142 20% 10%',
-    '--popover': settings.background_color || '0 0% 100%',
-    '--popover-foreground': settings.foreground_color || '142 20% 10%',
+    '--card': tokens.colors.surface || settings.background_color || tokens.colors.background,
+    '--card-foreground': settings.foreground_color || tokens.colors.foreground,
+    '--popover': tokens.colors.surface || settings.background_color || tokens.colors.background,
+    '--popover-foreground': settings.foreground_color || tokens.colors.foreground,
     '--border': `${settings.foreground_color?.split(' ')[0] || '0'} 10% 90%`,
     '--input': `${settings.foreground_color?.split(' ')[0] || '0'} 10% 90%`,
-    '--ring': settings.primary_color || '142 70% 45%',
-    '--sidebar-primary': settings.primary_color || '142 70% 45%',
-    '--sidebar-accent': settings.accent_color || '142 60% 35%',
-    '--sidebar-background': settings.background_color || '0 0% 100%',
-    '--sidebar-foreground': settings.foreground_color || '142 20% 10%',
+    '--ring': settings.primary_color || tokens.colors.primary,
+    '--sidebar-primary': settings.primary_color || tokens.colors.primary,
+    '--sidebar-accent': settings.accent_color || tokens.colors.accent,
+    '--sidebar-background': settings.background_color || tokens.colors.background,
+    '--sidebar-foreground': settings.foreground_color || tokens.colors.foreground,
     '--sidebar-border': `${settings.foreground_color?.split(' ')[0] || '0'} 10% 90%`,
-    '--sidebar-ring': settings.primary_color || '142 70% 45%',
+    '--sidebar-ring': settings.primary_color || tokens.colors.primary,
     '--success': '142 76% 36%',
     '--success-foreground': '0 0% 100%',
     '--warning': '38 92% 50%',
@@ -52,8 +57,13 @@ function generateCSSVariables(settings: WebsiteSettings | null | undefined): Rec
     '--destructive': '0 84% 60%',
     '--destructive-foreground': '0 0% 100%',
     '--destructive-muted': '0 84% 95%',
-    '--font-heading': settings.heading_font || 'Plus Jakarta Sans',
-    '--font-body': settings.body_font || 'Inter',
+    '--font-heading': settings.heading_font || tokens.fonts.heading,
+    '--font-body': settings.body_font || tokens.fonts.body,
+    // Registry-driven tokens (always synced to active theme).
+    '--radius': RADIUS_MAP[tokens.radius],
+    '--section-py': DENSITY_MAP[tokens.density],
+    '--theme-accent-gold': tokens.colors.accentGold || tokens.colors.accent,
+    '--theme-mood': tokens.mood,
   };
 }
 
@@ -109,8 +119,24 @@ function updateMetaTag(name: string, content: string, attr: 'name' | 'property' 
   element.setAttribute('content', content);
 }
 
+interface PWAIconConfig {
+  iconUrl?: string | null;
+  appName?: string;
+  shortName?: string;
+  themeColor?: string;
+  bgColor?: string;
+}
+
+function getPWAIconConfig(settings: WebsiteSettings | null | undefined): PWAIconConfig {
+  const raw = settings?.custom_sections as unknown;
+  if (!raw || Array.isArray(raw) || typeof raw !== 'object') return {};
+  return ((raw as Record<string, unknown>).pwa_icon_config ?? {}) as PWAIconConfig;
+}
+
 function applyMetaTags(settings: WebsiteSettings | null | undefined) {
   if (!settings) return;
+
+  const pwa = getPWAIconConfig(settings);
 
   const title = settings.meta_title || settings.company_name || 'Umrah Haji';
   const description = settings.meta_description || settings.tagline || 'Sistem Manajemen Umrah & Haji';
@@ -125,15 +151,25 @@ function applyMetaTags(settings: WebsiteSettings | null | undefined) {
   updateMetaTag('twitter:description', description);
   updateMetaTag('twitter:image', logo);
 
-  if (settings.primary_color) {
-    updateMetaTag('theme-color', `hsl(${settings.primary_color})`);
+  // theme-color: prefer the PWA hex override, then fall back to primary_color (HSL → hex conversion not needed — hex works fine)
+  const themeColor = pwa.themeColor || (settings.primary_color ? `hsl(${settings.primary_color})` : null);
+  if (themeColor) {
+    updateMetaTag('theme-color', themeColor);
   }
+
+  // PWA-specific: apple title uses the short name set in PWA Settings
+  const appleTitle =
+    pwa.shortName ||
+    (settings.company_name ? settings.company_name.split(' ')[0] : null) ||
+    title;
+  updateMetaTag('apple-mobile-web-app-title', appleTitle);
 
   if (settings.google_console_verification) {
     updateMetaTag('google-site-verification', settings.google_console_verification);
   }
 
-  const iconUrl = settings.favicon_url || settings.logo_url;
+  // Favicon / apple-touch-icon: prefer custom PWA icon, then favicon/logo
+  const iconUrl = pwa.iconUrl || settings.favicon_url || settings.logo_url;
   if (iconUrl) {
     let favicon = document.querySelector('link[rel="icon"]') as HTMLLinkElement;
     if (!favicon) {
@@ -151,6 +187,23 @@ function applyMetaTags(settings: WebsiteSettings | null | undefined) {
     }
     appleIcon.href = iconUrl;
   }
+
+  // ── Persist brand for dynamic splash on next boot (read by index.html script)
+  try {
+    const splashLogo = pwa.iconUrl || settings.logo_url || null;
+    const primary = settings.primary_color ? `hsl(${settings.primary_color})` : null;
+    const brand = {
+      name: pwa.shortName || settings.company_name || null,
+      logo: splashLogo,
+      color: primary,
+      gradient: primary
+        ? `linear-gradient(135deg, ${primary} 0%, hsl(0,0%,6%) 100%)`
+        : null,
+    };
+    if (brand.name || brand.logo || brand.color) {
+      localStorage.setItem('tenant-brand', JSON.stringify(brand));
+    }
+  } catch { /* ignore */ }
 }
 
 function generateSettingsHash(settings: WebsiteSettings | null | undefined): string {
@@ -182,6 +235,7 @@ function generateSettingsHash(settings: WebsiteSettings | null | undefined): str
 export function ThemeProvider({ children, settings: propSettings }: ThemeProviderProps) {
   const { data: fetchedSettings } = useWebsiteSettings();
   const settings = propSettings !== undefined ? propSettings : fetchedSettings;
+  const queryClient = useQueryClient();
 
   const cssVariables = useMemo(() => generateCSSVariables(settings), [settings]);
   const settingsHash = useMemo(() => generateSettingsHash(settings), [settings]);
@@ -191,6 +245,11 @@ export function ThemeProvider({ children, settings: propSettings }: ThemeProvide
   useEffect(() => {
     if (!settings) return;
     applyCSSVariables(cssVariables, settings);
+    // CSS-FIX-1: notify the boot loader that theme is ready so it can fade out
+    // only AFTER the user-defined colors are applied (no flash of default theme).
+    try {
+      window.dispatchEvent(new CustomEvent('theme-ready'));
+    } catch { /* ignore */ }
   }, [cssVariables, settings]);
 
   // Effect 2: Fonts — re-apply only when font names change.
@@ -199,7 +258,7 @@ export function ThemeProvider({ children, settings: propSettings }: ThemeProvide
     loadGoogleFonts(settings.heading_font, settings.body_font);
   }, [settings?.heading_font, settings?.body_font]);
 
-  // Effect 3: Meta tags — re-apply only when relevant SEO fields change.
+  // Effect 3: Meta tags — re-apply only when relevant SEO/PWA fields change.
   useEffect(() => {
     if (!settings) return;
     applyMetaTags(settings);
@@ -212,6 +271,8 @@ export function ThemeProvider({ children, settings: propSettings }: ThemeProvide
     settings?.favicon_url,
     settings?.primary_color,
     settings?.google_console_verification,
+    // custom_sections holds pwa_icon_config (shortName, themeColor, iconUrl)
+    settings?.custom_sections,
   ]);
 
   // Effect 4: Cache write — only when the settings hash actually changes.
@@ -235,10 +296,41 @@ export function ThemeProvider({ children, settings: propSettings }: ThemeProvide
       } else {
         localStorage.removeItem('website-seo-verification');
       }
+
+      // CSS-FIX-2: Persist active fonts so index.html can restore them
+      // BEFORE React mounts on the next visit (eliminates font swap).
+      if (settings.heading_font || settings.body_font) {
+        localStorage.setItem('website-fonts-cache', JSON.stringify({
+          heading: settings.heading_font || null,
+          body: settings.body_font || null,
+        }));
+      }
     } catch {
       // Ignore quota errors
     }
   }, [settingsHash, cssVariables, settings]);
+
+  // CSS-FIX-3: Realtime invalidation — when admin edits website_settings,
+  // every connected client invalidates its cached query and clears localStorage
+  // so the new theme/font/colors take effect immediately without manual refresh.
+  useEffect(() => {
+    if (propSettings !== undefined) return; // tenant-scoped tree manages its own data
+    const channel = supabase
+      .channel(`website-settings-realtime-${Math.random().toString(36).slice(2)}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'website_settings' },
+        () => {
+          try {
+            localStorage.removeItem('website-settings-cache');
+            localStorage.removeItem('website-settings-cache-time');
+          } catch { /* ignore */ }
+          queryClient.invalidateQueries({ queryKey: ['website-settings'] });
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [queryClient, propSettings]);
 
   return <>{children}</>;
 }

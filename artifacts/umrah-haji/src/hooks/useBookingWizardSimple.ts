@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { RoomType } from "@/types/database";
 import { BookingStep } from "@/components/booking/BookingWizard";
+import { TIER_DISCOUNT_PERCENT, type LoyaltyTier } from "@/hooks/useLoyaltyTier";
 
 export interface SimplePassengerData {
   id: string;
@@ -121,7 +122,21 @@ export function useBookingWizardSimple(
       const childCount = formData.passengers.filter(p => p.passengerType === 'child').length;
       const infantCount = formData.passengers.filter(p => p.passengerType === 'infant').length;
       const totalPax = formData.passengers.length;
-      const totalPrice = basePrice * totalPax;
+      const subtotal = basePrice * totalPax;
+
+      // Apply loyalty tier discount automatically
+      let tierDiscount = 0;
+      const { data: loyaltyRow } = await supabase
+        .from('loyalty_points')
+        .select('tier_level')
+        .eq('customer_id', customer.id)
+        .maybeSingle();
+      const tier = (loyaltyRow?.tier_level as LoyaltyTier) || 'silver';
+      const discountPercent = TIER_DISCOUNT_PERCENT[tier] ?? 0;
+      if (discountPercent > 0) {
+        tierDiscount = Math.round((subtotal * discountPercent) / 100);
+      }
+      const totalPrice = subtotal - tierDiscount;
 
       // 4. Create booking (remaining_amount is auto-calculated from total_price - paid_amount)
       const { data: bookingCodeData, error: bookingCodeError } = await supabase.rpc('generate_booking_code', { _package_code: (departure.package as any)?.code || '', _departure_date: departure.departure_date });
@@ -140,6 +155,7 @@ export function useBookingWizardSimple(
           child_count: childCount,
           infant_count: infantCount,
           base_price: basePrice,
+          discount_amount: tierDiscount,
           total_price: totalPrice,
           notes: formData.notes,
         })

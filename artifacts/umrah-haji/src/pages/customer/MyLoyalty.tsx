@@ -20,9 +20,9 @@ import {
 } from 'lucide-react';
 
 const TIER_CONFIG = {
-  silver: { label: 'Silver', color: 'bg-gray-400', nextTier: 'Gold', pointsNeeded: 1000, icon: '🥈' },
-  gold: { label: 'Gold', color: 'bg-yellow-500', nextTier: 'Platinum', pointsNeeded: 5000, icon: '🥇' },
-  platinum: { label: 'Platinum', color: 'bg-purple-500', nextTier: null, pointsNeeded: null, icon: '👑' },
+  silver: { label: 'Silver', color: 'bg-gray-400', nextTier: 'Gold', pointsNeeded: 1000, icon: '🥈', discount: 0, benefits: ['Akumulasi poin dari setiap pembayaran', 'Akses katalog reward'] },
+  gold: { label: 'Gold', color: 'bg-yellow-500', nextTier: 'Platinum', pointsNeeded: 5000, icon: '🥇', discount: 2, benefits: ['Diskon 2% otomatis untuk semua booking', 'Prioritas konfirmasi booking', 'Reward eksklusif tier Gold'] },
+  platinum: { label: 'Platinum', color: 'bg-purple-500', nextTier: null, pointsNeeded: null, icon: '👑', discount: 5, benefits: ['Diskon 5% otomatis untuk semua booking', 'Prioritas tertinggi & dedicated CS', 'Akses upgrade kamar gratis (jika tersedia)', 'Reward eksklusif tier Platinum'] },
 };
 
 interface LoyaltyReward {
@@ -281,6 +281,24 @@ export default function MyLoyalty() {
                         </p>
                       </div>
                     )}
+                  </div>
+
+                  {/* Tier benefits */}
+                  <div className="rounded-lg border border-primary/20 bg-primary/5 p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-sm font-semibold">Benefit Tier {tierConfig.label}</p>
+                      {tierConfig.discount > 0 && (
+                        <Badge className="bg-emerald-600 text-white">Diskon {tierConfig.discount}%</Badge>
+                      )}
+                    </div>
+                    <ul className="space-y-1 text-xs text-muted-foreground">
+                      {tierConfig.benefits.map((b, i) => (
+                        <li key={i} className="flex items-start gap-2">
+                          <span className="text-primary mt-0.5">•</span>
+                          <span>{b}</span>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
 
                   {/* Stats */}

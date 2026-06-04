@@ -35,13 +35,20 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { formatCurrency, formatPackageType, formatDate } from "@/lib/format";
-import { ArrowLeft, Link2, Edit, Trash2, Calendar, Users, Plane, ChevronDown, Eye, AlertCircle, CheckCircle2, Clock, TrendingUp, Box } from "lucide-react";
-import { useState } from "react";
+import { ArrowLeft, Link2, Edit, Trash2, Calendar, Users, Plane, ChevronDown, Eye, AlertCircle, CheckCircle2, Clock, TrendingUp, Box, ExternalLink, DollarSign } from "lucide-react";
+import { useState, useMemo } from "react";
+import { slugify } from "@/lib/slug";
 import { LinkDepartureForm } from "@/components/admin/forms/LinkDepartureForm";
 import { PackageForm } from "@/components/admin/forms/PackageForm";
 import { MilestoneTrackerCard } from "@/components/admin/MilestoneTrackerCard";
 import { BreakEvenIndicatorCard } from "@/components/admin/BreakEvenIndicatorCard";
 import { EquipmentReadinessCard } from "@/components/admin/EquipmentReadinessCard";
+import { PackageCancellationPolicyCard } from "@/components/admin/PackageCancellationPolicyCard";
+import { PackageGalleryCard } from "@/components/admin/PackageGalleryCard";
+import { PackagePriceTrendCard } from "@/components/admin/PackagePriceTrendCard";
+import { PackagePriceAuditCard } from "@/components/admin/PackagePriceAuditCard";
+import { DeparturePriceComparisonCard } from "@/components/admin/DeparturePriceComparisonCard";
+import { PackageFinancialSection } from "@/components/admin/financial/PackageFinancialSection";
 import { toast } from "sonner";
 
 const MONTHS = [
@@ -174,6 +181,17 @@ export default function AdminPackageDetail() {
 
   const dynamicData = getDynamicData();
 
+  const aggregateCapacity = useMemo(() => {
+    if (!departures || departures.length === 0) return null;
+    const totalQuota = departures.reduce((sum, d) => sum + (d.quota || 0), 0);
+    const totalBooked = departures.reduce((sum, d) => sum + ((d as any).booked_count || 0), 0);
+    const openCount = departures.filter(d => d.status === 'open').length;
+    const departedCount = departures.filter(d => d.status === 'departed').length;
+    const fullCount = departures.filter(d => d.status === 'full').length;
+    const fillPct = totalQuota > 0 ? Math.round((totalBooked / totalQuota) * 100) : 0;
+    return { totalQuota, totalBooked, openCount, departedCount, fullCount, fillPct, total: departures.length };
+  }, [departures]);
+
   const getMilestoneStatus = (deadline: string | null) => {
     if (!deadline) return { label: "Belum diatur", color: "text-muted-foreground", icon: Clock };
     const today = new Date();
@@ -284,10 +302,18 @@ export default function AdminPackageDetail() {
             <p className="text-muted-foreground">{packageData.code} • {packageData.package_type_ref?.name || formatPackageType(packageData.package_type)}</p>
           </div>
         </div>
-        <Button onClick={() => setIsPackageFormOpen(true)}>
-          <Edit className="h-4 w-4 mr-2" />
-          Edit Paket
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" asChild>
+            <Link to={`/packages/${packageData.id}-${slugify(packageData.name)}`} target="_blank" rel="noopener noreferrer">
+              <ExternalLink className="h-4 w-4 mr-2" />
+              Lihat di Website
+            </Link>
+          </Button>
+          <Button onClick={() => setIsPackageFormOpen(true)}>
+            <Edit className="h-4 w-4 mr-2" />
+            Edit Paket
+          </Button>
+        </div>
       </div>
 
       {/* Package Info */}
@@ -355,25 +381,25 @@ export default function AdminPackageDetail() {
             <div className="flex justify-between">
               <span className="text-muted-foreground">Quad (4 orang)</span>
               <span className="font-medium">
-                {formatCurrency(dynamicData?.lowestPrices.quad || packageData.price_quad)}
+                {formatCurrency(dynamicData?.lowestPrices.quad || packageData.price_quad, packageData.currency)}
               </span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Triple (3 orang)</span>
               <span className="font-medium">
-                {formatCurrency(dynamicData?.lowestPrices.triple || packageData.price_triple)}
+                {formatCurrency(dynamicData?.lowestPrices.triple || packageData.price_triple, packageData.currency)}
               </span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Double (2 orang)</span>
               <span className="font-medium">
-                {formatCurrency(dynamicData?.lowestPrices.double || packageData.price_double)}
+                {formatCurrency(dynamicData?.lowestPrices.double || packageData.price_double, packageData.currency)}
               </span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Single (1 orang)</span>
               <span className="font-medium">
-                {formatCurrency(dynamicData?.lowestPrices.single || packageData.price_single)}
+                {formatCurrency(dynamicData?.lowestPrices.single || packageData.price_single, packageData.currency)}
               </span>
             </div>
             {dynamicData && (
@@ -420,6 +446,75 @@ export default function AdminPackageDetail() {
           </CardContent>
         </Card>
       </div>
+
+      {/* P5 — Aggregate Capacity across all departures */}
+      {aggregateCapacity && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-primary" />
+              Kapasitas Aggregat — Semua Keberangkatan
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-4">
+              <div className="rounded-lg bg-muted/50 p-4 text-center">
+                <p className="text-2xl font-bold">{aggregateCapacity.totalBooked}</p>
+                <p className="text-xs text-muted-foreground mt-1">Total Jamaah</p>
+              </div>
+              <div className="rounded-lg bg-muted/50 p-4 text-center">
+                <p className="text-2xl font-bold">{aggregateCapacity.totalQuota}</p>
+                <p className="text-xs text-muted-foreground mt-1">Total Kuota</p>
+              </div>
+              <div className="rounded-lg bg-primary/10 p-4 text-center">
+                <p className="text-2xl font-bold text-primary">{aggregateCapacity.fillPct}%</p>
+                <p className="text-xs text-muted-foreground mt-1">Terisi</p>
+              </div>
+              <div className="rounded-lg bg-green-50 dark:bg-green-950/30 p-4 text-center">
+                <p className="text-2xl font-bold text-green-600">{aggregateCapacity.openCount}</p>
+                <p className="text-xs text-muted-foreground mt-1">Jadwal Buka</p>
+              </div>
+              <div className="rounded-lg bg-orange-50 dark:bg-orange-950/30 p-4 text-center">
+                <p className="text-2xl font-bold text-orange-500">{aggregateCapacity.fullCount}</p>
+                <p className="text-xs text-muted-foreground mt-1">Jadwal Penuh</p>
+              </div>
+              <div className="rounded-lg bg-muted/50 p-4 text-center">
+                <p className="text-2xl font-bold text-muted-foreground">{aggregateCapacity.departedCount}</p>
+                <p className="text-xs text-muted-foreground mt-1">Sudah Berangkat</p>
+              </div>
+            </div>
+            <div className="mt-4">
+              <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                <span>{aggregateCapacity.totalBooked} jamaah terdaftar</span>
+                <span>dari {aggregateCapacity.totalQuota} kuota total ({aggregateCapacity.total} keberangkatan)</span>
+              </div>
+              <div className="w-full bg-secondary h-2 rounded-full overflow-hidden">
+                <div
+                  className="bg-primary h-full transition-all"
+                  style={{ width: `${Math.min(100, aggregateCapacity.fillPct)}%` }}
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Cancellation Policy */}
+      <PackageCancellationPolicyCard packageId={id} packageName={packageData.name} />
+
+      {/* Photo Gallery */}
+      <PackageGalleryCard packageId={id} mainImageUrl={packageData?.featured_image} />
+
+      {/* Price Trend */}
+      <PackagePriceTrendCard packageId={id} departures={departures || []} />
+
+      {/* Price Audit Trail (P4) */}
+      <PackagePriceAuditCard packageId={id} />
+
+      {/* Price Comparison */}
+      {departures && departures.length > 1 && (
+        <DeparturePriceComparisonCard departures={departures} />
+      )}
 
       {/* Departures with Jamaah List */}
       <Card>
@@ -526,6 +621,7 @@ export default function AdminPackageDetail() {
                           {/* Phase 3 & 5 Quick Stats */}
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <MilestoneTrackerCard
+                              departureId={departure.id}
                               milestones={[
                                 { label: "Pengumpulan Dokumen", date: departure.document_deadline, type: "document" },
                                 { label: "Pelunasan Pembayaran", date: departure.payment_deadline, type: "payment" },
@@ -543,7 +639,6 @@ export default function AdminPackageDetail() {
                             <EquipmentReadinessCard
                               departureId={departure.id}
                               totalJamaah={departure.quota}
-                              completedJamaah={Math.floor((departure.quota * 45) / 100)}
                             />
                           </div>
 
@@ -615,6 +710,25 @@ export default function AdminPackageDetail() {
               })}
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* ─── Keuangan per Keberangkatan ─────────────────────────────── */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <DollarSign className="h-5 w-5 text-primary" />
+            Keuangan per Keberangkatan
+          </CardTitle>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            HPP (modal), pengeluaran operasional, pendapatan tambahan, dan laporan laba/rugi per keberangkatan.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <PackageFinancialSection
+            departures={(departures || []).map((d: any) => ({ ...d, status: d.status ?? "open" }))}
+            packageName={packageData?.name}
+          />
         </CardContent>
       </Card>
 

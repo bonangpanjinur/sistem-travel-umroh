@@ -1,8 +1,9 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Calendar, AlertCircle, CheckCircle2, Clock } from "lucide-react";
+import { Calendar, AlertCircle, CheckCircle2, Clock, FileCheck, Upload } from "lucide-react";
 import { formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Milestone {
   label: string;
@@ -10,12 +11,19 @@ interface Milestone {
   type: "document" | "payment" | "visa";
 }
 
+interface DocumentStats {
+  total_jamaah: number;
+  uploaded: number;
+  verified: number;
+}
+
 interface MilestoneTrackerCardProps {
   milestones: Milestone[];
   className?: string;
+  departureId?: string;
 }
 
-function getMilestoneStatus(deadline: string | null) {
+function getDeadlineStatus(deadline: string | null) {
   if (!deadline) {
     return {
       label: "Belum diatur",
@@ -61,10 +69,63 @@ function getMilestoneStatus(deadline: string | null) {
   };
 }
 
+function useDocumentStats(departureId?: string): DocumentStats | null {
+  const { data } = useQuery({
+    queryKey: ["milestone-doc-stats", departureId],
+    enabled: !!departureId,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data: passengers, error: pErr } = await supabase
+        .from("booking_passengers")
+        .select("customer_id, booking:bookings!inner(departure_id)")
+        .eq("booking.departure_id", departureId as string);
+
+      if (pErr) throw pErr;
+
+      const customerIds = [...new Set((passengers || []).map((p: any) => p.customer_id).filter(Boolean))];
+      if (customerIds.length === 0) return { total_jamaah: 0, uploaded: 0, verified: 0 };
+
+      const { data: docs, error: dErr } = await supabase
+        .from("customer_documents")
+        .select("customer_id, status, file_url")
+        .in("customer_id", customerIds);
+
+      if (dErr) throw dErr;
+
+      const docMap = new Map<string, { uploaded: boolean; verified: boolean }>();
+      for (const doc of docs || []) {
+        const prev = docMap.get(doc.customer_id) || { uploaded: false, verified: false };
+        if (doc.file_url) prev.uploaded = true;
+        if (doc.status === "verified") prev.verified = true;
+        docMap.set(doc.customer_id, prev);
+      }
+
+      let uploaded = 0;
+      let verified = 0;
+      for (const cid of customerIds) {
+        const entry = docMap.get(cid);
+        if (entry?.uploaded) uploaded++;
+        if (entry?.verified) verified++;
+      }
+
+      return {
+        total_jamaah: customerIds.length,
+        uploaded,
+        verified,
+      };
+    },
+  });
+
+  return data ?? null;
+}
+
 export function MilestoneTrackerCard({
   milestones,
   className,
+  departureId,
 }: MilestoneTrackerCardProps) {
+  const docStats = useDocumentStats(departureId);
+
   return (
     <Card className={cn("bg-blue-50/30 border-blue-100", className)}>
       <CardHeader className="p-3 pb-0">
@@ -74,7 +135,7 @@ export function MilestoneTrackerCard({
       </CardHeader>
       <CardContent className="p-3 space-y-2">
         {milestones.map((milestone, idx) => {
-          const status = getMilestoneStatus(milestone.date);
+          const status = getDeadlineStatus(milestone.date);
           const Icon = status.icon;
 
           return (
@@ -98,6 +159,50 @@ export function MilestoneTrackerCard({
             </div>
           );
         })}
+
+        {departureId && docStats !== null && (
+          <div className="pt-1 border-t border-blue-100 mt-1 space-y-1">
+            <p className="text-[9px] font-semibold text-blue-600 uppercase tracking-wide">
+              Dokumen Jamaah (Real-time)
+            </p>
+
+            <div className="flex items-center justify-between p-2 rounded-lg border bg-amber-50 border-amber-200 text-[10px]">
+              <div className="flex items-center gap-1.5">
+                <Upload className="h-3 w-3 text-amber-600" />
+                <span className="text-muted-foreground font-medium">Sudah Upload</span>
+              </div>
+              <span className={cn(
+                "font-bold",
+                docStats.uploaded === docStats.total_jamaah && docStats.total_jamaah > 0
+                  ? "text-green-600"
+                  : "text-amber-600"
+              )}>
+                {docStats.uploaded}/{docStats.total_jamaah}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between p-2 rounded-lg border bg-green-50 border-green-200 text-[10px]">
+              <div className="flex items-center gap-1.5">
+                <FileCheck className="h-3 w-3 text-green-600" />
+                <span className="text-muted-foreground font-medium">Terverifikasi</span>
+              </div>
+              <span className={cn(
+                "font-bold",
+                docStats.verified === docStats.total_jamaah && docStats.total_jamaah > 0
+                  ? "text-green-600"
+                  : "text-orange-600"
+              )}>
+                {docStats.verified}/{docStats.total_jamaah}
+              </span>
+            </div>
+
+            {docStats.total_jamaah > 0 && (
+              <div className="text-[9px] text-muted-foreground text-right">
+                {Math.round((docStats.verified / docStats.total_jamaah) * 100)}% dokumen lengkap
+              </div>
+            )}
+          </div>
+        )}
       </CardContent>
     </Card>
   );

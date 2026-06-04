@@ -1,4 +1,5 @@
 import { useCompanyFeatures, getIconComponent } from '@/hooks/useCompanyFeatures';
+import { useTheme } from '@/lib/themes/useTheme';
 import { Skeleton } from '@/components/ui/skeleton';
 import { WebsiteSettings } from '@/hooks/useWebsiteSettings';
 import { Crown } from 'lucide-react';
@@ -9,7 +10,7 @@ interface WhyChooseUsProps {
 
 export function WhyChooseUs({ settings }: WhyChooseUsProps) {
   const { data: features, isLoading } = useCompanyFeatures();
-  const isRoyal = settings?.template === 'royal';
+  const { isDark } = useTheme(settings); const isRoyal = isDark;
 
   if (isLoading) {
     return (

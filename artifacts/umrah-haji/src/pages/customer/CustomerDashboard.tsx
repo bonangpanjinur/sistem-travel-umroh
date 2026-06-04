@@ -13,8 +13,11 @@ import { Link } from "react-router-dom";
 import {
   Calendar, CreditCard, Star, PiggyBank, Headphones,
   ArrowRight, BookOpen, IdCard, MapPin, Clock, CheckCircle2,
-  Plane, FileCheck, Stethoscope, ShieldCheck, Calculator
+  Plane, FileCheck, Stethoscope, ShieldCheck, Calculator, Scale,
+  Bell, Info, AlertCircle, CheckCheck, LogIn, Luggage, FileSignature
 } from "lucide-react";
+import { useNotifications } from "@/hooks/useNotifications";
+import { CountdownTimer } from "@/components/customer/CountdownTimer";
 import { PublicLayout } from "@/components/layout/PublicLayout";
 import { differenceInDays, format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
@@ -212,62 +215,156 @@ export default function CustomerDashboard() {
     return acc;
   }, {} as Record<string, any[]>) || {};
 
+  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
+  const recentNotifs = notifications.slice(0, 4);
+
+  const NOTIF_ICON: Record<string, any> = {
+    info: Info,
+    warning: AlertCircle,
+    success: CheckCircle2,
+    urgent: AlertCircle,
+  };
+  const NOTIF_COLOR: Record<string, string> = {
+    info: "text-blue-600 bg-blue-50",
+    warning: "text-amber-600 bg-amber-50",
+    success: "text-emerald-600 bg-emerald-50",
+    urgent: "text-red-600 bg-red-50",
+  };
+
   return (
     <PublicLayout>
       <div className="container max-w-5xl mx-auto px-4 py-8 space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold">Assalamu'alaikum, {customer?.full_name || 'Jamaah'} 👋</h1>
-        <p className="text-muted-foreground">Selamat datang di portal jamaah Anda</p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Assalamu'alaikum, {customer?.full_name || 'Jamaah'} 👋</h1>
+          <p className="text-muted-foreground">Selamat datang di portal jamaah Anda</p>
+        </div>
+        <Link to="/jamaah/notifications" className="relative p-2 rounded-full hover:bg-muted transition-colors">
+          <Bell className="h-6 w-6 text-muted-foreground" />
+          {unreadCount > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 h-5 w-5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </span>
+          )}
+        </Link>
       </div>
 
-      {/* Countdown Banner */}
-      {activeBooking && daysUntilDeparture !== null && daysUntilDeparture > 0 && (
-        <Card className="border-primary/30 bg-gradient-to-r from-primary/5 to-primary/10">
-          <CardContent className="py-6">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-                  <Plane className="h-8 w-8 text-primary" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Keberangkatan Anda</p>
-                  <p className="font-bold text-lg">{(activeBooking.departure as any)?.package?.name}</p>
-                  <p className="text-sm">{departureDate ? format(new Date(departureDate), "EEEE, dd MMMM yyyy", { locale: idLocale }) : ""}</p>
-                </div>
-              </div>
-              <div className="text-center">
-                <p className="text-4xl font-bold text-primary">{daysUntilDeparture}</p>
-                <p className="text-sm text-muted-foreground">hari lagi</p>
-              </div>
-            </div>
-            <div className="mt-4 flex gap-2 flex-wrap">
-              <Badge>{getBookingStatusLabel(activeBooking.booking_status || '')}</Badge>
-              <Badge variant="outline">{getPaymentStatusLabel(activeBooking.payment_status || '')}</Badge>
-              {visaStatus && (
-                <Badge variant={visaStatus.status === 'approved' ? 'secondary' : 'outline'}>
-                  Visa: {visaStatus.status === 'approved' ? 'Disetujui ✓' : visaStatus.status === 'processing' ? 'Diproses' : 'Menunggu'}
-                </Badge>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+      {/* Countdown Banner — Enhanced */}
+      {activeBooking && departureDate && (
+        <div className="space-y-3">
+          <CountdownTimer
+            departureDate={departureDate}
+            packageName={(activeBooking.departure as any)?.package?.name}
+          />
+          <div className="flex flex-wrap gap-2 px-1">
+            <Badge>{getBookingStatusLabel(activeBooking.booking_status || '')}</Badge>
+            <Badge variant="outline">{getPaymentStatusLabel(activeBooking.payment_status || '')}</Badge>
+            {departureDate && (
+              <Badge variant="outline">
+                {format(new Date(departureDate), "EEEE, dd MMMM yyyy", { locale: idLocale })}
+              </Badge>
+            )}
+            {visaStatus && (
+              <Badge variant={visaStatus.status === 'approved' ? 'secondary' : 'outline'}>
+                Visa: {visaStatus.status === 'approved' ? 'Disetujui ✓' : visaStatus.status === 'processing' ? 'Diproses' : 'Menunggu'}
+              </Badge>
+            )}
+          </div>
+        </div>
       )}
 
       {/* Quick Actions */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 grid-cols-3 sm:grid-cols-4 lg:grid-cols-9">
         <Button variant="outline" className="h-auto flex-col items-center gap-2 py-4" asChild>
-          <Link to="/my-bookings"><Calendar className="h-5 w-5 text-primary" /><span className="text-xs font-semibold">Booking Saya</span></Link>
+          <Link to="/my-bookings"><Calendar className="h-5 w-5 text-primary" /><span className="text-xs font-semibold">Booking</span></Link>
         </Button>
         <Button variant="outline" className="h-auto flex-col items-center gap-2 py-4" asChild>
-          <Link to="/jamaah"><IdCard className="h-5 w-5 text-primary" /><span className="text-xs font-semibold">Portal Jamaah</span></Link>
+          <Link to="/jamaah"><IdCard className="h-5 w-5 text-primary" /><span className="text-xs font-semibold">Portal</span></Link>
+        </Button>
+        <Button variant="outline" className="h-auto flex-col items-center gap-2 py-4" asChild>
+          <Link to="/jamaah/checkin"><LogIn className="h-5 w-5 text-blue-600" /><span className="text-xs font-semibold">Check-in</span></Link>
+        </Button>
+        <Button variant="outline" className="h-auto flex-col items-center gap-2 py-4" asChild>
+          <Link to="/jamaah/kontrak"><FileSignature className="h-5 w-5 text-purple-600" /><span className="text-xs font-semibold">Kontrak</span></Link>
+        </Button>
+        <Button variant="outline" className="h-auto flex-col items-center gap-2 py-4" asChild>
+          <Link to="/jamaah/bagasi"><Luggage className="h-5 w-5 text-orange-600" /><span className="text-xs font-semibold">Bagasi</span></Link>
         </Button>
         <Button variant="outline" className="h-auto flex-col items-center gap-2 py-4" asChild>
           <Link to="/customer/my-savings"><PiggyBank className="h-5 w-5 text-primary" /><span className="text-xs font-semibold">Tabungan</span></Link>
         </Button>
         <Button variant="outline" className="h-auto flex-col items-center gap-2 py-4" asChild>
+          <Link to="/kalkulator-cicilan"><Calculator className="h-5 w-5 text-green-600" /><span className="text-xs font-semibold">Kalkulator</span></Link>
+        </Button>
+        <Button variant="outline" className="h-auto flex-col items-center gap-2 py-4" asChild>
+          <Link to="/packages/compare"><Scale className="h-5 w-5 text-blue-600" /><span className="text-xs font-semibold">Bandingkan</span></Link>
+        </Button>
+        <Button variant="outline" className="h-auto flex-col items-center gap-2 py-4" asChild>
           <Link to="/customer/support"><Headphones className="h-5 w-5 text-primary" /><span className="text-xs font-semibold">Bantuan</span></Link>
         </Button>
       </div>
+
+      {/* Notifikasi In-App */}
+      {recentNotifs.length > 0 && (
+        <Card className="border-primary/20 bg-primary/5 shadow-sm">
+          <CardHeader className="pb-2 pt-4 px-4">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Bell className="h-5 w-5 text-primary" />
+                Notifikasi
+                {unreadCount > 0 && (
+                  <Badge className="ml-1 px-1.5 py-0 text-xs bg-red-500 hover:bg-red-500 text-white">
+                    {unreadCount} baru
+                  </Badge>
+                )}
+              </CardTitle>
+              <div className="flex items-center gap-2">
+                {unreadCount > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs h-7 text-primary"
+                    onClick={() => markAllAsRead.mutate()}
+                    disabled={markAllAsRead.isPending}
+                  >
+                    <CheckCheck className="h-3.5 w-3.5 mr-1" /> Tandai dibaca
+                  </Button>
+                )}
+                <Button variant="ghost" size="sm" className="text-xs h-7" asChild>
+                  <Link to="/jamaah/notifications">Lihat semua</Link>
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="px-4 pb-4 space-y-2">
+            {recentNotifs.map((n: any) => {
+              const Icon = NOTIF_ICON[n.type] || Info;
+              const colorCls = NOTIF_COLOR[n.type] || NOTIF_COLOR.info;
+              return (
+                <div
+                  key={n.id}
+                  className={`flex items-start gap-3 p-3 rounded-lg border transition-all cursor-pointer
+                    ${!n.is_read ? 'bg-white border-primary/20 shadow-sm' : 'bg-white/50 border-muted/40 opacity-70'}`}
+                  onClick={() => !n.is_read && markAsRead.mutate(n.id)}
+                >
+                  <div className={`p-1.5 rounded-full flex-shrink-0 ${colorCls}`}>
+                    <Icon className="h-3.5 w-3.5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className={`text-sm font-semibold ${!n.is_read ? 'text-foreground' : 'text-muted-foreground'}`}>
+                        {n.title}
+                      </p>
+                      {!n.is_read && <span className="h-2 w-2 rounded-full bg-primary flex-shrink-0" />}
+                    </div>
+                    <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{n.message}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
+      )}
 
       <Tabs defaultValue="bookings" className="w-full">
         <TabsList className="grid w-full grid-cols-2 mb-8">

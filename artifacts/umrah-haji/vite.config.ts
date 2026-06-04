@@ -3,7 +3,7 @@ import react from "@vitejs/plugin-react";
 import path from "path";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 
-const rawPort = process.env.PORT || "5173";
+const rawPort = process.env.PORT || "8080";
 const port = Number(rawPort);
 
 if (Number.isNaN(port) || port <= 0) {
@@ -58,6 +58,23 @@ export default defineConfig({
     allowedHosts: true,
     fs: {
       strict: true,
+    },
+    proxy: {
+      "/api": {
+        target: "http://localhost:8080",
+        changeOrigin: true,
+      },
+      // Supabase-compatible proxy routes served by the Express API server.
+      // The Supabase JS client calls /auth/v1/* (auth) and /rest/v1/* (data).
+      // These are forwarded to Express which translates them to Neon Postgres queries.
+      "/auth/v1": {
+        target: "http://localhost:8080",
+        changeOrigin: true,
+      },
+      "/rest/v1": {
+        target: "http://localhost:8080",
+        changeOrigin: true,
+      },
     },
   },
   preview: {

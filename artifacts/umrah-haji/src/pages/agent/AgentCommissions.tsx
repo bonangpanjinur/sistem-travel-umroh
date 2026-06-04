@@ -1,5 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import type { Database } from "@/integrations/supabase/types";
+import * as XLSX from "xlsx";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import { format } from "date-fns";
+import { id as localeId } from "date-fns/locale";
 
 type AgentCommission = Database["public"]["Tables"]["agent_commissions"]["Row"];
 type Booking = Database["public"]["Tables"]["bookings"]["Row"];
@@ -15,36 +20,35 @@ interface AgentCommissionWithBooking extends AgentCommission {
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { 
-  Table, TableBody, TableCell, TableHead, 
-  TableHeader, TableRow 
+import {
+  Table, TableBody, TableCell, TableHead,
+  TableHeader, TableRow
 } from "@/components/ui/table";
 import { formatCurrency } from "@/lib/format";
-import { format } from "date-fns";
-import { id } from "date-fns/locale";
-import { DollarSign, TrendingUp, Clock, CheckCircle } from "lucide-react";
+import { DollarSign, TrendingUp, Clock, CheckCircle, FileDown, FileSpreadsheet } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
 export default function AgentCommissions() {
   const { user } = useAuth();
 
-      const { data: agentData } = useQuery<Pick<Database["public"]["Tables"]["agents"]["Row"], "id" | "commission_rate"> | null>({
+  const { data: agentData } = useQuery<Pick<Database["public"]["Tables"]["agents"]["Row"], "id" | "commission_rate" | "company_name"> | null>({
     queryKey: ['agent-profile-comm', user?.id],
     enabled: !!user?.id,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('agents')
-        .select('id, commission_rate')
+        .select('id, commission_rate, company_name')
         .eq('user_id', user!.id)
         .single();
-
       if (error) throw error;
       return data;
     },
   });
 
-      const { data: commissions, isLoading } = useQuery({
+  const { data: commissions, isLoading } = useQuery({
     queryKey: ['agent-commissions', agentData?.id],
     enabled: !!agentData?.id,
     queryFn: async () => {
@@ -53,6 +57,7 @@ export default function AgentCommissions() {
         .select(`
           id,
           commission_amount,
+          commission_rate,
           status,
           created_at,
           paid_at,
@@ -65,7 +70,6 @@ export default function AgentCommissions() {
         `)
         .eq('agent_id', agentData!.id)
         .order('created_at', { ascending: false });
-
       if (error) throw error;
       return data as any[];
     },
@@ -74,6 +78,7 @@ export default function AgentCommissions() {
   const stats = {
     total: commissions?.reduce((sum, c) => sum + Number(c.commission_amount), 0) || 0,
     pending: commissions?.filter(c => c.status === 'pending').reduce((sum, c) => sum + Number(c.commission_amount), 0) || 0,
+    approved: commissions?.filter(c => c.status === 'approved').reduce((sum, c) => sum + Number(c.commission_amount), 0) || 0,
     paid: commissions?.filter(c => c.status === 'paid').reduce((sum, c) => sum + Number(c.commission_amount), 0) || 0,
   };
 
@@ -81,18 +86,119 @@ export default function AgentCommissions() {
     switch (status) {
       case 'paid':
         return <Badge className="bg-green-100 text-green-800"><CheckCircle className="h-3 w-3 mr-1" />Dibayar</Badge>;
+      case 'approved':
+        return <Badge className="bg-blue-100 text-blue-800"><CheckCircle className="h-3 w-3 mr-1" />Disetujui</Badge>;
       case 'pending':
         return <Badge className="bg-amber-100 text-amber-800"><Clock className="h-3 w-3 mr-1" />Pending</Badge>;
+      case 'rejected':
+        return <Badge className="bg-red-100 text-red-800">Ditolak</Badge>;
       default:
         return <Badge variant="secondary">{status}</Badge>;
     }
   };
 
+  const getStatusLabel = (status: string) => {
+    const map: Record<string, string> = { paid: 'Dibayar', approved: 'Disetujui', pending: 'Pending', rejected: 'Ditolak' };
+    return map[status] || status;
+  };
+
+  const exportExcel = () => {
+    if (!commissions?.length) { toast.error("Tidak ada data untuk diekspor"); return; }
+    const rows = commissions.map((c, idx) => ({
+      'No': idx + 1,
+      'Tanggal': format(new Date(c.created_at), 'dd/MM/yyyy'),
+      'Kode Booking': c.booking?.booking_code || '-',
+      'Jamaah': c.booking?.customer?.full_name || '-',
+      'Nilai Booking (Rp)': Number(c.booking?.total_price || 0),
+      'Rate (%)': Number(c.commission_rate || agentData?.commission_rate || 0),
+      'Komisi (Rp)': Number(c.commission_amount),
+      'Status': getStatusLabel(c.status),
+      'Tanggal Dibayar': c.paid_at ? format(new Date(c.paid_at), 'dd/MM/yyyy') : '-',
+      'Catatan': c.notes || '-',
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols'] = [
+      { wch: 5 }, { wch: 12 }, { wch: 16 }, { wch: 28 },
+      { wch: 18 }, { wch: 10 }, { wch: 16 }, { wch: 12 },
+      { wch: 16 }, { wch: 30 },
+    ];
+
+    // Summary sheet
+    const summaryRows = [
+      { 'Keterangan': 'Agen / Perusahaan', 'Nilai': agentData?.company_name || '-' },
+      { 'Keterangan': 'Total Komisi', 'Nilai': stats.total },
+      { 'Keterangan': 'Sudah Dibayar', 'Nilai': stats.paid },
+      { 'Keterangan': 'Disetujui (Belum Bayar)', 'Nilai': stats.approved },
+      { 'Keterangan': 'Pending', 'Nilai': stats.pending },
+      { 'Keterangan': 'Jumlah Transaksi', 'Nilai': commissions.length },
+      { 'Keterangan': 'Dicetak', 'Nilai': format(new Date(), 'dd MMMM yyyy HH:mm', { locale: localeId }) },
+    ];
+    const wsSummary = XLSX.utils.json_to_sheet(summaryRows);
+    wsSummary['!cols'] = [{ wch: 28 }, { wch: 30 }];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, wsSummary, 'Ringkasan');
+    XLSX.utils.book_append_sheet(wb, ws, 'Detail Komisi');
+    XLSX.writeFile(wb, `Laporan_Komisi_Agen_${format(new Date(), 'yyyyMMdd_HHmmss')}.xlsx`);
+    toast.success("Laporan Excel berhasil diunduh");
+  };
+
+  const exportPDF = () => {
+    if (!commissions?.length) { toast.error("Tidak ada data untuk diekspor"); return; }
+    const doc = new jsPDF({ orientation: 'landscape' });
+
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Laporan Komisi Agen', 14, 18);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Agen: ${agentData?.company_name || '-'}`, 14, 26);
+    doc.text(`Dicetak: ${format(new Date(), 'dd MMMM yyyy HH:mm', { locale: localeId })}`, 14, 32);
+
+    // Summary row
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Total: ${formatCurrency(stats.total)}   |   Dibayar: ${formatCurrency(stats.paid)}   |   Pending: ${formatCurrency(stats.pending)}`, 14, 40);
+
+    autoTable(doc, {
+      startY: 46,
+      head: [['No', 'Tanggal', 'Kode Booking', 'Jamaah', 'Nilai Booking', 'Komisi', 'Status', 'Tgl Dibayar']],
+      body: commissions.map((c, idx) => [
+        idx + 1,
+        format(new Date(c.created_at), 'dd/MM/yy'),
+        c.booking?.booking_code || '-',
+        c.booking?.customer?.full_name || '-',
+        formatCurrency(Number(c.booking?.total_price || 0)),
+        formatCurrency(Number(c.commission_amount)),
+        getStatusLabel(c.status),
+        c.paid_at ? format(new Date(c.paid_at), 'dd/MM/yy') : '-',
+      ]),
+      styles: { fontSize: 8, cellPadding: 2 },
+      headStyles: { fillColor: [139, 92, 246], textColor: 255 },
+      alternateRowStyles: { fillColor: [248, 246, 255] },
+    });
+
+    doc.save(`Laporan_Komisi_Agen_${format(new Date(), 'yyyyMMdd_HHmmss')}.pdf`);
+    toast.success("Laporan PDF berhasil diunduh");
+  };
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Komisi Saya</h1>
-        <p className="text-muted-foreground">Riwayat dan status komisi Anda</p>
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold">Komisi Saya</h1>
+          <p className="text-muted-foreground">Riwayat dan status komisi Anda</p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={exportExcel} disabled={isLoading || !commissions?.length}>
+            <FileSpreadsheet className="h-4 w-4 mr-2" />
+            Export Excel
+          </Button>
+          <Button variant="outline" size="sm" onClick={exportPDF} disabled={isLoading || !commissions?.length}>
+            <FileDown className="h-4 w-4 mr-2" />
+            Export PDF
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -162,13 +268,14 @@ export default function AgentCommissions() {
                   <TableHead>Nilai Booking</TableHead>
                   <TableHead>Komisi</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Tgl Dibayar</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {commissions?.map((commission) => (
                   <TableRow key={commission.id}>
                     <TableCell>
-                      {format(new Date(commission.created_at), "dd MMM yyyy", { locale: id })}
+                      {format(new Date(commission.created_at), "dd MMM yyyy", { locale: localeId })}
                     </TableCell>
                     <TableCell className="font-mono">
                       {commission.booking?.booking_code || '-'}
@@ -184,6 +291,11 @@ export default function AgentCommissions() {
                     </TableCell>
                     <TableCell>
                       {getStatusBadge(commission.status)}
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {commission.paid_at
+                        ? format(new Date(commission.paid_at), "dd MMM yyyy", { locale: localeId })
+                        : '-'}
                     </TableCell>
                   </TableRow>
                 ))}

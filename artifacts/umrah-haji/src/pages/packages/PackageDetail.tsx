@@ -2,6 +2,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { slugify, extractIdFromSlug } from '@/lib/slug';
 import { useQuery } from '@tanstack/react-query';
+import { trackPackageView } from '@/hooks/useRecentlyViewedPackages';
 import { supabase } from '@/integrations/supabase/client';
 import { DynamicPublicLayout } from '@/components/layout/DynamicPublicLayout';
 import { Button } from '@/components/ui/button';
@@ -15,13 +16,16 @@ import { PackageBookingFormSimple } from '@/components/packages/PackageBookingFo
 import { 
   Clock, MapPin, Plane, Building2, Users, 
   Check, X, Star, ChevronLeft, ChevronDown, Calendar as CalendarIcon,
-  ArrowRight, Info
+  ArrowRight, Info, ShieldCheck, Globe, FileText, ChevronRight,
+  Image as ImageIcon, Share2, Link2, MessageCircle, StarIcon,
+  ThumbsUp
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export default function PackageDetail() {
   const [openDepartureId, setOpenDepartureId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>("overview");
+  const [lightboxPhoto, setLightboxPhoto] = useState<any>(null);
   const { idSlug } = useParams<{ idSlug: string }>();
   const navigate = useNavigate();
   const id = extractIdFromSlug(idSlug || '');
@@ -53,6 +57,77 @@ export default function PackageDetail() {
     },
     enabled: !!id,
   });
+
+  // Fetch cancellation policy (package-specific first, then global fallback)
+  const { data: cancellationPolicy } = useQuery({
+    queryKey: ['pkg-cancellation-policy-public', id],
+    queryFn: async () => {
+      if (!id) return null;
+      const { data: ownPolicy } = await (supabase as any)
+        .from('cancellation_policies')
+        .select('id, name, is_global, sections')
+        .eq('package_id', id)
+        .maybeSingle();
+      if (ownPolicy) return { ...ownPolicy, isGlobal: false };
+      const { data: globalPolicy } = await (supabase as any)
+        .from('cancellation_policies')
+        .select('id, name, is_global, sections')
+        .eq('is_global', true)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return globalPolicy ? { ...globalPolicy, isGlobal: true } : null;
+    },
+    enabled: !!id,
+  });
+
+  // Fetch package gallery photos
+  const { data: galleryPhotos = [] } = useQuery({
+    queryKey: ['package-gallery-public', id],
+    queryFn: async () => {
+      if (!id) return [];
+      const { data, error } = await (supabase as any)
+        .from('media_gallery')
+        .select('id, title, media_url, order_index')
+        .eq('package_id', id)
+        .eq('type', 'package_gallery')
+        .eq('is_active', true)
+        .order('order_index', { ascending: true });
+      if (error && error.code !== '42P01') throw error;
+      return data || [];
+    },
+    enabled: !!id,
+  });
+
+  // Fetch package reviews
+  const { data: reviews = [] } = useQuery({
+    queryKey: ['package-reviews-public', id],
+    queryFn: async () => {
+      if (!id) return [];
+      const { data, error } = await (supabase as any)
+        .from('package_reviews')
+        .select('id, rating, comment, reviewer_name, created_at')
+        .eq('package_id', id)
+        .order('created_at', { ascending: false });
+      if (error && error.code !== '42P01') return [];
+      return data || [];
+    },
+    enabled: !!id,
+  });
+
+  // Share helpers
+  const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
+  const [copyDone, setCopyDone] = useState(false);
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(shareUrl).then(() => {
+      setCopyDone(true);
+      setTimeout(() => setCopyDone(false), 2000);
+    });
+  };
+  const handleWhatsAppShare = () => {
+    const text = encodeURIComponent(`Cek paket umroh/haji "${pkg?.name}" di sini: ${shareUrl}`);
+    window.open(`https://wa.me/?text=${text}`, '_blank');
+  };
 
   // Fetch itinerary linked to the currently selected departure (if any)
   const { data: departureItinerary } = useQuery({
@@ -94,6 +169,21 @@ export default function PackageDetail() {
       }
     }
   }, [pkg, openDepartureId]);
+
+  // Track this package view in recently viewed history
+  useEffect(() => {
+    if (pkg) {
+      trackPackageView({
+        id: pkg.id,
+        name: pkg.name,
+        package_type: pkg.package_type,
+        duration_days: pkg.duration_days,
+        price_quad: pkg.price_quad,
+        currency: pkg.currency || 'IDR',
+        featured_image: pkg.featured_image ?? null,
+      });
+    }
+  }, [pkg?.id]);
 
   if (isLoading) {
     return (
@@ -177,14 +267,33 @@ export default function PackageDetail() {
           <div className="container mx-auto">
             <Badge className="mb-2">{formatPackageType(pkg.package_type)}</Badge>
             <h1 className="text-2xl md:text-4xl font-bold mb-2">{pkg.name}</h1>
-            <div className="flex flex-wrap gap-4 text-sm">
-              <span className="flex items-center gap-1"><Clock className="h-4 w-4" />{pkg.duration_days} Hari</span>
-              {(dynamicData?.highestTierDeparture?.airline || pkg.airline) && (
-                <span className="flex items-center gap-1">
-                  <Plane className="h-4 w-4" />
-                  {(dynamicData?.highestTierDeparture?.airline as any)?.name || (pkg.airline as any).name}
-                </span>
-              )}
+            <div className="flex flex-wrap gap-4 text-sm items-center justify-between">
+              <div className="flex flex-wrap gap-4 text-sm">
+                <span className="flex items-center gap-1"><Clock className="h-4 w-4" />{pkg.duration_days} Hari</span>
+                {(dynamicData?.highestTierDeparture?.airline || pkg.airline) && (
+                  <span className="flex items-center gap-1">
+                    <Plane className="h-4 w-4" />
+                    {(dynamicData?.highestTierDeparture?.airline as any)?.name || (pkg.airline as any).name}
+                  </span>
+                )}
+              </div>
+              {/* Share Buttons */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleWhatsAppShare}
+                  className="flex items-center gap-1.5 text-xs bg-green-500 hover:bg-green-600 text-white rounded-full px-3 py-1.5 transition-colors"
+                >
+                  <MessageCircle className="h-3.5 w-3.5" />
+                  WhatsApp
+                </button>
+                <button
+                  onClick={handleCopyLink}
+                  className="flex items-center gap-1.5 text-xs bg-white/20 hover:bg-white/30 text-white rounded-full px-3 py-1.5 backdrop-blur-sm transition-colors"
+                >
+                  <Link2 className="h-3.5 w-3.5" />
+                  {copyDone ? 'Tersalin!' : 'Salin Link'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -200,6 +309,13 @@ export default function PackageDetail() {
                 <TabsTrigger value="hotels">Hotel</TabsTrigger>
                 <TabsTrigger value="flight">Penerbangan</TabsTrigger>
                 <TabsTrigger value="departures">Jadwal</TabsTrigger>
+                <TabsTrigger value="foto">
+                  Foto {galleryPhotos.length > 0 && <span className="ml-1 text-xs bg-primary/15 text-primary rounded-full px-1.5">{galleryPhotos.length}</span>}
+                </TabsTrigger>
+                <TabsTrigger value="ulasan">
+                  Ulasan {reviews.length > 0 && <span className="ml-1 text-xs bg-primary/15 text-primary rounded-full px-1.5">{reviews.length}</span>}
+                </TabsTrigger>
+                <TabsTrigger value="syarat">Syarat & Ketentuan</TabsTrigger>
               </TabsList>
 
               <TabsContent value="overview" className="mt-6 space-y-6">
@@ -258,7 +374,40 @@ export default function PackageDetail() {
                 </div>
               </TabsContent>
 
-              <TabsContent value="itinerary" className="mt-6">
+              <TabsContent value="itinerary" className="mt-6 space-y-4">
+                {/* Departure selector */}
+                {upcomingDepartures.length > 1 && (
+                  <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                    <span className="text-xs text-muted-foreground whitespace-nowrap font-medium">Pilih Tanggal:</span>
+                    {upcomingDepartures.map((dep: any) => (
+                      <button
+                        key={dep.id}
+                        onClick={() => setOpenDepartureId(dep.id)}
+                        className={cn(
+                          "px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap border transition-colors",
+                          openDepartureId === dep.id
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "bg-muted/40 text-muted-foreground border-muted hover:border-primary/40"
+                        )}
+                      >
+                        {new Date(dep.departure_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Show which departure is selected */}
+                {openDepartureId && upcomingDepartures.length > 0 && (() => {
+                  const selDep = upcomingDepartures.find((d: any) => d.id === openDepartureId);
+                  if (!selDep) return null;
+                  return (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground bg-primary/5 border border-primary/20 rounded-lg px-3 py-2">
+                      <CalendarIcon className="h-3.5 w-3.5 text-primary" />
+                      <span>Itinerary untuk keberangkatan <span className="font-semibold text-primary">{new Date(selDep.departure_date).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span></span>
+                    </div>
+                  );
+                })()}
+
                 <Card>
                   <CardHeader>
                     <CardTitle>Jadwal Perjalanan</CardTitle>
@@ -280,9 +429,14 @@ export default function PackageDetail() {
 
                       if (!days || days.length === 0) {
                         return (
-                          <p className="text-muted-foreground">
-                            Itinerary lengkap akan diberikan setelah pendaftaran.
-                          </p>
+                          <div className="text-center py-8 space-y-2">
+                            <CalendarIcon className="h-10 w-10 mx-auto text-muted-foreground/30" />
+                            <p className="text-muted-foreground text-sm">
+                              {openDepartureId
+                                ? "Itinerary untuk tanggal ini belum tersedia. Silakan hubungi kami untuk informasi lengkap."
+                                : "Pilih tanggal keberangkatan untuk melihat itinerary."}
+                            </p>
+                          </div>
                         );
                       }
 
@@ -299,9 +453,13 @@ export default function PackageDetail() {
                                   <p className="text-sm text-muted-foreground whitespace-pre-wrap">{day.description}</p>
                                 )}
                                 {Array.isArray(day.activities) && day.activities.length > 0 && (
-                                  <ul className="mt-2 space-y-1 text-sm text-muted-foreground list-disc list-inside">
+                                  <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
                                     {day.activities.map((act: any, ai: number) => (
-                                      <li key={ai}>{typeof act === 'string' ? act : act.title || act.name}</li>
+                                      <li key={ai} className="flex items-start gap-2">
+                                        {act.time && <span className="text-xs text-primary font-mono w-12 shrink-0 mt-0.5">{act.time}</span>}
+                                        <span>{typeof act === 'string' ? act : act.activity || act.title || act.name}</span>
+                                        {act.location && <span className="text-xs text-muted-foreground flex items-center gap-0.5 shrink-0"><MapPin className="h-2.5 w-2.5" />{act.location}</span>}
+                                      </li>
                                     ))}
                                   </ul>
                                 )}
@@ -463,6 +621,259 @@ export default function PackageDetail() {
                     </Card>
                   )}
                 </div>
+              </TabsContent>
+
+              {/* Foto Galeri Tab */}
+              <TabsContent value="foto" className="mt-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <ImageIcon className="h-5 w-5 text-primary" />
+                      Galeri Foto
+                      {galleryPhotos.length > 0 && (
+                        <span className="text-sm font-normal text-muted-foreground">({galleryPhotos.length} foto)</span>
+                      )}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {galleryPhotos.length === 0 ? (
+                      <div className="text-center py-10 space-y-2">
+                        <ImageIcon className="h-12 w-12 mx-auto text-muted-foreground/20" />
+                        <p className="text-muted-foreground text-sm">Galeri foto paket ini belum tersedia.</p>
+                        <p className="text-xs text-muted-foreground">Foto akan ditambahkan segera.</p>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="columns-2 sm:columns-3 gap-3 space-y-3">
+                          {galleryPhotos.map((photo: any, idx: number) => (
+                            <div
+                              key={photo.id}
+                              className="break-inside-avoid rounded-xl overflow-hidden cursor-pointer group relative"
+                              onClick={() => setLightboxPhoto(photo)}
+                            >
+                              <img
+                                src={photo.media_url}
+                                alt={photo.title || `Foto ${idx + 1}`}
+                                className="w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                loading="lazy"
+                              />
+                              {photo.title && (
+                                <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent px-3 py-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <p className="text-white text-xs font-medium line-clamp-1">{photo.title}</p>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                        <p className="text-xs text-muted-foreground text-center mt-4">Klik foto untuk memperbesar</p>
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Lightbox */}
+                {lightboxPhoto && (
+                  <div
+                    className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
+                    onClick={() => setLightboxPhoto(null)}
+                  >
+                    <button
+                      className="absolute top-4 right-4 h-10 w-10 rounded-full bg-white/10 hover:bg-white/30 flex items-center justify-center text-white transition-colors"
+                      onClick={() => setLightboxPhoto(null)}
+                    >
+                      <X className="h-5 w-5" />
+                    </button>
+                    {/* Prev / Next */}
+                    {galleryPhotos.length > 1 && (
+                      <>
+                        <button
+                          className="absolute left-4 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full bg-white/10 hover:bg-white/30 flex items-center justify-center text-white transition-colors"
+                          onClick={e => {
+                            e.stopPropagation();
+                            const idx = galleryPhotos.findIndex((p: any) => p.id === lightboxPhoto.id);
+                            setLightboxPhoto(galleryPhotos[(idx - 1 + galleryPhotos.length) % galleryPhotos.length]);
+                          }}
+                        >
+                          <ChevronLeft className="h-5 w-5" />
+                        </button>
+                        <button
+                          className="absolute right-4 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full bg-white/10 hover:bg-white/30 flex items-center justify-center text-white transition-colors"
+                          onClick={e => {
+                            e.stopPropagation();
+                            const idx = galleryPhotos.findIndex((p: any) => p.id === lightboxPhoto.id);
+                            setLightboxPhoto(galleryPhotos[(idx + 1) % galleryPhotos.length]);
+                          }}
+                        >
+                          <ChevronRight className="h-5 w-5" />
+                        </button>
+                      </>
+                    )}
+                    <img
+                      src={lightboxPhoto.media_url}
+                      alt={lightboxPhoto.title}
+                      className="max-h-[85vh] max-w-full rounded-xl shadow-2xl object-contain"
+                      onClick={e => e.stopPropagation()}
+                    />
+                    {lightboxPhoto.title && (
+                      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-black/60 text-white text-sm px-4 py-2 rounded-full whitespace-nowrap">
+                        {lightboxPhoto.title} <span className="text-white/50 ml-2">({galleryPhotos.findIndex((p: any) => p.id === lightboxPhoto.id) + 1}/{galleryPhotos.length})</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </TabsContent>
+
+              {/* ── Ulasan Tab ─────────────────────────────────────────── */}
+              <TabsContent value="ulasan" className="mt-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <StarIcon className="h-5 w-5 text-amber-400" />
+                      Ulasan Jamaah
+                      {reviews.length > 0 && (
+                        <Badge variant="secondary" className="ml-1">{reviews.length} ulasan</Badge>
+                      )}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {reviews.length === 0 ? (
+                      <div className="text-center py-12 space-y-3">
+                        <StarIcon className="h-12 w-12 mx-auto text-muted-foreground/30" />
+                        <p className="font-medium text-muted-foreground">Belum ada ulasan untuk paket ini</p>
+                        <p className="text-sm text-muted-foreground">Jadilah yang pertama memberikan ulasan setelah perjalanan Anda!</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-6">
+                        {/* Rating summary */}
+                        {(() => {
+                          const avg = reviews.reduce((s: number, r: any) => s + (r.rating || 0), 0) / reviews.length;
+                          const dist = [5, 4, 3, 2, 1].map(n => ({
+                            stars: n,
+                            count: reviews.filter((r: any) => r.rating === n).length,
+                          }));
+                          return (
+                            <div className="flex items-center gap-8 p-4 bg-muted/30 rounded-xl">
+                              <div className="text-center">
+                                <p className="text-4xl font-black text-amber-500">{avg.toFixed(1)}</p>
+                                <div className="flex items-center gap-0.5 justify-center mt-1">
+                                  {[1, 2, 3, 4, 5].map(n => (
+                                    <Star key={n} className={cn("h-4 w-4", n <= Math.round(avg) ? "fill-amber-400 text-amber-400" : "text-muted-foreground/30")} />
+                                  ))}
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-1">{reviews.length} ulasan</p>
+                              </div>
+                              <div className="flex-1 space-y-1.5">
+                                {dist.map(({ stars, count }) => (
+                                  <div key={stars} className="flex items-center gap-2">
+                                    <span className="text-xs w-4 text-right text-muted-foreground">{stars}</span>
+                                    <Star className="h-3 w-3 fill-amber-400 text-amber-400 shrink-0" />
+                                    <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                                      <div
+                                        className="h-full bg-amber-400 rounded-full transition-all"
+                                        style={{ width: reviews.length > 0 ? `${(count / reviews.length) * 100}%` : '0%' }}
+                                      />
+                                    </div>
+                                    <span className="text-xs text-muted-foreground w-5">{count}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })()}
+
+                        {/* Review list */}
+                        <div className="space-y-4">
+                          {reviews.map((review: any) => (
+                            <div key={review.id} className="border rounded-xl p-4 space-y-2">
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="flex items-center gap-3">
+                                  <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">
+                                    {(review.reviewer_name || 'A').charAt(0).toUpperCase()}
+                                  </div>
+                                  <div>
+                                    <p className="font-semibold text-sm">{review.reviewer_name || 'Anonim'}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                      {new Date(review.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-0.5">
+                                  {[1, 2, 3, 4, 5].map(n => (
+                                    <Star key={n} className={cn("h-4 w-4", n <= (review.rating || 0) ? "fill-amber-400 text-amber-400" : "text-muted-foreground/20")} />
+                                  ))}
+                                </div>
+                              </div>
+                              {review.comment && (
+                                <p className="text-sm text-muted-foreground leading-relaxed">{review.comment}</p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* Syarat & Ketentuan Tab */}
+              <TabsContent value="syarat" className="mt-6">
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <CardTitle className="flex items-center gap-2">
+                          <ShieldCheck className="h-5 w-5 text-primary" />
+                          Syarat & Ketentuan
+                        </CardTitle>
+                        {cancellationPolicy && (
+                          <div className="flex items-center gap-1.5 mt-1">
+                            {cancellationPolicy.isGlobal ? (
+                              <span className="inline-flex items-center gap-1 text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded-full px-2 py-0.5">
+                                <Globe className="h-3 w-3" />
+                                Aturan Umum
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-xs text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5">
+                                <ShieldCheck className="h-3 w-3" />
+                                Aturan Khusus Paket Ini
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {!cancellationPolicy ? (
+                      <div className="text-center py-10 space-y-2">
+                        <FileText className="h-10 w-10 mx-auto text-muted-foreground/30" />
+                        <p className="text-sm text-muted-foreground">Informasi syarat & ketentuan akan segera tersedia.</p>
+                        <p className="text-xs text-muted-foreground">Silakan hubungi kami untuk keterangan lebih lanjut.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-5">
+                        {(cancellationPolicy.sections as any[]).map((section: any, si: number) => (
+                          <div key={si}>
+                            <h4 className="text-sm font-bold uppercase tracking-wide text-foreground mb-2 pb-1 border-b">
+                              {section.title}
+                            </h4>
+                            <ul className="space-y-1.5">
+                              {(section.items as string[]).filter((item: string) => item.trim()).map((item: string, ii: number) => (
+                                <li key={ii} className="flex items-start gap-2 text-sm text-muted-foreground">
+                                  <ChevronRight className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />
+                                  <span>{item}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        ))}
+                        <p className="text-xs text-muted-foreground italic border-t pt-3 mt-3">
+                          Dengan melakukan pendaftaran, Anda dianggap telah membaca, memahami, dan menyetujui seluruh syarat & ketentuan di atas.
+                        </p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
               </TabsContent>
 
               <TabsContent value="departures" className="mt-6">

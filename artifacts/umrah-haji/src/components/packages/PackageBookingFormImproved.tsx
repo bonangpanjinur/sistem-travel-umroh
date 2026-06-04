@@ -15,6 +15,7 @@ import { StepProgressIndicator } from "@/components/booking/StepProgressIndicato
 import { RoomAllocationVisualizer } from "@/components/booking/RoomAllocationVisualizer";
 import { PICSelectionStepImproved } from "@/components/booking/PICSelectionStepImproved";
 import { useTenant } from "@/contexts/TenantContext";
+import { useWebsiteSettings } from "@/hooks/useWebsiteSettings";
 import { formatCurrency } from "@/lib/format";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
@@ -56,6 +57,8 @@ export function PackageBookingFormImproved({ pkg }: PackageBookingFormImprovedPr
   const navigate = useNavigate();
   const { user, isLoading: authLoading } = useAuth();
   const { tenant } = useTenant();
+  const { data: websiteSettings } = useWebsiteSettings();
+  const waNumber = (websiteSettings?.footer_whatsapp || '6281234567890').replace(/\D/g, '');
 
   // Form state
   const [currentStep, setCurrentStep] = useState(1);
@@ -297,7 +300,7 @@ export function PackageBookingFormImproved({ pkg }: PackageBookingFormImprovedPr
                       <div className="space-y-0.5">
                         <p className="font-medium text-sm capitalize">{ROOM_INFO[type].label}</p>
                         <p className="text-xs text-muted-foreground">{ROOM_INFO[type].desc}</p>
-                        <p className="text-sm font-semibold text-primary">{formatCurrency(price)}</p>
+                        <p className="text-sm font-semibold text-primary">{formatCurrency(price, pkg.currency)}</p>
                       </div>
                       <div className="flex items-center gap-2">
                         <Button
@@ -387,7 +390,7 @@ export function PackageBookingFormImproved({ pkg }: PackageBookingFormImprovedPr
                     </div>
                     <div className="border-t pt-2 flex justify-between">
                       <span className="font-semibold">Total Harga:</span>
-                      <span className="text-lg font-bold text-primary">{formatCurrency(totalPrice)}</span>
+                      <span className="text-lg font-bold text-primary">{formatCurrency(totalPrice, pkg.currency)}</span>
                     </div>
                   </CardContent>
                 </Card>
@@ -443,7 +446,7 @@ export function PackageBookingFormImproved({ pkg }: PackageBookingFormImprovedPr
             className="w-full h-11 text-base font-semibold gap-2 border-primary text-primary hover:bg-primary/5"
             onClick={() => {
               const message = encodeURIComponent(`Halo, saya tertarik dengan paket *${pkg.name}*. Bisa bantu saya untuk proses booking?`);
-              window.open(`https://wa.me/6281234567890?text=${message}`, '_blank');
+              window.open(`https://wa.me/${waNumber}?text=${message}`, '_blank');
             }}
           >
             <MessageCircle className="h-5 w-5" />

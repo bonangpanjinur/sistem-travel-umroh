@@ -28,6 +28,9 @@ export interface DynamicBookingFormData {
   roomAllocation: RoomAllocation;
   passengers: DynamicPassengerData[];
   notes?: string;
+  paymentMode?: 'full' | 'dp' | 'savings';
+  dpAmount?: number;
+  savingsPlanId?: string;
 }
 
 export interface PICData {
@@ -56,26 +59,34 @@ export function useBookingWizardDynamic(
   initialDepartureId: string,
   initialRoomAllocation: RoomAllocation,
   picData?: PICData,
-  initialPax: number = 0
+  initialPax: number = 0,
+  bookingMode: string = 'umroh'
 ) {
+  const isHaji = bookingMode === 'haji';
   const { user } = useAuth();
-  const [currentStep, setCurrentStep] = useState<BookingStep>(initialPax > 0 ? 'rooms' : 'passengers');
+  const [currentStep, setCurrentStep] = useState<BookingStep>((!isHaji && initialPax > 0) ? 'rooms' : 'passengers');
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const initialPassengers = useMemo(() => 
-    createPassengersFromAllocation(initialRoomAllocation), 
-    [initialRoomAllocation.quad, initialRoomAllocation.triple, initialRoomAllocation.double, initialRoomAllocation.single]
-  );
+  const initialPassengers = useMemo(() => {
+    if (isHaji) {
+      // Haji: mulai dengan 1 orang dewasa default
+      return [{ id: generateTempId(), fullName: '', gender: 'male' as const, phone: '', passengerType: 'adult' as const, roomType: 'quad' as RoomType }];
+    }
+    return createPassengersFromAllocation(initialRoomAllocation);
+  }, [isHaji, initialRoomAllocation.quad, initialRoomAllocation.triple, initialRoomAllocation.double, initialRoomAllocation.single]);
   
   const [formData, setFormData] = useState<DynamicBookingFormData>({
     departureId: initialDepartureId,
     roomAllocation: initialRoomAllocation,
     passengers: initialPassengers,
+    paymentMode: 'full',
+    dpAmount: 0,
   });
 
   const [picState, setPicState] = useState<PICData>(picData || { picSource: 'pusat' });
   const [picValidation, setPicValidation] = useState<{ isValid: boolean; errorMessage?: string; resolvedBranchId?: string; resolvedAgentId?: string; resolvedReferralId?: string; metadata?: any }>({ isValid: true });
   const [isValidatingPIC, setIsValidatingPIC] = useState(false);
+  const [cancellationAgreed, setCancellationAgreed] = useState<boolean | null>(null);
 
   // Effect for real-time validation
   useMemo(() => {
@@ -174,38 +185,73 @@ export function useBookingWizardDynamic(
 
       if (!customerId) throw new Error('Gagal memproses data pelanggan');
 
-      // 2. Get departure info
-      const { data: departure, error: departureError } = await supabase
+      // 2. Get departure info (incl. package currency for multi-currency snapshot)
+      const { data: departureRaw, error: departureError } = await supabase
         .from('departures')
-        .select('id, departure_date, price_quad, price_triple, price_double, price_single, package:packages(code)')
+        .select('id, departure_date, price_quad, price_triple, price_double, price_single, price_adult, price_child, price_infant, package:packages(code, currency, booking_mode)')
         .eq('id', formData.departureId)
         .single();
 
-      if (departureError || !departure) throw new Error('Departure tidak ditemukan');
+      if (departureError || !departureRaw) throw new Error('Departure tidak ditemukan');
+      const departure = departureRaw as any;
+
+      const departureBookingMode: string = departure.package?.booking_mode || bookingMode;
+      const useAgeBasedPricing = departureBookingMode === 'haji' ||
+        (departure.price_adult && departure.price_adult > 0);
 
       // 3. Calculate pricing
       const priceMap: Record<RoomType, number> = {
         quad: departure.price_quad || 0, triple: departure.price_triple || 0,
         double: departure.price_double || 0, single: departure.price_single || 0,
       };
-      
-      let totalPrice = 0;
-      for (const passenger of formData.passengers) {
-        totalPrice += priceMap[passenger.roomType];
-      }
+
+      const agePriceMap: Record<string, number> = {
+        adult: departure.price_adult || 0,
+        child: departure.price_child || 0,
+        infant: departure.price_infant || 0,
+      };
       
       const adultCount = formData.passengers.filter(p => p.passengerType === 'adult').length;
       const childCount = formData.passengers.filter(p => p.passengerType === 'child').length;
       const infantCount = formData.passengers.filter(p => p.passengerType === 'infant').length;
       const totalPax = formData.passengers.length;
-      
-      const roomCounts = formData.passengers.reduce((acc, p) => {
-        acc[p.roomType] = (acc[p.roomType] || 0) + 1;
-        return acc;
-      }, {} as Record<RoomType, number>);
-      
-      const mainRoomType = (Object.entries(roomCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'quad') as RoomType;
-      const basePrice = priceMap[mainRoomType];
+
+      let totalPrice = 0;
+      let basePrice = 0;
+      let mainRoomType: RoomType = 'quad';
+
+      if (useAgeBasedPricing) {
+        // Model harga per usia: adult × harga_dewasa + child × harga_anak + infant × harga_bayi
+        totalPrice = adultCount * agePriceMap.adult
+          + childCount * agePriceMap.child
+          + infantCount * agePriceMap.infant;
+        basePrice = agePriceMap.adult;
+        mainRoomType = 'quad'; // default, tidak relevan untuk haji
+      } else {
+        // Model harga per tipe kamar (umroh/wisata)
+        for (const passenger of formData.passengers) {
+          totalPrice += priceMap[passenger.roomType];
+        }
+        const roomCounts = formData.passengers.reduce((acc, p) => {
+          acc[p.roomType] = (acc[p.roomType] || 0) + 1;
+          return acc;
+        }, {} as Record<RoomType, number>);
+        mainRoomType = (Object.entries(roomCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'quad') as RoomType;
+        basePrice = priceMap[mainRoomType];
+      }
+
+      // 3.1 Multi-currency snapshot (BOOK-FIX1 / CUR-7)
+      const pkgCurrency: string = (departure as any).package?.currency || 'IDR';
+      let exchangeRate = 1;
+      if (pkgCurrency.toUpperCase() !== 'IDR') {
+        const { data: rateRes } = await supabase.rpc('get_active_exchange_rate' as any, {
+          _currency_from: pkgCurrency,
+          _currency_to: 'IDR',
+        });
+        exchangeRate = Number(rateRes) || 1;
+      }
+      const totalPriceOriginal = totalPrice;
+      const totalPriceIdr = totalPrice * exchangeRate;
 
       // 4. Determine PIC (branch_id, agent_id) from picState with strict validation
       const { data: validation, error: validationError } = await supabase.rpc('validate_registration_context' as any, {
@@ -224,7 +270,7 @@ export function useBookingWizardDynamic(
       const referralId = validationResult?.resolved_referral_id;
 
       // 5. Create booking
-      const { data: bookingCodeData, error: bookingCodeError } = await supabase.rpc('generate_booking_code', { _package_code: (departure.package as any)?.code || '', _departure_date: departure.departure_date });
+      const { data: bookingCodeData, error: bookingCodeError } = await supabase.rpc('generate_booking_code', { _package_code: departure.package?.code || '', _departure_date: departure.departure_date });
       if (bookingCodeError) throw bookingCodeError;
       const bookingCode = bookingCodeData || `TRA${Date.now().toString(36).toUpperCase()}`;
       
@@ -241,14 +287,95 @@ export function useBookingWizardDynamic(
           infant_count: infantCount,
           base_price: basePrice,
           total_price: totalPrice,
+          currency: pkgCurrency,
+          exchange_rate: exchangeRate,
+          total_price_original: totalPriceOriginal,
+          total_price_idr: totalPriceIdr,
           notes: formData.notes,
           branch_id: branchId,
           agent_id: agentId,
-        })
+          payment_mode: formData.paymentMode || 'full',
+          dp_amount: formData.paymentMode === 'dp' ? (formData.dpAmount || 0) : 0,
+          savings_plan_id: formData.paymentMode === 'savings' ? (formData.savingsPlanId || null) : null,
+        } as any)
         .select('id, booking_code')
         .single();
 
       if (bookingError) throw bookingError;
+
+      // 5.0 Create initial payment record(s) sesuai mode pembayaran
+      try {
+        const paymentMode = formData.paymentMode || 'full';
+        const { data: pCode } = await supabase.rpc('generate_payment_code' as any);
+        const baseCode = pCode || `PAY${Date.now().toString(36).toUpperCase()}`;
+
+        if (paymentMode === 'full') {
+          await supabase.from('payments').insert({
+            booking_id: booking.id,
+            payment_code: baseCode,
+            amount: totalPrice,
+            status: 'pending',
+            notes: 'Pembayaran lunas — menunggu transfer & verifikasi',
+          } as any);
+        } else if (paymentMode === 'dp') {
+          const dp = Math.max(0, Math.min(totalPrice, formData.dpAmount || 0));
+          await supabase.from('payments').insert({
+            booking_id: booking.id,
+            payment_code: baseCode,
+            amount: dp,
+            status: 'pending',
+            notes: `Uang muka (DP). Sisa pelunasan ${(totalPrice - dp).toLocaleString('id-ID')} jatuh tempo H-30.`,
+          } as any);
+        } else if (paymentMode === 'savings' && formData.savingsPlanId) {
+          // Tarik saldo tabungan: ambil paid_amount, kurangi sebesar min(saldo, total)
+          const { data: plan } = await (supabase as any)
+            .from('savings_plans')
+            .select('id, paid_amount, remaining_amount, target_amount')
+            .eq('id', formData.savingsPlanId)
+            .maybeSingle();
+          const saldo = Number(plan?.paid_amount || 0);
+          const useFromSavings = Math.min(saldo, totalPrice);
+          const shortfall = Math.max(0, totalPrice - useFromSavings);
+
+          // Catat pembayaran terverifikasi dari saldo tabungan
+          if (useFromSavings > 0) {
+            await supabase.from('payments').insert({
+              booking_id: booking.id,
+              payment_code: baseCode,
+              amount: useFromSavings,
+              status: 'paid',
+              payment_method: 'savings',
+              notes: `Dibayar dari Tabungan Umroh (plan ${formData.savingsPlanId})`,
+              verified_at: new Date().toISOString(),
+            } as any);
+
+            // Tandai plan dikonversi & kurangi saldo
+            await (supabase as any)
+              .from('savings_plans')
+              .update({
+                paid_amount: Math.max(0, saldo - useFromSavings),
+                converted_booking_id: booking.id,
+                status: shortfall === 0 ? 'completed' : 'active',
+                updated_at: new Date().toISOString(),
+              })
+              .eq('id', formData.savingsPlanId);
+          }
+
+          // Sisa kekurangan jadi payment pending baru
+          if (shortfall > 0) {
+            const { data: pCode2 } = await supabase.rpc('generate_payment_code' as any);
+            await supabase.from('payments').insert({
+              booking_id: booking.id,
+              payment_code: pCode2 || `${baseCode}-2`,
+              amount: shortfall,
+              status: 'pending',
+              notes: 'Sisa pelunasan setelah penggunaan saldo tabungan',
+            } as any);
+          }
+        }
+      } catch (payErr) {
+        console.warn('Initial payment creation failed:', payErr);
+      }
 
       // 5.1 Handle coupon usage atomically if provided
       if (picState.couponCode) {
@@ -262,7 +389,9 @@ export function useBookingWizardDynamic(
         }
       }
 
-      // 6. Create passengers
+      // 6. Create passengers and line items
+      const lineItems: any[] = [];
+
       for (let i = 0; i < formData.passengers.length; i++) {
         const passenger = formData.passengers[i];
         let passengerId = customerId;
@@ -277,10 +406,59 @@ export function useBookingWizardDynamic(
           passengerId = passengerCustomer.id;
         }
 
-        await supabase
+        const { data: bp, error: bpError } = await supabase
           .from('booking_passengers')
-          .insert({ booking_id: booking.id, customer_id: passengerId, is_main_passenger: i === 0, passenger_type: passenger.passengerType, room_preference: passenger.roomType });
+          .insert({ 
+            booking_id: booking.id, 
+            customer_id: passengerId, 
+            is_main_passenger: i === 0, 
+            passenger_type: passenger.passengerType, 
+            room_preference: passenger.roomType 
+          })
+          .select('id')
+          .single();
+        
+        if (bpError) throw bpError;
+
+        // Add line item for this passenger
+        const unitPrice = useAgeBasedPricing ? agePriceMap[passenger.passengerType] : priceMap[passenger.roomType];
+        const description = useAgeBasedPricing 
+          ? `Paket Haji - ${passenger.passengerType === 'adult' ? 'Dewasa' : passenger.passengerType === 'child' ? 'Anak' : 'Bayi'}`
+          : `Paket Umroh - Room ${passenger.roomType.charAt(0).toUpperCase() + passenger.roomType.slice(1)}`;
+
+        lineItems.push({
+          booking_id: booking.id,
+          passenger_id: bp.id,
+          description: description,
+          quantity: 1,
+          unit_price: unitPrice,
+          total_price: unitPrice,
+          item_type: 'package'
+        });
       }
+
+      // Handle Coupon as a negative line item if exists
+      if (picState.couponCode && picValidation.metadata?.discount_amount) {
+        const discountAmount = Number(picValidation.metadata.discount_amount);
+        if (discountAmount > 0) {
+          lineItems.push({
+            booking_id: booking.id,
+            description: `Diskon Kupon: ${picState.couponCode}`,
+            quantity: 1,
+            unit_price: -discountAmount,
+            total_price: -discountAmount,
+            item_type: 'discount',
+            reference_id: picValidation.metadata.coupon_id || null
+          });
+        }
+      }
+
+      // Insert all line items
+      const { error: lineItemsError } = await supabase
+        .from('booking_line_items' as any)
+        .insert(lineItems);
+      
+      if (lineItemsError) throw lineItemsError;
 
       // Auto-pair Double room passengers (chunks of 2)
       try {
@@ -382,6 +560,32 @@ export function useBookingWizardDynamic(
     }));
   };
 
+  // PAK-F6: Haji — tambah jamaah per tipe usia
+  const addHajiPassenger = (type: 'adult' | 'child' | 'infant') => {
+    const newPassenger: DynamicPassengerData = {
+      id: generateTempId(),
+      fullName: '',
+      gender: 'male',
+      phone: '',
+      passengerType: type,
+      roomType: 'quad', // tidak relevan untuk haji, diset default
+    };
+    setFormData(prev => ({
+      ...prev,
+      passengers: [...prev.passengers, newPassenger],
+    }));
+  };
+
+  // PAK-F6: Haji — hapus jamaah (tidak bisa hapus pemesan utama index 0)
+  const removeHajiPassenger = (id: string) => {
+    setFormData(prev => {
+      if (prev.passengers.length <= 1) return prev; // minimal 1 jamaah
+      const idx = prev.passengers.findIndex(p => p.id === id);
+      if (idx === 0) return prev; // pemesan utama tidak bisa dihapus
+      return { ...prev, passengers: prev.passengers.filter(p => p.id !== id) };
+    });
+  };
+
   return { 
     currentStep, 
     setCurrentStep, 
@@ -390,9 +594,14 @@ export function useBookingWizardDynamic(
     isSubmitting, 
     submitBooking,
     updateRoomAllocation,
+    addHajiPassenger,
+    removeHajiPassenger,
+    isHaji,
     picState,
     setPicState,
     picValidation,
-    isValidatingPIC
+    isValidatingPIC,
+    cancellationAgreed,
+    setCancellationAgreed,
   };
 }

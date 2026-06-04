@@ -143,6 +143,132 @@ export function useWhatsAppNotifier() {
     return send(phone, message);
   };
 
+  /** Savings: cicilan verified by admin */
+  const sendSavingsCicilanDiterima = async (
+    phone: string,
+    vars: {
+      nama: string;
+      nama_paket: string;
+      jumlah_cicilan: string;
+      tanggal: string;
+      total_terkumpul: string;
+      target: string;
+      sisa: string;
+      nomor_cs?: string;
+    }
+  ) => {
+    const message = buildMessage("SAVINGS_CICILAN_DITERIMA", { nomor_cs: "", ...vars });
+    return send(phone, message, true);
+  };
+
+  /** Savings: cicilan rejected by admin */
+  const sendSavingsCicilanDitolak = async (
+    phone: string,
+    vars: {
+      nama: string;
+      nama_paket: string;
+      jumlah_cicilan: string;
+      tanggal: string;
+      alasan: string;
+      nomor_cs?: string;
+    }
+  ) => {
+    const message = buildMessage("SAVINGS_CICILAN_DITOLAK", { nomor_cs: "", ...vars });
+    return send(phone, message, true);
+  };
+
+  /** Savings: monthly cicilan reminder (manual trigger by admin) */
+  const sendSavingsReminder = async (
+    phone: string,
+    vars: {
+      nama: string;
+      nama_paket: string;
+      jumlah_cicilan: string;
+      total_terkumpul: string;
+      target: string;
+      target_date: string;
+      info_rekening: string;
+      nomor_cs?: string;
+    }
+  ) => {
+    const message = buildMessage("SAVINGS_REMINDER", { nomor_cs: "", ...vars });
+    return send(phone, message, true);
+  };
+
+  /** Store: order confirmed + payment received */
+  const sendStoreOrderConfirmed = async (
+    phone: string,
+    vars: {
+      nama: string;
+      no_pesanan: string;
+      total: string;
+      jumlah_item: string | number;
+      nomor_cs?: string;
+    }
+  ) => {
+    const message = buildMessage("STORE_ORDER_CONFIRMED", { nomor_cs: "", ...vars, jumlah_item: String(vars.jumlah_item) });
+    return send(phone, message, true);
+  };
+
+  /** Store: resi/tracking input — order shipped */
+  const sendStoreOrderShipped = async (
+    phone: string,
+    vars: {
+      nama: string;
+      no_pesanan: string;
+      kurir: string;
+      layanan: string;
+      no_resi: string;
+      estimasi_tiba: string;
+      nomor_cs?: string;
+    }
+  ) => {
+    const message = buildMessage("STORE_ORDER_SHIPPED", { nomor_cs: "", ...vars });
+    return send(phone, message, true);
+  };
+
+  /** Store: order marked as delivered */
+  const sendStoreOrderDelivered = async (
+    phone: string,
+    vars: {
+      nama: string;
+      no_pesanan: string;
+      nomor_cs?: string;
+    }
+  ) => {
+    const message = buildMessage("STORE_ORDER_DELIVERED", { nomor_cs: "", ...vars });
+    return send(phone, message, true);
+  };
+
+  /** Store: new order placed — remind customer to pay */
+  const sendStorePaymentAwaiting = async (
+    phone: string,
+    vars: {
+      nama: string;
+      no_pesanan: string;
+      total: string;
+      nomor_cs?: string;
+    }
+  ) => {
+    const message = buildMessage("STORE_PAYMENT_AWAITING", { nomor_cs: "", ...vars });
+    return send(phone, message, true);
+  };
+
+  /** Savings: plan fully paid (lunas) */
+  const sendSavingsLunas = async (
+    phone: string,
+    vars: {
+      nama: string;
+      nama_paket: string;
+      total_terkumpul: string;
+      tanggal: string;
+      nomor_cs?: string;
+    }
+  ) => {
+    const message = buildMessage("SAVINGS_LUNAS", { nomor_cs: "", ...vars });
+    return send(phone, message, true);
+  };
+
   return {
     isReady,
     config,
@@ -153,5 +279,14 @@ export function useWhatsAppNotifier() {
     sendDocumentReady,
     sendDepartureReminder,
     sendCustom,
+    sendSavingsCicilanDiterima,
+    sendSavingsCicilanDitolak,
+    sendSavingsReminder,
+    sendSavingsLunas,
+    // Store / Toko
+    sendStoreOrderConfirmed,
+    sendStoreOrderShipped,
+    sendStoreOrderDelivered,
+    sendStorePaymentAwaiting,
   };
 }

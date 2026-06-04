@@ -27,6 +27,19 @@ import { Link } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { RoomType } from "@/types/database";
+import { useWhatsAppNotifier } from "@/hooks/useWhatsAppNotifier";
+import { useEmailNotifier } from "@/hooks/useEmailNotifier";
+import { useAuth } from "@/hooks/useAuth";
+
+/**
+ * Sanitize input for PostgREST `.or()` filter values.
+ * Removes characters that would break the filter syntax or enable
+ * injection of additional predicates: comma, parentheses, asterisk,
+ * percent, colon, single quotes.
+ */
+function sanitizeOrSearch(input: string): string {
+  return input.replace(/[,()*%:'"\\]/g, " ").replace(/\s+/g, " ").trim();
+}
 
 interface PackageData {
   id: string;
@@ -71,9 +84,72 @@ const ROOM_INFO: Record<RoomType, { label: string; occupancy: number; desc: stri
   single: { label: 'Single', occupancy: 1, desc: '1 orang/kamar', icon: BedDouble },
 };
 
+// ── Passenger Card with Mahram Info ────────────────────────────────────────
+function PassengerCard({ passenger: p, idx, setPassengers }: {
+  passenger: { full_name: string; phone?: string; passenger_type: string; customer_id?: string };
+  idx: number;
+  setPassengers: React.Dispatch<React.SetStateAction<any[]>>;
+}) {
+  const { data: mahrams = [] } = useQuery({
+    queryKey: ['customer-mahrams', p.customer_id],
+    enabled: !!p.customer_id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('customer_mahrams' as any)
+        .select('mahram_name, mahram_relation, relation_category')
+        .eq('customer_id', p.customer_id);
+      if (error) return [];
+      return (data as any[]) || [];
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const relationLabel = (cat: string) => {
+    const map: Record<string, string> = { suami: 'Suami', istri: 'Istri', anak: 'Anak', ayah: 'Ayah', ibu: 'Ibu', saudara: 'Saudara', kakek: 'Kakek', nenek: 'Nenek', cucu: 'Cucu', lainnya: 'Mahram' };
+    return map[cat] || cat;
+  };
+
+  return (
+    <div className="bg-primary/5 rounded-xl border border-primary/10 overflow-hidden">
+      <div className="flex items-center justify-between p-4">
+        <div className="space-y-0.5">
+          <p className="font-black text-base text-primary">{p.full_name}</p>
+          <p className="text-xs text-muted-foreground font-medium">{p.phone || 'Tanpa nomor telepon'}</p>
+        </div>
+        <Select
+          value={p.passenger_type}
+          onValueChange={v => setPassengers(prev => prev.map((pp: any, i: number) => i === idx ? { ...pp, passenger_type: v } : pp))}
+        >
+          <SelectTrigger className="w-[120px] h-10 text-xs font-bold bg-background rounded-lg border-2">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="adult">Dewasa</SelectItem>
+            <SelectItem value="child">Anak-anak</SelectItem>
+            <SelectItem value="infant">Bayi</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      {mahrams.length > 0 && (
+        <div className="px-4 pb-3 pt-0 border-t border-primary/10 bg-emerald-50/50">
+          <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-wide mb-1.5">Mahram</p>
+          <div className="flex flex-wrap gap-1.5">
+            {mahrams.map((m: any, i: number) => (
+              <span key={i} className="inline-flex items-center gap-1 text-[10px] bg-emerald-100 text-emerald-800 rounded-full px-2 py-0.5 font-medium">
+                {m.relation_category ? relationLabel(m.relation_category) : m.mahram_relation || 'Mahram'}: {m.mahram_name}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AdminBookingCreate() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   const [activeStep, setActiveStep] = useState(1);
   const [packageId, setPackageId] = useState<string>("");
@@ -90,6 +166,8 @@ export default function AdminBookingCreate() {
   const [activePassengerIndex, setActivePassengerIndex] = useState<number | null>(null);
   const [showAddCustomer, setShowAddCustomer] = useState(false);
   const [newCustomer, setNewCustomer] = useState({ full_name: "", phone: "", email: "", nik: "" });
+  const { sendBookingConfirm } = useWhatsAppNotifier();
+  const emailNotifier = useEmailNotifier();
 
   // Fetch active packages
   const { data: packages } = useQuery<PackageData[]>({
@@ -151,10 +229,12 @@ export default function AdminBookingCreate() {
     queryKey: ['customer-search', customerSearch],
     queryFn: async () => {
       if (!customerSearch || customerSearch.length < 2) return [];
+      const safe = sanitizeOrSearch(customerSearch);
+      if (safe.length < 2) return [];
       const { data, error } = await supabase
         .from('customers')
         .select('id, full_name, phone, email, nik')
-        .or(`full_name.ilike.%${customerSearch}%,phone.ilike.%${customerSearch}%,nik.ilike.%${customerSearch}%`)
+        .or(`full_name.ilike.%${safe}%,phone.ilike.%${safe}%,nik.ilike.%${safe}%`)
         .limit(10);
       if (error) throw error;
       return data;
@@ -303,11 +383,35 @@ export default function AdminBookingCreate() {
       if (!departureId || passengers.some(p => !p.customer_id)) throw new Error("Data jamaah belum lengkap");
       if (doubleValidationError) throw new Error("Tipe Double harus kelipatan 2 orang");
 
+      // ── Validasi: cegah jamaah duplikat dalam satu booking ──────────────
+      const passengerIds = passengers.map(p => p.customer_id).filter(Boolean) as string[];
+      const dupSet = new Set<string>();
+      for (const id of passengerIds) {
+        if (dupSet.has(id)) throw new Error("Terdapat jamaah duplikat dalam daftar penumpang");
+        dupSet.add(id);
+      }
+
+      // ── Validasi: cegah jamaah sudah punya booking aktif di departure ini ─
+      const { data: existing, error: existingError } = await supabase
+        .from('booking_passengers')
+        .select('customer_id, booking:bookings!inner(id, departure_id, booking_status)')
+        .in('customer_id', passengerIds)
+        .eq('booking.departure_id', departureId);
+      if (existingError) throw existingError;
+      const conflict = (existing || []).find((row: any) =>
+        row?.booking?.booking_status && !['cancelled', 'refunded'].includes(row.booking.booking_status)
+      );
+      if (conflict) {
+        throw new Error("Salah satu jamaah sudah terdaftar di booking aktif untuk departure ini");
+      }
+
       const { data: bookingCode, error: bookingCodeError } = await supabase.rpc('generate_booking_code', { _package_code: selectedPackage?.code || '', _departure_date: selectedDeparture?.departure_date || new Date().toISOString().split('T')[0] });
       if (bookingCodeError) throw bookingCodeError;
       const mainCustomerId = passengers[0].customer_id;
       const dominantRoom = getDominantRoomType();
-      const basePrice = prices[dominantRoom];
+      // Weighted-average base price agar mencerminkan kombinasi tipe kamar,
+      // bukan hanya tipe dominan (mengurangi diskrepansi total vs base_price * pax).
+      const basePrice = passengers.length > 0 ? Math.round(totalPrice / passengers.length) : 0;
 
       const { data: booking, error: bookingError } = await supabase
         .from('bookings')
@@ -327,6 +431,8 @@ export default function AdminBookingCreate() {
           notes: notes || null,
           branch_id: picType === 'cabang' && picBranchId ? picBranchId : null,
           agent_id: picType === 'agen' && picAgentId ? picAgentId : null,
+          // Catat staff internal (pusat/cabang) yang menginput booking sebagai sales PIC.
+          sales_id: picType !== 'agen' ? user?.id ?? null : null,
         })
         .select()
         .single();
@@ -353,6 +459,41 @@ export default function AdminBookingCreate() {
     onSuccess: (booking) => {
       queryClient.invalidateQueries({ queryKey: ['admin-bookings'] });
       toast.success("Booking berhasil dibuat!");
+      // Email konfirmasi booking — ambil email customer dari DB
+      const mainCustomerId = passengers[0]?.customer_id;
+      if (mainCustomerId && booking.booking_code) {
+        supabase.from('customers' as any).select('email, full_name').eq('id', mainCustomerId).single()
+          .then(({ data: customer }: { data: any }) => {
+            if (customer?.email) {
+              emailNotifier.sendBookingConfirmation({
+                to: customer.email,
+                customerName: customer.full_name || passengers[0]?.full_name || "Jamaah",
+                bookingCode: booking.booking_code!,
+                packageName: selectedPackage?.name || "-",
+                departureDate: selectedDeparture?.departure_date
+                  ? new Date(selectedDeparture.departure_date).toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" })
+                  : "-",
+                totalPrice: Number(booking.total_price || 0),
+                silent: true,
+              });
+            }
+          });
+      }
+      // WA notification to main passenger
+      const mainPax = passengers[0];
+      if (mainPax?.phone && booking.booking_code) {
+        sendBookingConfirm(mainPax.phone, {
+          nama: mainPax.full_name || "-",
+          kode_booking: booking.booking_code,
+          nama_paket: selectedPackage?.name || "-",
+          tanggal_berangkat: selectedDeparture?.departure_date
+            ? new Date(selectedDeparture.departure_date).toLocaleDateString("id-ID")
+            : "-",
+          total_harga: formatCurrency(Number(booking.total_price || 0)),
+          terbayar: formatCurrency(0),
+          sisa_bayar: formatCurrency(Number(booking.total_price || 0)),
+        });
+      }
       navigate(`/admin/bookings/${booking.id}`);
     },
     onError: (error: Error | null) => {
@@ -775,29 +916,48 @@ export default function AdminBookingCreate() {
                                 </Button>
                               </div>
                             ) : (
-                              <div className="flex items-center justify-between bg-primary/5 p-4 rounded-xl border border-primary/10">
-                                <div className="space-y-1">
-                                  <p className="font-black text-base text-primary">{p.full_name}</p>
-                                  <p className="text-xs text-muted-foreground font-medium">{p.phone || 'Tanpa nomor telepon'}</p>
-                                </div>
-                                <Select
-                                  value={p.passenger_type}
-                                  onValueChange={v => setPassengers(prev => prev.map((pp, i) => i === idx ? { ...pp, passenger_type: v } : pp))}
-                                >
-                                  <SelectTrigger className="w-[120px] h-10 text-xs font-bold bg-background rounded-lg border-2">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="adult">Dewasa</SelectItem>
-                                    <SelectItem value="child">Anak-anak</SelectItem>
-                                    <SelectItem value="infant">Bayi</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
+                              <PassengerCard
+                                passenger={p}
+                                idx={idx}
+                                setPassengers={setPassengers}
+                              />
                             )}
                           </div>
                         </div>
                       ))}
+                    </div>
+
+                    <div className="space-y-3 pt-6 border-t-2 border-dashed">
+                      <Label className="text-sm font-black flex items-center gap-2">
+                        <Info className="h-4 w-4 text-primary" /> Asal Pendaftaran
+                      </Label>
+                      <div className="grid gap-3 sm:grid-cols-3">
+                        {(['pusat', 'cabang', 'agen'] as const).map((type) => (
+                          <button
+                            key={type}
+                            type="button"
+                            onClick={() => { setPicType(type); if (type !== 'cabang') setPicBranchId(''); if (type !== 'agen') setPicAgentId(''); }}
+                            className={cn(
+                              "p-3 text-left border-2 rounded-xl transition-all text-sm font-bold capitalize",
+                              picType === type ? "border-primary bg-primary/5 text-primary" : "border-muted bg-background text-muted-foreground hover:border-primary/40"
+                            )}
+                          >
+                            {type === 'pusat' ? 'Kantor Pusat' : type === 'cabang' ? 'Cabang' : 'Agen Mitra'}
+                          </button>
+                        ))}
+                      </div>
+                      {picType === 'cabang' && branches && branches.length > 0 && (
+                        <Select value={picBranchId} onValueChange={setPicBranchId}>
+                          <SelectTrigger className="border-2 rounded-xl h-11"><SelectValue placeholder="Pilih Cabang" /></SelectTrigger>
+                          <SelectContent>{branches.map((b: any) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}</SelectContent>
+                        </Select>
+                      )}
+                      {picType === 'agen' && agents && agents.length > 0 && (
+                        <Select value={picAgentId} onValueChange={setPicAgentId}>
+                          <SelectTrigger className="border-2 rounded-xl h-11"><SelectValue placeholder="Pilih Agen Mitra" /></SelectTrigger>
+                          <SelectContent>{agents.map((a: any) => <SelectItem key={a.id} value={a.id}>{a.company_name} ({a.agent_code})</SelectItem>)}</SelectContent>
+                        </Select>
+                      )}
                     </div>
 
                     <div className="space-y-3 pt-6 border-t-2 border-dashed">

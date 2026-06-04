@@ -248,6 +248,13 @@ export const ROLE_DASHBOARD_CONFIG: Record<AppRole, RoleDashboardConfig> = {
     defaultDashboard: 'agent_dashboard',
     availableModules: ['agent_dashboard'],
   },
+  jamaah: {
+    role: 'jamaah',
+    label: 'Jamaah',
+    description: 'Portal khusus jamaah yang terdaftar pada keberangkatan',
+    defaultDashboard: 'customer_dashboard',
+    availableModules: ['customer_dashboard'],
+  },
 };
 
 /**

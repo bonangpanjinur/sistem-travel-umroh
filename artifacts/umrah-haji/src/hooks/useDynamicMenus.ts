@@ -5,11 +5,11 @@
  * Resolusi dilakukan di server via RPC `get_user_effective_permissions`.
  */
 
-import { useMemo, useCallback } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMemo, useCallback, useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { RECOMMENDED_MENUS } from '@/lib/admin-menu-registry';
+import { RECOMMENDED_MENUS, ROLE_DEFAULT_PERMISSIONS } from '@/lib/admin-menu-registry';
 import { getInheritedRoles } from '@/lib/permissions';
 import { AppRole } from '@/types/database';
 
@@ -30,19 +30,92 @@ export interface MenuGroup {
 }
 
 export const useDynamicMenus = () => {
-  const { user, hasRole, isStaff } = useAuth();
+  const { user, roles, hasRole, isStaff } = useAuth();
   const isSuperAdmin = hasRole('super_admin');
+  const queryClient = useQueryClient();
 
   const isStaffUser = isStaff();
 
+  // RBAC-F3: persist last-known-good effective permissions to localStorage so that
+  // when the DB / RPC fails (offline, network error) we restore from cache instead
+  // of falling back to the registry defaults (which would grant near-full access).
+  const cacheKey = user?.id ? `rbac.effective.${user.id}` : null;
+
+  // RBAC-F4: realtime invalidation — listen to user_permissions & user_roles
+  // changes for the current user so granted/revoked permissions take effect
+  // immediately without waiting for the 15-minute staleTime.
+  useEffect(() => {
+    if (!user?.id) return;
+    let isCancelled = false;
+    const channel = supabase.channel(
+      `rbac-realtime-${user.id}-${Math.random().toString(36).slice(2)}`
+    );
+
+    // Register all handlers BEFORE calling subscribe(), otherwise Supabase
+    // throws: "cannot add postgres_changes callbacks after subscribe()".
+    channel
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'user_permissions', filter: `user_id=eq.${user.id}` },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['user-effective-permissions'] });
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'user_roles', filter: `user_id=eq.${user.id}` },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['user-effective-permissions'] });
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'role_permissions' },
+        () => {
+          // Role-wide change affects every user with that role.
+          queryClient.invalidateQueries({ queryKey: ['user-effective-permissions'] });
+        }
+      );
+
+    channel.subscribe((status) => {
+      if (isCancelled && (status === 'SUBSCRIBED' || status === 'CHANNEL_ERROR')) {
+        // Effect already torn down before subscribe completed — clean up immediately.
+        try { channel.unsubscribe(); } catch { /* noop */ }
+        try { supabase.removeChannel(channel); } catch { /* noop */ }
+      }
+    });
+
+    return () => {
+      isCancelled = true;
+      try { channel.unsubscribe(); } catch { /* noop */ }
+      try { supabase.removeChannel(channel); } catch { /* noop */ }
+    };
+  }, [user?.id, queryClient]);
+
+  const readCache = (): string[] => {
+    if (!cacheKey || typeof window === 'undefined') return [];
+    try {
+      const raw = window.localStorage.getItem(cacheKey);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed?.keys) ? parsed.keys : [];
+    } catch { return []; }
+  };
+  const writeCache = (keys: string[]) => {
+    if (!cacheKey || typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem(cacheKey, JSON.stringify({ keys, ts: Date.now() }));
+    } catch { /* ignore quota errors */ }
+  };
+
   // Fetch the effective permission set for the current user (role default + user overrides)
   const { data: effectiveKeys = [] } = useQuery({
-    queryKey: ['user-effective-permissions', user?.id],
+    queryKey: ['user-effective-permissions', user?.id, roles?.join(',')],
     queryFn: async () => {
       if (!user || isSuperAdmin || !isStaffUser) return [] as string[];
 
-      // Support Role Inheritance
-      const userRoles = (user as any).roles || [] as AppRole[];
+      // RBAC-F1: Source roles from useAuth().roles (DB user_roles table) — not auth metadata.
+      const userRoles: AppRole[] = roles || [];
       const expandedRoles: AppRole[] = [...userRoles];
       userRoles.forEach((role: AppRole) => {
         expandedRoles.push(...getInheritedRoles(role));
@@ -59,12 +132,22 @@ export const useDynamicMenus = () => {
         const { data: legacyData, error: legacyError } = await (supabase.rpc as any)('get_user_effective_permissions', {
           _user_id: user.id,
         });
-        if (legacyError) { console.error(legacyError); return [] as string[]; }
-        return ((legacyData || []) as Array<{ permission_key: string }>).map((r: any) => r.permission_key);
+        if (legacyError) {
+          console.error('[RBAC-F3] legacy RPC failed, using localStorage cache', legacyError);
+          return readCache();
+        }
+        const keys = ((legacyData || []) as Array<{ permission_key: string }>).map((r: any) => r.permission_key);
+        writeCache(keys);
+        return keys;
       }
 
-      if (error) { console.error(error); return [] as string[]; }
-      return ((data || []) as Array<{ permission_key: string }>).map((r: any) => r.permission_key);
+      if (error) {
+        console.error('[RBAC-F3] permission RPC failed, using localStorage cache', error);
+        return readCache();
+      }
+      const keys = ((data || []) as Array<{ permission_key: string }>).map((r: any) => r.permission_key);
+      writeCache(keys);
+      return keys;
     },
     enabled: !!user && !isSuperAdmin && isStaffUser,
     staleTime: 1000 * 60 * 15, // Sync with useEffectivePermissions (15m)
@@ -73,7 +156,7 @@ export const useDynamicMenus = () => {
 
   // Registry fallback (used when DB is empty / unreachable) — keeps sidebar usable.
   const fallbackMenus: MenuItem[] = useMemo(
-    () => RECOMMENDED_MENUS.map((m, idx) => ({
+    () => RECOMMENDED_MENUS.map((m) => ({
       id: `fallback-${m.key}`,
       key: m.key,
       label: m.label,
@@ -85,6 +168,19 @@ export const useDynamicMenus = () => {
     })),
     []
   );
+
+  // Role-based fallback for effectiveKeys when Supabase is not connected
+  // or role_permissions table is empty. Uses ROLE_DEFAULT_PERMISSIONS as the default.
+  const roleBasedFallbackKeys = useMemo(() => {
+    if (isSuperAdmin || !isStaffUser || !user) return [] as string[];
+    const userRoles: string[] = roles || [];
+    const keys = new Set<string>();
+    userRoles.forEach((role) => {
+      const defaults = ROLE_DEFAULT_PERMISSIONS[role] || [];
+      defaults.forEach((k) => keys.add(k));
+    });
+    return Array.from(keys);
+  }, [isSuperAdmin, isStaffUser, user, roles]);
 
   // Fetch all menus (DB) - with optimized caching
   const { data: dbMenus = [], isLoading, error, refetch } = useQuery({
@@ -128,7 +224,14 @@ export const useDynamicMenus = () => {
   // Super admin → all menus. Others → only menus whose required_permission is
   // present in the effective permission set. Menus without a required_permission
   // remain visible to every staff user (e.g. a generic admin landing).
-  const allowedSet = useMemo(() => new Set(effectiveKeys), [effectiveKeys]);
+  // If effectiveKeys is empty (DB unreachable / no permissions seeded),
+  // fall back to the role-based defaults so the sidebar is always usable.
+  const resolvedEffectiveKeys = useMemo(
+    () => (effectiveKeys.length > 0 ? effectiveKeys : roleBasedFallbackKeys),
+    [effectiveKeys, roleBasedFallbackKeys]
+  );
+
+  const allowedSet = useMemo(() => new Set(resolvedEffectiveKeys), [resolvedEffectiveKeys]);
 
   /**
    * Tolerant permission match — handles drift between menu_items.required_permission

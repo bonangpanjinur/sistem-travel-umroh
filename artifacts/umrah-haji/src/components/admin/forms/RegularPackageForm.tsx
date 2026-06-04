@@ -56,11 +56,15 @@ const regularPackageSchema = z.object({
   excludes: z.string().optional(),
   is_featured: z.boolean().default(false),
   is_active: z.boolean().default(true),
+  currency: z.enum(["IDR", "USD", "SAR", "EUR", "MYR"]).default("IDR"),
+  booking_mode: z.enum(["umroh", "haji", "wisata"]).default("umroh"),
   // PIC Fee fields
   fee_branch: z.coerce.number().min(0, "Fee cabang tidak boleh negatif").default(0),
   fee_agent: z.coerce.number().min(0, "Fee agen tidak boleh negatif").default(0),
   fee_sub_agent: z.coerce.number().min(0, "Fee sub agen tidak boleh negatif").default(0),
   fee_referral: z.coerce.number().min(0, "Fee referral jemaah tidak boleh negatif").default(0),
+  discount_amount: z.coerce.number().min(0, "Diskon nominal tidak boleh negatif").default(0),
+  discount_percentage: z.coerce.number().min(0, "Diskon persentase tidak boleh negatif").max(100, "Maksimal 100%").default(0),
 });
 
 type RegularPackageFormValues = z.infer<typeof regularPackageSchema>;
@@ -91,6 +95,23 @@ export function RegularPackageForm({ packageData, onSuccess, onCancel }: Regular
     },
   });
 
+  const { data: cancellationPolicies } = useQuery({
+    queryKey: ["admin-cancellation-policies-global"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("cancellation_policies")
+        .select("id, name, description")
+        .eq("is_global", true)
+        .order("name", { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const [selectedPolicyId, setSelectedPolicyId] = useState<string>(
+    (packageData as any)?.cancellation_policy_id || ""
+  );
+
   const form = useForm<RegularPackageFormValues>({
     resolver: zodResolver(regularPackageSchema),
     defaultValues: {
@@ -108,6 +129,10 @@ export function RegularPackageForm({ packageData, onSuccess, onCancel }: Regular
       fee_agent: (packageData as any)?.fee_agent || 0,
       fee_sub_agent: (packageData as any)?.fee_sub_agent || 0,
       fee_referral: (packageData as any)?.fee_referral || 0,
+      discount_amount: (packageData as any)?.discount_amount || 0,
+      discount_percentage: (packageData as any)?.discount_percentage || 0,
+      currency: ((packageData as any)?.currency as any) || "IDR",
+      booking_mode: ((packageData as any)?.booking_mode as any) || "umroh",
     },
   });
 
@@ -161,7 +186,7 @@ export function RegularPackageForm({ packageData, onSuccess, onCancel }: Regular
 
   const mutation = useMutation({
     mutationFn: async (values: RegularPackageFormValues) => {
-      const { fee_branch, fee_agent, fee_sub_agent, fee_referral, ...rest } = values;
+      const { fee_branch, fee_agent, fee_sub_agent, fee_referral, discount_amount, discount_percentage, ...rest } = values;
       
       // Find the selected package type to get its code for the package code generation
       const selectedType = packageTypes?.find(t => t.id === rest.package_type_id);
@@ -170,10 +195,8 @@ export function RegularPackageForm({ packageData, onSuccess, onCancel }: Regular
       const payload: any = {
         ...rest,
         code: isEditing ? rest.code : generatePackageCode(typeCode),
-        // package_type: typeCode, // Removed legacy field to support dynamic types like 'tour'
         includes: rest.includes ? rest.includes.split("\n").filter(Boolean) : [],
         excludes: rest.excludes ? rest.excludes.split("\n").filter(Boolean) : [],
-        // Set price/hotel/airline to null - these are managed on departures
         price_quad: 0,
         price_triple: 0,
         price_double: 0,
@@ -182,21 +205,33 @@ export function RegularPackageForm({ packageData, onSuccess, onCancel }: Regular
         hotel_madinah_id: null,
         airline_id: null,
         muthawif_id: null,
-        // Add PIC fee fields
         fee_branch,
         fee_agent,
         fee_sub_agent,
         fee_referral,
+        discount_amount,
+        discount_percentage,
       };
+
+      let packageId: string | undefined;
 
       if (isEditing && packageData) {
         const updatePayload: PackageUpdate = payload;
         const { error } = await supabase.from("packages").update(updatePayload).eq("id", packageData.id);
         if (error) throw error;
+        packageId = packageData.id;
       } else {
         const insertPayload: PackageInsert = payload;
-        const { error } = await supabase.from("packages").insert(insertPayload);
+        const { data: inserted, error } = await supabase.from("packages").insert(insertPayload).select("id").single();
         if (error) throw error;
+        packageId = inserted?.id;
+      }
+
+      if (selectedPolicyId && selectedPolicyId !== "none" && packageId) {
+        await (supabase as any)
+          .from("cancellation_policies")
+          .update({ package_id: packageId })
+          .eq("id", selectedPolicyId);
       }
     },
     onSuccess: () => {
@@ -292,6 +327,57 @@ export function RegularPackageForm({ packageData, onSuccess, onCancel }: Regular
             />
           </div>
 
+          <div className="grid gap-4 sm:grid-cols-2">
+            <FormField
+              control={form.control}
+              name="currency"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Mata Uang Harga</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Pilih mata uang" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="IDR">IDR — Rupiah</SelectItem>
+                      <SelectItem value="USD">USD — US Dollar</SelectItem>
+                      <SelectItem value="SAR">SAR — Saudi Riyal</SelectItem>
+                      <SelectItem value="EUR">EUR — Euro</SelectItem>
+                      <SelectItem value="MYR">MYR — Ringgit</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">Berlaku untuk semua keberangkatan paket ini.</p>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="booking_mode"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Mode Booking Wizard</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Pilih mode" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="umroh">Umroh — Alokasi kamar (Quad/Triple/Double/Single)</SelectItem>
+                      <SelectItem value="haji">Haji — Tampilkan validasi mahram & kebutuhan khusus</SelectItem>
+                      <SelectItem value="wisata">Wisata — Twin/Double, surcharge solo traveler</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">Menentukan tampilan langkah-langkah di booking wizard.</p>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+
           <FormField
             control={form.control}
             name="description"
@@ -305,6 +391,40 @@ export function RegularPackageForm({ packageData, onSuccess, onCancel }: Regular
               </FormItem>
             )}
           />
+
+          <div className="space-y-4 pt-4 border-t">
+            <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Pengaturan Diskon</h4>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <FormField
+                control={form.control}
+                name="discount_amount"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Potongan Harga (Nominal)</FormLabel>
+                    <FormControl>
+                      <Input type="number" min={0} placeholder="Contoh: 1000000" {...field} />
+                    </FormControl>
+                    <p className="text-xs text-muted-foreground">Potongan tetap dalam mata uang yang dipilih.</p>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="discount_percentage"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Potongan Harga (%)</FormLabel>
+                    <FormControl>
+                      <Input type="number" min={0} max={100} placeholder="Contoh: 5" {...field} />
+                    </FormControl>
+                    <p className="text-xs text-muted-foreground">Potongan dalam persentase (0-100%).</p>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          </div>
         </div>
 
         {/* Info: Harga & Hotel dikelola di Keberangkatan */}
@@ -351,6 +471,33 @@ export function RegularPackageForm({ packageData, onSuccess, onCancel }: Regular
                 </FormItem>
               )}
             />
+          </div>
+        </div>
+
+        {/* Kebijakan Pembatalan */}
+        <div className="space-y-3 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+          <h4 className="text-sm font-semibold text-amber-900 uppercase tracking-wide">Kebijakan Pembatalan</h4>
+          <p className="text-xs text-amber-800">Pilih kebijakan pembatalan global yang berlaku untuk paket ini (opsional)</p>
+          <div className="space-y-1">
+            <Label className="text-sm">Kebijakan Pembatalan</Label>
+            <Select value={selectedPolicyId} onValueChange={setSelectedPolicyId}>
+              <SelectTrigger>
+                <SelectValue placeholder="— Tidak ada / Pilih kebijakan —" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">— Tidak ada kebijakan —</SelectItem>
+                {(cancellationPolicies || []).map((p: any) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {selectedPolicyId && selectedPolicyId !== "none" && cancellationPolicies?.find((p: any) => p.id === selectedPolicyId)?.description && (
+              <p className="text-xs text-muted-foreground mt-1">
+                {cancellationPolicies.find((p: any) => p.id === selectedPolicyId)?.description}
+              </p>
+            )}
           </div>
         </div>
 

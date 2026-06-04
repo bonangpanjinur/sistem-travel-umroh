@@ -1,3 +1,4 @@
+
 # Umrah Haji — Portal Jamaah
 
 Full-stack travel management web app for Umroh & Haji packages — booking, departure management, rooming lists, invoices, and operational tooling.
@@ -24,26 +25,47 @@ pnpm --filter @workspace/api-server run dev    # Express API server
 - **Date**: date-fns (Indonesian locale)
 - **Monorepo**: pnpm workspaces
 
-pnpm workspace monorepo using TypeScript. Umrah & Haji travel portal (UmrahTravel) — a full-featured travel management system for Umrah and Haji packages, bookings, jamaah management, and more.
+# Vinstour Travel — Umroh & Haji Management Portal
+
+Sistem manajemen perjalanan umroh & haji lengkap untuk Vinstour Travel. Mencakup booking jamaah, panel admin, komisi agen, tracking operasional, dan portal publik.
+
+
+> **Rencana lengkap, status semua halaman, dan catatan teknis ada di [`rencana.md`](./rencana.md)**
+
+---
+
+## Cara Menjalankan
+
+```bash
+# Frontend (port 5000) — via Replit workflow "Start application"
+PORT=5000 pnpm --filter @workspace/umrah-haji run dev
+
+# API Server (port 8080) — via Replit workflow "Start API server"
+PORT=8080 pnpm --filter @workspace/api-server run dev
+
+# Install semua dependencies
+pnpm install
+
+# Typecheck semua paket
+pnpm run typecheck:libs && pnpm run typecheck
+```
+
+---
 
 ## Stack
 
-- **Monorepo tool**: pnpm workspaces
-- **Node.js version**: 24
-- **Package manager**: pnpm
-- **TypeScript version**: 5.9
-- **API framework**: Express 5
-- **Database**: PostgreSQL + Drizzle ORM (+ Supabase for auth/storage)
-- **Validation**: Zod (`zod/v4`), `drizzle-zod`
-- **API codegen**: Orval (from OpenAPI spec)
-- **Build**: esbuild (CJS bundle)
-- **Frontend**: React + Vite, Tailwind CSS, shadcn/ui, wouter + react-router-dom
+- **Monorepo**: pnpm workspaces, Node.js 20, TypeScript 5.9
+- **Frontend**: React 19 + Vite 7, Tailwind CSS v3, react-router-dom v7, @tanstack/react-query v5
+- **Backend**: Express 5, pino logging, bcryptjs + JWT auth
+- **Database**: Neon PostgreSQL (Replit integration) — `DATABASE_URL` di Replit Secrets
+- **Auth**: JWT custom (bcrypt password hash, auth.users + profiles + user_roles tables)
+- **Supabase Compatibility**: `supabaseProxy.ts` implements PostgREST `/rest/v1/*` dan `/auth/v1/*`
+- **Build**: esbuild (API server), Vite (frontend)
 
-## Artifacts
+---
 
-- `artifacts/umrah-haji` — Main web app (UmrahTravel portal, served at `/`)
-- `artifacts/api-server` — Express backend API (served at `/api`)
-- `artifacts/mockup-sandbox` — Design/mockup sandbox
+## Struktur Direktori
+
 
 
 ## Where things live
@@ -103,68 +125,82 @@ artifacts/umrah-haji/src/
 - Supabase JS: https://supabase.com/docs/reference/javascript
 - jsPDF: https://rawgit.com/MrRio/jsPDF/master/docs/index.html
 
-## Environment Variables Required
+```
+artifacts/
+  umrah-haji/src/   — Frontend React (pages, routes, hooks, components)
+  api-server/src/   — Express API (routes/, lib/auth, lib/db, supabaseProxy)
+lib/
+  api-spec/         — openapi.yaml (source of truth)
+  api-zod/          — Zod schemas (auto-generated)
+  db/               — Drizzle schema
+sql/migrations/     — SQL migrations (001–061) canonical
+```
 
-- `VITE_SUPABASE_URL` — Supabase project URL
-- `VITE_SUPABASE_PUBLISHABLE_KEY` — Supabase anon/public key
-- `SUPABASE_URL` — Supabase URL (for API server)
-- `SUPABASE_SERVICE_ROLE_KEY` — Supabase service role key (for API server)
+---
 
-See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details.
 
-## Recent Major Changes (Batch 2 — May 2026)
+## Akun Admin Default (Dev)
 
-### 1. SQL Migrations Added
-- `src/lib/migrations/hr-enhancements.sql` — New tables: `payroll_records`, `leave_requests`, `leave_quotas`, `performance_reviews`. Extended `employees` table with payroll-related columns.
-- `src/lib/migrations/operational-integration.sql` — New tables: `generated_documents`, `jamaah_checklist`. New view: `jamaah_operational_status`. Extended `equipment_distributions` and `room_assignments` with `departure_id`.
+Buat di startup — gunakan di halaman `/login`:
 
-### 2. AdminSettings — Complete UI/UX Overhaul
-- **Replaced** tabs layout with **left sidebar navigation** design.
-- 9 sections: Profil & Akun, Data Perusahaan, Rekening Bank, Dokumen & Surat, Notifikasi, Tampilan, Menu Sidebar, Keamanan, Zona Bahaya.
-- Added new Data Perusahaan fields: tagline, kota, website, nomor izin PPIU.
-- Improved bank account cards with icon, edit/delete buttons.
-- Notifikasi section with WhatsApp & Email toggle settings.
-- Tampilan section with color picker and light/dark mode.
-- Keamanan section with 2FA, log, sesi links.
+| Field | Value |
+|-------|-------|
+| Email | `admin@vinstour.com` |
+| Password | `Admin@Vinstour2024!` |
+| Role | `super_admin` |
 
-### 3. AdminHR — Enhanced with 3 New Tabs
-- **Penggajian**: Payroll management with monthly salary processing, summary stats (total, paid, unpaid), employee salary table, payment history.
-- **Cuti & Izin**: Leave request management with status cards (pending/approved/rejected), leave quota tracking per employee with progress bars.
-- **Kinerja**: Performance review system with 5-dimension scoring (kualitas, produktivitas, inisiatif, teamwork, kehadiran), grade criteria (A-E), quarterly/annual review periods.
-- Tab list is now horizontally scrollable to accommodate all 9 tabs.
+> **Ganti password** segera setelah login pertama di `/admin/users`.
 
-### 4. AdminDocumentGenerator — Bulk Generation Tab
-- Added **"Generate Massal"** tab as first tab — shows all jamaah in a departure as a table.
-- Each row has quick-download buttons: Cuti, Paspor, Invoice, E-Ticket, Sertifikat.
-- Documents generated instantly per-jamaah without switching tabs.
-- Sertifikat only available after return date.
-- Tab list is now horizontally scrollable.
+---
 
-### 5. OperationalDashboard — Enhanced Integration View
-- Added 4-stat quick row: Check-in, Manifest, Luggage, Kamar.
-- Added **Payment Progress** bar showing overall payment completion rate.
-- Added **6 module cards** linking to: Kamar/Rooming, Perlengkapan, Manifest, Luggage, Generate Dokumen, Keuangan — each showing live stats.
-- Upcoming Departures enhanced with: days-remaining badge, fill-rate progress bar, quick links to Rooming and Manifest per departure.
+## Environment Variables (Replit Secrets)
 
-## App Architecture (umrah-haji)
+| Secret | Keterangan | Wajib? |
+|--------|-----------|--------|
+| `DATABASE_URL` | Neon PostgreSQL connection string | ✅ Sudah ada |
+| `APP_JWT_SECRET` | Secret untuk signing JWT token | 🔧 Set untuk production |
+| `FONNTE_TOKEN` | Token WhatsApp Fonnte | Opsional |
+| `MIDTRANS_SERVER_KEY` | Midtrans server key | Opsional |
+| `MIDTRANS_CLIENT_KEY` | Midtrans client key | Opsional |
+| `VAPID_PUBLIC_KEY` | VAPID public key untuk push notif | Opsional |
+| `VAPID_PRIVATE_KEY` | VAPID private key | Opsional |
+| `GEMINI_API_KEY` | Google Gemini AI | Opsional |
+| `SMTP_HOST` | SMTP server email | Opsional |
+| `SMTP_USER` | SMTP username | Opsional |
+| `SMTP_PASS` | SMTP password | Opsional |
 
-### Key Pages
-- `/` — Landing page
-- `/admin/*` — Admin pages (Dashboard, HR, Settings, Documents, Finance, etc.)
-- `/operational/*` — Operational pages (Dashboard, Manifest, Rooming, Equipment, etc.)
-- `/finance/*` — Finance pages
-- `/hr/*` — Employee-facing HR pages
+---
 
-### Key Files
-- `src/pages/admin/AdminSettings.tsx` — System settings (sidebar nav layout)
-- `src/pages/admin/AdminHR.tsx` — HR management (9 tabs incl. Payroll, Leave, Performance)
-- `src/pages/admin/AdminDocumentGenerator.tsx` — Document generator (8 tabs incl. Bulk)
-- `src/pages/operational/OperationalDashboard.tsx` — Operational overview
-- `src/pages/operational/RoomingListPage.tsx` — Room assignment per jamaah
-- `src/pages/operational/EquipmentPage.tsx` — Equipment distribution
-- `src/lib/document-generator.ts` — jsPDF-based document generation (cuti, paspor, invoice, e-ticket, sertifikat)
-- `src/lib/migrations/` — SQL migration files for Supabase
+## Migrasi Supabase → Neon (Selesai)
+
+- ✅ Database schema di-apply otomatis saat startup via `runMigrations.ts`
+- ✅ Auth (`/auth/v1/*`) diimplementasi di Express dengan bcrypt + JWT
+- ✅ REST (`/rest/v1/*`) diimplementasi di Express via PostgREST-compatible proxy
+- ✅ Supabase JS client di frontend diarahkan ke proxy lokal (localOrigin fallback)
+- ✅ Secrets sensitif (Midtrans, WA, VAPID, Gemini) di backend saja
+
+---
+
+## User Preferences
+
 
 ### Demo Mode
 App runs in demo mode when Supabase is not configured (no VITE_SUPABASE_URL). All data comes from mock/empty states.
+
+
+- File rencana tunggal: `rencana.md` — jangan buat file rencana/catatan lain
+- Tailwind v3 via PostCSS — jangan gunakan `@tailwindcss/vite`
+- Semua tabel baru wajib RLS + policy per role (didefinisikan di SQL migration)
+- Notifikasi admin: tambah listener di `useAdminNotifications.ts`, jangan buat channel baru
+
+---
+
+## Gotchas
+
+- Jalankan `pnpm run typecheck:libs` dahulu sebelum typecheck api-server
+- Frontend pakai Tailwind CSS v3 (PostCSS plugin), bukan Tailwind v4 — jangan gunakan `@tailwindcss/vite`
+- Aset Kantor admin: `/admin/office-assets` (bukan `/operational/assets`)
+- Quick Menu Grid "Portal Jamaah" → `/jamaah-info`
+- RLS policy `authenticated` role tidak berlaku di Neon (tidak ada Supabase auth) — akses dikontrol di Express middleware
+- Supabase JOIN syntax (`?select=*,profiles(*)`) di-support terbatas — proxy mengembalikan `*` untuk query dengan join
 

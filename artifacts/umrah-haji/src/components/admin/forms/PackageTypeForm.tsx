@@ -15,6 +15,13 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import { Loader2, CheckCircle2 } from "lucide-react";
 
@@ -22,6 +29,7 @@ const packageTypeSchema = z.object({
   code: z.string().min(2, "Kode minimal 2 karakter").max(50),
   name: z.string().min(1, "Nama harus diisi"),
   description: z.string().optional().nullable(),
+  booking_mode: z.enum(["umroh", "haji", "wisata"]).default("umroh"),
   display_order: z.coerce.number().default(0),
   is_active: z.boolean().default(true),
 });
@@ -44,6 +52,7 @@ export function PackageTypeForm({ packageTypeData, onSuccess, onCancel }: Packag
       code: packageTypeData?.code || "",
       name: packageTypeData?.name || "",
       description: packageTypeData?.description || "",
+      booking_mode: packageTypeData?.booking_mode || "umroh",
       display_order: packageTypeData?.display_order || 0,
       is_active: packageTypeData?.is_active ?? true,
     },
@@ -54,7 +63,7 @@ export function PackageTypeForm({ packageTypeData, onSuccess, onCancel }: Packag
       if (isEditing && packageTypeData) {
         const { error } = await supabase
           .from("package_types")
-          .update(values)
+          .update(values as any)
           .eq("id", packageTypeData.id);
         if (error) throw error;
       } else {
@@ -67,6 +76,7 @@ export function PackageTypeForm({ packageTypeData, onSuccess, onCancel }: Packag
     onSuccess: () => {
       toast.success(isEditing ? "Tipe paket berhasil diperbarui" : "Tipe paket berhasil ditambahkan");
       queryClient.invalidateQueries({ queryKey: ["admin-package-types"] });
+      queryClient.invalidateQueries({ queryKey: ["package-types"] });
       onSuccess();
     },
     onError: (error: any) => {
@@ -89,7 +99,7 @@ export function PackageTypeForm({ packageTypeData, onSuccess, onCancel }: Packag
               <FormItem>
                 <FormLabel>Kode Tipe</FormLabel>
                 <FormControl>
-                  <Input placeholder="umroh_reguler" {...field} disabled={isEditing} />
+                  <Input placeholder="wisata_turki" {...field} disabled={isEditing} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -103,13 +113,54 @@ export function PackageTypeForm({ packageTypeData, onSuccess, onCancel }: Packag
               <FormItem>
                 <FormLabel>Nama Tipe</FormLabel>
                 <FormControl>
-                  <Input placeholder="Umroh Reguler" {...field} />
+                  <Input placeholder="Wisata Turki" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
         </div>
+
+        <FormField
+          control={form.control}
+          name="booking_mode"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Mode Booking</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Pilih mode booking" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="umroh">
+                    <span className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
+                      Umroh — Alokasi kamar Quad/Triple/Double/Single
+                    </span>
+                  </SelectItem>
+                  <SelectItem value="haji">
+                    <span className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-blue-500 inline-block" />
+                      Haji — Harga per orang, tanpa alokasi kamar
+                    </span>
+                  </SelectItem>
+                  <SelectItem value="wisata">
+                    <span className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-amber-500 inline-block" />
+                      Wisata — Tour religi, Twin/Double + surcharge solo
+                    </span>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Menentukan tampilan step alokasi kamar di wizard booking dan model harga yang digunakan.
+              </p>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
         <FormField
           control={form.control}

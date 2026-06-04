@@ -6,7 +6,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { AgentNotificationBell } from "@/components/agent/AgentNotificationBell";
 import { 
   Home, Users, DollarSign, Package, UserCog,
-  Menu, X, LogOut, Wallet, Globe, Zap
+  Menu, X, LogOut, Wallet, Globe, Zap, Network, Crown, Link2,
+  Trophy, Target
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -14,13 +15,22 @@ import { useState } from "react";
 
 const navItems = [
   { label: "Dashboard", href: "/agent", icon: Home },
-  { label: "Daftarkan Jamaah", href: "/agent/register", icon: Users },
+  { label: "Keanggotaan", href: "/agent/membership", icon: Crown },
+  { label: "Target Bulanan", href: "/agent/targets", icon: Target },
+  { label: "Leaderboard", href: "/agent/leaderboard", icon: Trophy },
+  { label: "CRM Pipeline Lead", href: "/agent/leads", icon: Users },
+  { label: "Daftarkan Jamaah", href: "/agent/register", icon: UserCog },
   { label: "Data Jamaah", href: "/agent/jamaah", icon: UserCog },
   { label: "Komisi", href: "/agent/commissions", icon: DollarSign },
   { label: "Dompet", href: "/agent/wallet", icon: Wallet },
+  { label: "Laporan Bulanan", href: "/agent/laporan", icon: Target },
+  { label: "Broadcast WA", href: "/agent/broadcast", icon: Zap },
+  { label: "Link Pendaftaran", href: "/agent/unique-link", icon: Link2 },
+  { label: "Jaringan Sub Agen", href: "/agent/network", icon: Network },
   { label: "Paket Tersedia", href: "/agent/packages", icon: Package },
   { label: "Digital Kit", href: "/agent/digital-kit", icon: Zap },
   { label: "Website Saya", href: "/agent/website", icon: Globe },
+  { label: "Referral & Booking", href: "/agent/referrals", icon: Link2 },
 ];
 
 export default function AgentLayoutEnhanced() {

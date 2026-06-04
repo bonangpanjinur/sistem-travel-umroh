@@ -11,7 +11,7 @@ import {
   AlertCircle, ArrowRight, Package, Calendar,
   Building2, User, RefreshCcw, Filter, X,
   FileText, Briefcase, Plane, ClipboardCheck, Info,
-  CheckCircle2, ExternalLink
+  CheckCircle2, ExternalLink, Bell
 } from "lucide-react";
 import { formatCurrency, getBookingStatusLabel, getPaymentStatusLabel } from "@/lib/format";
 import { format, parseISO, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths } from "date-fns";
@@ -252,7 +252,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Main Stats Grid */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         {/* Alerts Section */}
         <Card className="lg:col-span-1 border-red-100 bg-red-50/30">
           <CardHeader className="pb-2">
@@ -325,6 +325,46 @@ export default function AdminDashboard() {
             <div className="space-y-1">
               <p className="text-2xl font-bold text-emerald-700">{loadingDepartures ? <Skeleton className="h-8 w-24" /> : (upcomingDepartures?.length || 0)}</p>
               <p className="text-sm text-emerald-600/80 font-medium">Berangkat</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Payment Reminder Alerts */}
+        <Card className="lg:col-span-1 border-amber-100 bg-amber-50/30">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-bold flex items-center gap-2 text-amber-600">
+                <Bell className="h-4 w-4" /> PENGINGAT PELUNASAN
+              </CardTitle>
+              <Link to="/admin/pembayaran-reminder" className="text-xs font-medium text-amber-600 hover:underline flex items-center gap-1">
+                Kelola <ArrowRight className="h-3 w-3" />
+              </Link>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-1">
+              {loadingAlerts ? (
+                <Skeleton className="h-8 w-24" />
+              ) : (
+                <p className="text-2xl font-bold text-amber-700">
+                  {(alerts?.paymentReminders?.dueToday ?? 0) + (alerts?.paymentReminders?.dueTomorrow ?? 0)}
+                </p>
+              )}
+              <p className="text-sm text-amber-600/80 font-medium">Pending Hari Ini &amp; Besok</p>
+              {!loadingAlerts && (alerts?.paymentReminders?.overdue ?? 0) > 0 && (
+                <div className="pt-1">
+                  <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
+                    {alerts!.paymentReminders!.overdue} lewat deadline
+                  </Badge>
+                </div>
+              )}
+              {!loadingAlerts && (alerts?.paymentReminders?.dueToday ?? 0) > 0 && (
+                <div className="pt-1">
+                  <Badge className="text-[10px] px-1.5 py-0 bg-amber-500 text-white">
+                    {alerts!.paymentReminders!.dueToday} jatuh tempo hari ini
+                  </Badge>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

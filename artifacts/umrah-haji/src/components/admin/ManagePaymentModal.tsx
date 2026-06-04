@@ -72,7 +72,7 @@ export function ManagePaymentModal({
     queryFn: async () => {
       const { data, error } = await supabase
         .from('payments')
-        .select('*')
+        .select('*, booking:bookings(customer_id, booking_code)')
         .eq('booking_id', bookingId)
         .order('created_at', { ascending: false });
 
@@ -83,7 +83,15 @@ export function ManagePaymentModal({
   });
 
   const verifyPaymentMutation = useMutation({
-    mutationFn: async ({ paymentId, status, notes }: { paymentId: string; status: 'paid' | 'failed'; notes?: string }) => {
+    mutationFn: async ({
+      paymentId, status, notes, customerId, paymentAmount,
+    }: {
+      paymentId: string;
+      status: 'paid' | 'failed';
+      notes?: string;
+      customerId?: string;
+      paymentAmount?: number;
+    }) => {
       const { error } = await supabase
         .from('payments')
         .update({
@@ -95,17 +103,49 @@ export function ManagePaymentModal({
         .eq('id', paymentId);
 
       if (error) throw error;
+
+      return { status, customerId, paymentAmount };
     },
-    onSuccess: () => {
+    onSuccess: ({ status, customerId, paymentAmount }, variables) => {
       queryClient.invalidateQueries({ queryKey: ['admin-booking', bookingId] });
       queryClient.invalidateQueries({ queryKey: ['booking-payments', bookingId] });
       queryClient.invalidateQueries({ queryKey: ['admin-bookings'] });
       queryClient.invalidateQueries({ queryKey: ['admin-payments'] });
-      toast.success('Pembayaran berhasil diperbarui');
+      toast.success(
+        status === 'paid'
+          ? 'Pembayaran dikonfirmasi — notifikasi terkirim ke jamaah'
+          : 'Pembayaran ditolak — notifikasi terkirim ke jamaah'
+      );
       setSelectedPayment(null);
       setShowRejectDialog(false);
       setShowProofDialog(false);
       setRejectReason("");
+
+      // ── Notifikasi in-app ke jamaah ────────────────────────────────────
+      if (customerId) {
+        const amountFmt = formatCurrency(paymentAmount || 0);
+        const bookingLabel = bookingCode ? ` untuk booking ${bookingCode}` : "";
+        const notifTitle = status === 'paid'
+          ? 'Pembayaran Dikonfirmasi ✅'
+          : 'Bukti Pembayaran Ditolak ❌';
+        const notifMessage = status === 'paid'
+          ? `Pembayaran Anda sebesar ${amountFmt}${bookingLabel} telah dikonfirmasi oleh admin. Terima kasih!`
+          : `Bukti pembayaran Anda sebesar ${amountFmt}${bookingLabel} ditolak.${variables.notes ? ` Alasan: ${variables.notes}.` : ""} Mohon upload ulang bukti yang valid.`;
+        (supabase as any).from('customer_notifications').insert({
+          customer_id: customerId,
+          type: 'payment',
+          title: notifTitle,
+          message: notifMessage,
+          is_read: false,
+          metadata: {
+            payment_id: variables.paymentId,
+            booking_id: bookingId,
+            booking_code: bookingCode,
+            amount: paymentAmount,
+            payment_status: status,
+          },
+        });
+      }
     },
     onError: (error: any) => {
       toast.error(error.message || 'Gagal memperbarui pembayaran');
@@ -113,7 +153,12 @@ export function ManagePaymentModal({
   });
 
   const handleApprovePayment = (payment: any) => {
-    verifyPaymentMutation.mutate({ paymentId: payment.id, status: 'paid' });
+    verifyPaymentMutation.mutate({
+      paymentId: payment.id,
+      status: 'paid',
+      customerId: (payment as any).booking?.customer_id,
+      paymentAmount: payment.amount,
+    });
   };
 
   // Add payment mutation

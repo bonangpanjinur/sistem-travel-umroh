@@ -8,7 +8,8 @@ import { mockupPreviewPlugin } from "./mockupPreviewPlugin";
 const rawPort = process.env.PORT || "5173";
 const port = Number(rawPort);
 
-if (Number.isNaN(port) || port <= 0) {
+// Only throw error if PORT is explicitly provided but invalid
+if (process.env.PORT && (Number.isNaN(port) || port <= 0)) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 

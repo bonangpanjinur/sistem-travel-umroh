@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,10 +10,50 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/format";
 import { toast } from "sonner";
-import { ArrowLeft, Upload, Loader2, CheckCircle, CreditCard } from "lucide-react";
+import { ArrowLeft, Upload, Loader2, CheckCircle, CreditCard, Zap, AlertCircle } from "lucide-react";
+
+declare global {
+  interface Window {
+    snap?: {
+      pay: (token: string, options: {
+        onSuccess?: (result: any) => void;
+        onPending?: (result: any) => void;
+        onError?: (result: any) => void;
+        onClose?: () => void;
+      }) => void;
+    };
+  }
+}
+
+function useMidtransSnap(clientKey: string | null) {
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    if (!clientKey) return;
+    const existing = document.getElementById("midtrans-snap-script");
+    if (existing) { setReady(true); return; }
+
+    const isProduction = false; // Default to false if midtransConfig is missing
+    const script = document.createElement("script");
+    script.id = "midtrans-snap-script";
+    script.src = isProduction
+      ? "https://app.midtrans.com/snap/snap.js"
+      : "https://app.sandbox.midtrans.com/snap/snap.js";
+    script.setAttribute("data-client-key", clientKey);
+    script.onload = () => setReady(true);
+    script.onerror = () => console.warn("[Midtrans] Gagal memuat Snap.js");
+    document.head.appendChild(script);
+
+    return () => {};
+  }, [clientKey]);
+
+  return ready;
+}
 
 export default function PaymentUpload() {
   const { bookingId } = useParams() as { bookingId: string };
@@ -27,16 +67,43 @@ export default function PaymentUpload() {
   const [notes, setNotes] = useState("");
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSnapPaying, setIsSnapPaying] = useState(false);
 
-  // Fetch bank accounts dynamically
-  const { data: bankAccount } = useQuery({
-    queryKey: ['primary-bank-account'],
+  const supabaseRaw: any = supabase;
+
+  const { data: midtransConfig } = useQuery({
+    queryKey: ["midtrans-config-public"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('bank_accounts')
-        .select('*')
-        .eq('is_active', true)
-        .order('is_primary', { ascending: false })
+      try {
+        const { data } = await supabaseRaw
+          .from("app_settings")
+          .select("value")
+          .eq("key", "midtrans_config")
+          .maybeSingle();
+        if (data?.value) return data.value as { client_key?: string; is_production?: boolean; enabled?: boolean };
+      } catch {}
+      try {
+        const raw = localStorage.getItem("midtrans_config");
+        if (raw) return JSON.parse(raw) as { client_key?: string; is_production?: boolean; enabled?: boolean };
+      } catch {}
+      return null;
+    },
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
+
+  const clientKey = midtransConfig?.client_key ?? null;
+  const midtransEnabled = !!(midtransConfig?.client_key && midtransConfig?.enabled !== false);
+  const snapReady = useMidtransSnap(clientKey);
+
+  const { data: bankAccount } = useQuery({
+    queryKey: ["primary-bank-account"],
+    queryFn: async () => {
+      const { data, error } = await supabaseRaw
+        .from("bank_accounts")
+        .select("*")
+        .eq("is_active", true)
+        .order("is_primary", { ascending: false })
         .limit(1)
         .maybeSingle();
       if (error) throw error;
@@ -45,10 +112,10 @@ export default function PaymentUpload() {
   });
 
   const { data: booking, isLoading } = useQuery({
-    queryKey: ['booking-payment', bookingId],
+    queryKey: ["booking-payment", bookingId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('bookings')
+      const { data, error } = await supabaseRaw
+        .from("bookings")
         .select(`
           id,
           booking_code,
@@ -57,83 +124,159 @@ export default function PaymentUpload() {
           remaining_amount,
           departure:departures(
             package:packages(name)
-          )
+          ),
+          customer:customers(full_name, email, phone)
         `)
-        .eq('id', bookingId)
+        .eq("id", bookingId)
         .single();
-
       if (error) throw error;
       return data;
     },
     enabled: !!bookingId && !!user,
   });
 
+  const handleSnapPay = async () => {
+    if (!booking || !user) return;
+    if (!window.snap) {
+      toast.error("Midtrans Snap belum siap. Coba lagi sebentar.");
+      return;
+    }
+
+    const payAmount = booking.remaining_amount ?? booking.total_price ?? 0;
+    if (payAmount <= 0) {
+      toast.error("Tidak ada sisa tagihan yang perlu dibayar.");
+      return;
+    }
+
+    setIsSnapPaying(true);
+
+    try {
+      const apiBase = import.meta.env.VITE_API_BASE_URL ?? "";
+      const customer = (booking as any).customer;
+
+      const res = await fetch(`${apiBase}/api/midtrans/create-transaction`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          booking_id: booking.id,
+          booking_code: booking.booking_code,
+          amount: payAmount,
+          customer_name: customer?.full_name ?? user.email ?? "Jamaah",
+          customer_email: customer?.email ?? user.email ?? "",
+          customer_phone: customer?.phone ?? "",
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Gagal menghubungi server" }));
+        throw new Error(err.error ?? "Gagal membuat transaksi");
+      }
+
+      const { token } = await res.json();
+
+      window.snap.pay(token, {
+        onSuccess: async (result) => {
+          toast.success("Pembayaran berhasil! Menunggu konfirmasi otomatis...");
+          await supabaseRaw.from("payments").insert({
+            booking_id: bookingId,
+            payment_code: result.order_id ?? `SNAP-${Date.now()}`,
+            amount: payAmount,
+            payment_method: "midtrans",
+            bank_name: result.payment_type ?? "Midtrans",
+            account_name: "Online Payment",
+            notes: `Midtrans transaction_id: ${result.transaction_id}`,
+            status: "verified",
+          });
+          navigate(`/my-bookings/${bookingId}`);
+        },
+        onPending: async (result) => {
+          toast.info("Pembayaran dalam proses — harap selesaikan sesuai instruksi.");
+          await supabaseRaw.from("payments").insert({
+            booking_id: bookingId,
+            payment_code: result.order_id ?? `SNAP-${Date.now()}`,
+            amount: payAmount,
+            payment_method: "midtrans",
+            bank_name: result.payment_type ?? "Midtrans",
+            account_name: "Online Payment",
+            notes: `Pending — transaction_id: ${result.transaction_id}`,
+            status: "pending",
+          });
+          navigate(`/my-bookings/${bookingId}`);
+        },
+        onError: (result) => {
+          console.error("[Midtrans Snap] Error:", result);
+          toast.error("Pembayaran gagal. Silakan coba lagi atau gunakan transfer manual.");
+          setIsSnapPaying(false);
+        },
+        onClose: () => {
+          setIsSnapPaying(false);
+        },
+      });
+    } catch (err: any) {
+      console.error("[Midtrans Snap]", err);
+      toast.error(err.message ?? "Gagal memproses pembayaran online");
+      setIsSnapPaying(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!user || !booking || !proofFile) {
-      toast.error('Lengkapi semua data yang diperlukan');
+      toast.error("Lengkapi semua data yang diperlukan");
       return;
     }
 
     const amountNum = parseFloat(amount);
     if (isNaN(amountNum) || amountNum <= 0) {
-      toast.error('Masukkan jumlah pembayaran yang valid');
+      toast.error("Masukkan jumlah pembayaran yang valid");
       return;
     }
 
     setIsSubmitting(true);
 
     try {
-      // 1. Upload proof file
-      // Sanitize file name: remove special characters and use timestamp
-      const fileExt = proofFile.name.split('.').pop();
+      const fileExt = proofFile.name.split(".").pop();
       const sanitizedFileName = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
       const filePath = `${user.id}/${sanitizedFileName}`;
 
-      const { error: uploadError } = await supabase.storage
-        .from('payment-proofs')
-        .upload(filePath, proofFile, {
-          cacheControl: '3600',
-          upsert: false
-        });
+      const { error: uploadError } = await supabaseRaw.storage
+        .from("payment-proofs")
+        .upload(filePath, proofFile, { cacheControl: "3600", upsert: false });
 
-      if (uploadError) {
-        console.error('Upload error details:', uploadError);
-        throw new Error(`Gagal mengunggah file: ${uploadError.message}`);
-      }
+      if (uploadError) throw new Error(`Gagal mengunggah file: ${uploadError.message}`);
 
-      // 2. Generate payment code server-side
-      const { data: paymentCode, error: rpcError } = await supabase.rpc('generate_payment_code');
-      if (rpcError || !paymentCode) {
-        throw new Error('Gagal membuat kode pembayaran');
-      }
-      
-      const { error: paymentError } = await supabase
-        .from('payments')
-        .insert({
-          booking_id: bookingId!,
-          payment_code: paymentCode,
-          amount: amountNum,
-          payment_method: paymentMethod,
-          bank_name: bankName,
-          account_name: accountName,
-          proof_url: filePath, // Store path instead of public URL
-          notes: notes,
-          status: 'pending',
-        } as any);
+      const { data: paymentCode, error: rpcError } = await supabaseRaw.rpc("generate_payment_code");
+      if (rpcError || !paymentCode) throw new Error("Gagal membuat kode pembayaran");
 
-      if (paymentError) {
-        console.error('Payment record error:', paymentError);
-        throw new Error(`Gagal menyimpan data pembayaran: ${paymentError.message}`);
-      }
+      const { error: paymentError } = await supabaseRaw.from("payments").insert({
+        booking_id: bookingId,
+        payment_code: paymentCode,
+        amount: amountNum,
+        payment_method: paymentMethod,
+        bank_name: bankName,
+        account_name: accountName,
+        proof_url: filePath,
+        notes: notes,
+        status: "pending",
+      });
 
-      toast.success('Bukti pembayaran berhasil diupload! Tim kami akan memverifikasi dalam 1x24 jam.');
+      if (paymentError) throw new Error(`Gagal menyimpan data pembayaran: ${paymentError.message}`);
+
+      await supabaseRaw.from("notifications").insert({
+        title: "Bukti Pembayaran Baru",
+        message: `Jamaah mengunggah bukti pembayaran untuk booking ${booking.booking_code} sebesar Rp ${amountNum.toLocaleString("id-ID")}. Harap verifikasi segera.`,
+        type: "info",
+        target_role: "admin",
+        booking_id: bookingId,
+        is_read: false,
+      });
+
+      toast.success("Bukti pembayaran berhasil diupload! Tim kami akan memverifikasi dalam 1x24 jam.");
       navigate(`/my-bookings/${bookingId}`);
-
     } catch (error: any) {
-      console.error('Payment upload error:', error);
-      toast.error(error.message || 'Gagal mengupload bukti pembayaran');
+      console.error("Payment upload error:", error);
+      toast.error(error.message ?? "Gagal mengupload bukti pembayaran");
     } finally {
       setIsSubmitting(false);
     }
@@ -155,20 +298,18 @@ export default function PaymentUpload() {
       <DynamicPublicLayout>
         <div className="container py-12 text-center">
           <h1 className="text-2xl font-bold mb-4">Booking Tidak Ditemukan</h1>
-          <Button asChild>
-            <Link to="/my-bookings">Kembali</Link>
-          </Button>
+          <Button asChild><Link to="/my-bookings">Kembali</Link></Button>
         </div>
       </DynamicPublicLayout>
     );
   }
 
-  const departure = booking.departure as any;
+  const departure = (booking as any).departure;
+  const remaining = (booking as any).remaining_amount ?? 0;
 
   return (
     <DynamicPublicLayout>
       <div className="container py-8 max-w-2xl">
-        {/* Header */}
         <Button variant="ghost" size="sm" asChild className="mb-4">
           <Link to={`/my-bookings/${bookingId}`}>
             <ArrowLeft className="h-4 w-4 mr-2" />
@@ -176,10 +317,66 @@ export default function PaymentUpload() {
           </Link>
         </Button>
 
-        <h1 className="text-2xl font-bold mb-2">Upload Bukti Pembayaran</h1>
+        <h1 className="text-2xl font-bold mb-2">Pembayaran</h1>
         <p className="text-muted-foreground mb-6">
-          Booking: <span className="font-mono font-semibold">{booking.booking_code}</span> - {departure?.package?.name}
+          Booking: <span className="font-mono font-semibold">{booking.booking_code}</span>
+          {departure?.package?.name ? ` — ${departure.package.name}` : ""}
         </p>
+
+        {/* Midtrans Online Payment Banner */}
+        {midtransEnabled && (
+          <Card className="mb-6 border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50">
+            <CardContent className="p-5">
+              <div className="flex items-start gap-4">
+                <div className="p-2.5 rounded-xl bg-emerald-100 shrink-0">
+                  <Zap className="h-5 w-5 text-emerald-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <p className="font-semibold text-emerald-900">Bayar Online via Midtrans</p>
+                    <Badge className="bg-emerald-100 text-emerald-700 border-0 text-xs">Rekomendasi</Badge>
+                  </div>
+                  <p className="text-sm text-emerald-700 mb-3">
+                    Bayar langsung menggunakan kartu kredit, GoPay, OVO, QRIS, VA BCA/Mandiri/BNI, dan lainnya.
+                    Konfirmasi otomatis — tidak perlu upload bukti transfer.
+                  </p>
+                  <Button
+                    onClick={handleSnapPay}
+                    disabled={isSnapPaying || !snapReady || remaining <= 0}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2"
+                  >
+                    {isSnapPaying ? (
+                      <><Loader2 className="h-4 w-4 animate-spin" /> Memproses...</>
+                    ) : !snapReady ? (
+                      <><Loader2 className="h-4 w-4 animate-spin" /> Memuat payment gateway...</>
+                    ) : (
+                      <><Zap className="h-4 w-4" /> Bayar Rp {remaining.toLocaleString("id-ID")} Sekarang</>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {midtransEnabled && (
+          <div className="flex items-center gap-3 mb-6">
+            <Separator className="flex-1" />
+            <span className="text-xs text-muted-foreground px-2">atau bayar via transfer manual</span>
+            <Separator className="flex-1" />
+          </div>
+        )}
+
+        {!midtransEnabled && (
+          <Card className="mb-5 border-amber-200 bg-amber-50">
+            <CardContent className="p-4 flex items-start gap-3">
+              <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+              <p className="text-sm text-amber-800">
+                Pembayaran online belum aktif. Silakan lakukan transfer manual dan upload bukti di bawah.
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
         <div className="grid gap-6 lg:grid-cols-5">
           {/* Form */}
@@ -187,7 +384,7 @@ export default function PaymentUpload() {
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
                 <Upload className="h-5 w-5" />
-                Form Pembayaran
+                Upload Bukti Transfer Manual
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -244,9 +441,9 @@ export default function PaymentUpload() {
                     <label
                       htmlFor="proof"
                       className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
-                        proofFile 
-                          ? 'border-green-500 bg-green-50' 
-                          : 'border-border hover:border-primary/50 hover:bg-muted/50'
+                        proofFile
+                          ? "border-green-500 bg-green-50"
+                          : "border-border hover:border-primary/50 hover:bg-muted/50"
                       }`}
                     >
                       {proofFile ? (
@@ -270,10 +467,7 @@ export default function PaymentUpload() {
                         onChange={(e) => {
                           const file = e.target.files?.[0];
                           if (file) {
-                            if (file.size > 5 * 1024 * 1024) {
-                              toast.error('Ukuran file maksimal 5MB');
-                              return;
-                            }
+                            if (file.size > 5 * 1024 * 1024) { toast.error("Ukuran file maksimal 5MB"); return; }
                             setProofFile(file);
                           }
                         }}
@@ -295,15 +489,9 @@ export default function PaymentUpload() {
 
                 <Button type="submit" className="w-full" disabled={isSubmitting}>
                   {isSubmitting ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Mengirim...
-                    </>
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Mengirim...</>
                   ) : (
-                    <>
-                      <Upload className="h-4 w-4 mr-2" />
-                      Kirim Bukti Pembayaran
-                    </>
+                    <><Upload className="h-4 w-4 mr-2" />Kirim Bukti Pembayaran</>
                   )}
                 </Button>
               </form>
@@ -322,15 +510,15 @@ export default function PaymentUpload() {
               <CardContent className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Total Biaya</span>
-                  <span className="font-semibold">{formatCurrency(booking.total_price)}</span>
+                  <span className="font-semibold">{formatCurrency((booking as any).total_price)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Sudah Dibayar</span>
-                  <span className="text-green-600">{formatCurrency(booking.paid_amount ?? 0)}</span>
+                  <span className="text-green-600">{formatCurrency((booking as any).paid_amount ?? 0)}</span>
                 </div>
                 <div className="flex justify-between font-semibold text-destructive">
                   <span>Sisa</span>
-                  <span>{formatCurrency(booking.remaining_amount ?? 0)}</span>
+                  <span>{formatCurrency(remaining)}</span>
                 </div>
               </CardContent>
             </Card>
@@ -338,7 +526,7 @@ export default function PaymentUpload() {
             {bankAccount && (
               <Card className="border-amber-200 bg-amber-50">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm text-amber-800">Rekening Tujuan</CardTitle>
+                  <CardTitle className="text-sm text-amber-800">Rekening Tujuan Transfer</CardTitle>
                 </CardHeader>
                 <CardContent className="text-amber-800">
                   <div className="bg-white rounded p-3 text-center">

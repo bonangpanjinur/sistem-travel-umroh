@@ -42,6 +42,17 @@ interface AdditionalHotel {
 type DepartureInsert = Database["public"]["Tables"]["departures"]["Insert"];
 type DepartureUpdate = Database["public"]["Tables"]["departures"]["Update"];
 
+const isMissingRpcError = (error: unknown) => {
+  const message = String((error as { message?: string })?.message ?? '').toLowerCase();
+  const code = String((error as { code?: string })?.code ?? '');
+  return (
+    code === 'PGRST202' || 
+    code === '42P01' || 
+    message.includes('schema cache') || 
+    message.includes('could not find the table')
+  );
+};
+
 const departureSchema = z.object({
   package_id: z.string().min(1, "Paket harus dipilih"),
   departure_date: z.string().optional().nullable(),
@@ -172,20 +183,29 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
   // Additional hotels state (transit, umroh plus, haji, etc)
   const [additionalHotels, setAdditionalHotels] = useState<AdditionalHotel[]>([]);
 
-  // Load existing additional hotels when editing
-  useQuery({
-    queryKey: ["departure-hotels", departureData?.id],
-    enabled: !!departureData?.id,
-    queryFn: async () => {
-      const { data } = await (supabase as any)
-        .from("departure_hotels")
-        .select("*")
-        .eq("departure_id", departureData!.id)
-        .order("sort_order", { ascending: true });
-      if (data) setAdditionalHotels(data as AdditionalHotel[]);
-      return data;
-    },
-  });
+      // Load existing additional hotels when editing
+      useQuery({
+        queryKey: ["departure-hotels", departureData?.id],
+        enabled: !!departureData?.id,
+        queryFn: async () => {
+          try {
+            const { data, error } = await (supabase as any)
+              .from("departure_hotels")
+              .select("*")
+              .eq("departure_id", departureData!.id)
+              .order("sort_order", { ascending: true });
+            if (error) {
+              if (isMissingRpcError(error)) return [];
+              throw error;
+            }
+            if (data) setAdditionalHotels(data as AdditionalHotel[]);
+            return data;
+          } catch (e) {
+            if (isMissingRpcError(e)) return [];
+            throw e;
+          }
+        },
+      });
 
   const form = useForm<DepartureFormValues>({
     resolver: zodResolver(departureSchema),
@@ -263,14 +283,72 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
         const { error } = await supabase.from("departures").update(payload as any).eq("id", departureData.id);
         if (error) throw error;
         departureId = departureData.id;
+
+        // Auto-record price history if prices changed
+        const oldPrices = {
+          price_quad: departureData.price_quad || 0,
+          price_triple: departureData.price_triple || 0,
+          price_double: departureData.price_double || 0,
+          price_single: departureData.price_single || 0,
+        };
+        const newPrices = {
+          price_quad: values.price_quad || 0,
+          price_triple: values.price_triple || 0,
+          price_double: values.price_double || 0,
+          price_single: values.price_single || 0,
+        };
+        const pricesChanged =
+          oldPrices.price_quad !== newPrices.price_quad ||
+          oldPrices.price_triple !== newPrices.price_triple ||
+          oldPrices.price_double !== newPrices.price_double ||
+          oldPrices.price_single !== newPrices.price_single;
+
+        if (pricesChanged) {
+          try {
+            await (supabase as any).from("departure_price_history").insert({
+              departure_id: departureId,
+              package_id: values.package_id || null,
+              changed_at: new Date().toISOString(),
+              price_quad: newPrices.price_quad,
+              price_triple: newPrices.price_triple,
+              price_double: newPrices.price_double,
+              price_single: newPrices.price_single,
+              keterangan: "Diperbarui melalui form edit keberangkatan",
+            });
+          } catch (e) {
+            if (!isMissingRpcError(e)) throw e;
+          }
+        }
       } else {
         const { data, error } = await supabase.from("departures").insert(payload as any).select("id").single();
         if (error) throw error;
         departureId = (data as any).id;
+
+        // Record initial price on creation
+        if (values.price_quad || values.price_triple || values.price_double || values.price_single) {
+          try {
+            await (supabase as any).from("departure_price_history").insert({
+              departure_id: departureId,
+              package_id: values.package_id || null,
+              changed_at: new Date().toISOString(),
+              price_quad: values.price_quad || 0,
+              price_triple: values.price_triple || 0,
+              price_double: values.price_double || 0,
+              price_single: values.price_single || 0,
+              keterangan: "Harga awal saat keberangkatan dibuat",
+            });
+          } catch (e) {
+            if (!isMissingRpcError(e)) throw e;
+          }
+        }
       }
 
       // Sync additional hotels (transit/umroh plus/haji): delete all then re-insert
-      await (supabase as any).from("departure_hotels").delete().eq("departure_id", departureId);
+      try {
+        await (supabase as any).from("departure_hotels").delete().eq("departure_id", departureId);
+      } catch (e) {
+        if (!isMissingRpcError(e)) throw e;
+      }
       const validAdditional = additionalHotels.filter(h => h.hotel_id);
       if (validAdditional.length > 0) {
         const rows = validAdditional.map((h, idx) => ({
@@ -283,8 +361,14 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
           notes: h.notes || null,
           sort_order: idx,
         }));
-        const { error: insErr } = await (supabase as any).from("departure_hotels").insert(rows);
-        if (insErr) throw insErr;
+        try {
+          const { error: insErr } = await (supabase as any).from("departure_hotels").insert(rows);
+          if (insErr) {
+            if (!isMissingRpcError(insErr)) throw insErr;
+          }
+        } catch (e) {
+          if (!isMissingRpcError(e)) throw e;
+        }
       }
     },
     onSuccess: () => {
@@ -712,15 +796,15 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
             </div>
           )}
 
-          {/* Additional Hotels (Transit, Umroh Plus, Haji, dll) */}
+          {/* Additional Hotels (Multi-hotel per kota: Makkah/Madinah/Transit/dll) */}
           <div className="space-y-3 p-4 border rounded-lg bg-muted/30">
             <div className="flex items-center justify-between">
               <div>
-                <h4 className="font-medium text-sm">{isTourPackage ? "Daftar Hotel" : "Hotel Tambahan"}</h4>
+                <h4 className="font-medium text-sm">{isTourPackage ? "Daftar Hotel" : "Hotel Tambahan / Multi-Hotel per Kota"}</h4>
                 <p className="text-xs text-muted-foreground">
-                  {isTourPackage 
-                    ? "Daftar hotel yang akan digunakan selama tour" 
-                    : "Untuk hotel transit, Umroh Plus, Haji, atau city tour"}
+                  {isTourPackage
+                    ? "Daftar hotel yang akan digunakan selama tour"
+                    : "Tambah hotel ke-2 di Makkah/Madinah, transit, Umroh Plus, Haji, dll"}
                 </p>
               </div>
               <Button
@@ -730,7 +814,7 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
                 onClick={() =>
                   setAdditionalHotels((prev) => [
                     ...prev,
-                    { hotel_id: "", hotel_role: "transit", check_in_date: "", check_out_date: "", nights: null, notes: "" },
+                    { hotel_id: "", hotel_role: "makkah", check_in_date: "", check_out_date: "", nights: null, notes: "" },
                   ])
                 }
               >
@@ -741,7 +825,7 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
 
             {additionalHotels.length === 0 ? (
               <p className="text-xs text-muted-foreground italic">
-                {isTourPackage ? "Belum ada hotel yang ditambahkan." : "Belum ada hotel tambahan."}
+                {isTourPackage ? "Belum ada hotel yang ditambahkan." : "Belum ada hotel tambahan. Gunakan tombol di atas untuk menambah hotel ke-2 di Makkah, Madinah, atau lokasi lain."}
               </p>
             ) : (
               <div className="space-y-3">
@@ -767,7 +851,7 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
                     </div>
                     {!isTourPackage && (
                       <div className="sm:col-span-3">
-                        <label className="text-xs text-muted-foreground">Peran</label>
+                        <label className="text-xs text-muted-foreground">Kota / Peran</label>
                         <Select
                           value={row.hotel_role}
                           onValueChange={(v) =>
@@ -776,11 +860,13 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
                         >
                           <SelectTrigger><SelectValue /></SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="transit">Transit</SelectItem>
-                            <SelectItem value="umroh_plus">Umroh Plus</SelectItem>
-                            <SelectItem value="haji">Haji</SelectItem>
-                            <SelectItem value="city_tour">City Tour</SelectItem>
-                            <SelectItem value="additional">Tambahan</SelectItem>
+                            <SelectItem value="makkah">🕋 Makkah (Hotel ke-2+)</SelectItem>
+                            <SelectItem value="madinah">🕌 Madinah (Hotel ke-2+)</SelectItem>
+                            <SelectItem value="transit">✈️ Transit</SelectItem>
+                            <SelectItem value="umroh_plus">⭐ Umroh Plus</SelectItem>
+                            <SelectItem value="haji">🟢 Haji</SelectItem>
+                            <SelectItem value="city_tour">🗺️ City Tour</SelectItem>
+                            <SelectItem value="additional">➕ Tambahan</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Printer } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 
 type DepartureRow = Database["public"]["Tables"]["departures"]["Row"];
@@ -268,11 +269,53 @@ export default function AdminFinancePL() {
     d.costs.filter(c => c.status !== 'paid' && c.due_date)
   ).sort((a, b) => new Date(a.due_date!).getTime() - new Date(b.due_date!).getTime()).slice(0, 5) || [];
 
+  const handlePrintAll = () => {
+    if (!departures || departures.length === 0) return;
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+    const rows = departures.map(dep => `
+      <tr>
+        <td>${dep.package?.name || '-'} (${dep.package?.code || '-'})</td>
+        <td>${dep.departure_date ? new Date(dep.departure_date).toLocaleDateString('id-ID') : '-'}</td>
+        <td>${dep.booked_count || 0} / ${dep.quota || 0}</td>
+        <td style="text-align:right">${new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(dep.totalRevenue)}</td>
+        <td style="text-align:right">${new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(dep.totalCost)}</td>
+        <td style="text-align:right;color:${dep.profit >= 0 ? 'green' : 'red'}">${new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(dep.profit)}</td>
+        <td style="text-align:right">${dep.profitMargin.toFixed(1)}%</td>
+      </tr>
+    `).join('');
+    printWindow.document.write(`
+      <html><head><title>Laporan P&L</title>
+      <style>body{font-family:Arial;padding:20px}h1{font-size:18px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ccc;padding:6px 10px;font-size:12px}th{background:#f0f0f0}tfoot td{font-weight:bold;background:#f9f9f9}</style>
+      </head><body>
+      <h1>Laporan Profit & Loss per Keberangkatan</h1>
+      <p>Dicetak: ${new Date().toLocaleString('id-ID')}</p>
+      <table><thead><tr><th>Paket</th><th>Tanggal</th><th>Jamaah</th><th>Revenue</th><th>Biaya Vendor</th><th>Profit</th><th>Margin</th></tr></thead>
+      <tbody>${rows}</tbody>
+      <tfoot><tr>
+        <td colspan="3">Total</td>
+        <td style="text-align:right">${new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(totalRevenue)}</td>
+        <td style="text-align:right">${new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(totalCost)}</td>
+        <td style="text-align:right;color:${totalProfit >= 0 ? 'green' : 'red'}">${new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(totalProfit)}</td>
+        <td style="text-align:right">${totalRevenue > 0 ? ((totalProfit / totalRevenue) * 100).toFixed(1) : 0}%</td>
+      </tr></tfoot></table></body></html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => { printWindow.print(); printWindow.close(); }, 250);
+  };
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Profit & Loss per Keberangkatan</h1>
-        <p className="text-muted-foreground">Monitor profitabilitas dan biaya vendor setiap keberangkatan</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold">Profit & Loss per Keberangkatan</h1>
+          <p className="text-muted-foreground">Monitor profitabilitas dan biaya vendor setiap keberangkatan</p>
+        </div>
+        <Button variant="outline" onClick={handlePrintAll} disabled={!departures || departures.length === 0} className="shrink-0 gap-2 print:hidden">
+          <Printer className="h-4 w-4" />
+          Cetak Semua
+        </Button>
       </div>
 
       {/* Summary Cards */}

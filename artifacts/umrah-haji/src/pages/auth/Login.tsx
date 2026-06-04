@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Eye, EyeOff, Mail, Lock, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, Loader2, Shield } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { getRoleHomeRoute } from '@/hooks/useRoleHomeRoute';
 
 const loginSchema = z.object({
   email: z.string().trim().email('Email tidak valid').max(255),
@@ -23,24 +24,131 @@ export default function Login() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
-  const { user, isAdmin, isLoading: authLoading } = useAuth();
+  const { user, roles, isLoading: authLoading } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [twoFAStep, setTwoFAStep] = useState<'idle' | 'pending'>('idle');
+  const [otpCode, setOtpCode] = useState('');
+  const [otpDestination, setOtpDestination] = useState('');
+  const [otpLoading, setOtpLoading] = useState(false);
 
   const redirectTo = searchParams.get('redirect');
 
-  // Redirect if already logged in
+  const sessionVerifiedKey = (uid: string) => `2fa_verified_${uid}`;
+  const sessionVersionKey = (uid: string) => `session_version_${uid}`;
+
+  // Redirect jika sudah login — tapi tunggu verifikasi 2FA bila wajib
   useEffect(() => {
-    if (user && !authLoading) {
-      if (redirectTo) {
-        navigate(redirectTo);
-      } else if (isAdmin()) {
-        navigate('/admin');
-      } else {
-        navigate('/my-bookings');
+    if (!user || authLoading) return;
+    // Jika sedang menunggu OTP, jangan redirect
+    if (twoFAStep === 'pending') return;
+
+    const verified = sessionStorage.getItem(sessionVerifiedKey(user.id)) === '1';
+    
+    // Cek apakah user perlu 2FA dan verifikasi session version
+    (async () => {
+      // Fetch profile untuk cek session_version
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('session_version')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      const currentVersion = profileData?.session_version || 1;
+      const storedVersion = parseInt(localStorage.getItem(sessionVersionKey(user.id)) || '0');
+
+      // Jika session_version di server lebih besar dari yang di local, force logout
+      if (storedVersion !== 0 && currentVersion > storedVersion) {
+        console.warn('[Auth] Session revoked - version mismatch');
+        toast({
+          title: 'Sesi Berakhir',
+          description: 'Sesi Anda telah dihentikan oleh sistem atau dari perangkat lain.',
+          variant: 'destructive',
+        });
+        localStorage.removeItem(sessionVersionKey(user.id));
+        await supabase.auth.signOut();
+        navigate('/auth/login');
+        return;
       }
+
+      // Simpan version saat ini jika belum ada
+      if (storedVersion === 0) {
+        localStorage.setItem(sessionVersionKey(user.id), currentVersion.toString());
+      }
+
+      if (verified) {
+        if (redirectTo) {
+          navigate(redirectTo);
+        } else {
+          navigate(getRoleHomeRoute(roles));
+        }
+        return;
+      }
+
+      const { data } = await supabase
+        .from('user_2fa_settings')
+        .select('is_enabled, method, phone_number')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (!data?.is_enabled) {
+        sessionStorage.setItem(sessionVerifiedKey(user.id), '1');
+        if (redirectTo) navigate(redirectTo);
+        else navigate(getRoleHomeRoute(roles));
+        return;
+      }
+
+      // Wajib 2FA — kirim OTP
+      setTwoFAStep('pending');
+      const { data: otpData, error: otpErr } = await supabase.functions.invoke<
+        { ok?: boolean; destination?: string; error?: string }
+      >('request-2fa-otp', {
+        body: { purpose: 'login', method: data.method, phone: data.phone_number ?? undefined },
+      });
+      if (otpErr || otpData?.error) {
+        toast({
+          title: 'Gagal kirim OTP',
+          description: (otpErr?.message ?? otpData?.error) || 'Coba lagi',
+          variant: 'destructive',
+        });
+      } else {
+        setOtpDestination(otpData?.destination ?? '');
+      }
+    })();
+  }, [user, authLoading, roles, navigate, redirectTo, twoFAStep, toast]);
+
+  const handleVerifyOtp = async () => {
+    if (!user) return;
+    if (!/^\d{6}$/.test(otpCode)) {
+      toast({ title: 'Kode tidak valid', description: 'Masukkan 6 digit angka', variant: 'destructive' });
+      return;
     }
-  }, [user, authLoading, isAdmin, navigate, redirectTo]);
+    setOtpLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke<
+        { ok?: boolean; error?: string }
+      >('verify-2fa-otp', {
+        body: { purpose: 'login', code: otpCode },
+      });
+      if (error) throw new Error(error.message);
+      if (data?.error) throw new Error(data.error);
+      sessionStorage.setItem(sessionVerifiedKey(user.id), '1');
+      setTwoFAStep('idle');
+      toast({ title: 'Verifikasi sukses', description: 'Selamat datang!' });
+      if (redirectTo) navigate(redirectTo);
+      else navigate(getRoleHomeRoute(roles));
+    } catch (err: any) {
+      toast({ title: 'Verifikasi gagal', description: err.message, variant: 'destructive' });
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  const handleCancelOtp = async () => {
+    setTwoFAStep('idle');
+    setOtpCode('');
+    await supabase.auth.signOut();
+  };
 
   const { register, handleSubmit, formState: { errors } } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
@@ -61,7 +169,7 @@ export default function Login() {
         description: 'Selamat datang kembali!',
       });
 
-      // Redirect will happen via useEffect
+      // Redirect terjadi via useEffect setelah roles dimuat
     } catch (error: any) {
       toast({
         title: 'Login Gagal',
@@ -72,6 +180,43 @@ export default function Login() {
       setIsLoading(false);
     }
   };
+
+  // OTP gate UI
+  if (twoFAStep === 'pending') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-muted/30 px-4 py-12">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-2">
+              <Shield className="h-6 w-6 text-primary" />
+            </div>
+            <CardTitle>Verifikasi 2 Langkah</CardTitle>
+            <CardDescription>
+              Masukkan kode 6 digit yang dikirim ke {otpDestination || 'perangkat Anda'}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Input
+              inputMode="numeric"
+              maxLength={6}
+              placeholder="123456"
+              value={otpCode}
+              onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+              className="text-center text-2xl tracking-[0.5em] font-mono"
+              autoFocus
+            />
+            <Button className="w-full" onClick={handleVerifyOtp} disabled={otpLoading || otpCode.length !== 6}>
+              {otpLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+              Verifikasi
+            </Button>
+            <Button variant="ghost" className="w-full" onClick={handleCancelOtp}>
+              Batal & Logout
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-muted/30 px-4 py-12">

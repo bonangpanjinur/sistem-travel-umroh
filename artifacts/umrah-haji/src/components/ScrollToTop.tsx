@@ -14,8 +14,9 @@ export function ScrollToTop() {
     window.scrollTo(0, 0);
     
     // Also scroll any scrollable containers to top
+    // Note: must include overflow-y-auto (used by admin layout main content area)
     const scrollableElements = document.querySelectorAll(
-      '[class*="scroll"], [class*="overflow-auto"], main, [role="main"]'
+      '[class*="overflow-y-auto"], [class*="overflow-auto"], [class*="scroll"], main, [role="main"]'
     );
     scrollableElements.forEach((element) => {
       if (element.scrollTop !== 0) {

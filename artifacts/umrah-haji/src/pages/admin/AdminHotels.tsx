@@ -7,11 +7,12 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { HotelForm } from "@/components/admin/forms/HotelForm";
-import { Search, Plus, Edit, Trash2, Hotel as HotelIcon } from "lucide-react";
+import { Search, Plus, Edit, Trash2, Hotel as HotelIcon, BedDouble, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 import { LoadingState } from "@/components/shared/LoadingState";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import HotelRoomCapacityCard from "@/components/admin/HotelRoomCapacityCard";
 import { Database } from "@/integrations/supabase/types";
 
 type Hotel = Database["public"]["Tables"]["hotels"]["Row"];
@@ -21,6 +22,7 @@ export default function AdminHotels() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingHotel, setEditingHotel] = useState<Hotel | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Hotel | null>(null);
+  const [expandedCapacity, setExpandedCapacity] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   const { data: hotels, isLoading } = useQuery({
@@ -43,7 +45,7 @@ export default function AdminHotels() {
     },
   });
 
-  const filteredHotels = hotels?.filter(h => 
+  const filteredHotels = hotels?.filter(h =>
     h.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     h.city.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -69,44 +71,88 @@ export default function AdminHotels() {
       {isLoading ? (
         <LoadingState message="Memuat data hotel..." />
       ) : !filteredHotels?.length ? (
-        <EmptyState 
-          icon={HotelIcon} 
-          title="Belum ada hotel" 
-          description="Tambahkan hotel Makkah & Madinah" 
-          actionLabel="Tambah Hotel" 
-          onAction={() => { setEditingHotel(null); setIsFormOpen(true); }} 
+        <EmptyState
+          icon={HotelIcon}
+          title="Belum ada hotel"
+          description="Tambahkan hotel Makkah & Madinah"
+          actionLabel="Tambah Hotel"
+          onAction={() => { setEditingHotel(null); setIsFormOpen(true); }}
         />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filteredHotels.map(hotel => (
-            <Card key={hotel.id}>
-              <CardContent className="p-4">
-                <div className="flex justify-between items-start mb-2">
-                  <div>
-                    <h3 className="font-semibold">{hotel.name}</h3>
-                    <p className="text-sm text-muted-foreground">{hotel.city}</p>
+            <div key={hotel.id} className="space-y-2">
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <h3 className="font-semibold">{hotel.name}</h3>
+                      <p className="text-sm text-muted-foreground">{hotel.city}</p>
+                    </div>
+                    <Badge variant={hotel.is_active ? "default" : "secondary"}>
+                      {hotel.is_active ? "Aktif" : "Nonaktif"}
+                    </Badge>
                   </div>
-                  <Badge variant={hotel.is_active ? "default" : "secondary"}>{hotel.is_active ? "Aktif" : "Nonaktif"}</Badge>
-                </div>
-                <p className="text-sm">{"⭐".repeat(hotel.star_rating || 3)}</p>
-                {hotel.distance_to_masjid && <p className="text-xs text-muted-foreground mt-1">Jarak: {hotel.distance_to_masjid}</p>}
-                <div className="flex gap-2 mt-4">
-                  <Button size="sm" variant="outline" onClick={() => { setEditingHotel(hotel); setIsFormOpen(true); }}><Edit className="h-4 w-4" /></Button>
-                  <Button size="sm" variant="destructive" onClick={() => setDeleteTarget(hotel)}><Trash2 className="h-4 w-4" /></Button>
-                </div>
-              </CardContent>
-            </Card>
+                  <p className="text-sm">{"⭐".repeat(hotel.star_rating || 3)}</p>
+                  {hotel.distance_to_masjid && (
+                    <p className="text-xs text-muted-foreground mt-1">Jarak: {hotel.distance_to_masjid}</p>
+                  )}
+                  <div className="flex gap-2 mt-4">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => { setEditingHotel(hotel); setIsFormOpen(true); }}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => setDeleteTarget(hotel)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="ml-auto text-xs gap-1"
+                      onClick={() =>
+                        setExpandedCapacity(prev => prev === hotel.id ? null : hotel.id)
+                      }
+                      title="Atur kapasitas kamar hotel"
+                    >
+                      <BedDouble className="h-3.5 w-3.5" />
+                      Kapasitas
+                      {expandedCapacity === hotel.id
+                        ? <ChevronUp className="h-3 w-3" />
+                        : <ChevronDown className="h-3 w-3" />
+                      }
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* K3 — Kapasitas kamar per tipe, expandable */}
+              {expandedCapacity === hotel.id && (
+                <HotelRoomCapacityCard
+                  hotelId={hotel.id}
+                  hotelName={hotel.name}
+                />
+              )}
+            </div>
           ))}
         </div>
       )}
 
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
         <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>{editingHotel ? "Edit Hotel" : "Tambah Hotel"}</DialogTitle></DialogHeader>
-          <HotelForm 
-            hotelData={editingHotel || undefined} 
-            onSuccess={() => setIsFormOpen(false)} 
-            onCancel={() => setIsFormOpen(false)} 
+          <DialogHeader>
+            <DialogTitle>{editingHotel ? "Edit Hotel" : "Tambah Hotel"}</DialogTitle>
+          </DialogHeader>
+          <HotelForm
+            hotelData={editingHotel || undefined}
+            onSuccess={() => setIsFormOpen(false)}
+            onCancel={() => setIsFormOpen(false)}
           />
         </DialogContent>
       </Dialog>

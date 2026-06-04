@@ -60,6 +60,18 @@ const BOOKING_STATUS_CONFIG: Record<string, { label: string; color: string }> = 
 
 export default function AdminCustomerDetail() {
   const { id: customerId } = useParams() as { id: string };
+
+  const getPublicUrl = (path: string) => {
+    if (!path) return "";
+    if (path.startsWith("http")) return path;
+    
+    // If it's just a path, get the public URL from Supabase storage
+    const { data } = supabase.storage
+      .from("customer-documents")
+      .getPublicUrl(path);
+    
+    return data.publicUrl;
+  };
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const { company: companyInfo } = useCompanyInfo();
@@ -72,6 +84,7 @@ export default function AdminCustomerDetail() {
   const [leaveLetterOpen, setLeaveLetterOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [uploadingDocType, setUploadingDocType] = useState<string | null>(null);
+  const [previewDoc, setPreviewDoc] = useState<any>(null);
   const [leaveForm, setLeaveForm] = useState({
     employerName: "", employerPosition: "", employerInstitution: "", employerAddress: "",
     startDate: "", endDate: "", purpose: "Umrah"
@@ -83,7 +96,7 @@ export default function AdminCustomerDetail() {
     setLeaveLetterOpen(true);
   };
 
-  const handleGenerateLeaveLetterConfirm = () => {
+  const handleGenerateLeaveLetterConfirm = async () => {
     if (!customer) return;
     try {
       const data: JamaahLeaveLetterData = {
@@ -100,7 +113,7 @@ export default function AdminCustomerDetail() {
         endDate: leaveForm.endDate ? new Date(leaveForm.endDate) : new Date(),
         purpose: leaveForm.purpose,
       };
-      const doc = generateJamaahLeaveLetter(data, `CUTI-JMH/${new Date().getFullYear()}`, companyInfo);
+      const doc = await generateJamaahLeaveLetter(data, `CUTI-JMH/${new Date().getFullYear()}`, companyInfo);
       doc.save(`surat-cuti-${customer.full_name.replace(/\s+/g, '-')}.pdf`);
       toast.success('Surat cuti jamaah berhasil diunduh');
       setLeaveLetterOpen(false);
@@ -122,7 +135,7 @@ export default function AdminCustomerDetail() {
         phone: customer.phone || '-',
         purpose: 'Ibadah Umrah',
       };
-      const doc = generatePassportLetter(data, `PASPOR/${new Date().getFullYear()}`, companyInfo);
+      const doc = await generatePassportLetter(data, `PASPOR/${new Date().getFullYear()}`, companyInfo);
       doc.save(`surat-paspor-${customer.full_name.replace(/\s+/g, '-')}.pdf`);
       toast.success('Surat permohonan paspor berhasil diunduh');
     } catch (err) {
@@ -193,13 +206,40 @@ export default function AdminCustomerDetail() {
         .eq('id', docId);
 
       if (error) throw error;
+
+      // Kirim notifikasi in-app ke jamaah (fire-and-forget)
+      if (customerId) {
+        const doc = documents?.find((d: any) => d.id === docId);
+        const docName = (doc as any)?.document_type?.name || "Dokumen";
+        const notifTitle = status === 'verified'
+          ? `Dokumen ${docName} Terverifikasi ✅`
+          : `Dokumen ${docName} Ditolak ❌`;
+        const notifMessage = status === 'verified'
+          ? `Dokumen ${docName} Anda telah berhasil diverifikasi oleh admin. Dokumen Anda sudah lengkap dan valid.`
+          : `Dokumen ${docName} Anda ditolak oleh admin.${notes ? ` Alasan: ${notes}.` : ""} Mohon upload ulang dokumen yang sesuai melalui portal jamaah.`;
+        (supabase as any).from('customer_notifications').insert({
+          customer_id: customerId,
+          type: 'document',
+          title: notifTitle,
+          message: notifMessage,
+          is_read: false,
+          metadata: {
+            doc_id: docId,
+            doc_status: status,
+            doc_name: docName,
+            rejection_reason: notes || null,
+          },
+        });
+      }
+
+      return { status };
     },
-    onSuccess: (_, variables) => {
+    onSuccess: ({ status }) => {
       queryClient.invalidateQueries({ queryKey: ['admin-customer-documents', customerId] });
       toast.success(
-        variables.status === 'verified' 
-          ? 'Dokumen berhasil diverifikasi' 
-          : 'Dokumen ditolak'
+        status === 'verified'
+          ? 'Dokumen terverifikasi — notifikasi terkirim ke jamaah'
+          : 'Dokumen ditolak — notifikasi telah dikirim ke jamaah'
       );
       setVerifyDialogOpen(false);
       setRejectDialogOpen(false);
@@ -525,11 +565,39 @@ export default function AdminCustomerDetail() {
                             <div className="flex items-center gap-2 shrink-0">
                               {existing && (
                                 <>
-                                  <Button variant="outline" size="icon" asChild title="Lihat">
-                                    <a href={existing.file_url} target="_blank" rel="noopener noreferrer">
-                                      <Eye className="h-4 w-4" />
-                                    </a>
-                                  </Button>
+                                          <Button 
+                                            variant="outline" 
+                                            size="icon" 
+                                            title="Lihat"
+                                            onClick={() => setPreviewDoc(existing)}
+                                          >
+                                            <Eye className="h-4 w-4" />
+                                          </Button>
+                                          <Button 
+                                            variant="outline" 
+                                            size="icon" 
+                                            title="Unduh"
+                                            onClick={async () => {
+                                              try {
+                                                const url = getPublicUrl(existing.file_url);
+                                                const response = await fetch(url);
+                                                const blob = await response.blob();
+                                                const blobUrl = window.URL.createObjectURL(blob);
+                                                const link = document.createElement("a");
+                                                link.href = blobUrl;
+                                                link.download = `${dt.name}-${customer?.full_name || 'dokumen'}`.replace(/\s+/g, '_');
+                                                document.body.appendChild(link);
+                                                link.click();
+                                                document.body.removeChild(link);
+                                                window.URL.revokeObjectURL(blobUrl);
+                                              } catch (error) {
+                                                console.error("Download failed:", error);
+                                                window.open(getPublicUrl(existing.file_url), "_blank");
+                                              }
+                                            }}
+                                          >
+                                            <Download className="h-4 w-4" />
+                                          </Button>
                                   <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
                                       <Button variant="outline" size="icon" title="Verifikasi">
@@ -621,11 +689,39 @@ export default function AdminCustomerDetail() {
                               </TableCell>
                               <TableCell className="text-right">
                                 <div className="flex justify-end gap-2">
-                                  <Button variant="outline" size="icon" asChild title="Lihat File">
-                                    <a href={doc.file_url} target="_blank" rel="noopener noreferrer">
-                                      <Eye className="h-4 w-4" />
-                                    </a>
-                                  </Button>
+                                          <Button 
+                                            variant="outline" 
+                                            size="icon" 
+                                            title="Lihat File"
+                                            onClick={() => setPreviewDoc(doc)}
+                                          >
+                                            <Eye className="h-4 w-4" />
+                                          </Button>
+                                          <Button 
+                                            variant="outline" 
+                                            size="icon" 
+                                            title="Unduh File"
+                                            onClick={async () => {
+                                              try {
+                                                const url = getPublicUrl(doc.file_url);
+                                                const response = await fetch(url);
+                                                const blob = await response.blob();
+                                                const blobUrl = window.URL.createObjectURL(blob);
+                                                const link = document.createElement("a");
+                                                link.href = blobUrl;
+                                                link.download = `${doc.document_type?.name || 'Dokumen'}-${customer?.full_name || 'jamaah'}`.replace(/\s+/g, '_');
+                                                document.body.appendChild(link);
+                                                link.click();
+                                                document.body.removeChild(link);
+                                                window.URL.revokeObjectURL(blobUrl);
+                                              } catch (error) {
+                                                console.error("Download failed:", error);
+                                                window.open(getPublicUrl(doc.file_url), "_blank");
+                                              }
+                                            }}
+                                          >
+                                            <Download className="h-4 w-4" />
+                                          </Button>
                                 </div>
                               </TableCell>
                             </TableRow>
@@ -865,6 +961,109 @@ export default function AdminCustomerDetail() {
               Ya, Hapus Permanen
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Document Preview Modal */}
+      <Dialog open={!!previewDoc} onOpenChange={(open) => !open && setPreviewDoc(null)}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              Preview Dokumen - {previewDoc?.document_type?.name || 'Dokumen'}
+            </DialogTitle>
+          </DialogHeader>
+          
+          {previewDoc && (
+            <div className="space-y-4">
+              {/* Document Info */}
+              <div className="grid grid-cols-2 gap-4 p-4 bg-muted rounded-lg">
+                <div>
+                  <p className="text-sm text-muted-foreground">Jenis Dokumen</p>
+                  <p className="font-medium">{previewDoc.document_type?.name || 'Dokumen'}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Nama File</p>
+                  <p className="font-medium text-sm truncate">{previewDoc.file_name || '-'}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Tanggal Upload</p>
+                  <p className="font-medium">{format(new Date(previewDoc.created_at), 'dd/MM/yyyy HH:mm')}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Status</p>
+                  <div>
+                    {(() => {
+                      const status = STATUS_CONFIG[previewDoc.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.pending;
+                      const StatusIcon = status.icon;
+                      return (
+                        <Badge className={status.color} variant="outline">
+                          <StatusIcon className="h-3 w-3 mr-1" />
+                          {status.label}
+                        </Badge>
+                      );
+                    })()}
+                  </div>
+                </div>
+              </div>
+
+              {/* Document Preview */}
+              <div>
+                <Label className="mb-2 block">Preview Dokumen</Label>
+                {previewDoc.file_url ? (
+                  <div className="border rounded-lg overflow-hidden bg-gray-50">
+                    {previewDoc.file_url.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
+                      <img 
+                        src={getPublicUrl(previewDoc.file_url)} 
+                        alt="Document" 
+                        className="max-h-[500px] w-full object-contain"
+                      />
+                    ) : previewDoc.file_url.match(/\.pdf$/i) ? (
+                      <div className="p-8 text-center">
+                        <FileText className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+                        <p className="text-sm text-muted-foreground mb-4">File PDF tidak dapat ditampilkan dalam preview</p>
+                        <a 
+                          href={getPublicUrl(previewDoc.file_url)} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
+                        >
+                          <Download className="h-4 w-4" />
+                          Buka PDF
+                        </a>
+                      </div>
+                    ) : (
+                      <div className="p-8 text-center">
+                        <FileText className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+                        <p className="text-sm text-muted-foreground mb-4">Format file tidak didukung untuk preview</p>
+                        <a 
+                          href={getPublicUrl(previewDoc.file_url)} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
+                        >
+                          <Download className="h-4 w-4" />
+                          Buka File
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground text-center py-8">File tidak tersedia</p>
+                )}
+              </div>
+
+              {/* Notes if rejected */}
+              {previewDoc.notes && (
+                <div className="p-3 bg-red-50 dark:bg-red-950/20 border border-red-200 rounded-lg">
+                  <p className="text-sm font-medium text-red-600 flex items-center gap-1">
+                    <AlertCircle className="h-4 w-4" />
+                    Catatan:
+                  </p>
+                  <p className="text-sm mt-1">{previewDoc.notes}</p>
+                </div>
+              )}
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

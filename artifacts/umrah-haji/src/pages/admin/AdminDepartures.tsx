@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,9 +27,11 @@ import {
   CalendarDays, Building2, Link2Off, MapPin, Hotel,
   MessageCircle, Bell, Send, DollarSign, MoreVertical,
   ChevronLeft, ChevronRight, Eye, RefreshCw, TrendingUp,
-  Zap, AlertCircle
+  Zap, AlertCircle, Download
 } from "lucide-react";
 import { LinkItineraryForm } from "@/components/admin/forms/LinkItineraryForm";
+import { downloadICS, type ICSEvent } from "@/lib/ics";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const MONTHS = [
   { value: "01", label: "Januari" },
@@ -47,6 +49,160 @@ const MONTHS = [
 ];
 
 const ITEMS_PER_PAGE = 20;
+
+const DAY_NAMES = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
+
+const isMissingRpcError = (error: unknown) => {
+  const message = String((error as { message?: string })?.message ?? '').toLowerCase();
+  const code = String((error as { code?: string })?.code ?? '');
+  return (
+    code === 'PGRST202' || 
+    code === '42P01' || // undefined_table
+    message.includes('schema cache') || 
+    message.includes('delete_departure_safely') ||
+    message.includes('could not find the table')
+  );
+};
+
+async function deleteDepartureWithClientCleanup(departureId: string) {
+  const { count: bookingCount, error: bookingError } = await supabase
+    .from('bookings')
+    .select('id', { count: 'exact', head: true })
+    .eq('departure_id', departureId);
+
+  if (bookingError) throw bookingError;
+  if ((bookingCount ?? 0) > 0) {
+    throw new Error(`Jadwal tidak bisa dihapus karena masih memiliki ${bookingCount ?? 0} booking. Pindahkan atau batalkan booking terlebih dahulu.`);
+  }
+
+  const cascadingTables = [
+    'equipment_distributions',
+    'manasik_schedules',
+    'attendance',
+    'bus_assignments',
+    'departure_hotels',
+    'departure_itineraries',
+    'departure_surveys',
+    'jamaah_daily_attendance',
+    'jamaah_qr_codes',
+    'luggage',
+    'manifests',
+    'room_assignments',
+    'seat_holds',
+    'vendor_costs',
+  ] as const;
+
+  const nullableTables = [
+    'support_tickets',
+    'visa_applications',
+    'jamaah_live_locations',
+    'room_assignment_audit',
+  ] as const;
+
+  for (const table of cascadingTables) {
+    const { error } = await (supabase.from(table as any) as any).delete().eq('departure_id', departureId);
+    if (error && !isMissingRpcError(error)) throw error;
+  }
+
+  for (const table of nullableTables) {
+    const { error } = await (supabase.from(table as any) as any).update({ departure_id: null }).eq('departure_id', departureId);
+    if (error && !isMissingRpcError(error)) throw error;
+  }
+
+  const { error: deleteError } = await supabase.from('departures').delete().eq('id', departureId);
+  if (deleteError) throw deleteError;
+}
+
+function CalendarDepartureView({ allDepartures, navigate }: { allDepartures: any[]; navigate: (path: string) => void }) {
+  const now = new Date();
+  const [calYear, setCalYear] = useState(now.getFullYear());
+  const [calMonth, setCalMonth] = useState(now.getMonth()); // 0-indexed
+
+  const firstDay = new Date(calYear, calMonth, 1);
+  const lastDay = new Date(calYear, calMonth + 1, 0);
+  const startOffset = firstDay.getDay();
+  const totalDays = lastDay.getDate();
+
+  const departuresByDay = useMemo(() => {
+    const map: Record<string, any[]> = {};
+    for (const dep of allDepartures) {
+      if (!dep.departure_date) continue;
+      const d = new Date(dep.departure_date);
+      if (d.getFullYear() === calYear && d.getMonth() === calMonth) {
+        const day = d.getDate();
+        if (!map[day]) map[day] = [];
+        map[day].push(dep);
+      }
+    }
+    return map;
+  }, [allDepartures, calYear, calMonth]);
+
+  const monthLabel = new Date(calYear, calMonth, 1).toLocaleString('id-ID', { month: 'long', year: 'numeric' });
+
+  const cells: (number | null)[] = [
+    ...Array(startOffset).fill(null),
+    ...Array.from({ length: totalDays }, (_, i) => i + 1),
+  ];
+
+  return (
+    <Card className="border-0 shadow-sm">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg capitalize">{monthLabel}</CardTitle>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="icon" className="h-8 w-8"
+              onClick={() => { const d = new Date(calYear, calMonth - 1, 1); setCalYear(d.getFullYear()); setCalMonth(d.getMonth()); }}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button variant="outline" size="sm" className="h-8 text-xs"
+              onClick={() => { setCalYear(now.getFullYear()); setCalMonth(now.getMonth()); }}>
+              Hari ini
+            </Button>
+            <Button variant="outline" size="icon" className="h-8 w-8"
+              onClick={() => { const d = new Date(calYear, calMonth + 1, 1); setCalYear(d.getFullYear()); setCalMonth(d.getMonth()); }}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden border">
+          {DAY_NAMES.map(d => (
+            <div key={d} className="bg-muted/50 text-center text-xs font-semibold py-2 text-muted-foreground">{d}</div>
+          ))}
+          {cells.map((day, idx) => {
+            const deps = day ? (departuresByDay[day] || []) : [];
+            const isToday = day === now.getDate() && calYear === now.getFullYear() && calMonth === now.getMonth();
+            return (
+              <div key={idx} className={`bg-background min-h-[70px] p-1.5 ${!day ? 'opacity-30' : ''}`}>
+                {day && (
+                  <>
+                    <span className={`text-xs font-semibold block mb-1 ${isToday ? 'bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center text-[10px]' : 'text-muted-foreground'}`}>
+                      {day}
+                    </span>
+                    {deps.map(dep => (
+                      <button
+                        key={dep.id}
+                        onClick={() => navigate(`/admin/departures/${dep.id}`)}
+                        className="w-full text-left text-[10px] bg-primary/10 text-primary rounded px-1 py-0.5 mb-0.5 truncate hover:bg-primary/20 transition-colors"
+                        title={dep.package?.name || dep.id}
+                      >
+                        {dep.package?.code || dep.package?.name || 'Keberangkatan'}
+                      </button>
+                    ))}
+                  </>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        {allDepartures.length === 0 && (
+          <p className="text-center text-sm text-muted-foreground py-6">Tidak ada data keberangkatan untuk ditampilkan di kalender.</p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function AdminDepartures() {
   const queryClient = useQueryClient();
@@ -144,8 +300,22 @@ export default function AdminDepartures() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('departures').delete().eq('id', id);
-      if (error) throw error;
+      const { data, error } = await (supabase.rpc as any)('delete_departure_safely', {
+        _departure_id: id,
+      });
+      if (error) {
+        if (isMissingRpcError(error)) {
+          await deleteDepartureWithClientCleanup(id);
+          return;
+        }
+        throw error;
+      }
+      if (data && data.ok === false) {
+        if (data.error === 'departure_has_bookings') {
+          throw new Error(`Jadwal tidak bisa dihapus karena masih memiliki ${data.booking_count ?? 0} booking. Pindahkan atau batalkan booking terlebih dahulu.`);
+        }
+        throw new Error(data.error || 'Gagal menghapus jadwal');
+      }
     },
     onSuccess: () => {
       toast.success("Jadwal berhasil dihapus");
@@ -160,10 +330,12 @@ export default function AdminDepartures() {
 
   const sendNotificationMutation = useMutation({
     mutationFn: async ({ departureId, type }: { departureId: string; type: string }) => {
-      const { data, error } = await supabase.functions.invoke('send-whatsapp-notification', {
-        body: { type, departure_id: departureId }
+      const res = await fetch('/api/whatsapp/notification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type, departure_id: departureId }),
       });
-      if (error) throw error;
+      const data = await res.json();
       if (!data?.success) throw new Error(data?.error || 'Gagal mengirim notifikasi');
       return data;
     },
@@ -265,6 +437,36 @@ export default function AdminDepartures() {
             </TooltipTrigger>
             <TooltipContent>Hitung ulang kursi terisi dari data pesanan aktif</TooltipContent>
           </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                className="gap-2"
+                onClick={() => {
+                  const events: ICSEvent[] = departures
+                    .filter((d: any) => d.departure_date)
+                    .map((d: any) => ({
+                      uid: d.id,
+                      summary: `${d.package?.name || 'Keberangkatan'} (${d.package?.code || ''})`,
+                      description: `Kapasitas: ${d.capacity || '-'} | Tersedia: ${(d.capacity || 0) - (d.booked_count || 0)} kursi`,
+                      location: 'Mekkah, Arab Saudi',
+                      dtstart: new Date(d.departure_date),
+                      dtend: d.return_date ? new Date(d.return_date) : undefined,
+                    }));
+                  if (events.length === 0) {
+                    toast.error('Tidak ada jadwal dengan tanggal yang bisa diekspor');
+                    return;
+                  }
+                  downloadICS(events);
+                  toast.success(`${events.length} jadwal diekspor ke file .ics`);
+                }}
+              >
+                <Download className="h-4 w-4" />
+                Export Kalender
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Export semua jadwal ke Google Calendar / iCal (.ics)</TooltipContent>
+          </Tooltip>
           <Button onClick={() => setIsFormOpen(true)} className="gap-2 bg-primary hover:bg-primary/90">
             <Plus className="h-4 w-4" />
             Tambah Jadwal
@@ -346,6 +548,20 @@ export default function AdminDepartures() {
       </div>
 
       {/* Main Content Card */}
+      <Tabs defaultValue="list" className="space-y-4">
+        <div className="flex items-center justify-between">
+          <TabsList className="h-9">
+            <TabsTrigger value="list" className="gap-1.5 text-sm"><CalendarDays className="h-3.5 w-3.5" />Daftar</TabsTrigger>
+            <TabsTrigger value="calendar" className="gap-1.5 text-sm"><Calendar className="h-3.5 w-3.5" />Kalender</TabsTrigger>
+          </TabsList>
+        </div>
+
+        {/* Calendar View */}
+        <TabsContent value="calendar">
+          <CalendarDepartureView allDepartures={departures} navigate={navigate} />
+        </TabsContent>
+
+        <TabsContent value="list">
       <Card className="border-0 shadow-sm">
         <CardHeader className="pb-4">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
@@ -602,6 +818,9 @@ export default function AdminDepartures() {
           )}
         </CardContent>
       </Card>
+
+        </TabsContent>
+      </Tabs>
 
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">

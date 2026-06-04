@@ -71,9 +71,40 @@ export default function AdminDocumentVerification() {
         .eq('id', docId);
 
       if (error) throw error;
+
+      // Kirim notifikasi in-app ke jamaah (fire-and-forget)
+      const doc = documents?.find((d: any) => d.id === docId);
+      if (doc?.customer?.id) {
+        const docName = doc.document_type?.name || "Dokumen";
+        const notifTitle = status === 'verified'
+          ? `Dokumen ${docName} Terverifikasi ✅`
+          : `Dokumen ${docName} Ditolak ❌`;
+        const notifMessage = status === 'verified'
+          ? `Dokumen ${docName} Anda telah berhasil diverifikasi oleh admin. Dokumen Anda sudah lengkap dan valid.`
+          : `Dokumen ${docName} Anda ditolak oleh admin. Alasan: ${notes || 'Hubungi admin untuk info lebih lanjut'}. Mohon upload ulang dokumen yang sesuai.`;
+        (supabase as any).from('customer_notifications').insert({
+          customer_id: doc.customer.id,
+          type: 'document',
+          title: notifTitle,
+          message: notifMessage,
+          is_read: false,
+          metadata: {
+            doc_id: docId,
+            doc_status: status,
+            doc_name: docName,
+            rejection_reason: notes || null,
+          },
+        });
+      }
+
+      return { status };
     },
-    onSuccess: () => {
-      toast.success("Dokumen berhasil diverifikasi");
+    onSuccess: ({ status }, { notes }) => {
+      toast.success(
+        status === 'verified'
+          ? "Dokumen terverifikasi — notifikasi terkirim ke jamaah"
+          : "Dokumen ditolak — notifikasi telah dikirim ke jamaah"
+      );
       queryClient.invalidateQueries({ queryKey: ['admin-documents'] });
       setSelectedDoc(null);
       setRejectReason("");

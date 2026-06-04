@@ -1,8 +1,14 @@
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Phone, MessageCircle, ArrowRight } from 'lucide-react';
+import { useWebsiteSettings } from '@/hooks/useWebsiteSettings';
 
 export function CTASection() {
+  const { data: settings } = useWebsiteSettings();
+  const waNumber = (settings?.footer_whatsapp || '6281234567890').replace(/\D/g, '');
+  const phone = settings?.footer_phone || settings?.footer_whatsapp || '6281234567890';
+  const address = settings?.footer_address || 'Jl. Masjid Agung No. 123, Jakarta Selatan';
+
   return (
     <section className="py-20 bg-primary relative overflow-hidden">
       {/* Decorative elements */}
@@ -29,13 +35,13 @@ export function CTASection() {
               </Link>
             </Button>
             <Button asChild size="lg" variant="outline" className="gap-2 bg-transparent border-white text-white hover:bg-white hover:text-primary">
-              <a href="https://wa.me/6281234567890" target="_blank" rel="noopener noreferrer">
+              <a href={`https://wa.me/${waNumber}`} target="_blank" rel="noopener noreferrer">
                 <MessageCircle className="h-4 w-4" />
                 Hubungi WhatsApp
               </a>
             </Button>
             <Button asChild size="lg" variant="outline" className="gap-2 bg-transparent border-white text-white hover:bg-white hover:text-primary">
-              <a href="tel:+6281234567890">
+              <a href={`tel:+${phone.replace(/\D/g, '')}`}>
                 <Phone className="h-4 w-4" />
                 Telepon Kami
               </a>
@@ -43,7 +49,7 @@ export function CTASection() {
           </div>
 
           <p className="text-white/70 text-sm mt-8">
-            📍 Kantor Pusat: Jl. Masjid Agung No. 123, Jakarta Selatan
+            📍 Kantor Pusat: {address}
           </p>
         </div>
       </div>

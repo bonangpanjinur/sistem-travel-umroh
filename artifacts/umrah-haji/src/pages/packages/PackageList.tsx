@@ -8,13 +8,14 @@ import { usePackages } from '@/hooks/usePackages';
 import { useWebsiteSettings } from '@/hooks/useWebsiteSettings';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Grid3X3, List, SlidersHorizontal } from 'lucide-react';
+import { Grid3X3, List, SlidersHorizontal, Scale } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Link } from 'react-router-dom';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Label } from '@/components/ui/label';
 
 export default function PackageList() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { data: packages = [], isLoading } = usePackages();
   const { data: settings } = useWebsiteSettings();
   
@@ -38,6 +39,7 @@ export default function PackageList() {
   const minPrice = minPriceParam ? Number(minPriceParam) : 0;
   const maxPrice = maxPriceParam ? Number(maxPriceParam) : Infinity;
   const durationFilter = searchParams.get('duration')?.split(',').filter(Boolean) || [];
+  const currencyFilter = searchParams.get('currency') || 'all';
 
   // Helper: harga termurah dari semua tipe kamar (mengabaikan 0/null)
   const getStartingPrice = (p: any): number => {
@@ -62,6 +64,11 @@ export default function PackageList() {
     // Package type
     if (typeFilter && typeFilter !== 'all') {
       result = result.filter(p => p.package_type === typeFilter);
+    }
+
+    // Currency filter
+    if (currencyFilter && currencyFilter !== 'all') {
+      result = result.filter(p => (p.currency || 'IDR').toUpperCase() === currencyFilter.toUpperCase());
     }
 
     // Price range — pakai harga termurah dan hanya apply bila user mengubah default
@@ -107,7 +114,7 @@ export default function PackageList() {
     });
 
     return result;
-  }, [packages, q, typeFilter, minPrice, maxPrice, durationFilter, sortBy]);
+  }, [packages, q, typeFilter, currencyFilter, minPrice, maxPrice, durationFilter, sortBy]);
 
   const handleFilterApplied = () => {
     setIsSheetOpen(false);
@@ -130,6 +137,19 @@ export default function PackageList() {
           <p className="text-white/90 max-w-2xl mx-auto">
             Temukan paket perjalanan ibadah yang sesuai dengan kebutuhan dan budget Anda
           </p>
+          <div className="flex flex-wrap justify-center gap-3 mt-6">
+            <Button variant="secondary" size="sm" asChild className="gap-2">
+              <Link to="/packages/compare">
+                <Scale className="h-4 w-4" />
+                Bandingkan Paket
+              </Link>
+            </Button>
+            <Button variant="outline" size="sm" asChild className="gap-2 bg-white/10 text-white border-white/30 hover:bg-white/20">
+              <Link to="/kalkulator">
+                Kalkulator Biaya
+              </Link>
+            </Button>
+          </div>
         </div>
       </section>
 
@@ -162,6 +182,29 @@ export default function PackageList() {
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
+              {/* Currency filter */}
+              <div className="flex flex-col gap-1">
+                <Label className="text-[10px] uppercase text-muted-foreground font-bold">Mata Uang</Label>
+                <Select value={currencyFilter} onValueChange={(value) => {
+                  const params = new URLSearchParams(searchParams);
+                  if (value === 'all') params.delete('currency'); else params.set('currency', value);
+                  setSearchParams(params);
+                }}>
+                  <SelectTrigger className="w-[120px] h-9">
+                    <SelectValue placeholder="Mata Uang" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Semua</SelectItem>
+                    <SelectItem value="IDR">IDR</SelectItem>
+                    <SelectItem value="USD">USD</SelectItem>
+                    <SelectItem value="SAR">SAR</SelectItem>
+                    <SelectItem value="EUR">EUR</SelectItem>
+                    <SelectItem value="MYR">MYR</SelectItem>
+                    <SelectItem value="SGD">SGD</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
               {/* Sort */}
               <div className="flex flex-col gap-1">
                 <Label className="text-[10px] uppercase text-muted-foreground font-bold">Urutkan</Label>

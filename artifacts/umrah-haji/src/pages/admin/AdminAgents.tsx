@@ -247,7 +247,27 @@ export default function AdminAgents() {
     },
   });
 
-  // Pay commission
+  // Approve commission (pending → approved)
+  const approveCommissionMutation = useMutation({
+    mutationFn: async (commissionId: string) => {
+      const { error } = await supabase
+        .from('agent_commissions')
+        .update({ status: 'approved' })
+        .eq('id', commissionId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-commissions'] });
+      toast.success("Komisi disetujui");
+      setShowCommissionDialog(false);
+      setSelectedCommission(null);
+    },
+    onError: (error) => {
+      toast.error("Gagal menyetujui komisi: " + error.message);
+    },
+  });
+
+  // Pay commission (approved → paid)
   const payCommissionMutation = useMutation({
     mutationFn: async (commissionId: string) => {
       const { error } = await supabase
@@ -566,29 +586,44 @@ export default function AdminAgents() {
                             <Badge className={
                               commission.status === 'paid'
                                 ? "bg-green-100 text-green-800"
-                                : commission.status === 'pending'
-                                  ? "bg-amber-100 text-amber-800"
-                                  : "bg-gray-100 text-gray-800"
+                                : commission.status === 'approved'
+                                  ? "bg-blue-100 text-blue-800"
+                                  : commission.status === 'pending'
+                                    ? "bg-amber-100 text-amber-800"
+                                    : "bg-gray-100 text-gray-800"
                             }>
-                              {commission.status === 'paid' ? 'Dibayar' : 'Pending'}
+                              {commission.status === 'paid' ? 'Dibayar' : commission.status === 'approved' ? 'Disetujui' : 'Pending'}
                             </Badge>
                           </TableCell>
                           <TableCell>
                             {format(new Date(commission.created_at!), 'd MMM yyyy', { locale: id })}
                           </TableCell>
                           <TableCell className="text-right">
-                            {commission.status === 'pending' && (
-                              <Button
-                                size="sm"
-                                onClick={() => {
-                                  setSelectedCommission(commission);
-                                  setShowCommissionDialog(true);
-                                }}
-                              >
-                                <DollarSign className="h-4 w-4 mr-1" />
-                                Bayar
-                              </Button>
-                            )}
+                            <div className="flex items-center justify-end gap-1.5">
+                              {commission.status === 'pending' && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    setSelectedCommission(commission);
+                                    setShowCommissionDialog(true);
+                                  }}
+                                >
+                                  <Check className="h-4 w-4 mr-1" />
+                                  Setujui
+                                </Button>
+                              )}
+                              {commission.status === 'approved' && (
+                                <Button
+                                  size="sm"
+                                  onClick={() => payCommissionMutation.mutate(commission.id)}
+                                  disabled={payCommissionMutation.isPending}
+                                >
+                                  <DollarSign className="h-4 w-4 mr-1" />
+                                  Bayar
+                                </Button>
+                              )}
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -702,23 +737,27 @@ export default function AdminAgents() {
         </DialogContent>
       </Dialog>
 
-      {/* Pay Commission Dialog */}
+      {/* Approve Commission Dialog */}
       <AlertDialog open={showCommissionDialog} onOpenChange={setShowCommissionDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Bayar Komisi?</AlertDialogTitle>
+            <AlertDialogTitle>Setujui Komisi?</AlertDialogTitle>
             <AlertDialogDescription>
-              Anda akan menandai pembayaran komisi sebesar{' '}
+              Anda akan menyetujui komisi sebesar{' '}
               <strong>{formatCurrency(selectedCommission?.commission_amount || 0)}</strong>{' '}
               untuk agent <strong>{selectedCommission?.agent?.agent_code}</strong>.
+              Setelah disetujui, status berubah menjadi <em>Disetujui</em> dan dapat dibayarkan.
+              {selectedCommission?.notes && (
+                <span className="block mt-2 text-xs text-muted-foreground italic">{selectedCommission.notes}</span>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Batal</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => selectedCommission && payCommissionMutation.mutate(selectedCommission.id)}
+              onClick={() => selectedCommission && approveCommissionMutation.mutate(selectedCommission.id)}
             >
-              {payCommissionMutation.isPending ? "Memproses..." : "Konfirmasi Bayar"}
+              {approveCommissionMutation.isPending ? "Memproses..." : "Setujui Komisi"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

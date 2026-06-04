@@ -12,6 +12,28 @@
  */
 
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
+import { SettingsCategoryNav, type SettingsCategoryKey } from './SettingsCategoryNav';
+
+const SETTINGS_PATH_TO_CATEGORY: Record<string, SettingsCategoryKey> = {
+  '/admin/settings': 'umum',
+  '/admin/document-settings': 'umum',
+  '/admin/notification-settings': 'umum',
+  '/admin/appearance': 'appearance',
+  '/admin/users': 'access',
+  '/admin/roles': 'access',
+  '/admin/dashboard-access': 'access',
+  '/admin/rbac-tools': 'access',
+  '/admin/rbac-status': 'access',
+  '/admin/access-simulator': 'access',
+  '/admin/api-connect': 'integration',
+  '/admin/webhooks': 'integration',
+  '/admin/email-templates': 'integration',
+  '/admin/push-notifications': 'integration',
+  '/admin/2fa': 'security',
+  '/admin/security-audit': 'security',
+  '/admin/activity-log': 'security',
+  '/admin/supabase-setup': 'backend',
+};
 import { useAuth } from '@/hooks/useAuth';
 import { useDynamicMenus } from '@/hooks/useDynamicMenus';
 import { useCompanySettings } from '@/hooks/useCompanySettings';
@@ -30,6 +52,9 @@ import {
   Search,
   User,
   Shield,
+  Moon,
+  Sun,
+  Smartphone,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -42,6 +67,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { useState, useEffect, useMemo, lazy, Suspense, useCallback, useRef, memo } from 'react';
+import { useDarkMode } from '@/hooks/useDarkMode';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
@@ -139,6 +165,7 @@ function AdminLayoutDynamicImproved() {
   const { groupedMenus, isLoading: menusLoading } = useDynamicMenus();
   const { getSetting } = useCompanySettings();
   const adminNotifications = useAdminNotifications();
+  const { isDark, toggle: toggleDark } = useDarkMode();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -396,6 +423,10 @@ function AdminLayoutDynamicImproved() {
                 <Settings className="mr-2 h-4 w-4" />
                 <span>Pengaturan</span>
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate('/admin/pwa-settings')}>
+                <Smartphone className="mr-2 h-4 w-4" />
+                <span>Aplikasi (PWA)</span>
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => navigate('/customer/settings')}>
                 <User className="mr-2 h-4 w-4" />
                 <span>Profil Saya</span>
@@ -446,6 +477,15 @@ function AdminLayoutDynamicImproved() {
             <Suspense fallback={<Skeleton className="h-9 w-9 rounded-md" />}>
               <CommandPalette />
             </Suspense>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleDark}
+              className="h-9 w-9"
+              aria-label="Toggle dark mode"
+            >
+              {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </Button>
             <NotificationBell
               notifications={adminNotifications.notifications}
               unreadCount={adminNotifications.unreadCount}
@@ -459,6 +499,9 @@ function AdminLayoutDynamicImproved() {
         {/* Page content */}
         <div className="flex-1 overflow-y-auto bg-muted/30 custom-scrollbar">
           <div className="container mx-auto p-4 lg:p-6 animate-in fade-in duration-300">
+            {SETTINGS_PATH_TO_CATEGORY[location.pathname] && (
+              <SettingsCategoryNav category={SETTINGS_PATH_TO_CATEGORY[location.pathname]} />
+            )}
             <Outlet />
           </div>
         </div>
