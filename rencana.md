@@ -1,8 +1,8 @@
 # RENCANA VINSTOUR TRAVEL PORTAL
-> **Update terakhir:** Juni 2026 — Konsolidasi lengkap dari semua file rencana  
+> **Update terakhir:** Juni 2026 — Analisis Mendalam + Perbaikan Prioritas HR, Paket, Keberangkatan, HPP, Keuangan  
 > **Stack:** React 19 + Vite + TypeScript + Supabase Auth + Supabase PostgreSQL + Express API (port 8080)  
 > **Total:** 311 halaman, 653 TSX, 70+ hooks, 70+ tabel, 61 file SQL migration  
-> ✅ = Selesai | ❌ = Belum ada | 🔧 = Sebagian/Perlu perbaikan
+> ✅ = Selesai | ❌ = Belum ada | 🔧 = UI ada tapi tidak terhubung DB | ⚠️ = Sebagian
 
 ---
 
@@ -66,7 +66,7 @@ RBAC (15 role):
 
 ---
 
-## MODUL 2 — MANAJEMEN PAKET ⚠️ AUDIT GAPS
+## MODUL 2 — MANAJEMEN PAKET
 
 ### ✅ Yang Sudah Ada
 
@@ -85,21 +85,24 @@ RBAC (15 role):
 | Rekomendasi AI, prediksi seat | `AdminRekomendasiPaket.tsx`, `AdminPrediksiSeat.tsx` |
 | HPP / Cost items per keberangkatan | `DepartureCostItemsCard.tsx`, `departure_cost_items` table |
 | Gallery paket | `PackageGalleryCard.tsx` |
-| MilestoneTrackerCard — validasi dokumen NYATA | `MilestoneTrackerCard.tsx` ✅ **diperbaiki sesi ini** |
+| MilestoneTrackerCard — validasi dokumen NYATA | `MilestoneTrackerCard.tsx` ✅ |
+| Template HPP paket (copy ke departure baru) | `package_hpp_templates` + `usePackageHPPTemplate` + `PackageHPPTemplateDialog` |
+| Perbandingan paket side-by-side | `PackageCompare.tsx` |
+| Batas diskon maksimum | `max_discount` di CouponForm + StepReviewDynamic |
+| Auto-generate slug unik | `lib/slug.ts` |
 
-### ❌ Fitur Paket yang Belum Ada / Perlu Dikerjakan
+### 🔧 Gap Analisis — Paket
 
-| # | Fitur | Prioritas | Detail |
-|---|-------|-----------|--------|
-| ~~P1~~ | ~~**Template HPP paket** (copy cost items ke departure baru)~~ | ~~🔴~~ | ✅ `package_hpp_templates` DB table + `usePackageHPPTemplate` hook + `PackageHPPTemplateDialog` + "Template Paket" button + auto-banner ketika departure kosong |
-| P2 | **Perbandingan paket side-by-side** | ✅ | `PackageCompare.tsx` lengkap dengan perbandingan harga dinamis, ekspor CSV, dan tab kategori |
-| ~~P3~~ | ~~History perubahan harga paket~~ | ~~🟠~~ | ✅ `PackagePriceTrendCard` + `PackagePriceAuditCard` sudah ada |
-| ~~P4~~ | ~~Batas diskon maksimum per paket~~ | ~~🟡~~ | ✅ `max_discount` di CouponForm + StepReviewDynamic sudah ada |
-| ~~P5~~ | ~~Auto-generate slug unik~~ | ~~🟡~~ | ✅ `lib/slug.ts` sudah dipakai di seluruh codebase |
+| # | Temuan | Dampak | Prioritas |
+|---|--------|--------|-----------|
+| P-G1 | `booking_line_items` table ada tapi belum digunakan penuh di booking workflow — masih hardcoded total | Laporan per-item tidak akurat | 🟠 |
+| P-G2 | Tidak ada validasi HPP > Harga Jual saat input cost items | Paket bisa dijual di bawah HPP tanpa warning | 🟡 |
+| P-G3 | Tidak ada fitur expiry/masa berlaku paket otomatis (hanya manual) | Paket kadaluarsa masih tampil publik | 🟡 |
+| P-G4 | Copy HPP template tidak validasi kolom baru (currency, exchange_rate) di departure baru | Potensi nilai HPP salah saat copy | 🟡 |
 
 ---
 
-## MODUL 3 — KEBERANGKATAN (DEPARTURES) ⚠️ AUDIT GAPS
+## MODUL 3 — KEBERANGKATAN (DEPARTURES)
 
 ### ✅ Yang Sudah Ada
 
@@ -127,22 +130,22 @@ RBAC (15 role):
 | Margin calculator + comparison | `DepartureMarginCalculator.tsx`, `DepartureMarginComparison.tsx` |
 | delete_departure_safely() — hapus aman | migration 20260513224928 |
 | Visa summary | `DepartureVisaSummary.tsx` |
+| Lock/freeze banner saat departed | Banner amber di AdminDepartureDetail |
+| WA blast ke semua jamaah departure | `AdminWABlastKeberangkatan.tsx` |
+| Export manifest ke Excel/PDF profesional | Format header, summary box, landscape PDF |
 
-### ❌ Fitur Keberangkatan yang Belum Ada / Perlu Dikerjakan
+### 🔧 Gap Analisis — Keberangkatan
 
-| # | Fitur | Prioritas | Detail |
-|---|-------|-----------|--------|
-| D1 | **Integrasi SISKOHAT Kemenag aktual (API)** | 🔴 | UI ada tapi tanpa koneksi API nyata ke server Kemenag |
-| ~~D2~~ | ~~Rekap P&L otomatis saat departure selesai~~ | ~~🔴~~ | ✅ `recalculate_departure_financial_summary()` sudah ter-trigger otomatis |
-| ✅ | **Export manifest ke Excel/PDF yang bisa langsung dikirim** | 🔴 | Format profesional (Header, Summary Box, Landscape PDF) ✅ **diperbaiki** |
-| ✅ | **Notifikasi otomatis ke jamaah H-7 keberangkatan** | 🔴 | Sudah terhubung ke departure_date via Cron & API ✅ **diperbaiki** |
-| ~~D5~~ | ~~Lock/freeze data setelah departure departed~~ | ~~🟡~~ | ✅ Banner amber di AdminDepartureDetail saat status = departed |
-| D6 | **Tracking posisi rombongan real-time (peta)** | 🟡 | Hanya SOS alert, tidak ada live tracking |
-| ~~D7~~ | ~~WA blast ke semua jamaah departure dari satu tombol~~ | ~~🟡~~ | ✅ `AdminWABlastKeberangkatan.tsx` sudah ada |
+| # | Temuan | Dampak | Prioritas |
+|---|--------|--------|-----------|
+| D-G1 | SISKOHAT API Kemenag: UI ada tapi tanpa koneksi API nyata | Data SISKOHAT tidak sinkron | 🔴 |
+| D-G2 | `recalculate_departure_financial_summary()` belum dipanggil otomatis via DB trigger saat ada perubahan di booking/payment — harus manual | Laporan P&L bisa stale | 🟠 |
+| D-G3 | Bulk edit HPP cost items tidak tersedia — harus satu per satu | Lambat saat input puluhan item HPP | 🟡 |
+| D-G4 | Live tracking posisi rombongan via peta GPS | Tidak ada live tracking | 🟡 |
 
 ---
 
-## MODUL 4 — PERLENGKAPAN (EQUIPMENT) ⚠️ AUDIT GAPS
+## MODUL 4 — PERLENGKAPAN (EQUIPMENT)
 
 ### ✅ Yang Sudah Ada
 
@@ -157,51 +160,57 @@ RBAC (15 role):
 | Tambah stok | `AddStockDialog.tsx` |
 | Cetak manifest perlengkapan | `PrintManifest.tsx` |
 | Kesiapan equipment (card) | `EquipmentReadinessCard.tsx` |
-| `equipment_distributions` table | DB |
+| Retur/pengembalian perlengkapan | `EquipmentReturnDialog.tsx`, RPC `return_equipment_item` |
+| Ukuran/size per jamaah | Kolom `size` + `has_sizes` + `available_sizes` |
+| Konfirmasi penerimaan jamaah | `EquipmentConfirmationTab.tsx` |
+| Laporan stok per departure | `EquipmentStockPerDeparture.tsx` |
+| Alert stok rendah otomatis | Banner amber + badge klik |
+| Export distribusi ke Excel | Tombol Export di Daftar Jamaah |
+| Foto bukti distribusi | `EquipmentDistributionDialogWithPhoto.tsx` + kolom `distribution_photo_url` |
+| Paket perlengkapan per tipe paket | `PackageTypeEquipmentCard.tsx` + `package_type_equipment` table |
 
-### ❌ Fitur Perlengkapan yang Belum Ada / Perlu Dikerjakan
+### 🔧 Gap Analisis — Perlengkapan
 
-| # | Fitur | Prioritas | Detail |
-|---|-------|-----------|--------|
-| ~~E1~~ | ~~Retur/pengembalian perlengkapan~~ | ~~🔴~~ | ✅ `EquipmentReturnDialog.tsx` — kondisi, alasan, catatan; RPC `return_equipment_item` |
-| ~~E2~~ | ~~Ukuran/size per jamaah~~ | ~~🔴~~ | ✅ Kolom `size` di distributions; `has_sizes`+`available_sizes` di items; size selector |
-| ~~E3~~ | ~~Konfirmasi penerimaan oleh jamaah~~ | ~~🟠~~ | ✅ `EquipmentConfirmationTab` sudah ada |
-| ~~E4~~ | ~~Laporan stok per departure~~ | ~~🟠~~ | ✅ `EquipmentStockPerDeparture` sudah ada |
-| ~~E5~~ | ~~Alert stok rendah otomatis~~ | ~~🟡~~ | ✅ Banner amber + badge klik di EquipmentPage |
-| ~~E6~~ | ~~Export laporan distribusi ke Excel~~ | ~~🟡~~ | ✅ Tombol Export Excel di Daftar Jamaah |
-| ~~E7~~ | ~~**Foto bukti distribusi**~~ | ~~🟡~~ | ✅ `EquipmentDistributionDialogWithPhoto` + `EquipmentConfirmationTabWithPhoto` + kolom `distribution_photo_url` + SQL migration 066 |
-| ~~E8~~ | ~~**Paket perlengkapan per tipe paket**~~ | ~~🟡~~ | ✅ `PackageTypeEquipmentCard` + tabel `package_type_equipment` + SQL migration 067 + tombol 📦 di tabel AdminPackageTypes |
+| # | Temuan | Dampak | Prioritas |
+|---|--------|--------|-----------|
+| E-G1 | Biaya perlengkapan tidak otomatis masuk ke HPP departure — tidak ada link antara equipment cost dan departure_cost_items | HPP tidak mencerminkan biaya equipment | 🟠 |
+| E-G2 | Tidak ada PO (Purchase Order) khusus equipment — hanya general PO | Tracking pengadaan equipment tidak terpisah | 🟡 |
+| E-G3 | Tidak ada pelacakan serial number / kondisi barang per item | Untuk barang mahal (koper, dll) tidak bisa di-trace | 🟡 |
 
 ---
 
-## MODUL 5 — KAMAR (ROOM ASSIGNMENT) ⚠️ AUDIT GAPS
+## MODUL 5 — HPP & KEUANGAN KEBERANGKATAN
 
 ### ✅ Yang Sudah Ada
 
-| Fitur | Lokasi |
-|-------|--------|
-| Rooming list improved | `RoomingListPageImproved.tsx` |
-| Admin room assignments | `AdminRoomAssignments.tsx` |
-| Auto-assign berdasarkan gender + room type | `Wand2` auto-assign |
-| Buat/edit grup kamar | Dialog buat group kamar |
-| ChangeRoomTypeDialog | `ChangeRoomTypeDialog.tsx` |
-| RoomTypeAssignmentDialog | `RoomTypeAssignmentDialog.tsx` |
-| Export rooming list (Excel + PDF) | `rooming-list-exporter.ts` |
-| room_occupants table | `fase21_integration_fixes.sql` |
-| Mahram grouping (same room) | `customer_mahrams` table |
-| Filter per gender, per room status | |
+| Fitur | Lokasi / Tabel |
+|-------|----------------|
+| HPP per item per keberangkatan | `departure_cost_items` (generated `total_cost_idr`) |
+| Pengeluaran realisasi operasional | `departure_expenses` (generated `amount_idr`) |
+| Pendapatan tambahan | `departure_other_revenues` (generated `amount_idr`) |
+| Ringkasan keuangan (cache) | `departure_financial_summary` (generated: `gross_profit`, `net_profit`, `gross_margin_pct`) |
+| Fungsi rekap otomatis | `recalculate_departure_financial_summary(p_departure_id)` |
+| UI HPP: input, list, delete | `DepartureCostItemsCard.tsx` |
+| UI Pengeluaran | `DepartureExpensesCard.tsx` |
+| UI Pendapatan lain | `DepartureOtherRevenuesCard.tsx` |
+| UI P&L Summary | `DeparturePLSummaryCard.tsx` |
+| Margin Calculator & Comparison | `DepartureMarginCalculator.tsx`, `DepartureMarginComparison.tsx` |
+| Keuangan terpadu (AR/AP/Cash/P&L) | `AdminFinanceTerpadu.tsx` |
+| Finance sub-modules | `AdminFinanceAR.tsx`, `AdminFinanceAP.tsx`, `AdminFinanceCash.tsx`, `AdminFinancePL.tsx` |
+| Generator & reminder cicilan | `AdminCicilanGenerator.tsx`, `AdminCicilanReminder.tsx` |
+| Refund management | `AdminRefunds.tsx` |
+| Laporan keuangan | `AdminLaporanKeuangan.tsx` |
+| Export laporan (server-side PDF/Excel) | `GET /api/reports/export` |
 
-### ❌ Fitur Kamar yang Belum Ada / Perlu Dikerjakan
+### 🔧 Gap Analisis — HPP & Keuangan
 
-| # | Fitur | Prioritas | Detail |
-|---|-------|-----------|--------|
-| ~~K1~~ | ~~Nomor kamar hotel spesifik~~ | ~~🔴~~ | ✅ `room_number` + `floor` sudah ada di `room_assignments` + form input |
-| ~~K2~~ | ~~Denah lantai / floor plan visual~~ | ~~🟠~~ | ✅ `FloorPlanView.tsx` — grid per lantai + drag-and-drop + room-swap |
-| ~~K3~~ | ~~**Kapasitas per tipe kamar per hotel**~~ | ~~🟠~~ | ✅ `hotel_room_capacities` table + `get_hotel_capacity_summary()` DB func + `HotelRoomCapacityCard.tsx` (di AdminHotels) + `HotelCapacityAlert.tsx` + `useHotelRoomCapacities.ts` — alert otomatis di RoomingList + validasi saat tambah kamar |
-| ~~K4~~ | ~~Permintaan khusus kamar~~ | ~~🟡~~ | ✅ `special_requests` field sudah ada di DB + ditampilkan di AdminBookingDetail |
-| ~~K5~~ | ~~Notif otomatis ke jamaah saat kamar ditugaskan~~ | ~~🟡~~ | ✅ Tombol "Notif WA Kamar" di RoomingList — kirim info kamar via WhatsApp |
-| ~~K6~~ | ~~**Validasi kompatibilitas mahram**~~ | ~~🟡~~ | ✅ `MahramCompatibilityAlert.tsx` + `useMahramConflicts.ts` + DB function `check_mahram_room_conflicts()` — warning otomatis di RoomingList saat mahram belum dapat kamar atau beda hotel |
-| ~~K7~~ | ~~**Multi-hotel per kota**~~ (Makkah Hotel A + Hotel B) | ~~🟡~~ | ✅ `departure_hotels` dengan role 'makkah'/'madinah'; selector grouped by kota di RoomingListPageImproved; DepartureForm tambah hotel ke-2 per kota |
+| # | Temuan | Dampak | Prioritas |
+|---|--------|--------|-----------|
+| F-G1 | `recalculate_departure_financial_summary()` tidak dipanggil otomatis oleh DB trigger — harus dipanggil manual dari UI | Ringkasan P&L bisa tidak akurat jika lupa recalculate | 🔴 |
+| F-G2 | Tidak ada warning/validasi saat HPP total > Harga Jual (margin negatif) sebelum departure dikonfirmasi | Departure bisa berjalan dengan margin merah tanpa alert | 🟠 |
+| F-G3 | Tidak ada buku besar (general ledger) / chart of accounts formal | Tidak bisa generate laporan akuntansi standar | 🟠 |
+| F-G4 | `booking_line_items` ada di DB tapi belum diintegrasikan — total booking masih dari `bookings.total_price` langsung | Detail rincian tagihan per item tidak akurat | 🟠 |
+| F-G5 | Tidak ada rekonsiliasi otomatis antara pembayaran masuk vs total tagihan booking secara periodik | Selisih tidak terdeteksi dini | 🟡 |
 
 ---
 
@@ -221,7 +230,7 @@ RBAC (15 role):
 | ✅ | Referral code tracking | `referral_codes`, `referral_usages` |
 | ✅ | Approval workflow | `AdminApprovals.tsx` |
 | ✅ | Seat hold 15 menit | `seat_holds` table |
-| 🔧 | booking_line_items | Table ada, belum digunakan secara penuh |
+| 🔧 | `booking_line_items` | Tabel ada, belum digunakan penuh — total masih dari `bookings.total_price` |
 
 ---
 
@@ -238,7 +247,7 @@ RBAC (15 role):
 | ✅ | Generator & reminder cicilan | `AdminCicilanGenerator.tsx`, `AdminCicilanReminder.tsx` |
 | ✅ | Refund management | `AdminRefunds.tsx` |
 | ✅ | Laporan keuangan | `AdminLaporanKeuangan.tsx` |
-| 🔧 | WA reminder cicilan dari browser (token terekspos) | Harus migrasi ke `/api/whatsapp/send` |
+| ✅ | WA reminder cicilan via `/api/whatsapp/payment-reminder` | Token aman di backend |
 
 ---
 
@@ -264,7 +273,7 @@ RBAC (15 role):
 | ✅ | Alat ibadah (kiblat, sholat, quran, tasbih) | `pages/jamaah/ibadah/` |
 | ✅ | Jurnal ibadah, progress wall, kuis manasik | `pages/jamaah/` |
 | ✅ | Pantau keluarga, SOS, peta lokasi | `pages/jamaah/` |
-| ✅ | customer_notifications, jamaah_checklist (fase21) | DB tables |
+| ✅ | customer_notifications, jamaah_checklist | DB tables |
 | ✅ | ibadah_progress table | migration 20260511014225 |
 
 ---
@@ -279,7 +288,7 @@ RBAC (15 role):
 | ✅ | Training module + quiz | `training_modules`, `training_quizzes` |
 | ✅ | Kit digital, broadcast WA, link unik | `pages/agent/` |
 | ✅ | Wallet, referral, website agen | `pages/agent/` |
-| ✅ | Withdrawal otomatis wallet agen | `AdminWithdrawalManagement.tsx` — approve otomatis potong wallet + audit transaksi; route `/admin/withdrawal-management` |
+| ✅ | Withdrawal otomatis wallet agen | `AdminWithdrawalManagement.tsx` |
 
 ---
 
@@ -289,7 +298,7 @@ RBAC (15 role):
 |--------|-------|--------|
 | ✅ | Dashboard, booking, agen, staff | `pages/branch/` |
 | ✅ | Laporan, KPI targets, perbandingan | `pages/branch/` |
-| ✅ | branch_monthly_targets table (fase19) | |
+| ✅ | branch_monthly_targets table | |
 | ✅ | Website cabang + settings | `pages/branch/BranchWebsiteSettings.tsx` |
 | ✅ | Persetujuan, diskon per cabang | `pages/branch/` |
 
@@ -321,7 +330,6 @@ RBAC (15 role):
 | ✅ | Template email | `AdminEmailTemplates.tsx` |
 | ✅ | Pengumuman admin | `AdminAnnouncements.tsx` |
 | ✅ | Smart notif, follow-up reminder | `AdminSmartNotif.tsx`, `AdminFollowUpReminder.tsx` |
-| 🔧 | WA reminder dari browser (token terekspos) | `AdminCicilanReminder.tsx`, `AdminPembayaranReminder.tsx` |
 
 ---
 
@@ -338,17 +346,59 @@ RBAC (15 role):
 
 ---
 
-## MODUL 15 — HR & OPERASIONAL INTERNAL
+## MODUL 15 — HR & KARYAWAN
 
-| Status | Fitur | Lokasi |
-|--------|-------|--------|
-| ✅ | Manajemen HR, penggajian, absensi karyawan | `pages/admin/AdminHR.tsx`, `AdminPayroll.tsx` |
-| ✅ | Verifikasi dokumen, tracker kadaluarsa | `AdminDocumentVerification.tsx` |
-| ✅ | Manajemen visa | `AdminVisaManagement.tsx` |
-| ✅ | Bus management | `BusManagementPage.tsx` |
-| ✅ | Vendor & kontrak | `AdminVendors.tsx`, `AdminVendorContracts.tsx` |
-| ✅ | Master data (hotel, airline, airport) | `AdminHotels.tsx`, `AdminAirlines.tsx` |
-| ✅ | Manasik (jadwal + materi + quiz) | `AdminManasik.tsx` |
+### Struktur Database HR
+
+| Tabel | Isi | Status |
+|-------|-----|--------|
+| `employees` | Data karyawan (gaji, jabatan, dept, devices) | ✅ Ada |
+| `departments` | Master departemen | ✅ Ada |
+| `positions` | Master jabatan per departemen | ✅ Ada |
+| `attendance_records` | Rekam absensi harian | ✅ Ada |
+| `work_schedules` | Jadwal kerja per karyawan per hari | ✅ Ada |
+| `employee_devices` | Perangkat terdaftar untuk absensi | ✅ Ada |
+| `hr_settings` | Pengaturan global HR (jam kerja, toleransi telat, dll) | ✅ Ada |
+| `payroll_records` | Slip gaji per bulan per karyawan | ✅ Ada |
+| `leave_requests` | Pengajuan cuti/izin (7 jenis) | ✅ Ada (DB) |
+| `leave_quotas` | Kuota cuti tahunan per karyawan | ✅ Ada (DB) |
+| `performance_reviews` | Penilaian kinerja (5 dimensi, overall_score generated) | ✅ Ada (DB) |
+
+### UI AdminHR.tsx — 9 Tab
+
+| Tab | Status UI | Status Koneksi DB |
+|-----|-----------|-------------------|
+| Karyawan | ✅ Lengkap | ✅ Terhubung ke `employees` |
+| Absensi | ✅ Lengkap | ✅ Terhubung ke `attendance_records` |
+| Penggajian | ✅ Lengkap | ⚠️ Link ke AdminPayroll (halaman terpisah) |
+| **Cuti & Izin** | 🔧 UI ada, nilai hardcoded | ❌ **TIDAK terhubung** ke `leave_requests` + `leave_quotas` |
+| **Kinerja** | 🔧 UI ada, semua nilai `—` | ❌ **TIDAK terhubung** ke `performance_reviews` |
+| Departemen | ✅ Lengkap | ✅ Terhubung |
+| Jadwal | ✅ Lengkap | ✅ Terhubung ke `work_schedules` |
+| Perangkat | ✅ Lengkap | ✅ Terhubung ke `employee_devices` |
+| Pengaturan | ✅ Lengkap | ✅ Terhubung ke `hr_settings` |
+
+### UI AdminPayroll.tsx — 4 Tab
+
+| Tab | Status |
+|-----|--------|
+| Overview (ringkasan per bulan) | ✅ Terhubung ke `payroll_records` |
+| Slip Gaji (generate + cetak) | ✅ Terhubung |
+| BPJS (kalkulasi BPJS Kes + TK) | ✅ Kalkulasi sudah benar (PPH21 tarif 2022) |
+| Reports (PDF export) | ✅ Export PDF via jsPDF |
+
+### 🔧 Gap Analisis — HR (Terperinci)
+
+| # | Temuan | Dampak | Prioritas |
+|---|--------|--------|-----------|
+| **HR-G1** | **Tab Cuti & Izin tidak terhubung ke DB** — quota hardcoded 12, used hardcoded 0, tidak ada query ke `leave_requests` / `leave_quotas`, tombol "Ajukan Cuti" tidak ada handler | Cuti tidak bisa dicatat, disetujui, atau dipantau | 🔴 |
+| **HR-G2** | **Tab Kinerja tidak terhubung ke DB** — semua nilai `—`, tidak ada query ke `performance_reviews`, tombol "Buat Review" tidak ada handler | Penilaian kinerja tidak bisa disimpan | 🔴 |
+| HR-G3 | Overtime (lembur) tidak ada UI input — kolom `overtime_hours` + `overtime_pay` ada di `payroll_records` tapi tidak bisa diinput | Lembur tidak terhitung otomatis di payroll | 🟠 |
+| HR-G4 | Rekap absensi bulanan tidak ada — hanya query per hari, tidak ada laporan trend kehadiran | Tidak bisa monitor kehadiran per bulan | 🟠 |
+| HR-G5 | Training karyawan internal belum ada — hanya agent training yang tersedia | Karyawan tidak punya modul onboarding/pelatihan | 🟡 |
+| HR-G6 | Tidak ada modul rekrutmen (applicant tracking) | Proses hiring tidak terdokumentasi | 🟡 |
+| HR-G7 | PPH21 dihitung di frontend (AdminPayroll.tsx) — bisa di-bypass | Keamanan kalkulasi pajak | 🟡 |
+| HR-G8 | RLS `leave_requests`: karyawan bisa ajukan cuti tapi HR harus approve — policy sudah ada tapi UI approval belum ada | Cuti diajukan tapi tidak bisa diproses | 🔴 (sama dengan G1) |
 
 ---
 
@@ -369,7 +419,7 @@ RBAC (15 role):
 | ✅ | Dashboard utama, KPI, analitik lanjutan | `pages/admin/` |
 | ✅ | Laporan terjadwal | `AdminScheduledReports.tsx` |
 | ✅ | Analisis sentimen feedback | `AdminSentimenFeedback.tsx` |
-| ✅ | Dashboard per role (Branch/Finance/Marketing/Sales/Equipment) | `pages/admin/dashboards/` |
+| ✅ | Dashboard per role | `pages/admin/dashboards/` |
 | ✅ | Ringkasan AI (Gemini) | `AdminAISummary.tsx`, `AdminGeminiAI.tsx` |
 | ✅ | Web Vitals + PWA install stats | `AdminWebVitals.tsx`, `AdminPWAInstallStats.tsx` |
 
@@ -399,23 +449,6 @@ RBAC (15 role):
 
 ---
 
-## EDGE FUNCTIONS (SUPABASE)
-
-| Status | Nama | Fungsi |
-|--------|------|--------|
-| ✅ | `check-document-deadlines` | Reminder deadline dokumen jamaah |
-| ✅ | `check-savings-reminders` | Reminder cicilan tabungan |
-| ✅ | `manifest` | PWA manifest.json dinamis per tenant |
-| ✅ | `midtrans-webhook` | Auto-update status booking setelah bayar |
-| ✅ | `process-push-queue` | Proses antrian push notification (cron) |
-| ✅ | `push-subscribe` | Daftar/hapus push subscription browser |
-| ✅ | `request-2fa-otp` | Kirim OTP untuk 2FA |
-| ✅ | `send-booking-recovery` | Email recovery booking terbengkalai |
-| ✅ | `send-push` | Kirim push notification VAPID |
-| ✅ | `verify-2fa-otp` | Verifikasi OTP 2FA |
-
----
-
 ## BACKEND API ROUTES (EXPRESS PORT 8080)
 
 ### ✅ Sudah Ada
@@ -436,26 +469,56 @@ RBAC (15 role):
 | `/api/whatsapp/payment-reminder` | POST | WA reminder pembayaran massal |
 | `/api/agents/create` | POST | Buat agent + Supabase auth user |
 | `/api/hr/employees` | POST/DELETE | Kelola karyawan |
+| `GET /api/dashboard/stats` | GET | Stats booking/payment/departure/customer |
+| `POST /api/scheduler/run` | POST | Trigger manual cron |
+| `GET /api/reports/export` | GET | Export PDF/Excel server-side |
 
 ### ❌ Route yang Belum Ada (Prioritas)
 
 | Route | Prioritas | Dampak |
 |-------|-----------|--------|
-| `POST /api/midtrans/webhook` | 🔴 | Status tidak auto-update (sudah ada di Supabase edge function, belum di Express) |
-| `GET /api/dashboard/stats` | ✅ | `routes/dashboard.ts` — stats booking/payment/departure/customer + trend harian |
-| `POST /api/scheduler/run` | ✅ | `routes/scheduler.ts` — trigger manual cicilan/payment/departure_h7/departure_h1 |
-| `GET /api/reports/export` | ✅ | `routes/reports.ts` — type=keuangan/manifest/bookings/agen/payments × format=xlsx/pdf (pdfkit + xlsx, server-side) |
+| `POST /api/midtrans/webhook` | 🔴 | Status tidak auto-update (sudah ada di Supabase EF, belum di Express) |
 
 ---
 
-## KEAMANAN — MASALAH AKTIF
+## KEAMANAN — STATUS
 
-| # | Masalah | Dampak | Solusi |
-|---|---------|--------|--------|
-| ~~S1~~ | ~~WA token terekspos di browser~~ | ~~Token Fonnte bisa dilihat di DevTools~~ | ✅ Sudah migrasi ke `/api/whatsapp/send` — token hanya di backend |
-| S2 | **VITE_SUPABASE_URL kosong** | Semua halaman login tidak bisa diakses | Set di Replit Secrets |
-| S3 | **VAPID_PRIVATE_KEY** harus di env secret | Jangan simpan di DB | Cek `VAPID_PRIVATE_KEY` di Secrets |
-| S4 | **Midtrans Server Key** harus di backend saja | Jangan expose di frontend | Cek config |
+| # | Masalah | Status |
+|---|---------|--------|
+| S1 | WA token terekspos di browser | ✅ Sudah migrasi ke `/api/whatsapp/send` |
+| S2 | **VITE_SUPABASE_URL + PUBLISHABLE_KEY kosong** | ⚠️ Set di Replit Secrets |
+| S3 | **VAPID_PRIVATE_KEY** harus di env secret | ⚠️ Cek Secrets |
+| S4 | PPH21 dihitung di frontend | 🟡 Risiko rendah, bisa pindah ke API |
+
+---
+
+## RENCANA PERBAIKAN TERPERINCI
+
+### 🔴 PRIORITAS 1 — KRITIS (Fitur ada di DB, UI tidak terhubung)
+
+| ID | Perbaikan | Modul | Status |
+|----|-----------|-------|--------|
+| **FIX-HR1** | **Sambungkan Tab Cuti & Izin ke DB** — query `leave_requests` + `leave_quotas`, form ajukan cuti, approval flow (approve/reject), kuota real dari DB | HR | ✅ **SELESAI** |
+| **FIX-HR2** | **Sambungkan Tab Kinerja ke DB** — query `performance_reviews`, form input penilaian (5 dimensi), hitung overall_score, grade otomatis | HR | ✅ **SELESAI** |
+| **FIX-F1** | **Trigger otomatis `recalculate_departure_financial_summary`** — tambahkan DB trigger pada `bookings` dan `payments` yang memanggil fungsi ini | HPP/Keuangan | ❌ Belum |
+
+### 🟠 PRIORITAS 2 — PENTING (Meningkatkan akurasi data)
+
+| ID | Perbaikan | Modul |
+|----|-----------|-------|
+| FIX-HR3 | Rekap absensi bulanan — agregasi `attendance_records` per bulan per karyawan, tampilkan chart trend kehadiran | HR |
+| FIX-HR4 | Input lembur (overtime) di payroll — UI form input jam lembur, kalkulasi `overtime_pay` otomatis | HR |
+| FIX-F2 | Warning margin negatif — alert otomatis di DepartureCostItemsCard saat `hpp_total > revenue_gross` | HPP |
+| FIX-P1 | Integrasi `booking_line_items` ke booking workflow — simpan per item saat booking dibuat | Paket/Booking |
+
+### 🟡 PRIORITAS 3 — NICE TO HAVE
+
+| ID | Perbaikan | Modul |
+|----|-----------|-------|
+| FIX-D1 | Bulk edit HPP cost items | Keberangkatan |
+| FIX-E1 | Link biaya equipment ke HPP departure | Perlengkapan |
+| FIX-HR5 | Modul training internal karyawan | HR |
+| FIX-D2 | SISKOHAT API Kemenag (butuh akses API resmi) | Keberangkatan |
 
 ---
 
@@ -469,40 +532,26 @@ RBAC (15 role):
 | 4 | **build.mjs (API server)** — tidak crash saat `src/sql` tidak ada | ✅ |
 | 5 | **Rencana.md** — satu file tunggal | ✅ |
 | 6 | **pnpm install** — dependencies terinstall, kedua workflow running | ✅ |
-| 7 | **TypeScript build error fix** — types untuk equipment_distributions, equipment_items, return_equipment_item | ✅ |
+| 7 | **TypeScript build error fix** — types equipment_distributions, return_equipment_item | ✅ |
 | 8 | **SQL bootstrap files** — bootstrap auth, missing tables, bookings columns, gallery_media_type | ✅ |
-| 9 | **QR Code Invoice** — embed QR publik di Form Transaksi PDF; route `/transaksi/:bookingId` tanpa login | ✅ |
-| 10 | **Invoice Template dinamis** — toggle QR + 3 pilihan posisi (kanan atas/bawah/tengah) di Admin Panel | ✅ |
-| 11 | **Fix notif WA error modal** — safe JSON parse, modal dialog jelas + instruksi setup FONNTE_TOKEN | ✅ |
-| 12 | **Cetak Ulang Barcode** — modal cetak QR label per booking (3 ukuran: stiker/kartu/A4); trigger dari daftar dan detail booking | ✅ |
-| 13 | **D5 – Lock banner departure departed** — banner amber muncul di AdminDepartureDetail saat status = departed | ✅ |
-| 14 | **E5 – Alert stok rendah otomatis** — banner di EquipmentPage daftar item di bawah threshold; klik badge langsung tambah stok | ✅ |
-| 15 | **E6 – Export distribusi perlengkapan ke Excel** — tombol "Export Excel" di Daftar Jamaah; kolom: nama, L/P, item diterima, item belum, progress % | ✅ |
-| 16 | **K5 – Notif WA kamar ke semua jamaah** — tombol "Notif WA Kamar" di RoomingList; kirim info hotel+nomor kamar via `/api/whatsapp/send` | ✅ |
-| 17 | **K2 – Denah lantai visual (Floor Plan)** — `FloorPlanView.tsx`: grid kamar per lantai, sidebar jamaah belum ditempatkan, drag-and-drop assign | ✅ |
-| 18 | **Room-swap via drag-and-drop** — seret dot penghuni dari kamar ke kamar lain langsung; highlight amber saat drag antar kamar | ✅ |
-| 19 | **K6 – Validasi kompatibilitas mahram** — `MahramCompatibilityAlert.tsx` + hook `useMahramConflicts` + DB RPC `check_mahram_room_conflicts(departure_id, hotel_id)`; alert merah/kuning otomatis di halaman RoomingList saat pasangan mahram belum ditempatkan atau beda hotel | ✅ |
-| 20 | **K3 – Batas kapasitas kamar per hotel** — `hotel_room_capacities` table + `get_hotel_capacity_summary()` DB func + `HotelRoomCapacityCard.tsx` (panel kapasitas di AdminHotels per hotel, expandable) + `HotelCapacityAlert.tsx` + `useHotelRoomCapacities.ts`; alert otomatis di RoomingList + inline hint di dialog Tambah Kamar saat batas kapasitas hotel terlampaui | ✅ |
+| 9 | **QR Code Invoice** — embed QR publik di Form Transaksi PDF | ✅ |
+| 10 | **Invoice Template dinamis** — toggle QR + 3 pilihan posisi | ✅ |
+| 11 | **Fix notif WA error modal** — safe JSON parse, modal dialog + instruksi setup FONNTE_TOKEN | ✅ |
+| 12 | **Cetak Ulang Barcode** — modal cetak QR label per booking (3 ukuran) | ✅ |
+| 13 | **D5 – Lock banner departure departed** | ✅ |
+| 14 | **E5 – Alert stok rendah otomatis** | ✅ |
+| 15 | **E6 – Export distribusi perlengkapan ke Excel** | ✅ |
+| 16 | **K5 – Notif WA kamar ke semua jamaah** | ✅ |
+| 17 | **K2 – Denah lantai visual (Floor Plan)** | ✅ |
+| 18 | **Room-swap via drag-and-drop** | ✅ |
+| 19 | **K6 – Validasi kompatibilitas mahram** | ✅ |
+| 20 | **K3 – Batas kapasitas kamar per hotel** | ✅ |
+| **21** | **FIX-HR1: Tab Cuti & Izin terhubung ke DB** — query `leave_requests` + `leave_quotas`, form pengajuan, approval flow | ✅ |
+| **22** | **FIX-HR2: Tab Kinerja terhubung ke DB** — query `performance_reviews`, form input 5 dimensi, grade otomatis | ✅ |
 
 ---
 
-## STATUS ITEM DARI RENCANA (AUDIT JUNI 2026)
-
-> Verifikasi langsung dari codebase — item yang sebelumnya dikira ❌ ternyata sudah ada:
-
-| Item | Kode | Status Sebenarnya |
-|------|------|-------------------|
-| WA token security (S1/B2) | AdminCicilanReminder + AdminPembayaranReminder | ✅ pakai `/api/whatsapp/send` |
-| special_requests kamar (K4) | DB types + AdminBookingDetail | ✅ sudah ada |
-| Batas diskon max coupon (P4) | CouponForm + StepReviewDynamic | ✅ sudah ada |
-| Auto-slug paket (P5) | `lib/slug.ts` + dipakai di banyak halaman | ✅ sudah ada |
-| History harga paket (P3) | PackagePriceTrendCard + PackagePriceAuditCard di AdminPackageDetail | ✅ sudah ada |
-| Konfirmasi perlengkapan (E3) | EquipmentConfirmationTab | ✅ sudah ada |
-| Laporan stok per departure (E4) | EquipmentStockPerDeparture | ✅ sudah ada |
-
----
-
-## PEKERJAAN BERIKUTNYA (BACKLOG PRIORITAS)
+## BACKLOG AKTIF
 
 ### 🔴 KRITIS (Perlu tindakan user)
 
@@ -510,20 +559,41 @@ RBAC (15 role):
 |---|------|-------|
 | B1 | Set `VITE_SUPABASE_URL` + `VITE_SUPABASE_PUBLISHABLE_KEY` + `SUPABASE_SERVICE_ROLE_KEY` di Replit Secrets — **tanpa ini semua fitur Supabase tidak aktif** | Semua |
 
-### 🟡 NICE TO HAVE (Belum dikerjakan)
+### 🟠 SEGERA DIKERJAKAN
 
 | # | Task | Modul |
 |---|------|-------|
-| B11 | Integrasi SISKOHAT API Kemenag (D1) — butuh akses API Kemenag | Keberangkatan |
-| B12 | Denah lantai / floor plan kamar visual (K2) | Kamar |
-| B13 | Multi-hotel per kota per departure (K7) | Kamar |
-| ~~B14~~ | ~~Export kalender ke ICS/Google Calendar~~ | ~~Platform~~ | ✅ `lib/ics.ts` + tombol "Export Kalender" di AdminDepartures |
-| ~~B15~~ | ~~Withdrawal otomatis wallet agen~~ | ~~Agen~~ | ✅ `AdminWithdrawalManagement.tsx` |
-| B16 | Live tracking posisi rombongan di peta (D6) | Keberangkatan |
-| ~~B17~~ | ~~Validasi kompatibilitas mahram di room assignment (K6)~~ | ~~Kamar~~ |
-| ~~B18~~ | ~~Foto bukti distribusi perlengkapan (E7)~~ | ~~Equipment~~ | ✅ Selesai — lihat E7 di atas |
-| ~~B19~~ | ~~Paket perlengkapan default per tipe paket (E8)~~ | ~~Equipment~~ | ✅ Selesai — lihat E8 di atas |
-| ~~B20~~ | ~~Export laporan server-side PDF & Excel~~ | ~~Platform~~ | ✅ `GET /api/reports/export?type=keuangan|manifest|bookings|agen|payments&format=xlsx|pdf` — pdfkit + xlsx, tombol "Server Excel/PDF" di 3 halaman laporan |
+| FIX-F1 | Trigger DB otomatis recalculate P&L saat booking/payment berubah | HPP/Keuangan |
+| FIX-HR3 | Rekap absensi bulanan + trend chart | HR |
+| FIX-HR4 | Input lembur di payroll | HR |
+| FIX-F2 | Warning margin negatif di DepartureCostItemsCard | HPP |
+
+### 🟡 NICE TO HAVE
+
+| # | Task | Modul |
+|---|------|-------|
+| B11 | Integrasi SISKOHAT API Kemenag (D-G1) — butuh akses API Kemenag | Keberangkatan |
+| B16 | Live tracking posisi rombongan GPS (D-G4) | Keberangkatan |
+| FIX-HR5 | Modul training internal karyawan | HR |
+| FIX-E1 | Link biaya equipment ke HPP departure | Perlengkapan |
+| FIX-P1 | Integrasi `booking_line_items` ke booking workflow | Paket |
+
+---
+
+## EDGE FUNCTIONS (SUPABASE)
+
+| Status | Nama | Fungsi |
+|--------|------|--------|
+| ✅ | `check-document-deadlines` | Reminder deadline dokumen jamaah |
+| ✅ | `check-savings-reminders` | Reminder cicilan tabungan |
+| ✅ | `manifest` | PWA manifest.json dinamis per tenant |
+| ✅ | `midtrans-webhook` | Auto-update status booking setelah bayar |
+| ✅ | `process-push-queue` | Proses antrian push notification (cron) |
+| ✅ | `push-subscribe` | Daftar/hapus push subscription browser |
+| ✅ | `request-2fa-otp` | Kirim OTP untuk 2FA |
+| ✅ | `send-booking-recovery` | Email recovery booking terbengkalai |
+| ✅ | `send-push` | Kirim push notification VAPID |
+| ✅ | `verify-2fa-otp` | Verifikasi OTP 2FA |
 
 ---
 
@@ -537,15 +607,15 @@ Total migration files:      61 file SQL (sql/migrations/001–061)
 Total tabel database:       70+ tabel
 Total role RBAC:            15 role
 Edge functions (Supabase):  10 function
-Express API routes:         ~15 endpoint aktif
+Express API routes:         ~18 endpoint aktif
 
-Fitur tersedia di kode:    ~97% (✅)
-Fitur sebagian:             ~1% (🔧)
+Fitur tersedia di kode:    ~96% (✅)
+Fitur UI ada tapi DB kosong: ~2% (🔧) → sedang diperbaiki
 Fitur belum ada:            ~2% (❌)
 ```
 
 ---
 
-*Terakhir diperbarui: Juni 2026*  
+*Terakhir diperbarui: Juni 2026 — Analisis mendalam modul paket, keberangkatan, perlengkapan, HPP, keuangan, dan HR*  
 *SQL kanonikal: `sql/migrations/` (001–061) + `sql/MASTER_FRESH_INSTALL.sql`*  
 *Supabase migrations: `supabase/migrations/`*

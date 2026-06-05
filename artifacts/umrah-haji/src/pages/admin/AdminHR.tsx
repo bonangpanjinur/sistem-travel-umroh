@@ -105,6 +105,24 @@ export default function AdminHR() {
   const [isExistingUser, setIsExistingUser] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState("");
 
+  // Leave management state
+  const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
+  const [leaveEmployeeId, setLeaveEmployeeId] = useState("");
+  const [leaveType, setLeaveType] = useState<string>("annual");
+  const [leaveStartDate, setLeaveStartDate] = useState("");
+  const [leaveEndDate, setLeaveEndDate] = useState("");
+  const [leaveReason, setLeaveReason] = useState("");
+
+  // Performance review state
+  const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false);
+  const [reviewEmployeeId, setReviewEmployeeId] = useState("");
+  const [reviewEmployeeName, setReviewEmployeeName] = useState("");
+  const [reviewPeriod, setReviewPeriod] = useState("2026-Q2");
+  const [reviewScores, setReviewScores] = useState({ quality: 3, productivity: 3, initiative: 3, teamwork: 3, attendance: 3 });
+  const [reviewStrengths, setReviewStrengths] = useState("");
+  const [reviewImprovements, setReviewImprovements] = useState("");
+  const [reviewGoals, setReviewGoals] = useState("");
+
   // === DATA QUERIES ===
 
   const { data: employees = [], isLoading: loadingEmployees } = useQuery({
@@ -227,6 +245,46 @@ export default function AdminHR() {
         .from("employee_devices")
         .select("*, employee:employees(full_name, employee_code)")
         .order("registered_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Leave requests query
+  const { data: leaveRequests = [] } = useQuery({
+    queryKey: ["leave-requests"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("leave_requests")
+        .select("*, employee:employees(full_name, employee_code, department)")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Leave quotas query
+  const { data: leaveQuotas = [] } = useQuery({
+    queryKey: ["leave-quotas", new Date().getFullYear()],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("leave_quotas")
+        .select("*, employee:employees(full_name, department)")
+        .eq("year", new Date().getFullYear());
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Performance reviews query
+  const { data: performanceReviews = [] } = useQuery({
+    queryKey: ["performance-reviews", reviewPeriod],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("performance_reviews")
+        .select("*, employee:employees(full_name, department, position)")
+        .eq("review_period", reviewPeriod)
+        .order("created_at", { ascending: false });
       if (error) throw error;
       return data;
     },
@@ -389,6 +447,86 @@ export default function AdminHR() {
       handleEmployeeDialogClose();
     },
     onError: (error: Error) => toast.error("Gagal menyimpan: " + error.message),
+  });
+
+  // Leave mutations
+  const createLeaveMutation = useMutation({
+    mutationFn: async () => {
+      if (!leaveEmployeeId || !leaveStartDate || !leaveEndDate || !leaveReason) {
+        throw new Error("Semua field wajib diisi");
+      }
+      const { error } = await supabase.from("leave_requests").insert({
+        employee_id: leaveEmployeeId,
+        leave_type: leaveType as any,
+        start_date: leaveStartDate,
+        end_date: leaveEndDate,
+        reason: leaveReason,
+        status: "pending",
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["leave-requests"] });
+      toast.success("Pengajuan cuti berhasil disubmit");
+      setIsLeaveDialogOpen(false);
+      setLeaveEmployeeId("");
+      setLeaveType("annual");
+      setLeaveStartDate("");
+      setLeaveEndDate("");
+      setLeaveReason("");
+    },
+    onError: (e: Error) => toast.error("Gagal submit cuti: " + e.message),
+  });
+
+  const updateLeaveStatusMutation = useMutation({
+    mutationFn: async ({ id, status, rejection_reason }: { id: string; status: string; rejection_reason?: string }) => {
+      const payload: Record<string, unknown> = { status, approved_at: status === "approved" ? new Date().toISOString() : null };
+      if (rejection_reason) payload.rejection_reason = rejection_reason;
+      const { error } = await supabase.from("leave_requests").update(payload).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["leave-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["leave-quotas"] });
+      toast.success(variables.status === "approved" ? "Cuti disetujui" : "Cuti ditolak");
+    },
+    onError: (e: Error) => toast.error("Gagal update status: " + e.message),
+  });
+
+  // Performance review mutations
+  const saveReviewMutation = useMutation({
+    mutationFn: async () => {
+      if (!reviewEmployeeId) throw new Error("Pilih karyawan");
+      const overall = ((reviewScores.quality + reviewScores.productivity + reviewScores.initiative + reviewScores.teamwork + reviewScores.attendance) / 5);
+      const grade = overall >= 4.5 ? "A" : overall >= 3.5 ? "B" : overall >= 2.5 ? "C" : overall >= 1.5 ? "D" : "E";
+      const { error } = await supabase.from("performance_reviews").upsert({
+        employee_id: reviewEmployeeId,
+        review_period: reviewPeriod,
+        review_type: "quarterly",
+        score_quality: reviewScores.quality,
+        score_productivity: reviewScores.productivity,
+        score_initiative: reviewScores.initiative,
+        score_teamwork: reviewScores.teamwork,
+        score_attendance: reviewScores.attendance,
+        grade,
+        strengths: reviewStrengths,
+        improvements: reviewImprovements,
+        goals: reviewGoals,
+      }, { onConflict: "employee_id,review_period" });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["performance-reviews"] });
+      toast.success("Penilaian kinerja berhasil disimpan");
+      setIsReviewDialogOpen(false);
+      setReviewEmployeeId("");
+      setReviewEmployeeName("");
+      setReviewScores({ quality: 3, productivity: 3, initiative: 3, teamwork: 3, attendance: 3 });
+      setReviewStrengths("");
+      setReviewImprovements("");
+      setReviewGoals("");
+    },
+    onError: (e: Error) => toast.error("Gagal simpan penilaian: " + e.message),
   });
 
   const addDepartmentMutation = useMutation({
@@ -1042,34 +1180,48 @@ export default function AdminHR() {
 
         {/* ═══ TAB CUTI & IZIN ═══ */}
         <TabsContent value="leaves" className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-            {[
-              { label: "Pengajuan Pending", value: 0, color: "text-amber-600", icon: AlertCircle },
-              { label: "Disetujui Bulan Ini", value: 0, color: "text-green-600", icon: CheckCircle2 },
-              { label: "Ditolak",            value: 0, color: "text-red-600",   icon: XCircle },
-              { label: "Total Hari Cuti",    value: 0, color: "text-foreground",icon: CalendarOff },
-            ].map(item => (
-              <Card key={item.label}>
-                <CardContent className="p-4 flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center shrink-0">
-                    <item.icon className={`h-4 w-4 ${item.color}`} />
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">{item.label}</p>
-                    <p className={`text-xl font-bold ${item.color}`}>{item.value}</p>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          {/* Stats cards dari data nyata */}
+          {(() => {
+            const pending = leaveRequests.filter(r => r.status === "pending").length;
+            const approvedThisMonth = leaveRequests.filter(r => {
+              if (r.status !== "approved") return false;
+              const d = new Date(r.updated_at || r.created_at);
+              const now = new Date();
+              return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+            }).length;
+            const rejected = leaveRequests.filter(r => r.status === "rejected").length;
+            const totalDays = leaveRequests.filter(r => r.status === "approved").reduce((s, r) => s + (r.total_days || 0), 0);
+            return (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {[
+                  { label: "Pengajuan Pending", value: pending, color: "text-amber-600", icon: AlertCircle },
+                  { label: "Disetujui Bulan Ini", value: approvedThisMonth, color: "text-green-600", icon: CheckCircle2 },
+                  { label: "Ditolak", value: rejected, color: "text-red-600", icon: XCircle },
+                  { label: "Total Hari Cuti Disetujui", value: totalDays, color: "text-foreground", icon: CalendarOff },
+                ].map(item => (
+                  <Card key={item.label}>
+                    <CardContent className="p-4 flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center shrink-0">
+                        <item.icon className={`h-4 w-4 ${item.color}`} />
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">{item.label}</p>
+                        <p className={`text-xl font-bold ${item.color}`}>{item.value}</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            );
+          })()}
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
                 <CardTitle className="flex items-center gap-2"><CalendarOff className="h-5 w-5" />Pengajuan Cuti & Izin</CardTitle>
-                <CardDescription>Kelola permohonan cuti karyawan</CardDescription>
+                <CardDescription>Kelola permohonan cuti karyawan — {leaveRequests.length} total pengajuan</CardDescription>
               </div>
-              <Button size="sm">
+              <Button size="sm" onClick={() => setIsLeaveDialogOpen(true)}>
                 <Plus className="h-4 w-4 mr-1" />Ajukan Cuti
               </Button>
             </CardHeader>
@@ -1087,23 +1239,72 @@ export default function AdminHR() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">
-                      <CalendarOff className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                      <p>Belum ada pengajuan cuti.</p>
-                      <p className="text-xs mt-1">Karyawan dapat mengajukan cuti melalui halaman ini.</p>
-                    </TableCell>
-                  </TableRow>
+                  {leaveRequests.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">
+                        <CalendarOff className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                        <p>Belum ada pengajuan cuti.</p>
+                        <p className="text-xs mt-1">Klik "Ajukan Cuti" untuk membuat pengajuan baru.</p>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    leaveRequests.map(req => {
+                      const leaveTypeLabel: Record<string, string> = {
+                        annual: "Tahunan", sick: "Sakit", maternity: "Hamil/Melahirkan",
+                        paternity: "Ayah", emergency: "Darurat", unpaid: "Tanpa Gaji", other: "Lainnya"
+                      };
+                      const statusColor: Record<string, string> = {
+                        pending: "bg-amber-100 text-amber-800",
+                        approved: "bg-green-100 text-green-800",
+                        rejected: "bg-red-100 text-red-800",
+                        cancelled: "bg-gray-100 text-gray-600",
+                      };
+                      return (
+                        <TableRow key={req.id}>
+                          <TableCell>
+                            <div className="font-medium">{(req.employee as any)?.full_name || "—"}</div>
+                            <div className="text-xs text-muted-foreground">{(req.employee as any)?.department || ""}</div>
+                          </TableCell>
+                          <TableCell className="text-sm">{leaveTypeLabel[req.leave_type] || req.leave_type}</TableCell>
+                          <TableCell className="text-sm">
+                            <div>{req.start_date}</div>
+                            <div className="text-xs text-muted-foreground">s/d {req.end_date}</div>
+                          </TableCell>
+                          <TableCell className="text-center font-mono font-semibold">{req.total_days} hari</TableCell>
+                          <TableCell className="max-w-[160px] text-sm truncate">{req.reason}</TableCell>
+                          <TableCell>
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColor[req.status] || ""}`}>
+                              {req.status === "pending" ? "Pending" : req.status === "approved" ? "Disetujui" : req.status === "rejected" ? "Ditolak" : "Dibatalkan"}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {req.status === "pending" && (
+                              <div className="flex gap-1 justify-end">
+                                <Button size="sm" variant="outline" className="h-7 text-xs text-green-700 border-green-300"
+                                  onClick={() => updateLeaveStatusMutation.mutate({ id: req.id, status: "approved" })}>
+                                  <CheckCircle2 className="h-3 w-3 mr-1" />Setuju
+                                </Button>
+                                <Button size="sm" variant="outline" className="h-7 text-xs text-red-700 border-red-300"
+                                  onClick={() => { const reason = prompt("Alasan penolakan?"); if (reason) updateLeaveStatusMutation.mutate({ id: req.id, status: "rejected", rejection_reason: reason }); }}>
+                                  <XCircle className="h-3 w-3 mr-1" />Tolak
+                                </Button>
+                              </div>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
                 </TableBody>
               </Table>
             </CardContent>
           </Card>
 
-          {/* Kuota Cuti per Karyawan */}
+          {/* Kuota Cuti per Karyawan — data dari leave_quotas + leave_requests */}
           <Card>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2"><Award className="h-4 w-4" />Kuota Cuti {new Date().getFullYear()}</CardTitle>
-              <CardDescription>Sisa jatah cuti tahunan setiap karyawan</CardDescription>
+              <CardDescription>Sisa jatah cuti tahunan — dari tabel leave_quotas + kalkulasi leave_requests</CardDescription>
             </CardHeader>
             <CardContent>
               <Table>
@@ -1123,15 +1324,22 @@ export default function AdminHR() {
                     </TableRow>
                   ) : (
                     employees.map(emp => {
-                      const quota = 12, used = 0, remaining = quota - used;
-                      const pct = Math.round((used / quota) * 100);
+                      const quota_row = leaveQuotas.find((q: any) => q.employee_id === emp.id);
+                      const quota = quota_row?.annual_quota ?? 12;
+                      const carryOver = quota_row?.carry_over ?? 0;
+                      const approvedDays = leaveRequests
+                        .filter(r => r.employee_id === emp.id && r.status === "approved" && r.leave_type === "annual")
+                        .reduce((s, r) => s + (r.total_days || 0), 0);
+                      const used = quota_row ? quota_row.annual_used : approvedDays;
+                      const remaining = quota + carryOver - used;
+                      const pct = quota > 0 ? Math.min(100, Math.round((used / (quota + carryOver)) * 100)) : 0;
                       return (
                         <TableRow key={emp.id}>
                           <TableCell>
                             <div className="font-medium">{emp.full_name}</div>
                             <div className="text-xs text-muted-foreground">{emp.department || "-"}</div>
                           </TableCell>
-                          <TableCell className="text-center font-mono">{quota}</TableCell>
+                          <TableCell className="text-center font-mono">{quota}{carryOver > 0 ? `+${carryOver}` : ""}</TableCell>
                           <TableCell className="text-center font-mono text-amber-600">{used}</TableCell>
                           <TableCell className="text-center font-mono font-semibold text-green-600">{remaining}</TableCell>
                           <TableCell>
@@ -1157,47 +1365,66 @@ export default function AdminHR() {
           <div className="flex items-center justify-between">
             <div>
               <h3 className="font-semibold">Penilaian Kinerja Karyawan</h3>
-              <p className="text-sm text-muted-foreground">Evaluasi kinerja, produktivitas, dan pencapaian target</p>
+              <p className="text-sm text-muted-foreground">Evaluasi kinerja, produktivitas, dan pencapaian target — periode: {reviewPeriod}</p>
             </div>
             <div className="flex gap-2">
-              <Select defaultValue="2026-Q2">
-                <SelectTrigger className="w-[140px]">
+              <Select value={reviewPeriod} onValueChange={setReviewPeriod}>
+                <SelectTrigger className="w-[150px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="2026-Q2">Q2 2026 (Apr–Jun)</SelectItem>
                   <SelectItem value="2026-Q1">Q1 2026 (Jan–Mar)</SelectItem>
                   <SelectItem value="2025-H2">H2 2025 (Jul–Des)</SelectItem>
+                  <SelectItem value="2025-Q4">Q4 2025 (Okt–Des)</SelectItem>
+                  <SelectItem value="2025-Q3">Q3 2025 (Jul–Sep)</SelectItem>
                 </SelectContent>
               </Select>
-              <Button size="sm">
+              <Button size="sm" onClick={() => {
+                setReviewEmployeeId("");
+                setReviewEmployeeName("");
+                setReviewScores({ quality: 3, productivity: 3, initiative: 3, teamwork: 3, attendance: 3 });
+                setReviewStrengths("");
+                setReviewImprovements("");
+                setReviewGoals("");
+                setIsReviewDialogOpen(true);
+              }}>
                 <Plus className="h-4 w-4 mr-1" />Buat Review
               </Button>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            {[
-              { label: "Rata-rata Nilai",  value: "—",  desc: "Semua karyawan", icon: Star, color: "text-amber-500" },
-              { label: "Review Selesai",   value: "0",  desc: "dari 0 karyawan", icon: CheckCircle2, color: "text-green-600" },
-              { label: "Perlu Perhatian",  value: "0",  desc: "Di bawah standar", icon: AlertCircle, color: "text-red-500" },
-            ].map(item => (
-              <Card key={item.label}>
-                <CardContent className="p-4 flex items-center gap-3">
-                  <item.icon className={`h-8 w-8 ${item.color} shrink-0`} />
-                  <div>
-                    <p className="text-xs text-muted-foreground">{item.label}</p>
-                    <p className="text-2xl font-bold">{item.value}</p>
-                    <p className="text-xs text-muted-foreground">{item.desc}</p>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          {/* Stats dari data nyata */}
+          {(() => {
+            const avgScore = performanceReviews.length > 0
+              ? (performanceReviews.reduce((s: number, r: any) => s + (r.overall_score || 0), 0) / performanceReviews.length).toFixed(1)
+              : "—";
+            const belowAvg = performanceReviews.filter((r: any) => (r.overall_score || 0) < 2.5).length;
+            return (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {[
+                  { label: "Rata-rata Nilai", value: avgScore, desc: `${performanceReviews.length} karyawan dinilai`, icon: Star, color: "text-amber-500" },
+                  { label: "Review Selesai", value: String(performanceReviews.length), desc: `dari ${employees.length} karyawan`, icon: CheckCircle2, color: "text-green-600" },
+                  { label: "Perlu Perhatian", value: String(belowAvg), desc: "Di bawah standar (<2.5)", icon: AlertCircle, color: "text-red-500" },
+                ].map(item => (
+                  <Card key={item.label}>
+                    <CardContent className="p-4 flex items-center gap-3">
+                      <item.icon className={`h-8 w-8 ${item.color} shrink-0`} />
+                      <div>
+                        <p className="text-xs text-muted-foreground">{item.label}</p>
+                        <p className="text-2xl font-bold">{item.value}</p>
+                        <p className="text-xs text-muted-foreground">{item.desc}</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            );
+          })()}
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2"><BarChart3 className="h-4 w-4" />Rekap Penilaian per Karyawan</CardTitle>
+              <CardTitle className="text-base flex items-center gap-2"><BarChart3 className="h-4 w-4" />Rekap Penilaian per Karyawan — {reviewPeriod}</CardTitle>
             </CardHeader>
             <CardContent>
               <Table>
@@ -1219,35 +1446,63 @@ export default function AdminHR() {
                     <TableRow>
                       <TableCell colSpan={9} className="text-center py-10 text-muted-foreground">
                         <Star className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                        <p>Belum ada penilaian kinerja periode ini.</p>
-                        <p className="text-xs mt-1">Klik "Buat Review" untuk mulai evaluasi.</p>
+                        <p>Belum ada karyawan terdaftar.</p>
                       </TableCell>
                     </TableRow>
                   ) : (
-                    employees.map(emp => (
-                      <TableRow key={emp.id}>
-                        <TableCell>
-                          <div className="font-medium">{emp.full_name}</div>
-                          <div className="text-xs text-muted-foreground">{emp.position || emp.department || "-"}</div>
-                        </TableCell>
-                        {[0, 0, 0, 0, 0].map((_, i) => (
-                          <TableCell key={i} className="text-center">
-                            <span className="text-muted-foreground text-sm">—</span>
+                    employees.map(emp => {
+                      const review = performanceReviews.find((r: any) => r.employee_id === emp.id);
+                      const gradeColor: Record<string, string> = {
+                        A: "bg-green-100 text-green-800", B: "bg-blue-100 text-blue-800",
+                        C: "bg-amber-100 text-amber-800", D: "bg-orange-100 text-orange-800", E: "bg-red-100 text-red-800"
+                      };
+                      const scoreCell = (val: number | null | undefined) => val != null
+                        ? <span className="font-mono font-semibold">{val.toFixed(1)}</span>
+                        : <span className="text-muted-foreground text-sm">—</span>;
+                      return (
+                        <TableRow key={emp.id}>
+                          <TableCell>
+                            <div className="font-medium">{emp.full_name}</div>
+                            <div className="text-xs text-muted-foreground">{emp.position || emp.department || "-"}</div>
                           </TableCell>
-                        ))}
-                        <TableCell className="text-center">
-                          <span className="font-bold text-muted-foreground">—</span>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Badge variant="secondary" className="text-xs">Belum</Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button variant="outline" size="sm" className="h-7 text-xs">
-                            <Edit className="h-3 w-3 mr-1" />Nilai
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))
+                          <TableCell className="text-center">{scoreCell(review?.score_quality)}</TableCell>
+                          <TableCell className="text-center">{scoreCell(review?.score_productivity)}</TableCell>
+                          <TableCell className="text-center">{scoreCell(review?.score_initiative)}</TableCell>
+                          <TableCell className="text-center">{scoreCell(review?.score_teamwork)}</TableCell>
+                          <TableCell className="text-center">{scoreCell(review?.score_attendance)}</TableCell>
+                          <TableCell className="text-center">
+                            {review?.overall_score != null
+                              ? <span className="font-bold text-lg">{Number(review.overall_score).toFixed(1)}</span>
+                              : <span className="font-bold text-muted-foreground">—</span>}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {review?.grade
+                              ? <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${gradeColor[review.grade] || "bg-muted"}`}>{review.grade}</span>
+                              : <Badge variant="secondary" className="text-xs">Belum</Badge>}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button variant="outline" size="sm" className="h-7 text-xs"
+                              onClick={() => {
+                                setReviewEmployeeId(emp.id);
+                                setReviewEmployeeName(emp.full_name);
+                                setReviewScores({
+                                  quality: review?.score_quality ?? 3,
+                                  productivity: review?.score_productivity ?? 3,
+                                  initiative: review?.score_initiative ?? 3,
+                                  teamwork: review?.score_teamwork ?? 3,
+                                  attendance: review?.score_attendance ?? 3,
+                                });
+                                setReviewStrengths(review?.strengths || "");
+                                setReviewImprovements(review?.improvements || "");
+                                setReviewGoals(review?.goals || "");
+                                setIsReviewDialogOpen(true);
+                              }}>
+                              <Edit className="h-3 w-3 mr-1" />{review ? "Edit" : "Nilai"}
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
                   )}
                 </TableBody>
               </Table>
@@ -1751,6 +2006,176 @@ function ManualAttendanceSection({ employees, queryClient }: { employees: Employ
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Batal</Button>
             <Button onClick={() => submitManualMutation.mutate()} disabled={submitManualMutation.isPending}>
               {submitManualMutation.isPending ? 'Menyimpan...' : 'Simpan Absensi'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Dialog Ajukan Cuti ── */}
+      <Dialog open={isLeaveDialogOpen} onOpenChange={setIsLeaveDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><CalendarOff className="h-5 w-5" />Ajukan Cuti / Izin</DialogTitle>
+            <DialogDescription>Isi form pengajuan cuti untuk karyawan</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label>Karyawan *</Label>
+              <Select value={leaveEmployeeId} onValueChange={setLeaveEmployeeId}>
+                <SelectTrigger><SelectValue placeholder="Pilih karyawan..." /></SelectTrigger>
+                <SelectContent>
+                  {employees.filter(e => e.is_active).map(emp => (
+                    <SelectItem key={emp.id} value={emp.id}>{emp.full_name} — {emp.department || "-"}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Jenis Cuti *</Label>
+              <Select value={leaveType} onValueChange={setLeaveType}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="annual">Cuti Tahunan</SelectItem>
+                  <SelectItem value="sick">Cuti Sakit</SelectItem>
+                  <SelectItem value="maternity">Cuti Hamil/Melahirkan</SelectItem>
+                  <SelectItem value="paternity">Cuti Ayah</SelectItem>
+                  <SelectItem value="emergency">Cuti Darurat</SelectItem>
+                  <SelectItem value="unpaid">Izin Tanpa Gaji</SelectItem>
+                  <SelectItem value="other">Lainnya</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Tanggal Mulai *</Label>
+                <Input type="date" value={leaveStartDate} onChange={e => setLeaveStartDate(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Tanggal Selesai *</Label>
+                <Input type="date" value={leaveEndDate} onChange={e => setLeaveEndDate(e.target.value)} min={leaveStartDate} />
+              </div>
+            </div>
+            {leaveStartDate && leaveEndDate && leaveStartDate <= leaveEndDate && (
+              <div className="bg-blue-50 dark:bg-blue-900/20 rounded p-2 text-sm text-blue-700 dark:text-blue-300">
+                Durasi: <strong>{Math.ceil((new Date(leaveEndDate).getTime() - new Date(leaveStartDate).getTime()) / 86400000) + 1} hari</strong>
+              </div>
+            )}
+            <div className="space-y-1.5">
+              <Label>Alasan *</Label>
+              <Textarea
+                placeholder="Jelaskan alasan pengajuan cuti..."
+                value={leaveReason}
+                onChange={e => setLeaveReason(e.target.value)}
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsLeaveDialogOpen(false)}>Batal</Button>
+            <Button onClick={() => createLeaveMutation.mutate()} disabled={createLeaveMutation.isPending}>
+              {createLeaveMutation.isPending ? "Menyimpan..." : "Ajukan Cuti"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Dialog Penilaian Kinerja ── */}
+      <Dialog open={isReviewDialogOpen} onOpenChange={setIsReviewDialogOpen}>
+        <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Star className="h-5 w-5 text-amber-500" />Penilaian Kinerja</DialogTitle>
+            <DialogDescription>
+              {reviewEmployeeName ? `Karyawan: ${reviewEmployeeName}` : "Pilih karyawan dan isi skor 1–5 untuk setiap dimensi"}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            {!reviewEmployeeId && (
+              <div className="space-y-1.5">
+                <Label>Karyawan *</Label>
+                <Select value={reviewEmployeeId} onValueChange={id => {
+                  setReviewEmployeeId(id);
+                  const emp = employees.find(e => e.id === id);
+                  setReviewEmployeeName(emp?.full_name || "");
+                }}>
+                  <SelectTrigger><SelectValue placeholder="Pilih karyawan..." /></SelectTrigger>
+                  <SelectContent>
+                    {employees.filter(e => e.is_active).map(emp => (
+                      <SelectItem key={emp.id} value={emp.id}>{emp.full_name} — {emp.department || "-"}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            <Separator />
+            <p className="text-sm font-medium text-muted-foreground">Skor 1 (Sangat Kurang) — 5 (Sangat Baik)</p>
+
+            {([
+              { key: "quality", label: "Kualitas Kerja" },
+              { key: "productivity", label: "Produktivitas" },
+              { key: "initiative", label: "Inisiatif" },
+              { key: "teamwork", label: "Kerjasama Tim" },
+              { key: "attendance", label: "Kehadiran & Disiplin" },
+            ] as { key: keyof typeof reviewScores; label: string }[]).map(dim => (
+              <div key={dim.key} className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <Label>{dim.label}</Label>
+                  <span className="font-mono font-bold text-lg text-primary">{reviewScores[dim.key]}</span>
+                </div>
+                <div className="flex gap-2">
+                  {[1, 2, 3, 4, 5].map(v => (
+                    <button
+                      key={v}
+                      type="button"
+                      onClick={() => setReviewScores(prev => ({ ...prev, [dim.key]: v }))}
+                      className={`flex-1 h-9 rounded text-sm font-semibold border transition-colors ${
+                        reviewScores[dim.key] === v
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-background border-border hover:bg-muted"
+                      }`}
+                    >{v}</button>
+                  ))}
+                </div>
+              </div>
+            ))}
+
+            <Separator />
+            {(() => {
+              const avg = ((reviewScores.quality + reviewScores.productivity + reviewScores.initiative + reviewScores.teamwork + reviewScores.attendance) / 5);
+              const grade = avg >= 4.5 ? "A" : avg >= 3.5 ? "B" : avg >= 2.5 ? "C" : avg >= 1.5 ? "D" : "E";
+              return (
+                <div className="bg-muted rounded-lg p-3 flex items-center justify-between">
+                  <span className="text-sm font-medium">Nilai Akhir</span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl font-bold">{avg.toFixed(1)}</span>
+                    <span className={`text-xl font-bold px-2 py-0.5 rounded ${
+                      grade === "A" ? "bg-green-100 text-green-800" :
+                      grade === "B" ? "bg-blue-100 text-blue-800" :
+                      grade === "C" ? "bg-amber-100 text-amber-800" :
+                      grade === "D" ? "bg-orange-100 text-orange-800" : "bg-red-100 text-red-800"
+                    }`}>Grade {grade}</span>
+                  </div>
+                </div>
+              );
+            })()}
+
+            <div className="space-y-1.5">
+              <Label>Kelebihan / Kekuatan</Label>
+              <Textarea placeholder="Apa kelebihan utama karyawan ini?" value={reviewStrengths} onChange={e => setReviewStrengths(e.target.value)} rows={2} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Area Perbaikan</Label>
+              <Textarea placeholder="Apa yang perlu ditingkatkan?" value={reviewImprovements} onChange={e => setReviewImprovements(e.target.value)} rows={2} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Target / Goals Periode Berikutnya</Label>
+              <Textarea placeholder="Target karyawan untuk periode berikutnya..." value={reviewGoals} onChange={e => setReviewGoals(e.target.value)} rows={2} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsReviewDialogOpen(false)}>Batal</Button>
+            <Button onClick={() => saveReviewMutation.mutate()} disabled={saveReviewMutation.isPending || !reviewEmployeeId}>
+              {saveReviewMutation.isPending ? "Menyimpan..." : "Simpan Penilaian"}
             </Button>
           </DialogFooter>
         </DialogContent>
