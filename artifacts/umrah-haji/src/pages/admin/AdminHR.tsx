@@ -70,7 +70,7 @@ const generateEmployeeCode = (): string => {
 export default function AdminHR() {
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "employees");
+  const [activeTab, setActiveTab] = useState<string>(searchParams.get("tab") || "employees");
 
   useEffect(() => {
     const tab = searchParams.get("tab");
@@ -459,7 +459,7 @@ export default function AdminHR() {
 
   const updateLeaveStatusMutation = useMutation({
     mutationFn: async ({ id, status, rejection_reason }: { id: string; status: string; rejection_reason?: string }) => {
-      const payload: Record<string, unknown> = { status, approved_at: status === "approved" ? new Date().toISOString() : null };
+      const payload: any = { status, approved_at: status === "approved" ? new Date().toISOString() : null };
       if (rejection_reason) payload.rejection_reason = rejection_reason;
       const { error } = await supabase.from("leave_requests").update(payload).eq("id", id);
       if (error) throw error;
@@ -1167,7 +1167,9 @@ export default function AdminHR() {
             const pending = leaveRequests.filter(r => r.status === "pending").length;
             const approvedThisMonth = leaveRequests.filter(r => {
               if (r.status !== "approved") return false;
-              const d = new Date(r.updated_at || r.created_at);
+              const dateStr = r.updated_at || r.created_at;
+              if (!dateStr) return false;
+              const d = new Date(dateStr);
               const now = new Date();
               return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
             }).length;
@@ -1247,7 +1249,7 @@ export default function AdminHR() {
                             <div className="font-medium">{(req.employee as any)?.full_name || "—"}</div>
                             <div className="text-xs text-muted-foreground">{(req.employee as any)?.department || ""}</div>
                           </TableCell>
-                          <TableCell className="text-sm">{leaveTypeLabel[req.leave_type] || req.leave_type}</TableCell>
+                          <TableCell className="text-sm">{leaveTypeLabel[req.leave_type as string] || req.leave_type}</TableCell>
                           <TableCell className="text-sm">
                             <div>{req.start_date}</div>
                             <div className="text-xs text-muted-foreground">s/d {req.end_date}</div>
@@ -1255,7 +1257,7 @@ export default function AdminHR() {
                           <TableCell className="text-center font-mono font-semibold">{req.total_days} hari</TableCell>
                           <TableCell className="max-w-[160px] text-sm truncate">{req.reason}</TableCell>
                           <TableCell>
-                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColor[req.status] || ""}`}>
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColor[req.status as string] || ""}`}>
                               {req.status === "pending" ? "Pending" : req.status === "approved" ? "Disetujui" : req.status === "rejected" ? "Ditolak" : "Dibatalkan"}
                             </span>
                           </TableCell>
@@ -2098,8 +2100,8 @@ function ManualAttendanceSection({ employees, queryClient }: { employees: Employ
               { key: "initiative", label: "Inisiatif" },
               { key: "teamwork", label: "Kerjasama Tim" },
               { key: "attendance", label: "Kehadiran & Disiplin" },
-            ] as { key: keyof typeof reviewScores; label: string }[]).map(dim => (
-              <div key={dim.key} className="space-y-1">
+            ] as { key: keyof typeof reviewScores; label: string }[]).map((dim) => (
+              <div key={String(dim.key)} className="space-y-1">
                 <div className="flex items-center justify-between">
                   <Label>{dim.label}</Label>
                   <span className="font-mono font-bold text-lg text-primary">{reviewScores[dim.key]}</span>
