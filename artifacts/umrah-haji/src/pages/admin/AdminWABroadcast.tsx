@@ -155,13 +155,13 @@ export default function AdminWABroadcast() {
       if (status === "scheduled" && scheduledAt) {
         payload.scheduled_at = new Date(scheduledAt).toISOString();
       }
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("wa_broadcast_campaigns")
         .insert(payload)
         .select("id")
         .single();
       if (error) throw error;
-      return data.id as string;
+      return (data as any).id as string;
     },
   });
 
@@ -203,7 +203,7 @@ export default function AdminWABroadcast() {
 
         // Log per recipient
         if (campaignId) {
-          supabase.from("wa_broadcast_logs").insert({
+          (supabase as any).from("wa_broadcast_logs").insert({
             campaign_id: campaignId,
             booking_id: r.id,
             phone: r.phone_number || r.customer?.phone_number,
@@ -222,7 +222,7 @@ export default function AdminWABroadcast() {
 
     // Update campaign status
     if (campaignId) {
-      await supabase.from("wa_broadcast_campaigns").update({
+      await (supabase as any).from("wa_broadcast_campaigns").update({
         status: "done",
         sent_at: new Date().toISOString(),
         success_count: successCount,
@@ -259,12 +259,12 @@ export default function AdminWABroadcast() {
     queryKey: ["broadcast-campaigns"],
     enabled: tab === "histori",
     queryFn: async () => {
-      const { data } = await supabase
+      const { data } = await (supabase as any)
         .from("wa_broadcast_campaigns")
         .select("*")
         .order("created_at", { ascending: false })
         .limit(50);
-      return data || [];
+      return (data || []) as any[];
     },
   });
 
@@ -273,7 +273,7 @@ export default function AdminWABroadcast() {
     queryKey: ["broadcast-logs", logsOpenId],
     enabled: !!logsOpenId,
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("wa_broadcast_logs")
         .select(`
           id, phone, message, status, sent_at, error_msg, created_at,

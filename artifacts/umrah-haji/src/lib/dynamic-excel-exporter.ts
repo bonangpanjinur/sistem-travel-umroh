@@ -201,10 +201,16 @@ export function exportDynamicBookingExcel(
   const totalRevenue = bookings.reduce((sum, b) => sum + b.total_price, 0);
   const totalPaid = bookings.reduce((sum, b) => sum + b.paid_amount, 0);
   const totalPax = bookings.reduce((sum, b) => sum + b.total_pax, 0);
+  const totalAdult = bookings.reduce((sum, b) => sum + (b.adult_count ?? b.total_pax ?? 0), 0);
+  const totalChild = bookings.reduce((sum, b) => sum + (b.child_count ?? 0), 0);
+  const totalInfant = bookings.reduce((sum, b) => sum + (b.infant_count ?? 0), 0);
 
   const summaryData = [
     ['Total Booking', bookings.length.toString()],
     ['Total Jamaah', totalPax.toString()],
+    ['  › Dewasa', totalAdult.toString()],
+    ['  › Anak', totalChild.toString()],
+    ['  › Bayi', totalInfant.toString()],
     ['Total Pendapatan', formatCurrency(totalRevenue)],
     ['Total Terbayar', formatCurrency(totalPaid)],
   ];
