@@ -170,6 +170,9 @@ importers:
 
   artifacts/api-server:
     dependencies:
+      '@supabase/supabase-js':
+        specifier: ^2.105.1
+        version: 2.105.4
       '@types/nodemailer':
         specifier: ^8.0.0
         version: 8.0.0

@@ -170,6 +170,9 @@ const AdminLaporanReminder = lazy(() => import("@/pages/admin/AdminLaporanRemind
 const AdminWAProvider = lazy(() => import("@/pages/admin/AdminWAProvider"));
 const AdminWARoadmap  = lazy(() => import("@/pages/admin/AdminWARoadmap"));
 
+// Fase 32 — WA Broadcast Tersegmentasi
+const AdminWABroadcast = lazy(() => import("@/pages/admin/AdminWABroadcast"));
+
 // Fase 9 — Integrasi & Otomasi
 const AdminWAOtomatis = lazy(() => import("@/pages/admin/AdminWAOtomatis"));
 const AdminMidtrans = lazy(() => import("@/pages/admin/AdminMidtrans"));
@@ -419,8 +422,11 @@ export default function AdminRoutes() {
       <Route path="wa-blast" element={<P k={PERMISSIONS.WA_BLAST_KEBERANGKATAN}><AdminWABlastKeberangkatan /></P>} />
 
       {/* Fase 31 — WA Multi-Provider */}
-      <Route path="wa-provider" element={<P k={PERMISSIONS.WA_PROVIDER}><LazyPage><AdminWAProvider /></LazyPage></P>} />
-      <Route path="wa-roadmap"  element={<P k={PERMISSIONS.WA_ROADMAP}><LazyPage><AdminWARoadmap /></LazyPage></P>} />
+      <Route path="wa-provider"   element={<P k={PERMISSIONS.WA_PROVIDER}><LazyPage><AdminWAProvider /></LazyPage></P>} />
+      <Route path="wa-roadmap"    element={<P k={PERMISSIONS.WA_ROADMAP}><LazyPage><AdminWARoadmap /></LazyPage></P>} />
+
+      {/* Fase 32 — WA Broadcast Tersegmentasi */}
+      <Route path="wa-broadcast"  element={<P k={PERMISSIONS.WA_BROADCAST}><LazyPage><AdminWABroadcast /></LazyPage></P>} />
 
       {/* Fase 9 — Integrasi & Otomasi */}
       <Route path="wa-otomatis" element={<P k={PERMISSIONS.WA_OTOMATIS}><AdminWAOtomatis /></P>} />

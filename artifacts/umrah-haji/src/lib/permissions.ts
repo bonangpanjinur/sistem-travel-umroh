@@ -143,6 +143,7 @@ export const PERMISSIONS = {
   ABSENSI_DIGITAL: 'absensi-digital',
   WA_BLAST_KEBERANGKATAN: 'wa-blast-keberangkatan',
   WA_BLAST_TAGIHAN: 'wa-blast-tagihan',
+  WA_BROADCAST: 'wa-broadcast',
   MUTHAWIF_DASHBOARD: 'muthawif-dashboard',
 
   // Fase 9 — Integrasi & Otomasi
