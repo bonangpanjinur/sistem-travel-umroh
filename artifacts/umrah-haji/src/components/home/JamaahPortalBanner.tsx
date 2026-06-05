@@ -47,10 +47,9 @@ export function JamaahPortalBanner() {
 
   // Animate in after mount
   useEffect(() => {
-    if (!dismissed) {
-      const t = setTimeout(() => setVisible(true), 80);
-      return () => clearTimeout(t);
-    }
+    if (dismissed) return;
+    const t = setTimeout(() => setVisible(true), 80);
+    return () => clearTimeout(t);
   }, [dismissed]);
 
   // Fetch customer account

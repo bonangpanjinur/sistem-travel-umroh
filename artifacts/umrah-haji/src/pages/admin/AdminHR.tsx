@@ -773,6 +773,34 @@ export default function AdminHR() {
           <ManualAttendanceSection 
             employees={employees} 
             queryClient={queryClient}
+            isLeaveDialogOpen={isLeaveDialogOpen}
+            setIsLeaveDialogOpen={setIsLeaveDialogOpen}
+            leaveEmployeeId={leaveEmployeeId}
+            setLeaveEmployeeId={setLeaveEmployeeId}
+            leaveType={leaveType}
+            setLeaveType={setLeaveType}
+            leaveStartDate={leaveStartDate}
+            setLeaveStartDate={setLeaveStartDate}
+            leaveEndDate={leaveEndDate}
+            setLeaveEndDate={setLeaveEndDate}
+            leaveReason={leaveReason}
+            setLeaveReason={setLeaveReason}
+            createLeaveMutation={createLeaveMutation}
+            isReviewDialogOpen={isReviewDialogOpen}
+            setIsReviewDialogOpen={setIsReviewDialogOpen}
+            reviewEmployeeId={reviewEmployeeId}
+            setReviewEmployeeId={setReviewEmployeeId}
+            reviewEmployeeName={reviewEmployeeName}
+            setReviewEmployeeName={setReviewEmployeeName}
+            reviewScores={reviewScores}
+            setReviewScores={setReviewScores}
+            reviewStrengths={reviewStrengths}
+            setReviewStrengths={setReviewStrengths}
+            reviewImprovements={reviewImprovements}
+            setReviewImprovements={setReviewImprovements}
+            reviewGoals={reviewGoals}
+            setReviewGoals={setReviewGoals}
+            saveReviewMutation={saveReviewMutation}
           />
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
@@ -1882,7 +1910,69 @@ function WorkScheduleEditor({ employeeId, initialSchedules, onSave, isSaving }: 
 }
 
 // Manual Attendance Section Component
-function ManualAttendanceSection({ employees, queryClient }: { employees: Employee[]; queryClient: any }) {
+function ManualAttendanceSection({ 
+  employees, 
+  queryClient,
+  isLeaveDialogOpen,
+  setIsLeaveDialogOpen,
+  leaveEmployeeId,
+  setLeaveEmployeeId,
+  leaveType,
+  setLeaveType,
+  leaveStartDate,
+  setLeaveStartDate,
+  leaveEndDate,
+  setLeaveEndDate,
+  leaveReason,
+  setLeaveReason,
+  createLeaveMutation,
+  isReviewDialogOpen,
+  setIsReviewDialogOpen,
+  reviewEmployeeId,
+  setReviewEmployeeId,
+  reviewEmployeeName,
+  setReviewEmployeeName,
+  reviewScores,
+  setReviewScores,
+  reviewStrengths,
+  setReviewStrengths,
+  reviewImprovements,
+  setReviewImprovements,
+  reviewGoals,
+  setReviewGoals,
+  saveReviewMutation
+}: { 
+  employees: Employee[]; 
+  queryClient: any;
+  isLeaveDialogOpen: boolean;
+  setIsLeaveDialogOpen: (open: boolean) => void;
+  leaveEmployeeId: string;
+  setLeaveEmployeeId: (id: string) => void;
+  leaveType: string;
+  setLeaveType: (type: string) => void;
+  leaveStartDate: string;
+  setLeaveStartDate: (date: string) => void;
+  leaveEndDate: string;
+  setLeaveEndDate: (date: string) => void;
+  leaveReason: string;
+  setLeaveReason: (reason: string) => void;
+  createLeaveMutation: any;
+  isReviewDialogOpen: boolean;
+  setIsReviewDialogOpen: (open: boolean) => void;
+  reviewEmployeeId: string;
+  setReviewEmployeeId: (id: string) => void;
+  reviewEmployeeName: string;
+  setReviewEmployeeName: (name: string) => void;
+  reviewScores: any;
+  setReviewScores: (scores: any) => void;
+  reviewStrengths: string;
+  setReviewStrengths: (s: string) => void;
+  reviewImprovements: string;
+  setReviewImprovements: (s: string) => void;
+  reviewGoals: string;
+  setReviewGoals: (s: string) => void;
+  saveReviewMutation: any;
+}) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [manualData, setManualData] = useState({
     employee_id: '',
@@ -2100,20 +2190,20 @@ function ManualAttendanceSection({ employees, queryClient }: { employees: Employ
               { key: "initiative", label: "Inisiatif" },
               { key: "teamwork", label: "Kerjasama Tim" },
               { key: "attendance", label: "Kehadiran & Disiplin" },
-            ] as { key: keyof typeof reviewScores; label: string }[]).map((dim) => (
+            ] as { key: string; label: string }[]).map((dim) => (
               <div key={String(dim.key)} className="space-y-1">
                 <div className="flex items-center justify-between">
                   <Label>{dim.label}</Label>
-                  <span className="font-mono font-bold text-lg text-primary">{reviewScores[dim.key]}</span>
+                  <span className="font-mono font-bold text-lg text-primary">{reviewScores[dim.key as keyof typeof reviewScores]}</span>
                 </div>
                 <div className="flex gap-2">
                   {[1, 2, 3, 4, 5].map(v => (
                     <button
                       key={v}
                       type="button"
-                      onClick={() => setReviewScores(prev => ({ ...prev, [dim.key]: v }))}
+                      onClick={() => setReviewScores((prev: any) => ({ ...prev, [dim.key]: v }))}
                       className={`flex-1 h-9 rounded text-sm font-semibold border transition-colors ${
-                        reviewScores[dim.key] === v
+                        reviewScores[dim.key as keyof typeof reviewScores] === v
                           ? "bg-primary text-primary-foreground border-primary"
                           : "bg-background border-border hover:bg-muted"
                       }`}
