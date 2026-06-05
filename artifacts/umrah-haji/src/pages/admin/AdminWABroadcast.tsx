@@ -1,394 +1,127 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase as supabaseRaw } from "@/integrations/supabase/client";
-const supabase: any = supabaseRaw;
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Progress } from "@/components/ui/progress";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Separator } from "@/components/ui/separator";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
-import {
-  Megaphone, Send, Users, AlertCircle, RefreshCcw, Eye,
-  CalendarClock, Filter, CheckCircle2, XCircle, Clock,
-  ChevronRight, Package, Plane, Wallet, Phone, RotateCw,
-  History, Plus, Info, ListFilter, ClipboardList, Search,
-  Download, ChevronDown
-} from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
-import { toast } from "sonner";
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-function formatRp(n: number) {
-  return "Rp " + Math.round(n).toLocaleString("id-ID");
-}
-function fmtDate(d: string | null, short = false) {
-  if (!d) return "-";
-  return format(parseISO(d), short ? "dd MMM yy" : "dd MMMM yyyy", { locale: idLocale });
-}
-function statusBadge(status: string) {
-  const map: Record<string, { label: string; class: string }> = {
-    draft:     { label: "Draft",     class: "bg-gray-100 text-gray-700" },
-    scheduled: { label: "Dijadwal",  class: "bg-blue-100 text-blue-700" },
-    sending:   { label: "Mengirim",  class: "bg-amber-100 text-amber-700" },
-    done:      { label: "Selesai",   class: "bg-emerald-100 text-emerald-700" },
-    cancelled: { label: "Dibatal",   class: "bg-red-100 text-red-700" },
-  };
-  const s = map[status] || { label: status, class: "bg-gray-100 text-gray-700" };
-  return <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium ${s.class}`}>{s.label}</span>;
-}
-
-const PAYMENT_STATUS_OPTIONS = [
-  { value: "pending",  label: "Belum Bayar" },
-  { value: "partial",  label: "Bayar Sebagian" },
-  { value: "paid",     label: "Lunas" },
-];
-
-const BOOKING_STATUS_OPTIONS = [
-  { value: "pending",   label: "Pending" },
-  { value: "confirmed", label: "Confirmed" },
-  { value: "processing",label: "Processing" },
-  { value: "completed", label: "Completed" },
-];
+import { toast } from "react-hot-toast";
+import { 
+  Search, Filter, Send, History, Settings, Info, CheckCircle2, 
+  XCircle, Clock, ChevronRight, Download, Eye, RefreshCw, 
+  LayoutDashboard, MessagesSquare, Phone, User, Calendar, 
+  ScrollText, Smile, TrendingUp, BrainCircuit, Sparkles,
+  FileSearch, FileCog, FileText, FileOutput, ShieldAlert,
+  WifiOff, LifeBuoy, ClipboardList, Briefcase, UserCog,
+  Wallet, Hotel, Plane, Building, Store, PersonStanding,
+  Bus, Database, Layout, Smartphone, Share2, MessageCircle
+} from "lucide-react";
+import { supabase } from "@/lib/supabase";
+import { PERMISSIONS } from "@/lib/permissions";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { 
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue 
+} from "@/components/ui/select";
+import { 
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter 
+} from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import { Progress } from "@/components/ui/progress";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const TEMPLATES = [
-  {
-    id: "pengingat_keberangkatan",
-    label: "Pengingat Keberangkatan",
-    vars: ["{nama}", "{tanggal_berangkat}", "{nama_paket}"],
-    message: `Assalamu'alaikum Bapak/Ibu *{nama}*,
-
-Kami mengingatkan bahwa keberangkatan *{nama_paket}* Anda pada *{tanggal_berangkat}* sudah semakin dekat.
-
-📋 *Persiapan yang perlu dilakukan:*
-• Pastikan paspor masih berlaku min. 6 bulan
-• Siapkan dokumen: KTP, KK, buku nikah
-• Vaksin meningitis (jika belum)
-• Lunasi sisa pembayaran (jika ada)
-
-Informasi lebih lanjut hubungi kami. Jazakallah khair 🤲`,
-  },
-  {
-    id: "tagihan_outstanding",
-    label: "Tagihan Outstanding",
-    vars: ["{nama}", "{kode_booking}", "{nama_paket}", "{sisa_bayar}"],
-    message: `Assalamu'alaikum Bapak/Ibu *{nama}*,
-
-Kami dari Vinstour Travel ingin mengingatkan bahwa masih terdapat sisa pembayaran untuk paket perjalanan Anda.
-
-📋 *Detail Tagihan:*
-• Kode Booking: *{kode_booking}*
-• Paket: *{nama_paket}*
-• Sisa Tagihan: *{sisa_bayar}*
-
-Mohon segera melakukan pelunasan agar proses keberangkatan berjalan lancar.
-
-Jazakallah khair 🤲`,
-  },
-  {
-    id: "info_promo",
-    label: "Info Promo / Pengumuman",
-    vars: ["{nama}"],
-    message: `Assalamu'alaikum Bapak/Ibu *{nama}*,
-
-Kami dari *Vinstour Travel* ingin menyampaikan informasi penting untuk Anda.
-
-[Tulis isi pengumuman / promo di sini]
-
-Untuk informasi lebih lanjut silakan hubungi kami.
-
-Barakallahu fiikum 🌙`,
-  },
-  {
-    id: "konfirmasi_lunas",
-    label: "Konfirmasi Pembayaran Lunas",
-    vars: ["{nama}", "{kode_booking}", "{nama_paket}", "{tanggal_berangkat}"],
-    message: `Assalamu'alaikum Bapak/Ibu *{nama}*,
-
-*Alhamdulillah*, pembayaran Anda telah kami terima dan dinyatakan *LUNAS* ✅
-
-📋 *Detail:*
-• Kode Booking: *{kode_booking}*
-• Paket: *{nama_paket}*
-• Keberangkatan: *{tanggal_berangkat}*
-
-Selamat! Persiapkan diri Anda untuk perjalanan ibadah yang penuh berkah 🕋
-
-_Tim Vinstour Travel_`,
-  },
-  {
-    id: "custom",
-    label: "Pesan Kustom",
-    vars: [],
-    message: "",
-  },
+  { id: "custom", name: "Kustom", message: "" },
+  { id: "promo",  name: "Promo Paket", message: "Assalamu'alaikum [nama], dapatkan penawaran spesial paket [paket] hanya untuk Anda!" },
+  { id: "remind", name: "Reminder Pembayaran", message: "Assalamu'alaikum [nama], kami ingatkan untuk pembayaran paket [paket] yang akan jatuh tempo." },
+  { id: "info",   name: "Info Keberangkatan", message: "Assalamu'alaikum [nama], berikut informasi terkait keberangkatan Anda untuk paket [paket]." },
 ];
 
-// ─── MultiSelect chip component ───────────────────────────────────────────────
-function MultiSelectChips({
-  label, icon: Icon, options, selected, onToggle, emptyLabel,
-}: {
-  label: string;
-  icon: any;
-  options: { value: string; label: string; sub?: string }[];
-  selected: Set<string>;
-  onToggle: (v: string) => void;
-  emptyLabel: string;
-}) {
-  return (
-    <div>
-      <Label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5 mb-2">
-        <Icon className="h-3.5 w-3.5" />
-        {label}
-        {selected.size > 0 && (
-          <Badge variant="secondary" className="ml-1 h-4 text-[10px] px-1.5">{selected.size}</Badge>
-        )}
-      </Label>
-      {options.length === 0 ? (
-        <p className="text-xs text-muted-foreground italic">{emptyLabel}</p>
-      ) : (
-        <ScrollArea className="max-h-40">
-          <div className="space-y-1 pr-2">
-            {options.map(opt => (
-              <div
-                key={opt.value}
-                className={`flex items-center gap-2.5 px-3 py-2 rounded-md cursor-pointer transition-colors text-sm
-                  ${selected.has(opt.value) ? "bg-primary/10 border border-primary/20" : "hover:bg-muted/50 border border-transparent"}`}
-                onClick={() => onToggle(opt.value)}
-              >
-                <Checkbox checked={selected.has(opt.value)} className="flex-shrink-0" />
-                <div className="min-w-0">
-                  <p className="text-sm leading-tight truncate">{opt.label}</p>
-                  {opt.sub && <p className="text-[11px] text-muted-foreground">{opt.sub}</p>}
-                </div>
-              </div>
-            ))}
-          </div>
-        </ScrollArea>
-      )}
-    </div>
-  );
-}
-
-// ─── Recipient preview bubble ──────────────────────────────────────────────────
-function WaPreviewBubble({ text }: { text: string }) {
-  return (
-    <div className="bg-[#dcf8c6] dark:bg-emerald-900 rounded-xl rounded-br-sm p-3.5 text-sm whitespace-pre-wrap font-sans text-gray-900 dark:text-gray-100 shadow-sm max-h-64 overflow-y-auto leading-relaxed">
-      {text || <span className="italic text-muted-foreground">Ketik pesan di atas untuk melihat preview</span>}
-    </div>
-  );
-}
-
-// ─── Recipient row ─────────────────────────────────────────────────────────────
-function RecipientRow({
-  r, checked, onToggle,
-}: {
-  r: any; checked: boolean; onToggle: () => void;
-}) {
-  return (
-    <div
-      className={`flex items-center gap-3 px-4 py-2.5 cursor-pointer hover:bg-muted/40 transition-colors border-b last:border-0
-        ${checked ? "bg-primary/5" : ""}`}
-      onClick={onToggle}
-    >
-      <Checkbox checked={checked} className="flex-shrink-0" />
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium truncate">{r.fullName}</p>
-        <p className="text-[11px] text-muted-foreground truncate">
-          {r.phone} · {r.packageName} · {fmtDate(r.departureDate, true)}
-        </p>
-      </div>
-      <div className="flex-shrink-0 text-right">
-        <Badge
-          variant={r.paymentStatus === "paid" ? "outline" : "destructive"}
-          className="text-[10px] px-1.5 py-0"
-        >
-          {r.paymentStatus === "paid" ? "Lunas" : r.paymentStatus === "partial" ? "Sebagian" : "Belum"}
-        </Badge>
-        {r.remainingAmount > 0 && (
-          <p className="text-[10px] text-red-600 mt-0.5">{formatRp(r.remainingAmount)}</p>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
 export default function AdminWABroadcast() {
   const qc = useQueryClient();
-  const [tab, setTab] = useState<"baru" | "histori">("baru");
+  const [tab, setTab] = useState("broadcast");
+  
+  // ── Log detail state ──────────────────────────────────────────────────────
+  const [logsOpenId,   setLogsOpenId]   = useState<string | null>(null);
+  const [logsSearch,   setLogsSearch]   = useState("");
+  const [logsFilter,   setLogsFilter]   = useState<"all" | "sent" | "failed">("all");
 
-  // ── Step state ──────────────────────────────────────────────────────────────
-  const [step, setStep] = useState(1);
+  // ── Broadcast state ───────────────────────────────────────────────────────
+  const [campaignName, setCampaignName] = useState("");
+  const [templateId,   setTemplateId]   = useState("custom");
+  const [message,      setMessage]      = useState("");
+  const [scheduledAt,  setScheduledAt]  = useState<string | null>(null);
+  
+  const [selectedPackages,   setSelectedPackages]   = useState<Set<string>>(new Set());
+  const [selectedDepartures, setSelectedDepartures] = useState<Set<string>>(new Set());
+  const [selectedPayStatus,  setSelectedPayStatus]  = useState<Set<string>>(new Set());
+  const [selectedBookStatus, setSelectedBookStatus] = useState<Set<string>>(new Set());
+  const [selectedRecipients, setSelectedRecipients] = useState<Set<string>>(new Set());
 
-  // Step 1 — Segmentasi
-  const [selectedPackages,    setSelectedPackages]    = useState<Set<string>>(new Set());
-  const [selectedDepartures,  setSelectedDepartures]  = useState<Set<string>>(new Set());
-  const [selectedPayStatus,   setSelectedPayStatus]   = useState<Set<string>>(new Set());
-  const [selectedBookStatus,  setSelectedBookStatus]  = useState<Set<string>>(new Set(["pending","confirmed","processing","completed"]));
+  const [sending,      setSending]      = useState(false);
+  const [sentCount,    setSentCount]    = useState(0);
+  const [totalToSend,  setTotalToSend]  = useState(0);
 
-  // Step 2 — Pesan
-  const [campaignName,        setCampaignName]        = useState("");
-  const [templateId,          setTemplateId]          = useState("pengingat_keberangkatan");
-  const [message,             setMessage]             = useState(TEMPLATES[0].message);
+  // ── Execute-from-history state ────────────────────────────────────────────
+  const [executingId,  setExecutingId]  = useState<string | null>(null);
+  const [execSent,     setExecSent]     = useState(0);
 
-  // Step 3 — Jadwal & Kirim
-  const [selectedRecipients,  setSelectedRecipients]  = useState<Set<string>>(new Set());
-  const [scheduleMode,        setScheduleMode]        = useState<"now" | "later">("now");
-  const [scheduledAt,         setScheduledAt]         = useState("");
-  const [sending,             setSending]             = useState(false);
-  const [sentCount,           setSentCount]           = useState(0);
-  const [totalToSend,         setTotalToSend]         = useState(0);
-
-  // ── Data queries ────────────────────────────────────────────────────────────
-  const { data: packages = [] } = useQuery({
-    queryKey: ["broadcast-packages"],
+  // ── Data fetching ─────────────────────────────────────────────────────────
+  const { data: bookings = [], isLoading: bookingsLoading } = useQuery({
+    queryKey: ["wa-broadcast-recipients"],
     queryFn: async () => {
-      const { data } = await supabase.from("packages").select("id, name").order("name");
-      return data || [];
-    },
-  });
-
-  const { data: departures = [] } = useQuery({
-    queryKey: ["broadcast-departures"],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("departures")
-        .select("id, departure_date, package:packages(id, name)")
-        .order("departure_date", { ascending: false })
-        .limit(50);
-      return data || [];
-    },
-  });
-
-  // Filter departures by selected packages (for display, not DB filtering)
-  const visibleDepartures = useMemo(() => {
-    if (selectedPackages.size === 0) return departures;
-    return departures.filter((d: any) => selectedPackages.has(d.package?.id));
-  }, [departures, selectedPackages]);
-
-  // ── Recipients query (responds to filter changes) ──────────────────────────
-  const filterKey = JSON.stringify({
-    packages: [...selectedPackages].sort(),
-    departures: [...selectedDepartures].sort(),
-    payStatus: [...selectedPayStatus].sort(),
-    bookStatus: [...selectedBookStatus].sort(),
-  });
-
-  const { data: recipients = [], isLoading: recipientsLoading, refetch } = useQuery({
-    queryKey: ["broadcast-recipients", filterKey],
-    queryFn: async () => {
-      let q = supabase
+      const { data, error } = await supabase
         .from("bookings")
         .select(`
-          id, booking_code, total_price, paid_amount, remaining_amount,
-          payment_status, booking_status, departure_id,
-          customer:profiles(id, full_name, phone),
-          departure:departures(
-            id, departure_date,
-            package:packages(id, name)
-          )
+          id, booking_code, payment_status, status,
+          customer:profiles(full_name, phone_number),
+          package:packages(name),
+          departure:departures(departure_date)
         `)
-        .limit(500);
-
-      // booking_status filter
-      if (selectedBookStatus.size > 0 && selectedBookStatus.size < 4) {
-        q = q.in("booking_status", [...selectedBookStatus]);
-      } else {
-        q = q.not("booking_status", "eq", "cancelled");
-      }
-
-      // payment_status filter
-      if (selectedPayStatus.size > 0) {
-        q = q.in("payment_status", [...selectedPayStatus]);
-      }
-
-      // departure filter
-      const depIds: string[] = [];
-      if (selectedDepartures.size > 0) {
-        depIds.push(...selectedDepartures);
-      } else if (selectedPackages.size > 0) {
-        // derive departure IDs from package filter
-        departures
-          .filter((d: any) => selectedPackages.has(d.package?.id))
-          .forEach((d: any) => depIds.push(d.id));
-      }
-      if (depIds.length > 0) {
-        q = q.in("departure_id", depIds);
-      }
-
-      const { data, error } = await q.order("created_at", { ascending: false });
+        .order("created_at", { ascending: false });
       if (error) throw error;
-
-      return (data || []).map((b: any) => ({
-        id: b.id,
-        bookingCode: b.booking_code,
-        totalPrice: Number(b.total_price || 0),
-        paidAmount: Number(b.paid_amount || 0),
-        remainingAmount: Number(b.remaining_amount || 0),
-        paymentStatus: b.payment_status,
-        bookingStatus: b.booking_status,
-        fullName: b.customer?.full_name || "-",
-        phone: b.customer?.phone || null,
-        customerId: b.customer?.id,
-        packageName: b.departure?.package?.name || "-",
-        packageId: b.departure?.package?.id || null,
-        departureId: b.departure?.id || b.departure_id,
-        departureDate: b.departure?.departure_date || null,
-      }));
+      return data || [];
     },
   });
 
-  const withPhone    = useMemo(() => recipients.filter((r: any) => r.phone), [recipients]);
-  const withoutPhone = useMemo(() => recipients.filter((r: any) => !r.phone), [recipients]);
+  const packages = useMemo(() => {
+    const names = new Set<string>();
+    bookings.forEach((b: any) => { if (b.package?.name) names.add(b.package.name); });
+    return Array.from(names).sort();
+  }, [bookings]);
 
-  // Auto-select all when recipients load
-  const prevFilterKey = useState(filterKey)[0];
-  useMemo(() => {
-    setSelectedRecipients(new Set(withPhone.map((r: any) => r.id)));
-  }, [filterKey]);
+  const departures = useMemo(() => {
+    const dates = new Set<string>();
+    bookings.forEach((b: any) => { if (b.departure?.departure_date) dates.add(b.departure.departure_date); });
+    return Array.from(dates).sort();
+  }, [bookings]);
 
-  function toggleRecipient(id: string) {
-    setSelectedRecipients(prev => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
+  const filteredRecipients = useMemo(() => {
+    return bookings.filter((b: any) => {
+      if (selectedPackages.size && !selectedPackages.has(b.package?.name)) return false;
+      if (selectedDepartures.size && !selectedDepartures.has(b.departure?.departure_date)) return false;
+      if (selectedPayStatus.size && !selectedPayStatus.has(b.payment_status)) return false;
+      if (selectedBookStatus.size && !selectedBookStatus.has(b.status)) return false;
+      return true;
     });
-  }
+  }, [bookings, selectedPackages, selectedDepartures, selectedPayStatus, selectedBookStatus]);
 
-  // ── Message building ────────────────────────────────────────────────────────
-  function buildMessage(r: any) {
-    const depDate = fmtDate(r.departureDate);
-    return message
-      .replace(/{nama}/g, r.fullName)
-      .replace(/{kode_booking}/g, r.bookingCode)
-      .replace(/{nama_paket}/g, r.packageName)
-      .replace(/{sisa_bayar}/g, formatRp(r.remainingAmount))
-      .replace(/{total_harga}/g, formatRp(r.totalPrice))
-      .replace(/{terbayar}/g, formatRp(r.paidAmount))
-      .replace(/{tanggal_berangkat}/g, depDate);
-  }
+  const withPhone = useMemo(() => {
+    return filteredRecipients.filter((r: any) => r.customer?.phone_number);
+  }, [filteredRecipients]);
 
-  const previewText = useMemo(() => {
-    const first = withPhone[0];
-    return first
-      ? buildMessage(first)
-      : buildMessage({
-          fullName: "[Nama Jamaah]", bookingCode: "BK-00001",
-          packageName: "Paket Umroh Reguler", remainingAmount: 5000000,
-          totalPrice: 25000000, paidAmount: 20000000, departureDate: null,
-        });
-  }, [message, withPhone]);
+  useEffect(() => {
+    setSelectedRecipients(new Set(withPhone.map((r: any) => r.id)));
+  }, [withPhone]);
+
+  function buildMessage(recipient: any) {
+    let msg = message;
+    msg = msg.replace(/\[nama\]/gi, recipient.customer?.full_name || "");
+    msg = msg.replace(/\[paket\]/gi, recipient.package?.name || "");
+    msg = msg.replace(/\[kode\]/gi, recipient.booking_code || "");
+    return msg;
+  }
 
   function handleTemplateChange(id: string) {
     setTemplateId(id);
@@ -399,11 +132,7 @@ export default function AdminWABroadcast() {
 
   // ── Toggle helpers ──────────────────────────────────────────────────────────
   function toggleSet(set: Set<string>, val: string, setter: (s: Set<string>) => void) {
-    setter(prev => {
-      const next = new Set(prev);
-      next.has(val) ? next.delete(val) : next.add(val);
-      return next;
-    });
+    setter(new Set(Array.from(set).includes(val) ? Array.from(set).filter(i => i !== val) : [...Array.from(set), val]));
   }
 
   // ── Campaign save mutation ──────────────────────────────────────────────────
@@ -464,7 +193,7 @@ export default function AdminWABroadcast() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            target: r.phone,
+            target: r.phone_number || r.customer?.phone_number,
             message: buildMessage(r),
           }),
         });
@@ -477,7 +206,7 @@ export default function AdminWABroadcast() {
           supabase.from("wa_broadcast_logs").insert({
             campaign_id: campaignId,
             booking_id: r.id,
-            phone: r.phone,
+            phone: r.phone_number || r.customer?.phone_number,
             message: buildMessage(r),
             status: (result.success || resp.ok) ? "sent" : "failed",
             sent_at: new Date().toISOString(),
@@ -600,7 +329,7 @@ export default function AdminWABroadcast() {
         l.errorMsg || "",
       ]),
     ];
-    const csv  = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const csv  = rows.map(r => r.map((v: any) => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
     const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement("a");
@@ -610,1058 +339,381 @@ export default function AdminWABroadcast() {
     URL.revokeObjectURL(url);
   }
 
-  // ── Log detail state ──────────────────────────────────────────────────────
-  const [logsOpenId,   setLogsOpenId]   = useState<string | null>(null);
-  const [logsSearch,   setLogsSearch]   = useState("");
-  const [logsFilter,   setLogsFilter]   = useState<"all" | "sent" | "failed">("all");
-
-  // ── Execute-from-history state ────────────────────────────────────────────
-  const [executingId,  setExecutingId]  = useState<string | null>(null);
-  const [execSent,     setExecSent]     = useState(0);
-  const [execTotal,    setExecTotal]    = useState(0);
-  const [expandedId,   setExpandedId]   = useState<string | null>(null);
-  const [confirmId,    setConfirmId]    = useState<string | null>(null);
-
-  // ── Fetch recipients from saved segment_filters ──────────────────────────
-  async function fetchRecipientsForFilters(filters: any) {
-    const {
-      package_ids    = [] as string[],
-      departure_ids  = [] as string[],
-      payment_statuses  = [] as string[],
-      booking_statuses  = [] as string[],
-    } = filters || {};
-
-    let q = supabase
-      .from("bookings")
-      .select(`
-        id, booking_code, total_price, paid_amount, remaining_amount,
-        payment_status, booking_status,
-        customer:profiles(id, full_name, phone),
-        departure:departures(id, departure_date, package:packages(id, name))
-      `)
-      .limit(500);
-
-    if (booking_statuses.length > 0) {
-      q = q.in("booking_status", booking_statuses);
-    } else {
-      q = q.not("booking_status", "eq", "cancelled");
-    }
-    if (payment_statuses.length > 0) {
-      q = q.in("payment_status", payment_statuses);
-    }
-
-    const depIds: string[] = [...departure_ids];
-    if (depIds.length === 0 && package_ids.length > 0) {
-      const { data: deps } = await supabase
-        .from("departures").select("id").in("package_id", package_ids);
-      (deps || []).forEach((d: any) => depIds.push(d.id));
-    }
-    if (depIds.length > 0) q = q.in("departure_id", depIds);
-
-    const { data, error } = await q.order("created_at", { ascending: false });
-    if (error) throw error;
-
-    return (data || [])
-      .filter((b: any) => b.customer?.phone)
-      .map((b: any) => ({
-        id:              b.id,
-        bookingCode:     b.booking_code,
-        totalPrice:      Number(b.total_price   || 0),
-        paidAmount:      Number(b.paid_amount    || 0),
-        remainingAmount: Number(b.remaining_amount || 0),
-        paymentStatus:   b.payment_status,
-        fullName:        b.customer?.full_name || "-",
-        phone:           b.customer?.phone,
-        packageName:     b.departure?.package?.name || "-",
-        departureDate:   b.departure?.departure_date || null,
-      }));
-  }
-
-  // ── Build message from saved template ────────────────────────────────────
-  function buildFromTemplate(template: string, r: any) {
-    return template
-      .replace(/{nama}/g,              r.fullName)
-      .replace(/{kode_booking}/g,      r.bookingCode)
-      .replace(/{nama_paket}/g,        r.packageName)
-      .replace(/{sisa_bayar}/g,        formatRp(r.remainingAmount))
-      .replace(/{total_harga}/g,       formatRp(r.totalPrice))
-      .replace(/{terbayar}/g,          formatRp(r.paidAmount))
-      .replace(/{tanggal_berangkat}/g, fmtDate(r.departureDate));
-  }
-
-  // ── Execute a scheduled campaign from history ────────────────────────────
-  async function executeScheduledCampaign(campaign: any) {
-    setConfirmId(null);
-    if (executingId) { toast.error("Sedang mengirim kampanye lain. Tunggu selesai."); return; }
-
-    setExecutingId(campaign.id);
-    setExecSent(0);
-    setExecTotal(0);
-
-    try {
-      await supabase.from("wa_broadcast_campaigns")
-        .update({ status: "sending" }).eq("id", campaign.id);
-      qc.invalidateQueries({ queryKey: ["broadcast-campaigns"] });
-
-      const recipients = await fetchRecipientsForFilters(campaign.segment_filters);
-      if (recipients.length === 0) {
-        toast.error("Tidak ada penerima yang cocok dengan filter kampanye ini");
-        await supabase.from("wa_broadcast_campaigns")
-          .update({ status: "scheduled" }).eq("id", campaign.id);
-        qc.invalidateQueries({ queryKey: ["broadcast-campaigns"] });
-        return;
-      }
-
-      setExecTotal(recipients.length);
-      let successCount = 0;
-      let failCount    = 0;
-
-      for (let i = 0; i < recipients.length; i++) {
-        const r   = recipients[i] as any;
-        const msg = buildFromTemplate(campaign.message_template, r);
-        try {
-          const resp   = await fetch("/api/v1/whatsapp/send", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ target: r.phone, message: msg }),
-          });
-          const result = await resp.json().catch(() => ({ success: false }));
-          const ok     = result.success || resp.ok;
-          if (ok) successCount++; else failCount++;
-          supabase.from("wa_broadcast_logs").insert({
-            campaign_id: campaign.id,
-            booking_id:  r.id,
-            phone:       r.phone,
-            message:     msg,
-            status:      ok ? "sent" : "failed",
-            sent_at:     new Date().toISOString(),
-            error_msg:   result.message || null,
-          }).then(() => {});
-        } catch {
-          failCount++;
-        }
-        setExecSent(i + 1);
-        if (i < recipients.length - 1) await new Promise(res => setTimeout(res, 1200));
-      }
-
-      await supabase.from("wa_broadcast_campaigns").update({
-        status:           "done",
-        sent_at:          new Date().toISOString(),
-        total_recipients: recipients.length,
-        success_count:    successCount,
-        fail_count:       failCount,
-      }).eq("id", campaign.id);
-
-      qc.invalidateQueries({ queryKey: ["broadcast-campaigns"] });
-
-      if (failCount === 0)        toast.success(`✅ ${successCount} pesan berhasil dikirim`);
-      else if (successCount > 0)  toast.success(`${successCount} berhasil, ${failCount} gagal`);
-      else                        toast.error("Semua pesan gagal. Periksa konfigurasi Provider WA.");
-    } catch (e: any) {
-      toast.error("Error: " + e.message);
-      await supabase.from("wa_broadcast_campaigns")
-        .update({ status: "scheduled" }).eq("id", campaign.id);
-      qc.invalidateQueries({ queryKey: ["broadcast-campaigns"] });
-    } finally {
-      setExecutingId(null);
-      setExecSent(0);
-      setExecTotal(0);
-    }
-  }
-
-  // ── Cancel a scheduled campaign ──────────────────────────────────────────
-  async function cancelCampaign(campaignId: string) {
-    await supabase.from("wa_broadcast_campaigns")
-      .update({ status: "cancelled" }).eq("id", campaignId);
-    qc.invalidateQueries({ queryKey: ["broadcast-campaigns"] });
-    toast.success("Kampanye dibatalkan");
-  }
-
-  // ── Step nav ────────────────────────────────────────────────────────────────
-  const filtersActive = selectedPackages.size > 0 || selectedDepartures.size > 0 || selectedPayStatus.size > 0;
-  const stepDone = [
-    true,                               // step 1 always accessible
-    true,                               // step 2 after filter
-    message.trim().length > 0,          // step 3 after message
-  ];
-
-  // ─────────────────────────────────────────────────────────────────────────────
   return (
-    <div className="space-y-6 pb-12">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-emerald-500/10 rounded-xl">
-            <Megaphone className="h-6 w-6 text-emerald-600" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Broadcast Tersegmentasi</h1>
-            <p className="text-muted-foreground text-sm">
-              Kirim WA massal ke segmen jamaah tertentu — by paket, keberangkatan, atau status bayar
-            </p>
-          </div>
+    <div className="p-6 space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold">WhatsApp Broadcast</h1>
+          <p className="text-muted-foreground">Kirim pesan massal ke jamaah berdasarkan segmentasi</p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setTab("histori")}>
+            <History className="w-4 h-4 mr-2" />
+            Histori
+          </Button>
+          <Button onClick={() => setTab("broadcast")}>
+            <Send className="w-4 h-4 mr-2" />
+            Buat Baru
+          </Button>
         </div>
       </div>
 
-      <Tabs value={tab} onValueChange={v => setTab(v as any)}>
+      <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
-          <TabsTrigger value="baru" className="gap-1.5"><Plus className="h-3.5 w-3.5" /> Buat Kampanye</TabsTrigger>
-          <TabsTrigger value="histori" className="gap-1.5"><History className="h-3.5 w-3.5" /> Histori</TabsTrigger>
+          <TabsTrigger value="broadcast">Kirim Broadcast</TabsTrigger>
+          <TabsTrigger value="histori">Histori Kampanye</TabsTrigger>
         </TabsList>
 
-        {/* ── TAB: Buat kampanye ──────────────────────────────────────────── */}
-        <TabsContent value="baru" className="mt-4">
-          {/* Step indicator */}
-          <div className="flex items-center gap-2 mb-6">
-            {[
-              { n: 1, label: "Segmentasi" },
-              { n: 2, label: "Pesan" },
-              { n: 3, label: "Jadwal & Kirim" },
-            ].map((s, i) => (
-              <div key={s.n} className="flex items-center gap-2">
-                <button
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-colors
-                    ${step === s.n ? "bg-primary text-primary-foreground" : step > s.n ? "bg-emerald-100 text-emerald-700" : "bg-muted text-muted-foreground"}`}
-                  onClick={() => setStep(s.n)}
-                >
-                  {step > s.n ? <CheckCircle2 className="h-3.5 w-3.5" /> : <span className="w-4 text-center text-xs">{s.n}</span>}
-                  <span className="hidden sm:inline">{s.label}</span>
-                </button>
-                {i < 2 && <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />}
-              </div>
-            ))}
-          </div>
-
-          {/* ── STEP 1: Segmentasi ──────────────────────────────────────── */}
-          {step === 1 && (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-              {/* Left: Filter cards */}
-              <div className="lg:col-span-2 space-y-4">
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base flex items-center gap-2">
-                      <Filter className="h-4 w-4 text-muted-foreground" />
-                      Filter Segmen
-                    </CardTitle>
-                    <CardDescription>
-                      Kosongkan semua filter = kirim ke seluruh jamaah aktif.
-                      Kombinasikan filter untuk segmentasi spesifik.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-5">
-                    <MultiSelectChips
-                      label="Paket"
-                      icon={Package}
-                      options={packages.map((p: any) => ({ value: p.id, label: p.name }))}
-                      selected={selectedPackages}
-                      onToggle={v => { toggleSet(selectedPackages, v, setSelectedPackages); setSelectedDepartures(new Set()); }}
-                      emptyLabel="Tidak ada paket"
-                    />
-                    <Separator />
-                    <MultiSelectChips
-                      label="Keberangkatan"
-                      icon={Plane}
-                      options={visibleDepartures.map((d: any) => ({
-                        value: d.id,
-                        label: d.package?.name || "Paket",
-                        sub: fmtDate(d.departure_date),
-                      }))}
-                      selected={selectedDepartures}
-                      onToggle={v => toggleSet(selectedDepartures, v, setSelectedDepartures)}
-                      emptyLabel={selectedPackages.size > 0 ? "Tidak ada keberangkatan untuk paket ini" : "Tidak ada keberangkatan"}
-                    />
-                    <Separator />
-                    <MultiSelectChips
-                      label="Status Pembayaran"
-                      icon={Wallet}
-                      options={PAYMENT_STATUS_OPTIONS}
-                      selected={selectedPayStatus}
-                      onToggle={v => toggleSet(selectedPayStatus, v, setSelectedPayStatus)}
-                      emptyLabel=""
-                    />
-                    <Separator />
-                    <MultiSelectChips
-                      label="Status Booking"
-                      icon={CheckCircle2}
-                      options={BOOKING_STATUS_OPTIONS}
-                      selected={selectedBookStatus}
-                      onToggle={v => toggleSet(selectedBookStatus, v, setSelectedBookStatus)}
-                      emptyLabel=""
-                    />
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Right: Preview count */}
-              <div className="space-y-4">
-                <Card className="sticky top-4">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm flex items-center gap-2">
-                      <Users className="h-4 w-4" /> Preview Penerima
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {recipientsLoading ? (
-                      <div className="space-y-2">
-                        <Skeleton className="h-16 w-full" />
-                        <Skeleton className="h-8 w-full" />
+        <TabsContent value="broadcast" className="space-y-6 mt-4">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Penerima & Segmentasi</CardTitle>
+                  <CardDescription>Pilih filter untuk menentukan siapa yang akan menerima pesan</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Paket</label>
+                      <div className="flex flex-wrap gap-2 border rounded-md p-2 min-h-[40px]">
+                        {packages.map(p => (
+                          <Badge 
+                            key={p} 
+                            variant={selectedPackages.has(p) ? "default" : "outline"}
+                            className="cursor-pointer"
+                            onClick={() => toggleSet(selectedPackages, p, setSelectedPackages)}
+                          >
+                            {p}
+                          </Badge>
+                        ))}
                       </div>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Status Pembayaran</label>
+                      <div className="flex flex-wrap gap-2 border rounded-md p-2 min-h-[40px]">
+                        {["unpaid", "partial", "paid"].map(s => (
+                          <Badge 
+                            key={s} 
+                            variant={selectedPayStatus.has(s) ? "default" : "outline"}
+                            className="cursor-pointer"
+                            onClick={() => toggleSet(selectedPayStatus, s, setSelectedPayStatus)}
+                          >
+                            {s}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="border rounded-md">
+                    <div className="p-2 bg-muted/50 border-b flex justify-between items-center">
+                      <span className="text-sm font-medium">{withPhone.length} Jamaah Terfilter</span>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => {
+                          if (selectedRecipients.size === withPhone.length) setSelectedRecipients(new Set());
+                          else setSelectedRecipients(new Set(withPhone.map((r: any) => r.id)));
+                        }}
+                      >
+                        {selectedRecipients.size === withPhone.length ? "Unselect All" : "Select All"}
+                      </Button>
+                    </div>
+                    <ScrollArea className="h-[300px]">
+                      <div className="p-2 space-y-1">
+                        {withPhone.map((r: any) => (
+                          <div key={r.id} className="flex items-center gap-3 p-2 hover:bg-muted/30 rounded-md">
+                            <Checkbox 
+                              checked={selectedRecipients.has(r.id)}
+                              onCheckedChange={() => {
+                                const next = new Set(selectedRecipients);
+                                next.has(r.id) ? next.delete(r.id) : next.add(r.id);
+                                setSelectedRecipients(next);
+                              }}
+                            />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium truncate">{r.customer?.full_name}</p>
+                              <p className="text-xs text-muted-foreground">{r.customer?.phone_number} · {r.package?.name}</p>
+                            </div>
+                            <Badge variant="outline" className="text-[10px]">{r.payment_status}</Badge>
+                          </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Pesan</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Template</label>
+                    <Select value={templateId} onValueChange={handleTemplateChange}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Pilih template" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {TEMPLATES.map(t => (
+                          <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <label className="text-sm font-medium">Isi Pesan</label>
+                      <span className="text-[10px] text-muted-foreground">Gunakan [nama], [paket], [kode] untuk personalisasi</span>
+                    </div>
+                    <textarea 
+                      className="w-full min-h-[200px] p-3 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                      placeholder="Tulis pesan Anda di sini..."
+                      value={message}
+                      onChange={(e) => setMessage(e.target.value)}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Aksi</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Nama Kampanye</label>
+                    <Input 
+                      placeholder="Contoh: Promo Ramadhan 2024" 
+                      value={campaignName}
+                      onChange={(e) => setCampaignName(e.target.value)}
+                    />
+                  </div>
+                  <div className="p-4 bg-primary/5 rounded-lg border border-primary/10">
+                    <div className="flex justify-between text-sm mb-1">
+                      <span>Total Penerima</span>
+                      <span className="font-bold">{selectedRecipients.size}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span>Estimasi Waktu</span>
+                      <span>~{Math.ceil(selectedRecipients.size * 1.5 / 60)} menit</span>
+                    </div>
+                  </div>
+                  <Button 
+                    className="w-full" 
+                    size="lg" 
+                    disabled={sending || !selectedRecipients.size || !message.trim()}
+                    onClick={handleSend}
+                  >
+                    {sending ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                        Mengirim ({sentCount}/{totalToSend})
+                      </>
                     ) : (
                       <>
-                        <div className="text-center py-3">
-                          <p className="text-4xl font-bold text-emerald-600">{withPhone.length}</p>
-                          <p className="text-sm text-muted-foreground mt-1">dapat dikirimi WA</p>
-                        </div>
-                        {withoutPhone.length > 0 && (
-                          <div className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 rounded-lg p-2.5">
-                            <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
-                            <span>{withoutPhone.length} jamaah tidak punya nomor HP</span>
-                          </div>
-                        )}
-                        <div className="space-y-1 text-xs text-muted-foreground">
-                          {filtersActive ? (
-                            <div className="flex flex-wrap gap-1">
-                              {selectedPackages.size > 0 && (
-                                <Badge variant="outline" className="text-[10px]">
-                                  {selectedPackages.size} paket
-                                </Badge>
-                              )}
-                              {selectedDepartures.size > 0 && (
-                                <Badge variant="outline" className="text-[10px]">
-                                  {selectedDepartures.size} keberangkatan
-                                </Badge>
-                              )}
-                              {selectedPayStatus.size > 0 && (
-                                <Badge variant="outline" className="text-[10px]">
-                                  {[...selectedPayStatus].join(", ")}
-                                </Badge>
-                              )}
-                            </div>
-                          ) : (
-                            <p className="italic">Semua jamaah aktif (tanpa filter)</p>
-                          )}
-                        </div>
-                        <Button className="w-full" onClick={() => setStep(2)} disabled={withPhone.length === 0}>
-                          Lanjut Buat Pesan <ChevronRight className="h-4 w-4 ml-1" />
-                        </Button>
-                        <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => refetch()}>
-                          <RotateCw className="h-3.5 w-3.5 mr-1.5" /> Refresh
-                        </Button>
+                        <Send className="w-4 h-4 mr-2" />
+                        Kirim Sekarang
                       </>
                     )}
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-          )}
-
-          {/* ── STEP 2: Pesan ──────────────────────────────────────────────── */}
-          {step === 2 && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-              {/* Left: Editor */}
-              <div className="space-y-4">
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base">Nama Kampanye</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <Input
-                      placeholder="Contoh: Reminder Keberangkatan Maret 2025"
-                      value={campaignName}
-                      onChange={e => setCampaignName(e.target.value)}
+                  </Button>
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center"><span className="w-full border-t"></span></div>
+                    <div className="relative flex justify-center text-xs uppercase"><span className="bg-background px-2 text-muted-foreground">Atau Jadwalkan</span></div>
+                  </div>
+                  <div className="space-y-2">
+                    <Input 
+                      type="datetime-local" 
+                      onChange={(e) => setScheduledAt(e.target.value)}
                     />
-                  </CardContent>
-                </Card>
+                    <Button 
+                      variant="outline" 
+                      className="w-full"
+                      disabled={sending || !selectedRecipients.size || !message.trim() || !scheduledAt}
+                      onClick={handleSchedule}
+                    >
+                      <Clock className="w-4 h-4 mr-2" />
+                      Jadwalkan
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
 
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base">Template Pesan</CardTitle>
-                    <CardDescription className="text-xs">
-                      Variabel: <code className="bg-muted px-1 rounded">{"{nama}"}</code>{" "}
-                      <code className="bg-muted px-1 rounded">{"{kode_booking}"}</code>{" "}
-                      <code className="bg-muted px-1 rounded">{"{nama_paket}"}</code>{" "}
-                      <code className="bg-muted px-1 rounded">{"{sisa_bayar}"}</code>{" "}
-                      <code className="bg-muted px-1 rounded">{"{tanggal_berangkat}"}</code>
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="grid grid-cols-2 gap-2">
-                      {TEMPLATES.map(t => (
-                        <button
-                          key={t.id}
-                          className={`text-left px-3 py-2.5 rounded-lg border text-sm transition-colors
-                            ${templateId === t.id ? "border-primary bg-primary/5 font-medium" : "border-border hover:border-primary/40 hover:bg-muted/50"}`}
-                          onClick={() => handleTemplateChange(t.id)}
-                        >
-                          {t.label}
-                        </button>
-                      ))}
+              {sending && (
+                <Card className="border-primary">
+                  <CardContent className="pt-6 space-y-4">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium">Progress Pengiriman</span>
+                      <span className="text-sm font-bold">{Math.round((sentCount / totalToSend) * 100)}%</span>
                     </div>
-                    <Textarea
-                      value={message}
-                      onChange={e => setMessage(e.target.value)}
-                      rows={12}
-                      placeholder="Ketik pesan Anda di sini..."
-                      className="font-mono text-xs"
-                    />
-                    <p className="text-xs text-muted-foreground">{message.length} karakter</p>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Right: Preview */}
-              <div className="space-y-4">
-                <Card className="border-emerald-200 bg-emerald-50/40">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm flex items-center gap-2 text-emerald-800">
-                      <Eye className="h-4 w-4" /> Preview Pesan
-                      {withPhone.length > 0 && (
-                        <span className="text-xs font-normal text-muted-foreground ml-auto">
-                          untuk: {(withPhone[0] as any).fullName}
-                        </span>
-                      )}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <WaPreviewBubble text={previewText} />
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardContent className="pt-4 space-y-3">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Siap dikirim ke</span>
-                      <span className="font-bold text-emerald-700">{withPhone.length} jamaah</span>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button variant="outline" className="flex-1" onClick={() => setStep(1)}>
-                        ← Kembali
-                      </Button>
-                      <Button
-                        className="flex-1"
-                        disabled={!message.trim()}
-                        onClick={() => setStep(3)}
-                      >
-                        Lanjut <ChevronRight className="h-4 w-4 ml-1" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-          )}
-
-          {/* ── STEP 3: Jadwal & Kirim ───────────────────────────────────── */}
-          {step === 3 && (
-            <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
-              {/* Left: Recipient list */}
-              <div className="lg:col-span-3 space-y-4">
-                <Card>
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-base flex items-center gap-2">
-                        <ListFilter className="h-4 w-4" />
-                        Daftar Penerima ({withPhone.length})
-                      </CardTitle>
-                      <div className="flex gap-1.5">
-                        <Button size="sm" variant="outline" className="h-7 text-xs"
-                          onClick={() => setSelectedRecipients(new Set(withPhone.map((r: any) => r.id)))}>
-                          Semua
-                        </Button>
-                        <Button size="sm" variant="ghost" className="h-7 text-xs"
-                          onClick={() => setSelectedRecipients(new Set())}>
-                          Batal
-                        </Button>
-                      </div>
-                    </div>
-                    <p className="text-xs text-muted-foreground">{selectedRecipients.size} dipilih</p>
-                  </CardHeader>
-                  <CardContent className="p-0">
-                    {recipientsLoading ? (
-                      <div className="p-4 space-y-2">
-                        {Array.from({ length: 5 }).map((_, i) => (
-                          <Skeleton key={i} className="h-14 w-full" />
-                        ))}
-                      </div>
-                    ) : withPhone.length === 0 ? (
-                      <div className="py-12 text-center text-muted-foreground text-sm">
-                        <Phone className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                        Tidak ada jamaah dengan nomor HP
-                      </div>
-                    ) : (
-                      <ScrollArea className="max-h-[500px]">
-                        {withPhone.map((r: any) => (
-                          <RecipientRow
-                            key={r.id}
-                            r={r}
-                            checked={selectedRecipients.has(r.id)}
-                            onToggle={() => toggleRecipient(r.id)}
-                          />
-                        ))}
-                      </ScrollArea>
-                    )}
-                    {withoutPhone.length > 0 && (
-                      <div className="px-4 py-2 bg-muted/30 border-t">
-                        <p className="text-xs text-muted-foreground flex items-center gap-1">
-                          <AlertCircle className="h-3 w-3 flex-shrink-0" />
-                          {withoutPhone.length} jamaah tidak punya nomor HP — dilewati
-                        </p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Right: Schedule + Send panel */}
-              <div className="lg:col-span-2 space-y-4">
-                {/* Preview bubble */}
-                <Card className="border-emerald-200 bg-emerald-50/40">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm text-emerald-800 flex items-center gap-1.5">
-                      <Eye className="h-3.5 w-3.5" /> Preview Pesan
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <WaPreviewBubble text={previewText} />
-                  </CardContent>
-                </Card>
-
-                {/* Schedule mode */}
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-base flex items-center gap-2">
-                      <CalendarClock className="h-4 w-4" /> Waktu Pengiriman
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        className={`px-3 py-2.5 rounded-lg border text-sm transition-colors font-medium
-                          ${scheduleMode === "now" ? "border-primary bg-primary/5" : "border-border hover:border-primary/40"}`}
-                        onClick={() => setScheduleMode("now")}
-                      >
-                        <Send className="h-4 w-4 mb-0.5 mx-auto" />
-                        Kirim Sekarang
-                      </button>
-                      <button
-                        className={`px-3 py-2.5 rounded-lg border text-sm transition-colors font-medium
-                          ${scheduleMode === "later" ? "border-primary bg-primary/5" : "border-border hover:border-primary/40"}`}
-                        onClick={() => setScheduleMode("later")}
-                      >
-                        <CalendarClock className="h-4 w-4 mb-0.5 mx-auto" />
-                        Jadwalkan
-                      </button>
-                    </div>
-
-                    {scheduleMode === "later" && (
-                      <div>
-                        <Label className="text-xs text-muted-foreground">Waktu Pengiriman</Label>
-                        <Input
-                          type="datetime-local"
-                          value={scheduledAt}
-                          onChange={e => setScheduledAt(e.target.value)}
-                          min={new Date().toISOString().slice(0, 16)}
-                          className="mt-1"
-                        />
-                        <p className="text-[10px] text-muted-foreground mt-1">
-                          Kampanye akan disimpan dan bisa dikirim manual dari Histori pada waktu yang ditentukan.
-                        </p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-
-                {/* Summary + send button */}
-                <Card>
-                  <CardContent className="pt-4 space-y-3">
-                    <div className="space-y-1.5 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Kampanye</span>
-                        <span className="font-medium truncate max-w-[180px] text-right">
-                          {campaignName || "Tanpa nama"}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Dipilih</span>
-                        <span className="font-bold text-emerald-700">{selectedRecipients.size} jamaah</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Estimasi waktu</span>
-                        <span className="text-xs">
-                          ~{Math.ceil(selectedRecipients.size * 1.2 / 60)} menit
-                        </span>
-                      </div>
-                    </div>
-
-                    {sending && (
-                      <div className="space-y-1.5">
-                        <Progress
-                          value={totalToSend > 0 ? (sentCount / totalToSend) * 100 : 0}
-                          className="h-2"
-                        />
-                        <p className="text-xs text-muted-foreground text-center">
-                          {sentCount} / {totalToSend} dikirim...
-                        </p>
-                      </div>
-                    )}
-
-                    <div className="flex gap-2">
-                      <Button variant="outline" className="flex-1" onClick={() => setStep(2)} disabled={sending}>
-                        ← Pesan
-                      </Button>
-                      {scheduleMode === "now" ? (
-                        <Button
-                          className="flex-1 bg-emerald-600 hover:bg-emerald-700"
-                          onClick={handleSend}
-                          disabled={selectedRecipients.size === 0 || !message.trim() || sending}
-                        >
-                          {sending ? (
-                            <><RefreshCcw className="h-4 w-4 mr-1.5 animate-spin" />Mengirim...</>
-                          ) : (
-                            <><Send className="h-4 w-4 mr-1.5" />Kirim</>
-                          )}
-                        </Button>
-                      ) : (
-                        <Button
-                          className="flex-1"
-                          onClick={handleSchedule}
-                          disabled={!scheduledAt || saveCampaign.isPending}
-                        >
-                          {saveCampaign.isPending ? (
-                            <><RefreshCcw className="h-4 w-4 mr-1.5 animate-spin" />Menyimpan...</>
-                          ) : (
-                            <><CalendarClock className="h-4 w-4 mr-1.5" />Jadwalkan</>
-                          )}
-                        </Button>
-                      )}
-                    </div>
-                    <p className="text-[10px] text-muted-foreground text-center leading-relaxed">
-                      Pesan dikirim via Provider WA yang aktif (Fonnte/Wablas/dll).
-                      Jarak antar pesan ±1,2 detik untuk menghindari blokir.
+                    <Progress value={(sentCount / totalToSend) * 100} className="h-2" />
+                    <p className="text-[10px] text-center text-muted-foreground">
+                      Jangan tutup halaman ini selama proses pengiriman berlangsung.
                     </p>
                   </CardContent>
                 </Card>
-              </div>
+              )}
             </div>
-          )}
+          </div>
         </TabsContent>
 
-        {/* ── TAB: Histori ────────────────────────────────────────────────── */}
-        <TabsContent value="histori" className="mt-4 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-semibold flex items-center gap-2">
-              <History className="h-4 w-4" /> Histori Kampanye Broadcast
-            </h2>
-            <Button variant="outline" size="sm" onClick={() => qc.invalidateQueries({ queryKey: ["broadcast-campaigns"] })}>
-              <RotateCw className="h-3.5 w-3.5 mr-1.5" /> Refresh
-            </Button>
-          </div>
-
-          {/* Global sending banner */}
-          {executingId && (
-            <div className="flex items-center gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl">
-              <RefreshCcw className="h-4 w-4 text-amber-600 animate-spin flex-shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-amber-800">Mengirim kampanye…</p>
-                <Progress
-                  value={execTotal > 0 ? (execSent / execTotal) * 100 : 0}
-                  className="h-1.5 mt-1.5"
-                />
-                <p className="text-xs text-amber-700 mt-1">{execSent} / {execTotal} pesan dikirim</p>
-              </div>
-            </div>
-          )}
-
+        <TabsContent value="histori" className="mt-4">
           <Card>
             <CardContent className="p-0">
-              {campaignsLoading ? (
-                <div className="p-4 space-y-3">
-                  {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-20 w-full" />)}
-                </div>
-              ) : campaigns.length === 0 ? (
-                <div className="py-16 text-center text-muted-foreground">
-                  <Megaphone className="h-10 w-10 mx-auto mb-3 opacity-20" />
-                  <p className="text-sm">Belum ada kampanye</p>
-                  <Button variant="outline" size="sm" className="mt-3" onClick={() => setTab("baru")}>
-                    <Plus className="h-3.5 w-3.5 mr-1.5" /> Buat Kampanye Pertama
-                  </Button>
-                </div>
-              ) : (
-                <div className="divide-y">
-                  {campaigns.map((c: any) => {
-                    const isRunning  = executingId === c.id;
-                    const isExpanded = expandedId   === c.id;
-                    const isConfirm  = confirmId    === c.id;
-                    const filters    = c.segment_filters || {};
-                    const hasPkgs    = (filters.package_ids   || []).length > 0;
-                    const hasDeps    = (filters.departure_ids || []).length > 0;
-                    const hasPay     = (filters.payment_statuses || []).length > 0;
-                    const noFilter   = !hasPkgs && !hasDeps && !hasPay;
-
-                    return (
-                      <div
-                        key={c.id}
-                        className={`px-5 py-4 transition-colors ${isRunning ? "bg-amber-50/60" : "hover:bg-muted/20"}`}
-                      >
-                        {/* ─ Row header ───────────────────────────────────── */}
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <p className="font-semibold text-sm">{c.name}</p>
-                              {statusBadge(c.status)}
-                            </div>
-                            <p className="text-[11px] text-muted-foreground mt-0.5">
-                              Dibuat: {fmtDate(c.created_at)}
-                              {c.scheduled_at && <> · <CalendarClock className="inline h-2.5 w-2.5 mx-0.5" />Dijadwal: {fmtDate(c.scheduled_at)}</>}
-                              {c.sent_at      && <> · Terkirim: {fmtDate(c.sent_at)}</>}
-                            </p>
-                          </div>
-
-                          {/* Stats (done) */}
-                          {c.status === "done" && c.total_recipients != null && (
-                            <div className="flex items-center gap-3 text-xs flex-shrink-0">
-                              <span className="flex items-center gap-1 text-emerald-700 font-medium">
-                                <CheckCircle2 className="h-3 w-3" />{c.success_count}
-                              </span>
-                              {c.fail_count > 0 && (
-                                <span className="flex items-center gap-1 text-red-600 font-medium">
-                                  <XCircle className="h-3 w-3" />{c.fail_count}
-                                </span>
-                              )}
-                              <span className="flex items-center gap-1 text-muted-foreground">
-                                <Users className="h-3 w-3" />{c.total_recipients}
-                              </span>
-                            </div>
-                          )}
-
-                          {/* Expand toggle */}
-                          <button
-                            className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0 mt-0.5"
-                            onClick={() => setExpandedId(isExpanded ? null : c.id)}
-                            title={isExpanded ? "Tutup" : "Detail"}
-                          >
-                            <ChevronRight className={`h-4 w-4 transition-transform ${isExpanded ? "rotate-90" : ""}`} />
-                          </button>
-                        </div>
-
-                        {/* ─ Sending progress bar (inline) ────────────────── */}
-                        {isRunning && (
-                          <div className="mt-3">
-                            <Progress
-                              value={execTotal > 0 ? (execSent / execTotal) * 100 : 5}
-                              className="h-2"
-                            />
-                            <p className="text-xs text-amber-700 mt-1 text-center">
-                              {execSent} / {execTotal} dikirim…
-                            </p>
-                          </div>
-                        )}
-
-                        {/* ─ Expanded detail ──────────────────────────────── */}
-                        {isExpanded && (
-                          <div className="mt-4 space-y-3 border-t pt-4">
-                            {/* Segment filters */}
-                            <div>
-                              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
-                                Filter Segmen
-                              </p>
-                              <div className="flex flex-wrap gap-1.5">
-                                {noFilter && (
-                                  <Badge variant="outline" className="text-[11px]">Semua jamaah aktif</Badge>
-                                )}
-                                {hasPkgs && (
-                                  <Badge variant="secondary" className="text-[11px] gap-1">
-                                    <Package className="h-2.5 w-2.5" />
-                                    {filters.package_ids.length} paket
-                                  </Badge>
-                                )}
-                                {hasDeps && (
-                                  <Badge variant="secondary" className="text-[11px] gap-1">
-                                    <Plane className="h-2.5 w-2.5" />
-                                    {filters.departure_ids.length} keberangkatan
-                                  </Badge>
-                                )}
-                                {hasPay && filters.payment_statuses.map((s: string) => (
-                                  <Badge key={s} variant="outline" className="text-[11px]">
-                                    {s === "paid" ? "Lunas" : s === "partial" ? "Sebagian" : "Belum Bayar"}
-                                  </Badge>
-                                ))}
-                                {(filters.booking_statuses || []).length > 0 && (
-                                  <Badge variant="outline" className="text-[11px]">
-                                    Booking: {filters.booking_statuses.join(", ")}
-                                  </Badge>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Message preview */}
-                            <div>
-                              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
-                                Template Pesan
-                              </p>
-                              <div className="bg-[#dcf8c6] dark:bg-emerald-900 rounded-xl rounded-br-sm p-3 text-xs whitespace-pre-wrap max-h-32 overflow-y-auto text-gray-900 dark:text-gray-100 shadow-sm leading-relaxed">
-                                {c.message_template
-                                  ? c.message_template.slice(0, 300) + (c.message_template.length > 300 ? "…" : "")
-                                  : <span className="italic text-muted-foreground">Tidak ada template</span>
-                                }
-                              </div>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* ─ Action row (scheduled) ───────────────────────── */}
-                        {c.status === "scheduled" && !isRunning && (
-                          <div className="mt-3 flex flex-wrap items-center gap-2">
-                            {isConfirm ? (
-                              /* Inline confirmation */
-                              <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg w-full">
-                                <AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0" />
-                                <p className="text-xs text-amber-800 flex-1">
-                                  Kirim ke semua penerima yang cocok sekarang?{" "}
-                                  {c.total_recipients != null && (
-                                    <span className="font-semibold">~{c.total_recipients} jamaah</span>
-                                  )}
-                                </p>
-                                <div className="flex gap-1.5 flex-shrink-0">
-                                  <Button
-                                    size="sm"
-                                    className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 gap-1"
-                                    onClick={() => executeScheduledCampaign(c)}
-                                    disabled={!!executingId}
-                                  >
-                                    <Send className="h-3 w-3" /> Ya, Kirim
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    className="h-7 text-xs"
-                                    onClick={() => setConfirmId(null)}
-                                  >
-                                    Batal
-                                  </Button>
-                                </div>
-                              </div>
-                            ) : (
-                              <>
-                                <Button
-                                  size="sm"
-                                  className="h-8 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700"
-                                  onClick={() => setConfirmId(c.id)}
-                                  disabled={!!executingId}
-                                >
-                                  <Send className="h-3 w-3" /> Kirim Sekarang
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="h-8 text-xs gap-1.5 text-red-600 border-red-200 hover:bg-red-50"
-                                  onClick={() => cancelCampaign(c.id)}
-                                  disabled={!!executingId}
-                                >
-                                  <XCircle className="h-3 w-3" /> Batalkan
-                                </Button>
-                                {c.scheduled_at && (
-                                  <span className="text-[11px] text-muted-foreground flex items-center gap-1">
-                                    <CalendarClock className="h-3 w-3" />
-                                    Dijadwal {fmtDate(c.scheduled_at)}
-                                  </span>
-                                )}
-                              </>
-                            )}
-                          </div>
-                        )}
-
-                        {/* ─ Sending state ────────────────────────────────── */}
-                        {c.status === "sending" && !isRunning && (
-                          <p className="mt-2 text-xs text-amber-700 flex items-center gap-1.5">
-                            <RefreshCcw className="h-3 w-3 animate-spin" />
-                            Sedang dikirim di sesi lain…
-                          </p>
-                        )}
-
-                        {/* ─ Done result bar ──────────────────────────────── */}
-                        {c.status === "done" && c.total_recipients > 0 && (
-                          <div className="mt-2 space-y-1.5">
-                            <Progress
-                              value={(c.success_count / c.total_recipients) * 100}
-                              className="h-1.5"
-                            />
-                            <div className="flex items-center justify-between">
-                              <p className="text-[10px] text-muted-foreground">
-                                <span className="text-emerald-700 font-medium">{c.success_count} berhasil</span>
-                                {c.fail_count > 0 && <> · <span className="text-red-600 font-medium">{c.fail_count} gagal</span></>}
-                                {" "}· {c.total_recipients} total
-                              </p>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-6 text-[11px] px-2 gap-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50 flex-shrink-0"
-                                onClick={() => {
-                                  if (logsOpenId === c.id) {
-                                    setLogsOpenId(null);
-                                  } else {
-                                    setLogsOpenId(c.id);
-                                    setLogsSearch("");
-                                    setLogsFilter("all");
-                                  }
-                                }}
-                              >
-                                <ClipboardList className="h-3 w-3" />
-                                {logsOpenId === c.id ? "Tutup Log" : "Lihat Log"}
-                                <ChevronDown className={`h-3 w-3 transition-transform ${logsOpenId === c.id ? "rotate-180" : ""}`} />
-                              </Button>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* ─ Log detail panel ──────────────────────────────── */}
-                        {logsOpenId === c.id && (
-                          <div className="mt-3 border border-border rounded-xl overflow-hidden">
-                            {/* Panel header */}
-                            <div className="flex items-center justify-between gap-3 px-4 py-3 bg-muted/30 border-b">
-                              <div className="flex items-center gap-3">
-                                <ClipboardList className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                                <span className="text-sm font-semibold">Log Pengiriman</span>
-                                {/* Status chips */}
-                                <div className="flex gap-1.5">
-                                  {(["all", "sent", "failed"] as const).map(f => (
-                                    <button
-                                      key={f}
-                                      onClick={() => setLogsFilter(f)}
-                                      className={`px-2 py-0.5 rounded-full text-[11px] font-medium transition-colors ${
-                                        logsFilter === f
-                                          ? f === "failed"
-                                            ? "bg-red-100 text-red-700"
-                                            : f === "sent"
-                                            ? "bg-emerald-100 text-emerald-700"
-                                            : "bg-primary/10 text-primary"
-                                          : "bg-muted text-muted-foreground hover:bg-muted/70"
-                                      }`}
-                                    >
-                                      {f === "all"    && `Semua (${logStats.total})`}
-                                      {f === "sent"   && `Berhasil (${logStats.sent})`}
-                                      {f === "failed" && `Gagal (${logStats.failed})`}
-                                    </button>
-                                  ))}
-                                </div>
-                              </div>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-7 text-xs gap-1.5 flex-shrink-0"
-                                onClick={() => downloadLogsCSV(c.name)}
-                                disabled={campaignLogs.length === 0}
-                              >
-                                <Download className="h-3 w-3" /> CSV
-                              </Button>
-                            </div>
-
-                            {/* Search */}
-                            <div className="px-4 py-2.5 border-b bg-background">
-                              <div className="relative">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                                <Input
-                                  className="pl-8 h-8 text-xs"
-                                  placeholder="Cari nama, nomor HP, atau kode booking…"
-                                  value={logsSearch}
-                                  onChange={e => setLogsSearch(e.target.value)}
-                                />
-                              </div>
-                            </div>
-
-                            {/* Log rows */}
-                            {logsLoading ? (
-                              <div className="p-4 space-y-2">
-                                {Array.from({ length: 5 }).map((_, i) => (
-                                  <Skeleton key={i} className="h-12 w-full" />
-                                ))}
-                              </div>
-                            ) : filteredLogs.length === 0 ? (
-                              <div className="py-10 text-center text-muted-foreground">
-                                <ClipboardList className="h-8 w-8 mx-auto mb-2 opacity-20" />
-                                <p className="text-sm">
-                                  {campaignLogs.length === 0
-                                    ? "Belum ada log untuk kampanye ini"
-                                    : "Tidak ada hasil yang cocok"}
-                                </p>
-                              </div>
-                            ) : (
-                              <ScrollArea className="max-h-80">
-                                <div className="divide-y">
-                                  {filteredLogs.map((l: any, idx: number) => (
-                                    <div key={l.id} className="flex items-start gap-3 px-4 py-3 hover:bg-muted/20 transition-colors">
-                                      {/* Status icon */}
-                                      <div className="flex-shrink-0 mt-0.5">
-                                        {l.status === "sent" ? (
-                                          <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                                        ) : l.status === "failed" ? (
-                                          <XCircle className="h-4 w-4 text-red-500" />
-                                        ) : (
-                                          <Clock className="h-4 w-4 text-amber-500" />
-                                        )}
-                                      </div>
-
-                                      {/* Recipient info */}
-                                      <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2">
-                                          <p className="text-sm font-medium truncate">{l.fullName}</p>
-                                          <span className="text-[10px] text-muted-foreground flex-shrink-0">#{idx + 1}</span>
-                                        </div>
-                                        <div className="flex items-center gap-3 mt-0.5">
-                                          <span className="text-[11px] text-muted-foreground flex items-center gap-1">
-                                            <Phone className="h-2.5 w-2.5" />{l.phone}
-                                          </span>
-                                          <span className="text-[11px] text-muted-foreground">{l.bookingCode}</span>
-                                        </div>
-                                        {l.status === "failed" && l.errorMsg && (
-                                          <p className="text-[11px] text-red-600 mt-1 flex items-start gap-1">
-                                            <AlertCircle className="h-3 w-3 flex-shrink-0 mt-0.5" />
-                                            {l.errorMsg}
-                                          </p>
-                                        )}
-                                      </div>
-
-                                      {/* Timestamp */}
-                                      <div className="flex-shrink-0 text-right">
-                                        <p className="text-[11px] text-muted-foreground">
-                                          {l.sentAt
-                                            ? format(parseISO(l.sentAt), "HH:mm:ss", { locale: idLocale })
-                                            : "-"}
-                                        </p>
-                                        <p className="text-[10px] text-muted-foreground">
-                                          {l.sentAt
-                                            ? format(parseISO(l.sentAt), "dd MMM", { locale: idLocale })
-                                            : ""}
-                                        </p>
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              </ScrollArea>
-                            )}
-
-                            {/* Panel footer */}
-                            {!logsLoading && filteredLogs.length > 0 && (
-                              <div className="px-4 py-2 border-t bg-muted/20 text-[11px] text-muted-foreground flex items-center justify-between">
-                                <span>Menampilkan {filteredLogs.length} dari {campaignLogs.length} entri</span>
-                                {logStats.failed > 0 && (
-                                  <span className="text-red-600 font-medium">
-                                    {logStats.failed} gagal — periksa konfigurasi Provider WA
-                                  </span>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50 border-b">
+                    <tr>
+                      <th className="text-left p-4 font-medium">Nama Kampanye</th>
+                      <th className="text-left p-4 font-medium">Status</th>
+                      <th className="text-left p-4 font-medium">Target</th>
+                      <th className="text-left p-4 font-medium">Berhasil/Gagal</th>
+                      <th className="text-left p-4 font-medium">Waktu</th>
+                      <th className="text-right p-4 font-medium">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {campaigns.map((c: any) => (
+                      <tr key={c.id} className="hover:bg-muted/20">
+                        <td className="p-4 font-medium">{c.name}</td>
+                        <td className="p-4">
+                          <Badge variant={c.status === 'done' ? 'success' : c.status === 'scheduled' ? 'outline' : 'secondary'}>
+                            {c.status}
+                          </Badge>
+                        </td>
+                        <td className="p-4">{c.total_recipients}</td>
+                        <td className="p-4 text-xs">
+                          <span className="text-green-600 font-bold">{c.success_count || 0}</span> / <span className="text-red-600 font-bold">{c.fail_count || 0}</span>
+                        </td>
+                        <td className="p-4 text-muted-foreground">
+                          {c.sent_at ? format(parseISO(c.sent_at), "dd/MM/yyyy HH:mm") : "-"}
+                        </td>
+                        <td className="p-4 text-right">
+                          <Button variant="ghost" size="sm" onClick={() => setLogsOpenId(c.id)}>
+                            <Eye className="w-4 h-4 mr-1" /> Detail
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                    {campaigns.length === 0 && !campaignsLoading && (
+                      <tr>
+                        <td colSpan={6} className="p-8 text-center text-muted-foreground">Belum ada histori kampanye</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Log Detail Dialog */}
+      <Dialog open={!!logsOpenId} onOpenChange={(open) => !open && setLogsOpenId(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Detail Log Broadcast</DialogTitle>
+            <DialogDescription>
+              Riwayat pengiriman pesan untuk kampanye ini
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid grid-cols-4 gap-4 mb-4">
+            <div className="p-3 border rounded-lg bg-muted/30">
+              <p className="text-[10px] uppercase text-muted-foreground font-bold">Total</p>
+              <p className="text-xl font-bold">{logStats.total}</p>
+            </div>
+            <div className="p-3 border rounded-lg bg-green-50 border-green-100">
+              <p className="text-[10px] uppercase text-green-600 font-bold">Berhasil</p>
+              <p className="text-xl font-bold text-green-700">{logStats.sent}</p>
+            </div>
+            <div className="p-3 border rounded-lg bg-red-50 border-red-100">
+              <p className="text-[10px] uppercase text-red-600 font-bold">Gagal</p>
+              <p className="text-xl font-bold text-red-700">{logStats.failed}</p>
+            </div>
+            <div className="p-3 border rounded-lg bg-blue-50 border-blue-100">
+              <p className="text-[10px] uppercase text-blue-600 font-bold">Antrean</p>
+              <p className="text-xl font-bold text-blue-700">{logStats.queued}</p>
+            </div>
+          </div>
+
+          <div className="flex gap-2 mb-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input 
+                placeholder="Cari nama, nomor, atau kode booking..." 
+                className="pl-9"
+                value={logsSearch}
+                onChange={(e) => setLogsSearch(e.target.value)}
+              />
+            </div>
+            <Select value={logsFilter} onValueChange={(v: any) => setLogsFilter(v)}>
+              <SelectTrigger className="w-[150px]">
+                <SelectValue placeholder="Filter Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Status</SelectItem>
+                <SelectItem value="sent">Berhasil</SelectItem>
+                <SelectItem value="failed">Gagal</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button variant="outline" onClick={() => downloadLogsCSV(campaigns.find(c => c.id === logsOpenId)?.name || "log")}>
+              <Download className="w-4 h-4 mr-2" /> Export CSV
+            </Button>
+          </div>
+
+          <div className="flex-1 overflow-hidden border rounded-md">
+            <ScrollArea className="h-full">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50 sticky top-0 border-b">
+                  <tr>
+                    <th className="text-left p-3 font-medium">Jamaah</th>
+                    <th className="text-left p-3 font-medium">Status</th>
+                    <th className="text-left p-3 font-medium">Waktu</th>
+                    <th className="text-left p-3 font-medium">Pesan</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {filteredLogs.map((l: any) => (
+                    <tr key={l.id} className="hover:bg-muted/10">
+                      <td className="p-3">
+                        <p className="font-medium">{l.fullName}</p>
+                        <p className="text-[10px] text-muted-foreground">{l.phone} · {l.bookingCode}</p>
+                      </td>
+                      <td className="p-3">
+                        {l.status === 'sent' ? (
+                          <Badge variant="success" className="text-[10px]">Sent</Badge>
+                        ) : l.status === 'failed' ? (
+                          <div className="space-y-1">
+                            <Badge variant="destructive" className="text-[10px]">Failed</Badge>
+                            {l.errorMsg && <p className="text-[9px] text-red-500 max-w-[150px] truncate">{l.errorMsg}</p>}
+                          </div>
+                        ) : (
+                          <Badge variant="outline" className="text-[10px]">Queued</Badge>
+                        )}
+                      </td>
+                      <td className="p-3 text-[10px] text-muted-foreground whitespace-nowrap">
+                        {l.sentAt ? format(parseISO(l.sentAt), "dd/MM HH:mm:ss") : "-"}
+                      </td>
+                      <td className="p-3">
+                        <p className="text-[10px] text-muted-foreground line-clamp-2 max-w-[200px] italic">"{l.message}"</p>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </ScrollArea>
+          </div>
+
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => setLogsOpenId(null)}>Tutup</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
