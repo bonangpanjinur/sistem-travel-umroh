@@ -4,7 +4,10 @@ import {
   LogIn, FileSignature, Camera, BookOpen, Wallet, CreditCard,
   MessageCircle, X, GraduationCap, CalendarDays, Users, Clock,
   BookMarked, User, ChevronLeft, ChevronRight, Plane, Heart, Star,
-  BellRing, Moon, Sun, UsersRound, Trophy, Search
+  BellRing, Moon, Sun, UsersRound, Trophy, Search,
+  Package, Compass, Calculator, DollarSign, PiggyBank, Phone,
+  Cloud, Target, ShoppingBag, Calendar, MapPin, Mic, Navigation,
+  Bookmark, Award, Globe, Info, Headphones
 } from "lucide-react";
 import { useDarkMode } from "@/hooks/useDarkMode";
 import { cn } from "@/lib/utils";
@@ -24,6 +27,9 @@ const ICON_MAP: Record<string, any> = {
   FileSignature, Camera, BookOpen, Wallet, CreditCard, MessageCircle,
   GraduationCap, CalendarDays, Users, Clock, BookMarked, User, Plane,
   Heart, Star, BellRing, Moon, Sun, UsersRound, Trophy, Search,
+  Package, Compass, Calculator, DollarSign, PiggyBank, Phone,
+  Cloud, Target, ShoppingBag, Calendar, MapPin, Mic, Navigation,
+  Bookmark, Award, Globe, Info, Headphones,
 };
 
 type MenuItem = {
