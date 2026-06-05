@@ -29,6 +29,7 @@ const map: Record<string, () => Promise<unknown>> = {
   "/admin/equipment-settings": () => import("@/pages/admin/AdminEquipmentSettings"),
   "/admin/stock-opname": () => import("@/pages/admin/AdminStockOpname"),
   "/admin/cancellation-policies": () => import("@/pages/admin/AdminCancellationPolicies"),
+  "/admin/aturan-pembatalan": () => import("@/pages/admin/AdminAturanPembatalan"),
   "/admin/itinerary-templates": () => import("@/pages/admin/AdminItineraryTemplates"),
   "/admin/savings": () => import("@/pages/admin/AdminSavingsPlans"),
   "/admin/savings-management": () => import("@/pages/admin/AdminSavings"),

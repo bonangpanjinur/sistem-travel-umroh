@@ -122,7 +122,7 @@ export const RECOMMENDED_MENUS: AdminMenuItem[] = [
   { key: 'correspondence',         label: 'Hub Korespondensi',     path: '/admin/correspondence',         icon: 'MessagesSquare',group_name: 'Dokumen & Legalitas', sort_order: 806, required_permission: PERMISSIONS.WHATSAPP },
   { key: 'offline-content',        label: 'Konten Offline',        path: '/admin/offline-content',        icon: 'WifiOff',       group_name: 'Dokumen & Legalitas', sort_order: 807, required_permission: PERMISSIONS.OFFLINE_CONTENT },
   { key: 'support',                label: 'Tiket Support',         path: '/admin/support',                icon: 'LifeBuoy',      group_name: 'Dokumen & Legalitas', sort_order: 808, required_permission: PERMISSIONS.SUPPORT },
-  { key: 'cancellation-policies',  label: 'Aturan Pembatalan',     path: '/admin/cancellation-policies',  icon: 'ClipboardList', group_name: 'Dokumen & Legalitas', sort_order: 809, required_permission: PERMISSIONS.CANCELLATION_POLICIES },
+  { key: 'aturan-pembatalan',       label: 'Aturan Pembatalan',     path: '/admin/aturan-pembatalan',       icon: 'ClipboardList', group_name: 'Dokumen & Legalitas', sort_order: 809 },
   { key: 'office-assets',          label: 'Aset Kantor',           path: '/admin/office-assets',          icon: 'Briefcase',     group_name: 'Dokumen & Legalitas', sort_order: 810, required_permission: PERMISSIONS.OFFICE_ASSETS },
 
   // ── SDM (700s) ────────────────────────────────────────────────────────────
