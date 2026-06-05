@@ -6,6 +6,11 @@ import {
   PiggyBank, BookOpen, LayoutGrid, Phone, Info, Upload,
   ImageIcon, Moon, Compass, Cloud, Target, ShoppingBag, Star, X, CheckCircle2,
   Database, Palette, Layout, Eye,
+  QrCode, Shield, Bell, FileText, Luggage, LogIn, FileSignature,
+  Camera, Wallet, CreditCard, MessageCircle, GraduationCap,
+  CalendarDays, Users, Clock, BookMarked, Plane, Heart, BellRing,
+  Sun, UsersRound, Trophy, Search, MapPin, Mic, Navigation,
+  Bookmark, Award, Globe, Headphones,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,6 +20,8 @@ import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import {
   usePWAConfig,
@@ -35,7 +42,167 @@ const ICON_MAP: Record<string, React.ElementType> = {
   Home, Package, Calculator, DollarSign, User, Calendar,
   PiggyBank, BookOpen, LayoutGrid, Phone, Moon, Compass,
   Cloud, Target, ShoppingBag, Star,
+  QrCode, Shield, Bell, FileText, Luggage, LogIn, FileSignature,
+  Camera, Wallet, CreditCard, MessageCircle, GraduationCap,
+  CalendarDays, Users, Clock, BookMarked, Plane, Heart, BellRing,
+  Sun, UsersRound, Trophy, Search, MapPin, Mic, Navigation,
+  Bookmark, Award, Globe, Headphones,
 };
+
+type IconEntry = { name: string; icon: React.ElementType; label: string };
+
+const ALL_ICONS: Array<IconEntry & { category: string }> = [
+  // Navigasi
+  { name: "Home",        icon: Home,        label: "Beranda",       category: "Navigasi" },
+  { name: "LayoutGrid",  icon: LayoutGrid,  label: "Menu / Grid",   category: "Navigasi" },
+  { name: "Search",      icon: Search,      label: "Cari",          category: "Navigasi" },
+  { name: "LogIn",       icon: LogIn,       label: "Masuk",         category: "Navigasi" },
+  // Perjalanan
+  { name: "Plane",       icon: Plane,       label: "Penerbangan",   category: "Perjalanan" },
+  { name: "Luggage",     icon: Luggage,     label: "Koper",         category: "Perjalanan" },
+  { name: "Compass",     icon: Compass,     label: "Kiblat",        category: "Perjalanan" },
+  { name: "Navigation",  icon: Navigation,  label: "Navigasi",      category: "Perjalanan" },
+  { name: "MapPin",      icon: MapPin,      label: "Lokasi",        category: "Perjalanan" },
+  { name: "Globe",       icon: Globe,       label: "Dunia",         category: "Perjalanan" },
+  // Islami
+  { name: "Moon",        icon: Moon,        label: "Sholat",        category: "Islami" },
+  { name: "BookOpen",    icon: BookOpen,    label: "Al-Quran",      category: "Islami" },
+  { name: "BookMarked",  icon: BookMarked,  label: "Dzikir",        category: "Islami" },
+  { name: "Star",        icon: Star,        label: "Bintang",       category: "Islami" },
+  { name: "Award",       icon: Award,       label: "Penghargaan",   category: "Islami" },
+  { name: "Sun",         icon: Sun,         label: "Matahari",      category: "Islami" },
+  { name: "Heart",       icon: Heart,       label: "Favorit",       category: "Islami" },
+  // Keuangan
+  { name: "DollarSign",  icon: DollarSign,  label: "Kurs",          category: "Keuangan" },
+  { name: "PiggyBank",   icon: PiggyBank,   label: "Tabungan",      category: "Keuangan" },
+  { name: "Wallet",      icon: Wallet,      label: "Dompet",        category: "Keuangan" },
+  { name: "CreditCard",  icon: CreditCard,  label: "Bayar",         category: "Keuangan" },
+  { name: "Calculator",  icon: Calculator,  label: "Kalkulator",    category: "Keuangan" },
+  // Pengguna
+  { name: "User",        icon: User,        label: "Akun",          category: "Pengguna" },
+  { name: "Users",       icon: Users,       label: "Pengguna",      category: "Pengguna" },
+  { name: "UsersRound",  icon: UsersRound,  label: "Kelompok",      category: "Pengguna" },
+  { name: "Shield",      icon: Shield,      label: "Keamanan",      category: "Pengguna" },
+  { name: "GraduationCap", icon: GraduationCap, label: "Pelatihan", category: "Pengguna" },
+  { name: "Trophy",      icon: Trophy,      label: "Prestasi",      category: "Pengguna" },
+  // Komunikasi
+  { name: "Phone",       icon: Phone,       label: "Telepon",       category: "Komunikasi" },
+  { name: "MessageCircle", icon: MessageCircle, label: "Chat",      category: "Komunikasi" },
+  { name: "Bell",        icon: Bell,        label: "Notifikasi",    category: "Komunikasi" },
+  { name: "BellRing",    icon: BellRing,    label: "Alarm",         category: "Komunikasi" },
+  { name: "Mic",         icon: Mic,         label: "Mikrofon",      category: "Komunikasi" },
+  { name: "Headphones",  icon: Headphones,  label: "Audio",         category: "Komunikasi" },
+  // Konten
+  { name: "FileText",    icon: FileText,    label: "Dokumen",       category: "Konten" },
+  { name: "Camera",      icon: Camera,      label: "Kamera",        category: "Konten" },
+  { name: "FileSignature", icon: FileSignature, label: "Tanda Tangan", category: "Konten" },
+  { name: "QrCode",      icon: QrCode,      label: "QR Code",       category: "Konten" },
+  { name: "Bookmark",    icon: Bookmark,    label: "Bookmark",      category: "Konten" },
+  // Jadwal
+  { name: "Calendar",    icon: Calendar,    label: "Kalender",      category: "Jadwal" },
+  { name: "CalendarDays", icon: CalendarDays, label: "Jadwal",      category: "Jadwal" },
+  { name: "Clock",       icon: Clock,       label: "Waktu",         category: "Jadwal" },
+  // Lainnya
+  { name: "Package",     icon: Package,     label: "Paket",         category: "Lainnya" },
+  { name: "ShoppingBag", icon: ShoppingBag, label: "Toko",          category: "Lainnya" },
+  { name: "Target",      icon: Target,      label: "Target",        category: "Lainnya" },
+  { name: "Cloud",       icon: Cloud,       label: "Cuaca",         category: "Lainnya" },
+  { name: "Info",        icon: Info,        label: "Informasi",     category: "Lainnya" },
+];
+
+const ICON_CATEGORIES = [...new Set(ALL_ICONS.map((i) => i.category))];
+
+function IconPicker({ value, onChange }: { value: string; onChange: (name: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [activeCategory, setActiveCategory] = useState<string>("Semua");
+  const CurrentIcon = ICON_MAP[value] ?? Home;
+
+  const filtered = ALL_ICONS.filter((i) => {
+    const matchesQuery =
+      !query.trim() ||
+      i.name.toLowerCase().includes(query.toLowerCase()) ||
+      i.label.toLowerCase().includes(query.toLowerCase());
+    const matchesCat = activeCategory === "Semua" || i.category === activeCategory;
+    return matchesQuery && matchesCat;
+  });
+
+  return (
+    <Popover open={open} onOpenChange={(o) => { setOpen(o); if (!o) { setQuery(""); } }}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className={cn(
+            "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors border",
+            "bg-primary/10 text-primary border-primary/20 hover:bg-primary/20",
+          )}
+          title="Pilih ikon"
+        >
+          <CurrentIcon className="h-4 w-4" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-72 p-2.5" align="start" side="right">
+        <p className="text-xs font-semibold text-muted-foreground mb-2 px-0.5">Pilih Ikon</p>
+        <Input
+          placeholder="Cari nama ikon..."
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          className="h-8 text-sm mb-2"
+          autoFocus
+        />
+        {/* Category filter chips */}
+        {!query.trim() && (
+          <div className="flex flex-wrap gap-1 mb-2">
+            {["Semua", ...ICON_CATEGORIES].map((cat) => (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => setActiveCategory(cat)}
+                className={cn(
+                  "px-2 py-0.5 rounded-full text-[10px] font-medium transition-colors border",
+                  activeCategory === cat
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-muted text-muted-foreground border-border hover:bg-accent"
+                )}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+        )}
+        <ScrollArea className="h-52">
+          {filtered.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-8">Tidak ada ikon yang cocok</p>
+          ) : (
+            <div className="grid grid-cols-5 gap-1">
+              {filtered.map((item) => (
+                <button
+                  key={item.name}
+                  type="button"
+                  onClick={() => { onChange(item.name); setOpen(false); setQuery(""); }}
+                  className={cn(
+                    "flex flex-col items-center gap-1 p-1.5 rounded-lg transition-all",
+                    "hover:bg-accent active:scale-95",
+                    value === item.name && "bg-primary/10 ring-1 ring-primary text-primary"
+                  )}
+                  title={`${item.label} (${item.name})`}
+                >
+                  <item.icon className="h-4 w-4 shrink-0" />
+                  <span className="text-[8px] leading-tight text-center text-muted-foreground truncate w-full">
+                    {item.label}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </ScrollArea>
+        <p className="text-[10px] text-muted-foreground mt-2 px-0.5">
+          {value && <><span className="font-mono text-foreground">{value}</span> terpilih</>}
+        </p>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 const SPLASH_COLORS = [
   { label: "Hijau Islami", bg: "#15803d" },
@@ -51,7 +218,6 @@ function NavItemRow({ item, index, onChange }: {
   index: number;
   onChange: (updated: BottomNavItem) => void;
 }) {
-  const Icon = ICON_MAP[item.icon] ?? Home;
   return (
     <Draggable draggableId={item.id} index={index}>
       {(provided, snapshot) => (
@@ -59,22 +225,26 @@ function NavItemRow({ item, index, onChange }: {
           ref={provided.innerRef}
           {...provided.draggableProps}
           className={cn(
-            "flex items-center gap-3 rounded-lg border bg-card px-3 py-2.5 transition-shadow",
+            "flex items-center gap-2.5 rounded-lg border bg-card px-3 py-2.5 transition-shadow",
             snapshot.isDragging && "shadow-lg ring-1 ring-primary",
+            !item.enabled && "opacity-60",
           )}
         >
-          <div {...provided.dragHandleProps} className="cursor-grab text-muted-foreground">
+          <div {...provided.dragHandleProps} className="cursor-grab text-muted-foreground shrink-0">
             <GripVertical className="h-4 w-4" />
           </div>
-          <div className={cn(
-            "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
-            item.enabled ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground",
-          )}>
-            <Icon className="h-4 w-4" />
-          </div>
+          {/* Clickable icon picker */}
+          <IconPicker
+            value={item.icon}
+            onChange={(iconName) => onChange({ ...item, icon: iconName })}
+          />
           <div className="flex-1 min-w-0">
-            <p className={cn("text-sm font-medium", !item.enabled && "text-muted-foreground")}>{item.label}</p>
-            <p className="text-xs text-muted-foreground truncate">{item.path}</p>
+            <p className={cn("text-sm font-medium leading-tight", !item.enabled && "text-muted-foreground")}>
+              {item.label}
+            </p>
+            <p className="text-[10px] text-muted-foreground truncate font-mono">
+              {item.icon} · {item.path}
+            </p>
           </div>
           <Switch
             checked={item.enabled}
