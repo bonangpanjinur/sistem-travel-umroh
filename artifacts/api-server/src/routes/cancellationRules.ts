@@ -83,12 +83,48 @@ router.get("/all-packages", async (_req, res) => {
   }
 });
 
+// ── GET /api/cancellation-rules/audit-logs ───────────────────────────────────
+// Returns recent audit log entries (bulk assign / unassign history).
+router.get("/audit-logs", async (req, res) => {
+  try {
+    const limit = Math.min(Number(req.query["limit"]) || 50, 200);
+    const action = req.query["action"] as string | undefined;
+
+    const conditions: string[] = [];
+    const vals: unknown[] = [];
+    if (action && ["bulk_assign", "bulk_unassign"].includes(action)) {
+      conditions.push(`action = $${vals.length + 1}`);
+      vals.push(action);
+    }
+
+    const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+    vals.push(limit);
+
+    const { rows } = await pool.query(
+      `SELECT id, action, actor_name, actor_email, rule_id, rule_name,
+              package_count, package_names, created_at
+       FROM cancellation_rule_audit_logs
+       ${where}
+       ORDER BY created_at DESC
+       LIMIT $${vals.length}`,
+      vals
+    );
+    res.json({ data: rows });
+  } catch (err: any) {
+    err500(res, err, "audit-logs");
+  }
+});
+
 // ── PUT /api/cancellation-rules/bulk-unassign ────────────────────────────────
 // Clears cancellation_rule_id for the given package IDs.
-// Body: { package_ids: string[] }
+// Body: { package_ids: string[], actor_name?: string, actor_email?: string }
 router.put("/bulk-unassign", async (req, res) => {
   try {
-    const { package_ids } = req.body as { package_ids: string[] };
+    const { package_ids, actor_name, actor_email } = req.body as {
+      package_ids: string[];
+      actor_name?: string;
+      actor_email?: string;
+    };
 
     if (!Array.isArray(package_ids) || package_ids.length === 0) {
       res.status(400).json({ error: "package_ids harus berupa array yang tidak kosong" });
@@ -96,10 +132,26 @@ router.put("/bulk-unassign", async (req, res) => {
     }
 
     const placeholders = package_ids.map((_, i) => `$${i + 1}`).join(", ");
+
+    // Snapshot package names before clearing
+    const { rows: pkgRows } = await pool.query(
+      `SELECT name FROM packages WHERE id IN (${placeholders}) ORDER BY name`,
+      package_ids
+    );
+    const packageNames = pkgRows.map((r: any) => r.name as string);
+
     const { rowCount } = await pool.query(
       `UPDATE packages SET cancellation_rule_id = NULL, updated_at = NOW()
        WHERE id IN (${placeholders})`,
       package_ids
+    );
+
+    // Insert audit record
+    await pool.query(
+      `INSERT INTO cancellation_rule_audit_logs
+         (action, actor_name, actor_email, rule_id, rule_name, package_count, package_names)
+       VALUES ('bulk_unassign', $1, $2, NULL, NULL, $3, $4)`,
+      [actor_name ?? null, actor_email ?? null, package_ids.length, packageNames]
     );
 
     res.json({ success: true, updated: rowCount ?? 0 });
@@ -285,33 +337,53 @@ router.put("/:id/set-default", async (req, res) => {
 
 // ── PUT /api/cancellation-rules/:id/bulk-assign ──────────────────────────────
 // Assigns a cancellation rule to many packages at once.
-// Body: { package_ids: string[] }
+// Body: { package_ids: string[], actor_name?: string, actor_email?: string }
 router.put("/:id/bulk-assign", async (req, res) => {
   try {
     const { id } = req.params;
-    const { package_ids } = req.body as { package_ids: string[] };
+    const { package_ids, actor_name, actor_email } = req.body as {
+      package_ids: string[];
+      actor_name?: string;
+      actor_email?: string;
+    };
 
     if (!Array.isArray(package_ids) || package_ids.length === 0) {
       res.status(400).json({ error: "package_ids harus berupa array yang tidak kosong" });
       return;
     }
 
-    // Verify the rule exists
+    // Verify the rule exists and get its name
     const { rows: ruleRows } = await pool.query(
-      `SELECT id FROM cancellation_rules WHERE id = $1`,
+      `SELECT id, name FROM cancellation_rules WHERE id = $1`,
       [id]
     );
     if (!ruleRows.length) {
       res.status(404).json({ error: "Aturan tidak ditemukan" });
       return;
     }
+    const ruleName = ruleRows[0].name as string;
 
-    // Build a parameterized update for all package IDs
-    const placeholders = package_ids.map((_, i) => `$${i + 2}`).join(", ");
+    // Snapshot package names before assigning
+    const pkgPlaceholders = package_ids.map((_, i) => `$${i + 1}`).join(", ");
+    const { rows: pkgRows } = await pool.query(
+      `SELECT name FROM packages WHERE id IN (${pkgPlaceholders}) ORDER BY name`,
+      package_ids
+    );
+    const packageNames = pkgRows.map((r: any) => r.name as string);
+
+    // Update packages
     const { rowCount } = await pool.query(
       `UPDATE packages SET cancellation_rule_id = $1, updated_at = NOW()
-       WHERE id IN (${placeholders})`,
+       WHERE id IN (${pkgPlaceholders})`,
       [id, ...package_ids]
+    );
+
+    // Insert audit record
+    await pool.query(
+      `INSERT INTO cancellation_rule_audit_logs
+         (action, actor_name, actor_email, rule_id, rule_name, package_count, package_names)
+       VALUES ('bulk_assign', $1, $2, $3, $4, $5, $6)`,
+      [actor_name ?? null, actor_email ?? null, id, ruleName, package_ids.length, packageNames]
     );
 
     res.json({ success: true, updated: rowCount ?? 0 });

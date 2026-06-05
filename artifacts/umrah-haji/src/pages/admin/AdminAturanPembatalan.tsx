@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -20,9 +20,10 @@ import { toast } from "sonner";
 import {
   ClipboardList, Plus, Pencil, Trash2, Star, StarOff, Loader2,
   ChevronDown, ChevronUp, X, GripVertical, Package, Eye, EyeOff,
-  Search, CheckSquare, Square, Filter,
+  Search, CheckSquare, Square, Filter, History, UserCircle,
 } from "lucide-react";
 import { formatDate } from "@/lib/format";
+import { useAuth } from "@/hooks/useAuth";
 
 const API_BASE = "/api";
 
@@ -42,6 +43,17 @@ interface PackageRow {
   type: string;
   is_active: boolean;
   cancellation_rule_id: string | null;
+}
+interface AuditLogEntry {
+  id: string;
+  action: "bulk_assign" | "bulk_unassign";
+  actor_name: string | null;
+  actor_email: string | null;
+  rule_id: string | null;
+  rule_name: string | null;
+  package_count: number;
+  package_names: string[];
+  created_at: string;
 }
 
 const EMPTY_SECTIONS: PolicySection[] = [
@@ -264,6 +276,7 @@ function RuleCard({
 
 export default function AdminAturanPembatalan() {
   const queryClient = useQueryClient();
+  const { user, profile } = useAuth();
 
   const [mode, setMode] = useState<null | "create" | "edit">(null);
   const [editTarget, setEditTarget] = useState<CancellationRule | null>(null);
@@ -274,6 +287,10 @@ export default function AdminAturanPembatalan() {
   const [formName, setFormName] = useState("");
   const [formIsDefault, setFormIsDefault] = useState(false);
   const [formSections, setFormSections] = useState<PolicySection[]>(EMPTY_SECTIONS);
+
+  // ── Audit log state ───────────────────────────────────────────────────────
+  const [auditOpen, setAuditOpen] = useState(false);
+  const [expandedAuditId, setExpandedAuditId] = useState<string | null>(null);
 
   // ── Bulk Assign / Unassign state ──────────────────────────────────────────
   const [bulkOpen, setBulkOpen] = useState(false);
@@ -312,6 +329,18 @@ export default function AdminAturanPembatalan() {
     },
     enabled: bulkOpen,
   });
+
+  const { data: auditLogs = [], isLoading: loadingAudit, refetch: refetchAudit } =
+    useQuery<AuditLogEntry[]>({
+      queryKey: ["cancellation-rule-audit-logs"],
+      queryFn: async () => {
+        const res = await fetch(`${API_BASE}/cancellation-rules/audit-logs?limit=50`);
+        const json = await res.json();
+        return json.data ?? [];
+      },
+      enabled: auditOpen,
+      staleTime: 30_000,
+    });
 
   const filteredPackages = useMemo(() => {
     let list = allPackages;
@@ -451,13 +480,16 @@ export default function AdminAturanPembatalan() {
     onError: (e: any) => toast.error(e.message ?? "Gagal menjadikan default"),
   });
 
+  const actorName = profile?.full_name ?? user?.email ?? null;
+  const actorEmail = user?.email ?? null;
+
   const bulkAssignMutation = useMutation({
     mutationFn: async () => {
       const packageIds = Array.from(selectedPkgIds);
       const res = await fetch(`${API_BASE}/cancellation-rules/${bulkRuleId}/bulk-assign`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ package_ids: packageIds }),
+        body: JSON.stringify({ package_ids: packageIds, actor_name: actorName, actor_email: actorEmail }),
       });
       if (!res.ok) {
         const err = await res.json();
@@ -469,6 +501,7 @@ export default function AdminAturanPembatalan() {
       toast.success(`${data.updated ?? selectedPkgIds.size} paket berhasil dikaitkan`);
       invalidate();
       queryClient.invalidateQueries({ queryKey: ["all-packages-for-bulk-assign"] });
+      queryClient.invalidateQueries({ queryKey: ["cancellation-rule-audit-logs"] });
       setBulkOpen(false);
       setSelectedPkgIds(new Set());
     },
@@ -481,7 +514,7 @@ export default function AdminAturanPembatalan() {
       const res = await fetch(`${API_BASE}/cancellation-rules/bulk-unassign`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ package_ids: packageIds }),
+        body: JSON.stringify({ package_ids: packageIds, actor_name: actorName, actor_email: actorEmail }),
       });
       if (!res.ok) {
         const err = await res.json();
@@ -493,6 +526,7 @@ export default function AdminAturanPembatalan() {
       toast.success(`Aturan berhasil dilepas dari ${data.updated ?? selectedPkgIds.size} paket`);
       invalidate();
       queryClient.invalidateQueries({ queryKey: ["all-packages-for-bulk-assign"] });
+      queryClient.invalidateQueries({ queryKey: ["cancellation-rule-audit-logs"] });
       setBulkOpen(false);
       setSelectedPkgIds(new Set());
     },
@@ -584,6 +618,107 @@ export default function AdminAturanPembatalan() {
           ))}
         </div>
       )}
+
+      {/* ── Audit Log Panel ──────────────────────────────────────────────────── */}
+      <div className="border rounded-xl overflow-hidden">
+        <button
+          type="button"
+          className="w-full flex items-center justify-between px-4 py-3 bg-muted/30 hover:bg-muted/50 transition-colors text-left"
+          onClick={() => setAuditOpen(v => !v)}
+        >
+          <span className="flex items-center gap-2 text-sm font-medium">
+            <History className="h-4 w-4 text-muted-foreground" />
+            Riwayat Perubahan Aturan
+            {auditLogs.length > 0 && (
+              <Badge variant="secondary" className="text-xs">{auditLogs.length}</Badge>
+            )}
+          </span>
+          {auditOpen
+            ? <ChevronUp className="h-4 w-4 text-muted-foreground" />
+            : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+        </button>
+
+        {auditOpen && (
+          <div className="divide-y">
+            {loadingAudit ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : auditLogs.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-8 text-center">
+                Belum ada riwayat perubahan aturan pembatalan.
+              </p>
+            ) : (
+              auditLogs.map(entry => {
+                const isExpanded = expandedAuditId === entry.id;
+                const isAssign = entry.action === "bulk_assign";
+                return (
+                  <div key={entry.id} className="bg-background">
+                    <button
+                      type="button"
+                      className="w-full flex items-start gap-3 px-4 py-3 text-left hover:bg-muted/20 transition-colors"
+                      onClick={() => setExpandedAuditId(isExpanded ? null : entry.id)}
+                    >
+                      <div className="mt-0.5 shrink-0">
+                        <Badge
+                          variant={isAssign ? "default" : "destructive"}
+                          className="text-xs whitespace-nowrap"
+                        >
+                          {isAssign ? "Kaitkan" : "Lepas"}
+                        </Badge>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm">
+                          {isAssign
+                            ? <>Dikaitkan ke <strong>{entry.rule_name}</strong></>
+                            : <>Dilepas dari aturan</>
+                          }
+                          {" — "}
+                          <span className="text-muted-foreground">{entry.package_count} paket</span>
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1.5">
+                          <UserCircle className="h-3 w-3 shrink-0" />
+                          {entry.actor_name ?? entry.actor_email ?? "Admin"}
+                          <span className="text-muted-foreground/50">·</span>
+                          {formatDate(entry.created_at)}
+                        </p>
+                      </div>
+                      <ChevronDown
+                        className={`h-3.5 w-3.5 text-muted-foreground shrink-0 mt-1 transition-transform ${isExpanded ? "rotate-180" : ""}`}
+                      />
+                    </button>
+
+                    {isExpanded && entry.package_names.length > 0 && (
+                      <div className="px-4 pb-3 pt-0">
+                        <div className="rounded-lg bg-muted/30 border p-2.5 flex flex-wrap gap-1.5">
+                          {entry.package_names.map((name, i) => (
+                            <Badge key={i} variant="secondary" className="text-xs font-normal">
+                              {name}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
+
+            {auditLogs.length > 0 && (
+              <div className="px-4 py-2 bg-muted/10 flex justify-end">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs h-7"
+                  onClick={() => refetchAudit()}
+                >
+                  Muat ulang
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* ── Create / Edit Dialog ────────────────────────────────────────────── */}
       <Dialog

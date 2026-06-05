@@ -313,6 +313,32 @@ export async function runMigrations(): Promise<void> {
       logger.info("runMigrations: 09_passenger_pricing — already applied, skipping");
     }
 
+    // ── Step 1i: cancellation rules table ────────────────────────────────
+    const cancellationRulesApplied = await isApplied(client, "10_cancellation_rules");
+    if (!cancellationRulesApplied) {
+      await runSqlFile(
+        client,
+        sqlPath("10_cancellation_rules.sql"),
+        "10_cancellation_rules (cancellation_rules table + FK on packages)",
+      );
+      await markApplied(client, "10_cancellation_rules");
+    } else {
+      logger.info("runMigrations: 10_cancellation_rules — already applied, skipping");
+    }
+
+    // ── Step 1j: cancellation rule audit log ─────────────────────────────
+    const auditLogApplied = await isApplied(client, "11_cancellation_rule_audit");
+    if (!auditLogApplied) {
+      await runSqlFile(
+        client,
+        sqlPath("11_cancellation_rule_audit.sql"),
+        "11_cancellation_rule_audit (audit log table for bulk assign/unassign)",
+      );
+      await markApplied(client, "11_cancellation_rule_audit");
+    } else {
+      logger.info("runMigrations: 11_cancellation_rule_audit — already applied, skipping");
+    }
+
     // ── Step 2: payment sync trigger (always re-applied each boot) ────────
     // Wrapped in its own try/catch so a missing table on a broken DB state
     // doesn't crash the server — it just logs and continues.
