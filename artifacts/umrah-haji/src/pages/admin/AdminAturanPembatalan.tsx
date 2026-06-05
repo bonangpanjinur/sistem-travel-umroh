@@ -1,16 +1,4 @@
-/**
- * AdminAturanPembatalan.tsx
- *
- * Halaman manajemen aturan pembatalan (Cancellation Rules).
- * - Tampilkan semua aturan
- * - Buat aturan baru (dengan builder seksi)
- * - Edit aturan
- * - Hapus aturan (jika tidak dipakai paket)
- * - Jadikan default (hanya satu aturan bisa jadi default)
- * - Lihat daftar paket yang memakai aturan ini
- */
-
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,10 +12,15 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import {
   ClipboardList, Plus, Pencil, Trash2, Star, StarOff, Loader2,
   ChevronDown, ChevronUp, X, GripVertical, Package, Eye, EyeOff,
+  Search, CheckSquare, Square, Filter,
 } from "lucide-react";
 import { formatDate } from "@/lib/format";
 
@@ -42,6 +35,13 @@ interface CancellationRule {
   package_count: number;
   created_at: string;
   updated_at: string;
+}
+interface PackageRow {
+  id: string;
+  name: string;
+  type: string;
+  is_active: boolean;
+  cancellation_rule_id: string | null;
 }
 
 const EMPTY_SECTIONS: PolicySection[] = [
@@ -167,12 +167,14 @@ function RuleCard({
   onDelete,
   onSetDefault,
   onViewPackages,
+  onBulkAssign,
 }: {
   rule: CancellationRule;
   onEdit: (r: CancellationRule) => void;
   onDelete: (r: CancellationRule) => void;
   onSetDefault: (r: CancellationRule) => void;
   onViewPackages: (r: CancellationRule) => void;
+  onBulkAssign: (ruleId: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
 
@@ -201,7 +203,15 @@ function RuleCard({
               • Diperbarui {formatDate(rule.updated_at)}
             </p>
           </div>
-          <div className="flex gap-1 shrink-0">
+          <div className="flex gap-1 shrink-0 flex-wrap justify-end">
+            <Button
+              variant="outline" size="sm"
+              className="h-7 text-xs px-2 text-primary border-primary/30 hover:bg-primary/5"
+              title="Assign ke Banyak Paket"
+              onClick={() => onBulkAssign(rule.id)}
+            >
+              <Package className="h-3 w-3 mr-1" /> Bulk Assign
+            </Button>
             {!rule.is_default && (
               <Button variant="ghost" size="icon" className="h-7 w-7 text-amber-500"
                 title="Jadikan Default" onClick={() => onSetDefault(rule)}>
@@ -265,6 +275,13 @@ export default function AdminAturanPembatalan() {
   const [formIsDefault, setFormIsDefault] = useState(false);
   const [formSections, setFormSections] = useState<PolicySection[]>(EMPTY_SECTIONS);
 
+  // ── Bulk Assign state ─────────────────────────────────────────────────────
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkRuleId, setBulkRuleId] = useState<string>("");
+  const [bulkSearch, setBulkSearch] = useState("");
+  const [bulkFilterUnassigned, setBulkFilterUnassigned] = useState(false);
+  const [selectedPkgIds, setSelectedPkgIds] = useState<Set<string>>(new Set());
+
   const { data: rules = [], isLoading } = useQuery<CancellationRule[]>({
     queryKey: ["cancellation-rules"],
     queryFn: async () => {
@@ -284,6 +301,59 @@ export default function AdminAturanPembatalan() {
     },
     enabled: !!packagesTarget,
   });
+
+  const { data: allPackages = [], isLoading: loadingAllPkgs } = useQuery<PackageRow[]>({
+    queryKey: ["all-packages-for-bulk-assign"],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE}/cancellation-rules/all-packages`);
+      const json = await res.json();
+      return json.data ?? [];
+    },
+    enabled: bulkOpen,
+  });
+
+  const filteredPackages = useMemo(() => {
+    let list = allPackages;
+    if (bulkFilterUnassigned) {
+      list = list.filter(p => !p.cancellation_rule_id);
+    }
+    if (bulkSearch.trim()) {
+      const q = bulkSearch.toLowerCase();
+      list = list.filter(p => p.name.toLowerCase().includes(q));
+    }
+    return list;
+  }, [allPackages, bulkSearch, bulkFilterUnassigned]);
+
+  const allFilteredSelected = filteredPackages.length > 0 &&
+    filteredPackages.every(p => selectedPkgIds.has(p.id));
+
+  function togglePkg(id: string) {
+    setSelectedPkgIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAllFiltered() {
+    setSelectedPkgIds(prev => {
+      const next = new Set(prev);
+      if (allFilteredSelected) {
+        filteredPackages.forEach(p => next.delete(p.id));
+      } else {
+        filteredPackages.forEach(p => next.add(p.id));
+      }
+      return next;
+    });
+  }
+
+  function openBulkAssign(ruleId: string) {
+    setBulkRuleId(ruleId);
+    setBulkSearch("");
+    setBulkFilterUnassigned(false);
+    setSelectedPkgIds(new Set());
+    setBulkOpen(true);
+  }
 
   function invalidate() {
     queryClient.invalidateQueries({ queryKey: ["cancellation-rules"] });
@@ -379,6 +449,30 @@ export default function AdminAturanPembatalan() {
     onError: (e: any) => toast.error(e.message ?? "Gagal menjadikan default"),
   });
 
+  const bulkAssignMutation = useMutation({
+    mutationFn: async () => {
+      const packageIds = Array.from(selectedPkgIds);
+      const res = await fetch(`${API_BASE}/cancellation-rules/${bulkRuleId}/bulk-assign`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ package_ids: packageIds }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error ?? "Gagal bulk assign");
+      }
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      toast.success(`${data.updated ?? selectedPkgIds.size} paket berhasil dikaitkan`);
+      invalidate();
+      queryClient.invalidateQueries({ queryKey: ["all-packages-for-bulk-assign"] });
+      setBulkOpen(false);
+      setSelectedPkgIds(new Set());
+    },
+    onError: (e: any) => toast.error(e.message ?? "Gagal bulk assign"),
+  });
+
   function openCreate() {
     setFormName("");
     setFormIsDefault(rules.length === 0);
@@ -399,6 +493,7 @@ export default function AdminAturanPembatalan() {
     setMode("edit");
   }
 
+  const selectedRuleName = rules.find(r => r.id === bulkRuleId)?.name ?? "";
   const formValid = formName.trim().length > 0 && formSections.some(s => s.title.trim());
   const isSaving = createMutation.isPending || editMutation.isPending;
 
@@ -416,10 +511,18 @@ export default function AdminAturanPembatalan() {
             Aturan <strong>default</strong> otomatis berlaku untuk paket yang belum punya aturan khusus.
           </p>
         </div>
-        <Button onClick={openCreate}>
-          <Plus className="h-4 w-4 mr-2" />
-          Buat Aturan Baru
-        </Button>
+        <div className="flex gap-2 flex-wrap">
+          {rules.length > 0 && (
+            <Button variant="outline" onClick={() => openBulkAssign(rules[0].id)}>
+              <Package className="h-4 w-4 mr-2" />
+              Bulk Assign Paket
+            </Button>
+          )}
+          <Button onClick={openCreate}>
+            <Plus className="h-4 w-4 mr-2" />
+            Buat Aturan Baru
+          </Button>
+        </div>
       </div>
 
       {/* Rule List */}
@@ -450,6 +553,7 @@ export default function AdminAturanPembatalan() {
               onDelete={r => setDeleteTarget(r)}
               onSetDefault={r => setDefaultTarget(r)}
               onViewPackages={r => setPackagesTarget(r)}
+              onBulkAssign={openBulkAssign}
             />
           ))}
         </div>
@@ -509,6 +613,160 @@ export default function AdminAturanPembatalan() {
             >
               {isSaving && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
               {mode === "create" ? "Buat Aturan" : "Simpan Perubahan"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Bulk Assign Dialog ───────────────────────────────────────────────── */}
+      <Dialog open={bulkOpen} onOpenChange={open => {
+        if (!open) { setBulkOpen(false); setSelectedPkgIds(new Set()); }
+      }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Package className="h-4 w-4" />
+              Bulk Assign Paket ke Aturan Pembatalan
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
+            {/* Rule selector */}
+            <div className="space-y-1.5">
+              <Label>Aturan yang akan Diterapkan</Label>
+              <Select value={bulkRuleId} onValueChange={setBulkRuleId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Pilih aturan pembatalan..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {rules.map(r => (
+                    <SelectItem key={r.id} value={r.id}>
+                      <span className="flex items-center gap-2">
+                        {r.is_default && <Star className="h-3 w-3 text-amber-500" />}
+                        {r.name}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Search + filter */}
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Search className="h-4 w-4 absolute left-2.5 top-2.5 text-muted-foreground" />
+                <Input
+                  className="pl-8 h-9"
+                  placeholder="Cari nama paket..."
+                  value={bulkSearch}
+                  onChange={e => setBulkSearch(e.target.value)}
+                />
+              </div>
+              <Button
+                variant={bulkFilterUnassigned ? "default" : "outline"}
+                size="sm"
+                className="h-9 text-xs shrink-0"
+                onClick={() => setBulkFilterUnassigned(v => !v)}
+              >
+                <Filter className="h-3.5 w-3.5 mr-1.5" />
+                Belum ada aturan
+              </Button>
+            </div>
+
+            {/* Package list */}
+            <div className="flex-1 overflow-hidden border rounded-lg flex flex-col">
+              {/* Select all row */}
+              <div className="flex items-center gap-3 px-3 py-2 border-b bg-muted/30">
+                <button
+                  type="button"
+                  className="flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground"
+                  onClick={toggleAllFiltered}
+                  disabled={filteredPackages.length === 0}
+                >
+                  {allFilteredSelected
+                    ? <CheckSquare className="h-3.5 w-3.5 text-primary" />
+                    : <Square className="h-3.5 w-3.5" />}
+                  Pilih semua yang tampil
+                </button>
+                {selectedPkgIds.size > 0 && (
+                  <Badge variant="secondary" className="ml-auto text-xs">
+                    {selectedPkgIds.size} dipilih
+                  </Badge>
+                )}
+                {filteredPackages.length === 0 && allPackages.length > 0 && (
+                  <span className="ml-auto text-xs text-muted-foreground">Tidak ada hasil</span>
+                )}
+              </div>
+
+              <div className="overflow-y-auto flex-1 max-h-72">
+                {loadingAllPkgs ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                  </div>
+                ) : filteredPackages.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-6 text-center">
+                    {allPackages.length === 0 ? "Belum ada paket" : "Tidak ada paket yang sesuai filter"}
+                  </p>
+                ) : (
+                  filteredPackages.map(pkg => {
+                    const checked = selectedPkgIds.has(pkg.id);
+                    const currentRule = pkg.cancellation_rule_id
+                      ? rules.find(r => r.id === pkg.cancellation_rule_id)
+                      : null;
+                    return (
+                      <label
+                        key={pkg.id}
+                        className="flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-muted/40 border-b last:border-0"
+                      >
+                        <Checkbox
+                          checked={checked}
+                          onCheckedChange={() => togglePkg(pkg.id)}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{pkg.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {pkg.type || "—"}
+                            {currentRule && (
+                              <> · <span className="text-amber-600">Saat ini: {currentRule.name}</span></>
+                            )}
+                            {!currentRule && !pkg.cancellation_rule_id && (
+                              <> · <span className="text-muted-foreground/70">Belum ada aturan</span></>
+                            )}
+                          </p>
+                        </div>
+                        <Badge
+                          variant={pkg.is_active ? "default" : "secondary"}
+                          className="text-xs shrink-0"
+                        >
+                          {pkg.is_active ? "Aktif" : "Nonaktif"}
+                        </Badge>
+                      </label>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            {/* Summary */}
+            {selectedPkgIds.size > 0 && bulkRuleId && (
+              <div className="rounded-lg bg-primary/5 border border-primary/20 p-3 text-sm">
+                <strong>{selectedPkgIds.size} paket</strong> akan dikaitkan ke aturan{" "}
+                <strong>"{selectedRuleName}"</strong>.
+                Paket yang sudah punya aturan lain akan diganti.
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="pt-2">
+            <Button variant="outline" onClick={() => { setBulkOpen(false); setSelectedPkgIds(new Set()); }}>
+              Batal
+            </Button>
+            <Button
+              disabled={selectedPkgIds.size === 0 || !bulkRuleId || bulkAssignMutation.isPending}
+              onClick={() => bulkAssignMutation.mutate()}
+            >
+              {bulkAssignMutation.isPending && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
+              Terapkan ke {selectedPkgIds.size > 0 ? `${selectedPkgIds.size} ` : ""}Paket
             </Button>
           </DialogFooter>
         </DialogContent>

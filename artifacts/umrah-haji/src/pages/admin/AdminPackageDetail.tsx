@@ -503,7 +503,7 @@ export default function AdminPackageDetail() {
       <PackageCancellationPolicyCard
         packageId={id}
         packageName={packageData.name}
-        cancellationRuleId={packageData?.cancellation_rule_id ?? null}
+        cancellationRuleId={(packageData as any)?.cancellation_rule_id ?? null}
       />
 
       {/* Photo Gallery */}

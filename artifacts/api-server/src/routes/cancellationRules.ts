@@ -68,6 +68,21 @@ router.get("/default", async (_req, res) => {
   }
 });
 
+// ── GET /api/cancellation-rules/all-packages ─────────────────────────────────
+// Returns all packages with their current cancellation_rule_id (for bulk-assign UI)
+router.get("/all-packages", async (_req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT id, name, type, is_active, cancellation_rule_id
+      FROM packages
+      ORDER BY name ASC
+    `);
+    res.json({ data: rows });
+  } catch (err: any) {
+    err500(res, err, "all-packages");
+  }
+});
+
 // ── GET /api/cancellation-rules/:id ───────────────────────────────────────────
 router.get("/:id", async (req, res) => {
   try {
@@ -240,6 +255,43 @@ router.put("/:id/set-default", async (req, res) => {
     }
   } catch (err: any) {
     err500(res, err, "set-default");
+  }
+});
+
+// ── PUT /api/cancellation-rules/:id/bulk-assign ──────────────────────────────
+// Assigns a cancellation rule to many packages at once.
+// Body: { package_ids: string[] }
+router.put("/:id/bulk-assign", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { package_ids } = req.body as { package_ids: string[] };
+
+    if (!Array.isArray(package_ids) || package_ids.length === 0) {
+      res.status(400).json({ error: "package_ids harus berupa array yang tidak kosong" });
+      return;
+    }
+
+    // Verify the rule exists
+    const { rows: ruleRows } = await pool.query(
+      `SELECT id FROM cancellation_rules WHERE id = $1`,
+      [id]
+    );
+    if (!ruleRows.length) {
+      res.status(404).json({ error: "Aturan tidak ditemukan" });
+      return;
+    }
+
+    // Build a parameterized update for all package IDs
+    const placeholders = package_ids.map((_, i) => `$${i + 2}`).join(", ");
+    const { rowCount } = await pool.query(
+      `UPDATE packages SET cancellation_rule_id = $1, updated_at = NOW()
+       WHERE id IN (${placeholders})`,
+      [id, ...package_ids]
+    );
+
+    res.json({ success: true, updated: rowCount ?? 0 });
+  } catch (err: any) {
+    err500(res, err, "bulk-assign");
   }
 });
 
