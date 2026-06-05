@@ -351,7 +351,20 @@ export default function JamaahPortal() {
         <div className="absolute inset-0 opacity-10 pointer-events-none"
           style={{ backgroundImage: 'radial-gradient(circle at 20% 50%, white 1px, transparent 1px), radial-gradient(circle at 80% 20%, white 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
 
-        <div className="relative px-4 pt-4 pb-3">
+        {/* Back-to-website breadcrumb — only visible in browser mode, not PWA standalone */}
+        {!isStandalone && (
+          <div className="relative px-4 pt-2 pb-0">
+            <Link
+              to="/"
+              className="inline-flex items-center gap-1 text-[10px] text-white/60 hover:text-white/90 transition-colors"
+            >
+              <span>←</span>
+              <span>Kembali ke Website</span>
+            </Link>
+          </div>
+        )}
+
+        <div className="relative px-4 pt-3 pb-3">
           <div className="flex items-center justify-between">
             {/* Left: Avatar + Greeting */}
             <div className="flex items-center gap-3">

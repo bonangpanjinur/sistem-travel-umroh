@@ -1,4 +1,5 @@
-import { ReactNode } from 'react';
+import { ReactNode, Suspense, lazy } from 'react';
+import { Link } from 'react-router-dom';
 import { DynamicNavbar } from './DynamicNavbar';
 import { DynamicFooter } from './DynamicFooter';
 import { WhatsAppWidget } from '@/components/shared/WhatsAppWidget';
@@ -9,6 +10,11 @@ import { PWAInstallPrompt } from '@/components/pwa/PWAInstallPrompt';
 import { usePWAMode } from '@/hooks/usePWAMode';
 import { useWebsiteSettings } from '@/hooks/useWebsiteSettings';
 import { usePWAConfig } from '@/hooks/usePWAConfig';
+import { useAuth } from '@/hooks/useAuth';
+
+const JamaahBottomNav = lazy(() =>
+  import('@/components/jamaah/JamaahBottomNav').then((m) => ({ default: m.JamaahBottomNav }))
+);
 
 interface DynamicPublicLayoutProps {
   children: ReactNode;
@@ -17,25 +23,42 @@ interface DynamicPublicLayoutProps {
 function PWACompactHeader() {
   const { data: settings } = useWebsiteSettings();
   const { iconConfig } = usePWAConfig();
+  const { user, hasRole } = useAuth();
   const companyName = iconConfig.appName || settings?.company_name || 'Vinstour';
   const tagline = settings?.tagline || 'Perjalanan Suci Anda';
   const logoUrl = iconConfig.iconUrl || settings?.logo_url;
   const themeColor = iconConfig.themeColor || settings?.primary_color || '#15803d';
+
+  const homeHref = user && hasRole('jamaah') ? '/jamaah' : '/';
 
   return (
     <div
       className="sticky top-0 z-50 px-4 py-2.5 flex items-center justify-between safe-area-top shadow-sm"
       style={{ backgroundColor: themeColor }}
     >
-      <div className="flex items-center gap-2 min-w-0">
+      <Link to={homeHref} className="flex items-center gap-2 min-w-0 active:opacity-80 transition-opacity">
         {logoUrl && (
           <img src={logoUrl} alt={companyName} className="h-7 w-7 rounded-lg object-contain flex-shrink-0" />
         )}
         <span className="font-bold text-sm tracking-wide text-white truncate">{companyName}</span>
-      </div>
+      </Link>
       <span className="text-xs opacity-60 text-white truncate max-w-[130px] ml-2 flex-shrink-0">{tagline}</span>
     </div>
   );
+}
+
+function BottomNavSlot({ standalone }: { standalone?: boolean }) {
+  const { user, hasRole } = useAuth();
+
+  if (user && hasRole('jamaah')) {
+    return (
+      <Suspense fallback={null}>
+        <JamaahBottomNav noSidebar />
+      </Suspense>
+    );
+  }
+
+  return <MobileBottomNav standalone={standalone} />;
 }
 
 export function DynamicPublicLayout({ children }: DynamicPublicLayoutProps) {
@@ -52,7 +75,7 @@ export function DynamicPublicLayout({ children }: DynamicPublicLayoutProps) {
             {children}
           </main>
           <WhatsAppWidget />
-          <MobileBottomNav standalone />
+          <BottomNavSlot standalone />
         </div>
       </ThemeProvider>
     );
@@ -73,7 +96,7 @@ export function DynamicPublicLayout({ children }: DynamicPublicLayoutProps) {
         <DynamicFooter />
       </div>
       <WhatsAppWidget />
-      <MobileBottomNav />
+      <BottomNavSlot />
       <PWAInstallPrompt />
     </ThemeProvider>
   );

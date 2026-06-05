@@ -122,7 +122,12 @@ const sidebarGroups = [
 
 const SIDEBAR_COLLAPSED_KEY = "jamaah-sidebar-collapsed";
 
-export function JamaahBottomNav() {
+interface JamaahBottomNavProps {
+  /** Skip desktop sidebar — use when rendering inside public layout pages. */
+  noSidebar?: boolean;
+}
+
+export function JamaahBottomNav({ noSidebar = false }: JamaahBottomNavProps) {
   const location = useLocation();
   const { unreadCount } = useNotifications();
   const { isDark, toggle: toggleDark } = useDarkMode();
@@ -160,6 +165,7 @@ export function JamaahBottomNav() {
   }, [moreOpen]);
 
   useEffect(() => {
+    if (noSidebar) return;
     const cls = sidebarCollapsed ? "jamaah-sidebar-collapsed" : "jamaah-sidebar-open";
     const opposite = sidebarCollapsed ? "jamaah-sidebar-open" : "jamaah-sidebar-collapsed";
     document.body.classList.add("jamaah-portal-active", cls);
@@ -167,7 +173,7 @@ export function JamaahBottomNav() {
     return () => {
       document.body.classList.remove("jamaah-portal-active", "jamaah-sidebar-open", "jamaah-sidebar-collapsed");
     };
-  }, [sidebarCollapsed]);
+  }, [sidebarCollapsed, noSidebar]);
 
   const toggleSidebar = () => {
     setSidebarCollapsed((v) => {
@@ -210,8 +216,8 @@ export function JamaahBottomNav() {
 
   return (
     <>
-      {/* ── DESKTOP SIDEBAR ── */}
-      <aside
+      {/* ── DESKTOP SIDEBAR — hidden when noSidebar (public layout) ── */}
+      {!noSidebar && <aside
         className={cn(
           "hidden md:flex flex-col fixed left-0 top-0 bottom-0 z-50 bg-background border-r transition-all duration-300 shadow-sm",
           sidebarCollapsed ? "w-16" : "w-60"
@@ -308,7 +314,7 @@ export function JamaahBottomNav() {
             </Link>
           )}
         </div>
-      </aside>
+      </aside>}
 
       {/* ── MENU LEBIH BOTTOM SHEET — with Search & Filter ── */}
       {moreOpen && (
