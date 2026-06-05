@@ -290,11 +290,18 @@ function InlineEdit({
   );
 }
 
-function NavItemRow({ item, index, onChange }: {
+function NavItemRow({ item, index, onChange, original }: {
   item: BottomNavItem;
   index: number;
   onChange: (updated: BottomNavItem) => void;
+  original?: BottomNavItem;
 }) {
+  const isDirty = original && (
+    item.label !== original.label ||
+    item.icon  !== original.icon  ||
+    item.path  !== original.path
+  );
+
   return (
     <Draggable draggableId={item.id} index={index}>
       {(provided, snapshot) => (
@@ -305,6 +312,7 @@ function NavItemRow({ item, index, onChange }: {
             "flex items-center gap-2.5 rounded-lg border bg-card px-3 py-2.5 transition-shadow",
             snapshot.isDragging && "shadow-lg ring-1 ring-primary",
             !item.enabled && "opacity-60",
+            isDirty && "border-amber-300 dark:border-amber-700",
           )}
         >
           <div {...provided.dragHandleProps} className="cursor-grab text-muted-foreground shrink-0">
@@ -342,6 +350,18 @@ function NavItemRow({ item, index, onChange }: {
               />
             </div>
           </div>
+
+          {/* Per-row reset — only visible when something changed */}
+          {isDirty && (
+            <button
+              type="button"
+              onClick={() => onChange({ ...original!, enabled: item.enabled, order: item.order })}
+              className="shrink-0 h-7 w-7 flex items-center justify-center rounded-md text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors"
+              title={`Reset ke default: "${original!.label}" · ${original!.icon} · ${original!.path}`}
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+            </button>
+          )}
 
           <Switch
             checked={item.enabled}
@@ -787,7 +807,13 @@ export default function AdminPWASettings() {
                     {(provided) => (
                       <div ref={provided.innerRef} {...provided.droppableProps} className="space-y-2">
                         {localItems.map((item, index) => (
-                          <NavItemRow key={item.id} item={item} index={index} onChange={handleChange} />
+                          <NavItemRow
+                            key={item.id}
+                            item={item}
+                            index={index}
+                            onChange={handleChange}
+                            original={ALL_NAV_OPTIONS.find((o) => o.id === item.id)}
+                          />
                         ))}
                         {provided.placeholder}
                       </div>
