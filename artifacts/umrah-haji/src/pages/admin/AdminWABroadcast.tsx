@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format, parseISO } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 import { 
   Search, Filter, Send, History, Settings, Info, CheckCircle2, 
   XCircle, Clock, ChevronRight, Download, Eye, RefreshCw, 
@@ -13,7 +13,7 @@ import {
   Wallet, Hotel, Plane, Building, Store, PersonStanding,
   Bus, Database, Layout, Smartphone, Share2, MessageCircle
 } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/integrations/supabase/client";
 import { PERMISSIONS } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -581,7 +581,7 @@ export default function AdminWABroadcast() {
                       <tr key={c.id} className="hover:bg-muted/20">
                         <td className="p-4 font-medium">{c.name}</td>
                         <td className="p-4">
-                          <Badge variant={c.status === 'done' ? 'success' : c.status === 'scheduled' ? 'outline' : 'secondary'}>
+                          <Badge variant={c.status === 'done' ? 'default' : c.status === 'scheduled' ? 'outline' : 'secondary'}>
                             {c.status}
                           </Badge>
                         </td>
@@ -661,7 +661,7 @@ export default function AdminWABroadcast() {
                 <SelectItem value="failed">Gagal</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="outline" onClick={() => downloadLogsCSV(campaigns.find(c => c.id === logsOpenId)?.name || "log")}>
+            <Button variant="outline" onClick={() => downloadLogsCSV(campaigns.find((c: any) => c.id === logsOpenId)?.name || "log")}>
               <Download className="w-4 h-4 mr-2" /> Export CSV
             </Button>
           </div>
@@ -686,7 +686,7 @@ export default function AdminWABroadcast() {
                       </td>
                       <td className="p-3">
                         {l.status === 'sent' ? (
-                          <Badge variant="success" className="text-[10px]">Sent</Badge>
+                          <Badge variant="default" className="text-[10px]">Sent</Badge>
                         ) : l.status === 'failed' ? (
                           <div className="space-y-1">
                             <Badge variant="destructive" className="text-[10px]">Failed</Badge>
