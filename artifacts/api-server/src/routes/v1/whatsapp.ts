@@ -1,18 +1,11 @@
 import { Router } from 'express';
-import { createClient } from '@supabase/supabase-js';
-import { db } from '../../lib/db.js';
+import { db, pool } from '../../lib/db.js';
 import { waTemplates, waSendLogs, appSettings } from '@workspace/db/schema';
 import { eq, sql, and, or, desc } from 'drizzle-orm';
 
 const router = Router();
 
-// ─── Supabase admin client (reads whatsapp_config server-side) ───────────
-function getSupabaseAdmin() {
-  const url = process.env['SUPABASE_URL'];
-  const key = process.env['SUPABASE_SERVICE_ROLE_KEY'] || process.env['SUPABASE_ANON_KEY'];
-  if (!url || !key) return null;
-  return createClient(url, key);
-}
+// ─── whatsapp_config helper (direct DB) ──────────────────────────────────
 
 // ─── Provider config type ────────────────────────────────────────────────
 interface WAProviderConfig {
@@ -26,16 +19,18 @@ interface WAProviderConfig {
 
 // ─── Load active config from DB ───────────────────────────────────────────
 async function loadActiveConfig(): Promise<WAProviderConfig | null> {
-  const supabase = getSupabaseAdmin();
-  if (!supabase) return null;
-  const { data } = await supabase
-    .from('whatsapp_config')
-    .select('provider, api_key, sender_number, is_active, provider_config, display_name')
-    .eq('is_active', true)
-    .order('updated_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  return data as WAProviderConfig | null;
+  try {
+    const { rows } = await pool.query(`
+      SELECT provider, api_key, sender_number, is_active, provider_config, display_name
+      FROM whatsapp_config
+      WHERE is_active = true
+      ORDER BY updated_at DESC
+      LIMIT 1
+    `);
+    return (rows[0] as WAProviderConfig) ?? null;
+  } catch {
+    return null;
+  }
 }
 
 // ─── Phone normaliser ────────────────────────────────────────────────────
@@ -228,17 +223,15 @@ router.get('/status', async (_req, res) => {
 // ─── GET /api/v1/whatsapp/provider ────────────────────────────────────────
 // Returns safe config (no raw api_key) for the admin UI
 router.get('/provider', async (_req, res) => {
-  const supabase = getSupabaseAdmin();
-  if (!supabase) {
-    res.status(503).json({ error: 'Supabase belum dikonfigurasi di server' });
-    return;
-  }
   try {
-    const { data, error } = await supabase.rpc('get_wa_config_safe');
-    if (error) throw error;
+    const { rows } = await pool.query(`
+      SELECT id, provider, display_name, sender_number, is_active, provider_config, updated_at
+      FROM whatsapp_config
+      ORDER BY updated_at DESC
+    `);
     const envFonnte = envFonnteConfig();
     res.json({
-      configs: data || [],
+      configs: rows.map(r => ({ ...r, api_key: '••••••••' })),
       env_fonnte_configured: !!envFonnte,
     });
   } catch (e: any) {
@@ -249,11 +242,6 @@ router.get('/provider', async (_req, res) => {
 // ─── POST /api/v1/whatsapp/provider ───────────────────────────────────────
 // Saves (upsert) provider config. api_key is saved to DB server-side only.
 router.post('/provider', async (req, res) => {
-  const supabase = getSupabaseAdmin();
-  if (!supabase) {
-    res.status(503).json({ error: 'Supabase belum dikonfigurasi di server' });
-    return;
-  }
   const {
     id,
     provider,
@@ -277,36 +265,45 @@ router.post('/provider', async (req, res) => {
     return;
   }
 
-  try {
-    const payload: Record<string, any> = {
-      provider,
-      display_name: display_name || null,
-      sender_number: sender_number || null,
-      is_active: is_active ?? false,
-      provider_config: provider_config || {},
-      updated_at: new Date().toISOString(),
-    };
-    // Only update api_key if a new value is provided (not masked)
-    if (api_key && !api_key.startsWith('••')) {
-      payload['api_key'] = api_key;
-    }
+  const includeApiKey = api_key && !api_key.startsWith('••');
 
-    let result;
+  try {
+    let newId: string;
     if (id) {
-      result = await supabase.from('whatsapp_config').update(payload).eq('id', id).select('id').single();
+      const setClauses = [
+        `provider = $1`,
+        `display_name = $2`,
+        `sender_number = $3`,
+        `is_active = $4`,
+        `provider_config = $5`,
+        `updated_at = NOW()`,
+      ];
+      const vals: any[] = [provider, display_name || null, sender_number || null, is_active ?? false, JSON.stringify(provider_config || {})];
+      if (includeApiKey) { setClauses.push(`api_key = $${vals.length + 1}`); vals.push(api_key); }
+      vals.push(id);
+      const { rows } = await pool.query(
+        `UPDATE whatsapp_config SET ${setClauses.join(', ')} WHERE id = $${vals.length} RETURNING id`,
+        vals,
+      );
+      newId = rows[0]?.id ?? id;
     } else {
-      result = await supabase.from('whatsapp_config').insert(payload).select('id').single();
+      const cols = ['provider', 'display_name', 'sender_number', 'is_active', 'provider_config', 'updated_at'];
+      const vals: any[] = [provider, display_name || null, sender_number || null, is_active ?? false, JSON.stringify(provider_config || {}), new Date()];
+      if (includeApiKey) { cols.push('api_key'); vals.push(api_key); }
+      const placeholders = vals.map((_, i) => `$${i + 1}`).join(', ');
+      const { rows } = await pool.query(
+        `INSERT INTO whatsapp_config (${cols.join(', ')}) VALUES (${placeholders}) RETURNING id`,
+        vals,
+      );
+      newId = rows[0]?.id;
     }
-    if (result.error) throw result.error;
 
     // If set as active, deactivate all others
-    if (is_active && result.data?.id) {
-      await supabase.from('whatsapp_config')
-        .update({ is_active: false })
-        .neq('id', result.data.id);
+    if (is_active && newId) {
+      await pool.query(`UPDATE whatsapp_config SET is_active = false WHERE id != $1`, [newId]);
     }
 
-    res.json({ success: true, id: result.data?.id });
+    res.json({ success: true, id: newId });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
@@ -314,14 +311,12 @@ router.post('/provider', async (req, res) => {
 
 // ─── DELETE /api/v1/whatsapp/provider/:id ────────────────────────────────
 router.delete('/provider/:id', async (req, res) => {
-  const supabase = getSupabaseAdmin();
-  if (!supabase) {
-    res.status(503).json({ error: 'Supabase belum dikonfigurasi' });
-    return;
+  try {
+    await pool.query(`DELETE FROM whatsapp_config WHERE id = $1`, [req.params.id]);
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
   }
-  const { error } = await supabase.from('whatsapp_config').delete().eq('id', req.params.id);
-  if (error) { res.status(500).json({ error: error.message }); return; }
-  res.json({ success: true });
 });
 
 // ─── POST /api/v1/whatsapp/provider/test ────────────────────────────────

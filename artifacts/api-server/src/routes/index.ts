@@ -18,6 +18,7 @@ import dashboardRouter from "./dashboard.js";
 import schedulerRouter from "./scheduler.js";
 import reportsRouter from "./reports.js";
 import migrationsRouter from "./migrations.js";
+import cancellationRulesRouter from "./cancellationRules.js";
 
 const router: IRouter = Router();
 
@@ -40,5 +41,6 @@ router.use("/dashboard", dashboardRouter);
 router.use("/scheduler", schedulerRouter);
 router.use("/reports", reportsRouter);
 router.use("/admin/migrations", migrationsRouter);
+router.use("/cancellation-rules", cancellationRulesRouter);
 
 export default router;

@@ -3,10 +3,21 @@ import {
   timestamp, date,
 } from "drizzle-orm/pg-core";
 
+// ── cancellation_rules ────────────────────────────────────────────────────────
+export const cancellationRules = pgTable("cancellation_rules", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  isDefault: boolean("is_default").notNull().default(false),
+  sections: jsonb("sections").notNull().default([]),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
 // ── packages ──────────────────────────────────────────────────────────────────
 export const packages = pgTable("packages", {
   id: uuid("id").primaryKey().defaultRandom(),
   branchId: uuid("branch_id"),
+  cancellationRuleId: uuid("cancellation_rule_id"),
   name: text("name").notNull(),
   type: text("type").notNull().default("umroh"),
   description: text("description"),
@@ -291,6 +302,7 @@ export const waSendLogs = pgTable("wa_send_logs", {
 
 // ── types ─────────────────────────────────────────────────────────────────────
 
+export type CancellationRule = typeof cancellationRules.$inferSelect;
 export type Package = typeof packages.$inferSelect;
 export type Departure = typeof departures.$inferSelect;
 export type PushSubscription = typeof pushSubscriptions.$inferSelect;

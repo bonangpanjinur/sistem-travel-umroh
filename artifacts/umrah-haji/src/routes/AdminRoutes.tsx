@@ -81,6 +81,7 @@ const AdminEquipmentMaster = lazy(() => import("@/pages/admin/AdminEquipmentMast
 const AdminEquipmentSettings = lazy(() => import("@/pages/admin/AdminEquipmentSettings"));
 const AdminStockOpname = lazy(() => import("@/pages/admin/AdminStockOpname"));
 const AdminCancellationPolicies = lazy(() => import("@/pages/admin/AdminCancellationPolicies"));
+const AdminAturanPembatalan = lazy(() => import("@/pages/admin/AdminAturanPembatalan"));
 
 const AdminLandingPages = lazy(() => import("@/pages/admin/AdminLandingPages"));
 const AdminLandingPageEditor = lazy(() => import("@/pages/admin/AdminLandingPageEditor"));
@@ -256,6 +257,7 @@ export default function AdminRoutes() {
       <Route path="equipment-settings" element={<P k={PERMISSIONS.EQUIPMENT_SETTINGS}><AdminEquipmentSettings /></P>} />
       <Route path="stock-opname" element={<Navigate to="/admin/equipment?tab=opname" replace />} />
       <Route path="cancellation-policies" element={<P k={PERMISSIONS.CANCELLATION_POLICIES}><AdminCancellationPolicies /></P>} />
+      <Route path="aturan-pembatalan" element={<LazyPage><AdminAturanPembatalan /></LazyPage>} />
       <Route path="itinerary-templates" element={<P k={PERMISSIONS.ITINERARY_TEMPLATES}><AdminItineraryTemplates /></P>} />
       <Route path="savings" element={<P k={PERMISSIONS.SAVINGS}><AdminSavingsPlans /></P>} />
       <Route path="savings-management" element={<P k={PERMISSIONS.SAVINGS}><AdminSavings /></P>} />

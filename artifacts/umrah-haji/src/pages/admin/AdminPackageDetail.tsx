@@ -500,7 +500,11 @@ export default function AdminPackageDetail() {
       )}
 
       {/* Cancellation Policy */}
-      <PackageCancellationPolicyCard packageId={id} packageName={packageData.name} />
+      <PackageCancellationPolicyCard
+        packageId={id}
+        packageName={packageData.name}
+        cancellationRuleId={packageData?.cancellation_rule_id ?? null}
+      />
 
       {/* Photo Gallery */}
       <PackageGalleryCard packageId={id} mainImageUrl={packageData?.featured_image} />
