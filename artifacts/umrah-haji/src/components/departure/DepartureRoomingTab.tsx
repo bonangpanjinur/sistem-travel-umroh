@@ -432,32 +432,134 @@ interface RoomContentProps {
   getRoomTypeBadgeColor: (t: string) => string;
 }
 
+const ROOM_TYPES = ["single", "double", "triple", "quad"] as const;
+
+const ROOM_TYPE_CONFIG: Record<string, { label: string; capacity: number; bar: string; bg: string; text: string; border: string }> = {
+  single: { label: "Single",  capacity: 1, bar: "bg-purple-500", bg: "bg-purple-50",  text: "text-purple-700", border: "border-purple-200" },
+  double: { label: "Double",  capacity: 2, bar: "bg-blue-500",   bg: "bg-blue-50",    text: "text-blue-700",   border: "border-blue-200" },
+  triple: { label: "Triple",  capacity: 3, bar: "bg-green-500",  bg: "bg-green-50",   text: "text-green-700",  border: "border-green-200" },
+  quad:   { label: "Quad",    capacity: 4, bar: "bg-amber-500",  bg: "bg-amber-50",   text: "text-amber-700",  border: "border-amber-200" },
+};
+
+function OccupancySummary({ rooms }: { rooms: RoomAssignment[] | undefined }) {
+  const stats = ROOM_TYPES.map((type) => {
+    const typeRooms = (rooms || []).filter((r) => r.room_type === type);
+    if (typeRooms.length === 0) return null;
+    const totalBeds  = typeRooms.reduce((s, r) => s + (r.capacity ?? 0), 0);
+    const filledBeds = typeRooms.reduce((s, r) => s + (r.occupants?.length || 0), 0);
+    const available  = totalBeds - filledBeds;
+    const pct        = totalBeds > 0 ? Math.round((filledBeds / totalBeds) * 100) : 0;
+    const cfg        = ROOM_TYPE_CONFIG[type];
+    return { type, ...cfg, rooms: typeRooms.length, totalBeds, filledBeds, available, pct };
+  }).filter(Boolean) as NonNullable<ReturnType<typeof ROOM_TYPES["map"]>[number]>[];
+
+  // Gender split across all rooms
+  const allOccupants = (rooms || []).flatMap((r) => r.occupants || []);
+  const maleCount   = allOccupants.filter((o) => o.customer?.gender === "male").length;
+  const femaleCount = allOccupants.filter((o) => o.customer?.gender === "female").length;
+  const totalOccupants = allOccupants.length;
+
+  if (stats.length === 0) return null;
+
+  return (
+    <div className="rounded-xl border bg-card p-4 space-y-4">
+      <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Ringkasan Hunian</p>
+
+      {/* Per-type breakdown */}
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {(stats as any[]).map((s: any) => (
+          <div key={s.type} className={`rounded-lg border p-3 space-y-2 ${s.bg} ${s.border}`}>
+            <div className="flex items-center justify-between">
+              <span className={`text-xs font-bold uppercase tracking-wide ${s.text}`}>{s.label}</span>
+              <span className={`text-[11px] font-semibold ${s.text}`}>{s.rooms} kamar</span>
+            </div>
+            {/* Progress bar */}
+            <div className="h-2 w-full rounded-full bg-white/70 overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all ${s.bar}`}
+                style={{ width: `${s.pct}%` }}
+              />
+            </div>
+            <div className="flex justify-between text-[11px] font-medium">
+              <span className={s.text}>{s.filledBeds} terisi</span>
+              <span className="text-muted-foreground">{s.available} kosong</span>
+            </div>
+            <p className={`text-[10px] ${s.text} opacity-80`}>{s.totalBeds} tempat tidur · {s.pct}% penuh</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Gender split */}
+      {totalOccupants > 0 && (
+        <div className="border-t pt-3 flex items-center gap-6 flex-wrap">
+          <p className="text-xs text-muted-foreground font-medium">Komposisi Jamaah:</p>
+          <div className="flex items-center gap-2">
+            <span className="inline-block w-2.5 h-2.5 rounded-full bg-blue-500" />
+            <span className="text-xs">Laki-laki: <strong>{maleCount}</strong></span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="inline-block w-2.5 h-2.5 rounded-full bg-pink-400" />
+            <span className="text-xs">Perempuan: <strong>{femaleCount}</strong></span>
+          </div>
+          {totalOccupants - maleCount - femaleCount > 0 && (
+            <div className="flex items-center gap-2">
+              <span className="inline-block w-2.5 h-2.5 rounded-full bg-gray-300" />
+              <span className="text-xs">Tidak diketahui: <strong>{totalOccupants - maleCount - femaleCount}</strong></span>
+            </div>
+          )}
+          {/* Gender mismatch warning */}
+          {maleCount !== femaleCount && totalOccupants > 1 && (
+            <span className="ml-auto text-[11px] text-amber-600 font-medium bg-amber-50 border border-amber-200 rounded px-2 py-0.5">
+              ⚠ Jumlah L/P tidak seimbang — periksa penempatan mahram
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function RoomContent({
   rooms, loadingRooms, totalRooms, totalCapacity, totalOccupied, unassignedCount,
   onAddRoom, onOpenAssign, onRemoveOccupant, onDeleteRoom,
   deleteLoading, removeLoading, getRoomTypeLabel, getRoomTypeBadgeColor,
 }: RoomContentProps) {
+  const fillPct = totalCapacity > 0 ? Math.round((totalOccupied / totalCapacity) * 100) : 0;
+
   return (
     <div className="space-y-4">
+      {/* Top stats bar */}
       <div className="flex items-center justify-between bg-muted/40 p-4 rounded-lg border">
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-6 flex-wrap">
           <div>
             <p className="text-xs text-muted-foreground">Total Kamar</p>
             <p className="text-2xl font-bold">{totalRooms}</p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Terisi / Kapasitas</p>
-            <p className="text-2xl font-bold">{totalOccupied}/{totalCapacity}</p>
+            <p className="text-2xl font-bold">
+              {totalOccupied}
+              <span className="text-muted-foreground font-normal text-lg">/{totalCapacity}</span>
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Tingkat Hunian</p>
+            <p className={`text-2xl font-bold ${fillPct >= 90 ? "text-emerald-600" : fillPct >= 50 ? "text-amber-600" : "text-muted-foreground"}`}>
+              {fillPct}%
+            </p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Belum Assign</p>
-            <p className="text-2xl font-bold text-amber-600">{unassignedCount}</p>
+            <p className={`text-2xl font-bold ${unassignedCount > 0 ? "text-amber-600" : "text-muted-foreground"}`}>{unassignedCount}</p>
           </div>
         </div>
         <Button onClick={onAddRoom} size="sm">
           <Plus className="h-4 w-4 mr-2" /> Tambah Kamar
         </Button>
       </div>
+
+      {/* Occupancy summary card */}
+      {!loadingRooms && <OccupancySummary rooms={rooms} />}
 
       {loadingRooms ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
