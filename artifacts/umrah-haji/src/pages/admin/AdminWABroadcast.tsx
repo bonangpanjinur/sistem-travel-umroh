@@ -21,7 +21,8 @@ import {
   Megaphone, Send, Users, AlertCircle, RefreshCcw, Eye,
   CalendarClock, Filter, CheckCircle2, XCircle, Clock,
   ChevronRight, Package, Plane, Wallet, Phone, RotateCw,
-  History, Plus, Info, ListFilter
+  History, Plus, Info, ListFilter, ClipboardList, Search,
+  Download, ChevronDown
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
@@ -537,6 +538,82 @@ export default function AdminWABroadcast() {
       return data || [];
     },
   });
+
+  // ── Campaign log detail ────────────────────────────────────────────────────
+  const { data: campaignLogs = [], isLoading: logsLoading } = useQuery({
+    queryKey: ["broadcast-logs", logsOpenId],
+    enabled: !!logsOpenId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("wa_broadcast_logs")
+        .select(`
+          id, phone, message, status, sent_at, error_msg, created_at,
+          booking:bookings(id, booking_code, customer:profiles(full_name))
+        `)
+        .eq("campaign_id", logsOpenId)
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return (data || []).map((l: any) => ({
+        id:          l.id,
+        phone:       l.phone  || "-",
+        message:     l.message || "",
+        status:      l.status as "queued" | "sent" | "failed",
+        sentAt:      l.sent_at,
+        errorMsg:    l.error_msg,
+        bookingCode: l.booking?.booking_code || "-",
+        fullName:    l.booking?.customer?.full_name || "-",
+      }));
+    },
+  });
+
+  // Derived log stats + filtered rows
+  const logStats = useMemo(() => {
+    const sent   = campaignLogs.filter((l: any) => l.status === "sent").length;
+    const failed = campaignLogs.filter((l: any) => l.status === "failed").length;
+    const queued = campaignLogs.filter((l: any) => l.status === "queued").length;
+    return { sent, failed, queued, total: campaignLogs.length };
+  }, [campaignLogs]);
+
+  const filteredLogs = useMemo(() => {
+    return campaignLogs.filter((l: any) => {
+      if (logsFilter !== "all" && l.status !== logsFilter) return false;
+      if (logsSearch) {
+        const q = logsSearch.toLowerCase();
+        return l.fullName.toLowerCase().includes(q) ||
+               l.phone.toLowerCase().includes(q)    ||
+               l.bookingCode.toLowerCase().includes(q);
+      }
+      return true;
+    });
+  }, [campaignLogs, logsFilter, logsSearch]);
+
+  function downloadLogsCSV(campaignName: string) {
+    const rows = [
+      ["No", "Nama", "Kode Booking", "Nomor HP", "Status", "Waktu Kirim", "Error"],
+      ...campaignLogs.map((l: any, i: number) => [
+        i + 1,
+        l.fullName,
+        l.bookingCode,
+        l.phone,
+        l.status,
+        l.sentAt ? format(parseISO(l.sentAt), "dd/MM/yyyy HH:mm:ss") : "-",
+        l.errorMsg || "",
+      ]),
+    ];
+    const csv  = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href     = url;
+    a.download = `log-broadcast-${campaignName.replace(/\s+/g, "-")}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // ── Log detail state ──────────────────────────────────────────────────────
+  const [logsOpenId,   setLogsOpenId]   = useState<string | null>(null);
+  const [logsSearch,   setLogsSearch]   = useState("");
+  const [logsFilter,   setLogsFilter]   = useState<"all" | "sent" | "failed">("all");
 
   // ── Execute-from-history state ────────────────────────────────────────────
   const [executingId,  setExecutingId]  = useState<string | null>(null);
@@ -1404,14 +1481,176 @@ export default function AdminWABroadcast() {
 
                         {/* ─ Done result bar ──────────────────────────────── */}
                         {c.status === "done" && c.total_recipients > 0 && (
-                          <div className="mt-2">
+                          <div className="mt-2 space-y-1.5">
                             <Progress
                               value={(c.success_count / c.total_recipients) * 100}
                               className="h-1.5"
                             />
-                            <p className="text-[10px] text-muted-foreground mt-0.5">
-                              {c.success_count} berhasil · {c.fail_count} gagal · {c.total_recipients} total
-                            </p>
+                            <div className="flex items-center justify-between">
+                              <p className="text-[10px] text-muted-foreground">
+                                <span className="text-emerald-700 font-medium">{c.success_count} berhasil</span>
+                                {c.fail_count > 0 && <> · <span className="text-red-600 font-medium">{c.fail_count} gagal</span></>}
+                                {" "}· {c.total_recipients} total
+                              </p>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 text-[11px] px-2 gap-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50 flex-shrink-0"
+                                onClick={() => {
+                                  if (logsOpenId === c.id) {
+                                    setLogsOpenId(null);
+                                  } else {
+                                    setLogsOpenId(c.id);
+                                    setLogsSearch("");
+                                    setLogsFilter("all");
+                                  }
+                                }}
+                              >
+                                <ClipboardList className="h-3 w-3" />
+                                {logsOpenId === c.id ? "Tutup Log" : "Lihat Log"}
+                                <ChevronDown className={`h-3 w-3 transition-transform ${logsOpenId === c.id ? "rotate-180" : ""}`} />
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* ─ Log detail panel ──────────────────────────────── */}
+                        {logsOpenId === c.id && (
+                          <div className="mt-3 border border-border rounded-xl overflow-hidden">
+                            {/* Panel header */}
+                            <div className="flex items-center justify-between gap-3 px-4 py-3 bg-muted/30 border-b">
+                              <div className="flex items-center gap-3">
+                                <ClipboardList className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                                <span className="text-sm font-semibold">Log Pengiriman</span>
+                                {/* Status chips */}
+                                <div className="flex gap-1.5">
+                                  {(["all", "sent", "failed"] as const).map(f => (
+                                    <button
+                                      key={f}
+                                      onClick={() => setLogsFilter(f)}
+                                      className={`px-2 py-0.5 rounded-full text-[11px] font-medium transition-colors ${
+                                        logsFilter === f
+                                          ? f === "failed"
+                                            ? "bg-red-100 text-red-700"
+                                            : f === "sent"
+                                            ? "bg-emerald-100 text-emerald-700"
+                                            : "bg-primary/10 text-primary"
+                                          : "bg-muted text-muted-foreground hover:bg-muted/70"
+                                      }`}
+                                    >
+                                      {f === "all"    && `Semua (${logStats.total})`}
+                                      {f === "sent"   && `Berhasil (${logStats.sent})`}
+                                      {f === "failed" && `Gagal (${logStats.failed})`}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 text-xs gap-1.5 flex-shrink-0"
+                                onClick={() => downloadLogsCSV(c.name)}
+                                disabled={campaignLogs.length === 0}
+                              >
+                                <Download className="h-3 w-3" /> CSV
+                              </Button>
+                            </div>
+
+                            {/* Search */}
+                            <div className="px-4 py-2.5 border-b bg-background">
+                              <div className="relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                                <Input
+                                  className="pl-8 h-8 text-xs"
+                                  placeholder="Cari nama, nomor HP, atau kode booking…"
+                                  value={logsSearch}
+                                  onChange={e => setLogsSearch(e.target.value)}
+                                />
+                              </div>
+                            </div>
+
+                            {/* Log rows */}
+                            {logsLoading ? (
+                              <div className="p-4 space-y-2">
+                                {Array.from({ length: 5 }).map((_, i) => (
+                                  <Skeleton key={i} className="h-12 w-full" />
+                                ))}
+                              </div>
+                            ) : filteredLogs.length === 0 ? (
+                              <div className="py-10 text-center text-muted-foreground">
+                                <ClipboardList className="h-8 w-8 mx-auto mb-2 opacity-20" />
+                                <p className="text-sm">
+                                  {campaignLogs.length === 0
+                                    ? "Belum ada log untuk kampanye ini"
+                                    : "Tidak ada hasil yang cocok"}
+                                </p>
+                              </div>
+                            ) : (
+                              <ScrollArea className="max-h-80">
+                                <div className="divide-y">
+                                  {filteredLogs.map((l: any, idx: number) => (
+                                    <div key={l.id} className="flex items-start gap-3 px-4 py-3 hover:bg-muted/20 transition-colors">
+                                      {/* Status icon */}
+                                      <div className="flex-shrink-0 mt-0.5">
+                                        {l.status === "sent" ? (
+                                          <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                                        ) : l.status === "failed" ? (
+                                          <XCircle className="h-4 w-4 text-red-500" />
+                                        ) : (
+                                          <Clock className="h-4 w-4 text-amber-500" />
+                                        )}
+                                      </div>
+
+                                      {/* Recipient info */}
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2">
+                                          <p className="text-sm font-medium truncate">{l.fullName}</p>
+                                          <span className="text-[10px] text-muted-foreground flex-shrink-0">#{idx + 1}</span>
+                                        </div>
+                                        <div className="flex items-center gap-3 mt-0.5">
+                                          <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                                            <Phone className="h-2.5 w-2.5" />{l.phone}
+                                          </span>
+                                          <span className="text-[11px] text-muted-foreground">{l.bookingCode}</span>
+                                        </div>
+                                        {l.status === "failed" && l.errorMsg && (
+                                          <p className="text-[11px] text-red-600 mt-1 flex items-start gap-1">
+                                            <AlertCircle className="h-3 w-3 flex-shrink-0 mt-0.5" />
+                                            {l.errorMsg}
+                                          </p>
+                                        )}
+                                      </div>
+
+                                      {/* Timestamp */}
+                                      <div className="flex-shrink-0 text-right">
+                                        <p className="text-[11px] text-muted-foreground">
+                                          {l.sentAt
+                                            ? format(parseISO(l.sentAt), "HH:mm:ss", { locale: idLocale })
+                                            : "-"}
+                                        </p>
+                                        <p className="text-[10px] text-muted-foreground">
+                                          {l.sentAt
+                                            ? format(parseISO(l.sentAt), "dd MMM", { locale: idLocale })
+                                            : ""}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </ScrollArea>
+                            )}
+
+                            {/* Panel footer */}
+                            {!logsLoading && filteredLogs.length > 0 && (
+                              <div className="px-4 py-2 border-t bg-muted/20 text-[11px] text-muted-foreground flex items-center justify-between">
+                                <span>Menampilkan {filteredLogs.length} dari {campaignLogs.length} entri</span>
+                                {logStats.failed > 0 && (
+                                  <span className="text-red-600 font-medium">
+                                    {logStats.failed} gagal — periksa konfigurasi Provider WA
+                                  </span>
+                                )}
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
