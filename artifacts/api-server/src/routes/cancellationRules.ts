@@ -83,6 +83,31 @@ router.get("/all-packages", async (_req, res) => {
   }
 });
 
+// ── PUT /api/cancellation-rules/bulk-unassign ────────────────────────────────
+// Clears cancellation_rule_id for the given package IDs.
+// Body: { package_ids: string[] }
+router.put("/bulk-unassign", async (req, res) => {
+  try {
+    const { package_ids } = req.body as { package_ids: string[] };
+
+    if (!Array.isArray(package_ids) || package_ids.length === 0) {
+      res.status(400).json({ error: "package_ids harus berupa array yang tidak kosong" });
+      return;
+    }
+
+    const placeholders = package_ids.map((_, i) => `$${i + 1}`).join(", ");
+    const { rowCount } = await pool.query(
+      `UPDATE packages SET cancellation_rule_id = NULL, updated_at = NOW()
+       WHERE id IN (${placeholders})`,
+      package_ids
+    );
+
+    res.json({ success: true, updated: rowCount ?? 0 });
+  } catch (err: any) {
+    err500(res, err, "bulk-unassign");
+  }
+});
+
 // ── GET /api/cancellation-rules/:id ───────────────────────────────────────────
 router.get("/:id", async (req, res) => {
   try {

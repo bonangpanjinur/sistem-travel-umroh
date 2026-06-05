@@ -275,8 +275,9 @@ export default function AdminAturanPembatalan() {
   const [formIsDefault, setFormIsDefault] = useState(false);
   const [formSections, setFormSections] = useState<PolicySection[]>(EMPTY_SECTIONS);
 
-  // ── Bulk Assign state ─────────────────────────────────────────────────────
+  // ── Bulk Assign / Unassign state ──────────────────────────────────────────
   const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkMode, setBulkMode] = useState<"assign" | "unassign">("assign");
   const [bulkRuleId, setBulkRuleId] = useState<string>("");
   const [bulkSearch, setBulkSearch] = useState("");
   const [bulkFilterUnassigned, setBulkFilterUnassigned] = useState(false);
@@ -349,6 +350,7 @@ export default function AdminAturanPembatalan() {
 
   function openBulkAssign(ruleId: string) {
     setBulkRuleId(ruleId);
+    setBulkMode("assign");
     setBulkSearch("");
     setBulkFilterUnassigned(false);
     setSelectedPkgIds(new Set());
@@ -471,6 +473,30 @@ export default function AdminAturanPembatalan() {
       setSelectedPkgIds(new Set());
     },
     onError: (e: any) => toast.error(e.message ?? "Gagal bulk assign"),
+  });
+
+  const bulkUnassignMutation = useMutation({
+    mutationFn: async () => {
+      const packageIds = Array.from(selectedPkgIds);
+      const res = await fetch(`${API_BASE}/cancellation-rules/bulk-unassign`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ package_ids: packageIds }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error ?? "Gagal melepas aturan");
+      }
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      toast.success(`Aturan berhasil dilepas dari ${data.updated ?? selectedPkgIds.size} paket`);
+      invalidate();
+      queryClient.invalidateQueries({ queryKey: ["all-packages-for-bulk-assign"] });
+      setBulkOpen(false);
+      setSelectedPkgIds(new Set());
+    },
+    onError: (e: any) => toast.error(e.message ?? "Gagal melepas aturan"),
   });
 
   function openCreate() {
@@ -618,7 +644,7 @@ export default function AdminAturanPembatalan() {
         </DialogContent>
       </Dialog>
 
-      {/* ── Bulk Assign Dialog ───────────────────────────────────────────────── */}
+      {/* ── Bulk Assign / Unassign Dialog ───────────────────────────────────── */}
       <Dialog open={bulkOpen} onOpenChange={open => {
         if (!open) { setBulkOpen(false); setSelectedPkgIds(new Set()); }
       }}>
@@ -626,30 +652,69 @@ export default function AdminAturanPembatalan() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Package className="h-4 w-4" />
-              Bulk Assign Paket ke Aturan Pembatalan
+              {bulkMode === "assign" ? "Kaitkan Aturan ke Banyak Paket" : "Lepas Aturan dari Banyak Paket"}
             </DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
-            {/* Rule selector */}
-            <div className="space-y-1.5">
-              <Label>Aturan yang akan Diterapkan</Label>
-              <Select value={bulkRuleId} onValueChange={setBulkRuleId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Pilih aturan pembatalan..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {rules.map(r => (
-                    <SelectItem key={r.id} value={r.id}>
-                      <span className="flex items-center gap-2">
-                        {r.is_default && <Star className="h-3 w-3 text-amber-500" />}
-                        {r.name}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            {/* Mode toggle */}
+            <div className="flex rounded-lg border overflow-hidden text-sm">
+              <button
+                type="button"
+                className={`flex-1 py-2 font-medium transition-colors ${
+                  bulkMode === "assign"
+                    ? "bg-primary text-primary-foreground"
+                    : "hover:bg-muted/50 text-muted-foreground"
+                }`}
+                onClick={() => { setBulkMode("assign"); setSelectedPkgIds(new Set()); setBulkFilterUnassigned(false); }}
+              >
+                Kaitkan Aturan
+              </button>
+              <button
+                type="button"
+                className={`flex-1 py-2 font-medium transition-colors border-l ${
+                  bulkMode === "unassign"
+                    ? "bg-destructive text-destructive-foreground"
+                    : "hover:bg-muted/50 text-muted-foreground"
+                }`}
+                onClick={() => { setBulkMode("unassign"); setSelectedPkgIds(new Set()); setBulkFilterUnassigned(true); }}
+              >
+                Lepas Semua Aturan
+              </button>
             </div>
+
+            {/* Rule selector — only for assign mode */}
+            {bulkMode === "assign" && (
+              <div className="space-y-1.5">
+                <Label>Aturan yang akan Diterapkan</Label>
+                <Select value={bulkRuleId} onValueChange={setBulkRuleId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Pilih aturan pembatalan..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {rules.map(r => (
+                      <SelectItem key={r.id} value={r.id}>
+                        <span className="flex items-center gap-2">
+                          {r.is_default && <Star className="h-3 w-3 text-amber-500" />}
+                          {r.name}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* Unassign mode hint */}
+            {bulkMode === "unassign" && (
+              <div className="rounded-lg bg-destructive/5 border border-destructive/20 p-3 text-sm text-destructive-foreground flex gap-2">
+                <X className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+                <p className="text-sm text-muted-foreground">
+                  Pilih paket-paket yang ingin dilepas dari aturan pembatalannya.
+                  Setelah dilepas, paket akan menggunakan aturan <strong>default</strong> (jika ada).
+                </p>
+              </div>
+            )}
 
             {/* Search + filter */}
             <div className="flex gap-2">
@@ -669,7 +734,7 @@ export default function AdminAturanPembatalan() {
                 onClick={() => setBulkFilterUnassigned(v => !v)}
               >
                 <Filter className="h-3.5 w-3.5 mr-1.5" />
-                Belum ada aturan
+                {bulkMode === "unassign" ? "Ada aturan" : "Belum ada aturan"}
               </Button>
             </div>
 
@@ -698,7 +763,7 @@ export default function AdminAturanPembatalan() {
                 )}
               </div>
 
-              <div className="overflow-y-auto flex-1 max-h-72">
+              <div className="overflow-y-auto flex-1 max-h-64">
                 {loadingAllPkgs ? (
                   <div className="flex justify-center py-8">
                     <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -727,7 +792,9 @@ export default function AdminAturanPembatalan() {
                           <p className="text-xs text-muted-foreground">
                             {pkg.type || "—"}
                             {currentRule && (
-                              <> · <span className="text-amber-600">Saat ini: {currentRule.name}</span></>
+                              <> · <span className={bulkMode === "unassign" ? "text-destructive/70" : "text-amber-600"}>
+                                {bulkMode === "unassign" ? "Akan dilepas: " : "Saat ini: "}{currentRule.name}
+                              </span></>
                             )}
                             {!currentRule && !pkg.cancellation_rule_id && (
                               <> · <span className="text-muted-foreground/70">Belum ada aturan</span></>
@@ -748,11 +815,18 @@ export default function AdminAturanPembatalan() {
             </div>
 
             {/* Summary */}
-            {selectedPkgIds.size > 0 && bulkRuleId && (
+            {selectedPkgIds.size > 0 && bulkMode === "assign" && bulkRuleId && (
               <div className="rounded-lg bg-primary/5 border border-primary/20 p-3 text-sm">
                 <strong>{selectedPkgIds.size} paket</strong> akan dikaitkan ke aturan{" "}
                 <strong>"{selectedRuleName}"</strong>.
                 Paket yang sudah punya aturan lain akan diganti.
+              </div>
+            )}
+            {selectedPkgIds.size > 0 && bulkMode === "unassign" && (
+              <div className="rounded-lg bg-destructive/5 border border-destructive/20 p-3 text-sm">
+                Aturan pembatalan akan <strong>dilepas</strong> dari{" "}
+                <strong>{selectedPkgIds.size} paket</strong>.
+                Paket-paket tersebut akan menggunakan aturan default (jika ada).
               </div>
             )}
           </div>
@@ -761,13 +835,24 @@ export default function AdminAturanPembatalan() {
             <Button variant="outline" onClick={() => { setBulkOpen(false); setSelectedPkgIds(new Set()); }}>
               Batal
             </Button>
-            <Button
-              disabled={selectedPkgIds.size === 0 || !bulkRuleId || bulkAssignMutation.isPending}
-              onClick={() => bulkAssignMutation.mutate()}
-            >
-              {bulkAssignMutation.isPending && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
-              Terapkan ke {selectedPkgIds.size > 0 ? `${selectedPkgIds.size} ` : ""}Paket
-            </Button>
+            {bulkMode === "assign" ? (
+              <Button
+                disabled={selectedPkgIds.size === 0 || !bulkRuleId || bulkAssignMutation.isPending}
+                onClick={() => bulkAssignMutation.mutate()}
+              >
+                {bulkAssignMutation.isPending && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
+                Terapkan ke {selectedPkgIds.size > 0 ? `${selectedPkgIds.size} ` : ""}Paket
+              </Button>
+            ) : (
+              <Button
+                variant="destructive"
+                disabled={selectedPkgIds.size === 0 || bulkUnassignMutation.isPending}
+                onClick={() => bulkUnassignMutation.mutate()}
+              >
+                {bulkUnassignMutation.isPending && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
+                Lepas Aturan dari {selectedPkgIds.size > 0 ? `${selectedPkgIds.size} ` : ""}Paket
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
