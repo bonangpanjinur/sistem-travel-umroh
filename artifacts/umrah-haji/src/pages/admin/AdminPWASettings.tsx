@@ -213,33 +213,88 @@ const SPLASH_COLORS = [
   { label: "Abu Gelap",    bg: "#1e293b" },
 ];
 
+function InlineEdit({
+  value,
+  onCommit,
+  className,
+  maxLength = 40,
+  validate,
+  placeholder,
+}: {
+  value: string;
+  onCommit: (v: string) => void;
+  className?: string;
+  maxLength?: number;
+  validate?: (v: string) => string | null;
+  placeholder?: string;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const [error, setError] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const startEdit = () => {
+    setDraft(value);
+    setError(null);
+    setEditing(true);
+    setTimeout(() => inputRef.current?.select(), 0);
+  };
+
+  const commit = () => {
+    const trimmed = draft.trim();
+    if (!trimmed) { setDraft(value); setEditing(false); return; }
+    const err = validate?.(trimmed) ?? null;
+    if (err) { setError(err); inputRef.current?.focus(); return; }
+    if (trimmed !== value) onCommit(trimmed);
+    setEditing(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") commit();
+    if (e.key === "Escape") { setDraft(value); setError(null); setEditing(false); }
+  };
+
+  if (editing) {
+    return (
+      <div className="flex-1 min-w-0">
+        <input
+          ref={inputRef}
+          value={draft}
+          onChange={(e) => { setDraft(e.target.value); setError(null); }}
+          onBlur={commit}
+          onKeyDown={handleKeyDown}
+          maxLength={maxLength}
+          placeholder={placeholder}
+          className={cn(
+            "w-full bg-transparent border-b outline-none text-left",
+            error ? "border-destructive text-destructive" : "border-primary",
+            className,
+          )}
+          autoFocus
+        />
+        {error && <p className="text-[10px] text-destructive mt-0.5">{error}</p>}
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={startEdit}
+      className={cn("group flex items-center gap-1 text-left min-w-0 truncate hover:text-primary transition-colors", className)}
+      title="Klik untuk mengubah"
+    >
+      <span className="truncate">{value}</span>
+      <span className="opacity-0 group-hover:opacity-50 text-[9px] shrink-0">✎</span>
+    </button>
+  );
+}
+
 function NavItemRow({ item, index, onChange }: {
   item: BottomNavItem;
   index: number;
   onChange: (updated: BottomNavItem) => void;
 }) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(item.label);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  const startEdit = () => {
-    setDraft(item.label);
-    setEditing(true);
-    setTimeout(() => inputRef.current?.select(), 0);
-  };
-
-  const commitEdit = () => {
-    const trimmed = draft.trim();
-    if (trimmed && trimmed !== item.label) onChange({ ...item, label: trimmed });
-    else setDraft(item.label);
-    setEditing(false);
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") commitEdit();
-    if (e.key === "Escape") { setDraft(item.label); setEditing(false); }
-  };
-
   return (
     <Draggable draggableId={item.id} index={index}>
       {(provided, snapshot) => (
@@ -255,47 +310,39 @@ function NavItemRow({ item, index, onChange }: {
           <div {...provided.dragHandleProps} className="cursor-grab text-muted-foreground shrink-0">
             <GripVertical className="h-4 w-4" />
           </div>
-          {/* Clickable icon picker */}
+
           <IconPicker
             value={item.icon}
             onChange={(iconName) => onChange({ ...item, icon: iconName })}
           />
-          <div className="flex-1 min-w-0">
-            {editing ? (
-              <input
-                ref={inputRef}
-                value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-                onBlur={commitEdit}
-                onKeyDown={handleKeyDown}
-                maxLength={20}
-                className={cn(
-                  "w-full text-sm font-medium leading-tight bg-transparent border-b border-primary outline-none",
-                  "placeholder:text-muted-foreground",
-                )}
-                autoFocus
+
+          <div className="flex-1 min-w-0 space-y-0.5">
+            {/* Label editor */}
+            <InlineEdit
+              value={item.label}
+              onCommit={(label) => onChange({ ...item, label })}
+              className="text-sm font-medium leading-tight"
+              maxLength={20}
+            />
+            {/* Path editor */}
+            <div className="flex items-center gap-1 min-w-0">
+              <span className="text-[10px] font-mono text-muted-foreground shrink-0">{item.icon} ·</span>
+              <InlineEdit
+                value={item.path}
+                onCommit={(path) => onChange({ ...item, path })}
+                className="text-[10px] font-mono text-muted-foreground"
+                maxLength={80}
+                placeholder="/path/ke-halaman"
+                validate={(v) => {
+                  if (!v.startsWith("/") && !v.startsWith("http")) {
+                    return "Harus diawali / atau http";
+                  }
+                  return null;
+                }}
               />
-            ) : (
-              <button
-                type="button"
-                onClick={startEdit}
-                className={cn(
-                  "group flex items-center gap-1 text-sm font-medium leading-tight text-left w-full",
-                  "hover:text-primary transition-colors",
-                  !item.enabled && "text-muted-foreground",
-                )}
-                title="Klik untuk mengubah label"
-              >
-                {item.label}
-                <span className="opacity-0 group-hover:opacity-60 text-[9px] font-normal text-muted-foreground ml-0.5">
-                  ✎
-                </span>
-              </button>
-            )}
-            <p className="text-[10px] text-muted-foreground truncate font-mono mt-0.5">
-              {item.icon} · {item.path}
-            </p>
+            </div>
           </div>
+
           <Switch
             checked={item.enabled}
             onCheckedChange={(checked) => onChange({ ...item, enabled: checked })}
