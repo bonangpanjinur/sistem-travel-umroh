@@ -13,6 +13,7 @@ import { EnvDiagnostic } from "@/components/EnvDiagnostic";
 import { PWAUpdateNotifier } from "@/components/pwa/PWAUpdateNotifier";
 import { usePWAInstallTracker } from "@/hooks/usePWAInstallTracker";
 import { JamaahThemeAttacher } from "@/components/jamaah/shell/JamaahThemeAttacher";
+import { JamaahNotifListener } from "@/components/jamaah/JamaahNotifListener";
 import NotFound from "./pages/NotFound";
 
 // Route modules
@@ -51,6 +52,7 @@ const App = () => (
                 <ScrollToTop />
                 <EnvDiagnostic />
                 <JamaahThemeAttacher />
+                <JamaahNotifListener />
                 <Routes>
                   {PublicRoutes()}
                   {CustomerRoutes()}
