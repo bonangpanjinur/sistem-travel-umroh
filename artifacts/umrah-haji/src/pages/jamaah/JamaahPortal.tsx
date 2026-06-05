@@ -29,7 +29,8 @@ import {
   Clock, DollarSign, FileText, Megaphone,
   Heart, Sparkles, Luggage, FileSignature, BookMarked,
   MessageSquare, Image, Gift, Scale, Scroll, GraduationCap, BellRing,
-  ShoppingBag, Receipt, CheckCircle, MapPin, Zap, Trophy
+  ShoppingBag, Receipt, CheckCircle, MapPin, Zap, Trophy,
+  Moon, Sun
 } from "lucide-react";
 import { format, differenceInDays, differenceInSeconds } from "date-fns";
 import { id } from "date-fns/locale";
@@ -39,6 +40,7 @@ import { SOSButton } from "@/components/jamaah/SOSButton";
 import { TourLeaderSOSPanel } from "@/components/jamaah/TourLeaderSOSPanel";
 import { LiveLocationShare } from "@/components/jamaah/LiveLocationShare";
 import { useNotifications } from "@/hooks/useNotifications";
+import { useDarkMode } from "@/hooks/useDarkMode";
 import { useGeoNotification } from "@/hooks/useGeoNotification";
 import { restorePendingFollowup } from "@/hooks/useChatbotFollowup";
 import { JamaahBottomNav } from "@/components/jamaah/JamaahBottomNav";
@@ -101,6 +103,7 @@ export default function JamaahPortal() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { notifications, unreadCount, markAsRead } = useNotifications();
+  const { isDark, toggle: toggleDark } = useDarkMode();
   const { getSetting } = useCompanySettings();
   const { items: recentlyViewed, clearAll: clearRecentlyViewed } = useRecentlyViewedPackages();
   const { ids: wishlistIds, packages: wishlistPackages, count: wishlistCount } = useWishlist();
@@ -402,6 +405,18 @@ export default function JamaahPortal() {
 
             {/* Right: Actions */}
             <div className="flex items-center gap-1.5">
+              {/* Dark / Light mode toggle — always visible */}
+              <button
+                onClick={toggleDark}
+                title={isDark ? "Mode Terang" : "Mode Gelap"}
+                aria-label={isDark ? "Aktifkan mode terang" : "Aktifkan mode gelap"}
+                className="p-2 rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 transition-all"
+              >
+                {isDark
+                  ? <Sun className="h-5 w-5 text-amber-300" />
+                  : <Moon className="h-5 w-5 text-white" />
+                }
+              </button>
               {user ? (
                 <>
                   <DropdownMenu>
