@@ -252,19 +252,30 @@ function SlideContent({
 
         {/* Title */}
         {banner.title && (
-          <h2 className={cn(cfg.titleClass, 'mb-3 md:mb-4')}>
+          <h2 className={cn(compact ? 'text-xl font-bold text-white leading-snug drop-shadow-sm' : cfg.titleClass, 'mb-2 md:mb-4')}>
             {banner.title}
           </h2>
         )}
 
-        {/* Subtitle */}
+        {/* Subtitle — full mode only */}
         {banner.subtitle && !compact && (
           <p className={cn(cfg.subtitleClass, 'mb-6 md:mb-8 max-w-lg')}>
             {banner.subtitle}
           </p>
         )}
 
-        {/* CTAs */}
+        {/* Compact CTA — small inline link */}
+        {compact && banner.cta_text && banner.cta_url && (
+          <a
+            href={banner.cta_url}
+            className="inline-flex items-center gap-1 text-xs font-semibold text-white/90 hover:text-white transition-colors mt-1"
+          >
+            {banner.cta_text}
+            <ArrowRight className="h-3 w-3" />
+          </a>
+        )}
+
+        {/* CTAs — full mode only */}
         {!compact && (
           <div className="flex flex-wrap items-center gap-3">
             {banner.cta_text && banner.cta_url && (
@@ -391,7 +402,7 @@ export function BannerCarousel({ compact = false, template = 'classic', waNumber
         <div className="flex touch-pan-y">
           {banners.map((banner, index) => (
             <div key={banner.id} className="relative flex-[0_0_100%] min-w-0">
-              <div className={cn('relative w-full', cfg.sectionHeight, compact && '!h-[220px]')}>
+              <div className={cn('relative w-full', cfg.sectionHeight, compact && '!h-[160px]')}>
 
                 {/* Background image with parallax-feel */}
                 <img

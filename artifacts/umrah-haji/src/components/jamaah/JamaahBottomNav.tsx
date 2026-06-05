@@ -13,10 +13,10 @@ import { useState, useEffect, useMemo } from "react";
 import { usePWAConfig } from "@/hooks/usePWAConfig";
 
 const DEFAULT_MOBILE_ITEMS = [
-  { to: "/jamaah",              icon: Home,  label: "Beranda" },
-  { to: "/jamaah/digital-id",  icon: QrCode, label: "ID" },
-  { to: "/jamaah/visa",        icon: Shield, label: "Visa" },
-  { to: "/jamaah/notifications", icon: Bell, label: "Notif", showBadge: true },
+  { to: "/jamaah",              icon: Home,       label: "Beranda" },
+  { to: "/my-bookings",        icon: Plane,       label: "Booking" },
+  { to: "/jamaah/payment",     icon: CreditCard,  label: "Bayar" },
+  { to: "/jamaah/notifications", icon: Bell,      label: "Notif", showBadge: true },
 ];
 
 const ICON_MAP: Record<string, any> = {
