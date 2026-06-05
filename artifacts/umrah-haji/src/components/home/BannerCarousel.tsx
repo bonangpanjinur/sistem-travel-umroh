@@ -224,12 +224,46 @@ function SlideContent({
     ? `https://wa.me/${waNumber.replace(/\D/g, '')}?text=${encodeURIComponent('Assalamu\'alaikum, saya ingin info paket umroh')}`
     : undefined;
 
+  /* ── COMPACT MODE: dedicated app-card layout ── */
+  if (compact) {
+    return (
+      <div className="absolute inset-0 flex items-end">
+        {/* Strong bottom gradient for readability */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-transparent pointer-events-none" />
+        {/* Content pinned to bottom */}
+        <div
+          className={cn(
+            'relative z-10 w-full px-4 pb-4 transition-all duration-500',
+            isActive ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
+          )}
+          style={{ transitionDelay: isActive ? '100ms' : '0ms' }}
+        >
+          {banner.title && (
+            <p className="text-[15px] font-bold text-white leading-snug drop-shadow-sm line-clamp-1 mb-1.5">
+              {banner.title}
+            </p>
+          )}
+          {banner.cta_text && banner.cta_url && (
+            <a
+              href={banner.cta_url}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/20 backdrop-blur-sm border border-white/30 text-white text-[11px] font-semibold hover:bg-white/30 active:scale-95 transition-all"
+            >
+              {banner.cta_text}
+              <ArrowRight className="h-3 w-3" />
+            </a>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  /* ── FULL MODE: original layout ── */
   return (
     <div
       className={cn(
         'absolute inset-0 flex',
         cfg.contentAlign,
-        compact ? 'px-5' : 'px-5 md:px-10 lg:px-16 xl:px-20'
+        'px-5 md:px-10 lg:px-16 xl:px-20'
       )}
     >
       <div
@@ -240,7 +274,7 @@ function SlideContent({
         style={{ transitionDelay: isActive ? '150ms' : '0ms' }}
       >
         {/* Trust badge */}
-        {cfg.badge && BadgeIcon && !compact && (
+        {cfg.badge && BadgeIcon && (
           <div
             className={cn(cfg.badge.className, 'mb-4')}
             style={{ transitionDelay: isActive ? '200ms' : '0ms' }}
@@ -252,54 +286,41 @@ function SlideContent({
 
         {/* Title */}
         {banner.title && (
-          <h2 className={cn(compact ? 'text-xl font-bold text-white leading-snug drop-shadow-sm' : cfg.titleClass, 'mb-2 md:mb-4')}>
+          <h2 className={cn(cfg.titleClass, 'mb-3 md:mb-4')}>
             {banner.title}
           </h2>
         )}
 
-        {/* Subtitle — full mode only */}
-        {banner.subtitle && !compact && (
+        {/* Subtitle */}
+        {banner.subtitle && (
           <p className={cn(cfg.subtitleClass, 'mb-6 md:mb-8 max-w-lg')}>
             {banner.subtitle}
           </p>
         )}
 
-        {/* Compact CTA — small inline link */}
-        {compact && banner.cta_text && banner.cta_url && (
-          <a
-            href={banner.cta_url}
-            className="inline-flex items-center gap-1 text-xs font-semibold text-white/90 hover:text-white transition-colors mt-1"
-          >
-            {banner.cta_text}
-            <ArrowRight className="h-3 w-3" />
-          </a>
-        )}
-
-        {/* CTAs — full mode only */}
-        {!compact && (
-          <div className="flex flex-wrap items-center gap-3">
-            {banner.cta_text && banner.cta_url && (
-              <a href={banner.cta_url} className={cfg.primaryCtaClass}>
-                {banner.cta_text}
-                <ArrowRight className="h-4 w-4 flex-shrink-0" />
-              </a>
-            )}
-            {waHref && (
-              <a
-                href={waHref}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={cfg.secondaryCtaClass}
-              >
-                <MessageCircle className="h-4 w-4 flex-shrink-0" />
-                <span>Chat WhatsApp</span>
-              </a>
-            )}
-          </div>
-        )}
+        {/* CTAs */}
+        <div className="flex flex-wrap items-center gap-3">
+          {banner.cta_text && banner.cta_url && (
+            <a href={banner.cta_url} className={cfg.primaryCtaClass}>
+              {banner.cta_text}
+              <ArrowRight className="h-4 w-4 flex-shrink-0" />
+            </a>
+          )}
+          {waHref && (
+            <a
+              href={waHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={cfg.secondaryCtaClass}
+            >
+              <MessageCircle className="h-4 w-4 flex-shrink-0" />
+              <span>Chat WhatsApp</span>
+            </a>
+          )}
+        </div>
 
         {/* Trust Badges (bottom row) */}
-        {!compact && slideIndex === 0 && (
+        {slideIndex === 0 && (
           <div className="hidden md:flex flex-wrap gap-2 mt-6 md:mt-8">
             {TRUST_BADGES.map((b) => (
               <span
