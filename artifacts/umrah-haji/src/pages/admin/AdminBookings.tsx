@@ -835,6 +835,25 @@ export default function AdminBookings() {
                             <span className="flex items-center gap-1">
                               <Users className="h-3 w-3" />
                               {booking.total_pax} pax
+                              {((booking as any).adult_count > 0 || (booking as any).child_count > 0 || (booking as any).infant_count > 0) && (
+                                <span className="ml-1 flex items-center gap-1">
+                                  {(booking as any).adult_count > 0 && (
+                                    <span className="inline-flex items-center gap-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.5 font-medium leading-none text-[10px]">
+                                      {(booking as any).adult_count}D
+                                    </span>
+                                  )}
+                                  {(booking as any).child_count > 0 && (
+                                    <span className="inline-flex items-center gap-0.5 rounded bg-green-50 text-green-700 border border-green-200 px-1.5 py-0.5 font-medium leading-none text-[10px]">
+                                      {(booking as any).child_count}A
+                                    </span>
+                                  )}
+                                  {(booking as any).infant_count > 0 && (
+                                    <span className="inline-flex items-center gap-0.5 rounded bg-pink-50 text-pink-700 border border-pink-200 px-1.5 py-0.5 font-medium leading-none text-[10px]">
+                                      {(booking as any).infant_count}B
+                                    </span>
+                                  )}
+                                </span>
+                              )}
                             </span>
                             {customer?.phone && (
                               <span>{customer.phone}</span>

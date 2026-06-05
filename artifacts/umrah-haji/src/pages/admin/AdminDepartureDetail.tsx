@@ -649,8 +649,17 @@ export default function AdminDepartureDetail() {
       14,
       28
     );
+    const adultCount = sourceList.filter((p: any) => (p.passenger_type || "adult") === "adult").length;
+    const childCount = sourceList.filter((p: any) => p.passenger_type === "child").length;
+    const infantCount = sourceList.filter((p: any) => p.passenger_type === "infant").length;
+    const paxBreakdown = [
+      `${adultCount} Dewasa`,
+      ...(childCount > 0 ? [`${childCount} Anak`] : []),
+      ...(infantCount > 0 ? [`${infantCount} Bayi`] : []),
+    ].join(", ");
+
     doc.text(
-      `Flight: ${departure.flight_number || "-"} | Jumlah: ${sourceList.length} jamaah`,
+      `Flight: ${departure.flight_number || "-"} | Total: ${sourceList.length} jamaah (${paxBreakdown})`,
       14,
       34
     );
@@ -1606,6 +1615,22 @@ export default function AdminDepartureDetail() {
               </div>
               {passengerStats.total > 0 && (
                 <div className="flex flex-wrap gap-1.5 mt-2">
+                  {/* Pax type breakdown */}
+                  <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 font-semibold">
+                    {passengerStats.adult} Dewasa
+                  </Badge>
+                  {passengerStats.child > 0 && (
+                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 font-semibold">
+                      {passengerStats.child} Anak
+                    </Badge>
+                  )}
+                  {passengerStats.infant > 0 && (
+                    <Badge variant="outline" className="bg-pink-50 text-pink-700 border-pink-200 font-semibold">
+                      {passengerStats.infant} Bayi
+                    </Badge>
+                  )}
+                  <span className="text-muted-foreground self-center">·</span>
+                  {/* Booking status */}
                   <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
                     {passengerStats.confirmed} confirmed
                   </Badge>
@@ -1617,6 +1642,7 @@ export default function AdminDepartureDetail() {
                       {passengerStats.pending} pending
                     </Badge>
                   )}
+                  <span className="text-muted-foreground self-center">·</span>
                   <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
                     <CheckCircle2 className="h-3 w-3 mr-1" />
                     {passengerStats.checkedIn}/{passengerStats.total} check-in
