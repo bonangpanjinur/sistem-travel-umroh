@@ -7,6 +7,7 @@ import { FeaturedPackages } from '@/components/home/FeaturedPackages';
 import { WhyChooseUs } from '@/components/home/WhyChooseUs';
 import { Testimonials } from '@/components/home/Testimonials';
 import { JamaahTrackerWidget } from '@/components/home/JamaahTrackerWidget';
+import { JamaahPortalBanner } from '@/components/home/JamaahPortalBanner';
 import { FloatingChatBubble } from '@/components/home/FloatingChatBubble';
 import { QuickMenuGrid } from '@/components/home/QuickMenuGrid';
 import { useWebsiteSettings, HomepageSection, WebsiteSettings } from '@/hooks/useWebsiteSettingsOptimized';
@@ -114,7 +115,10 @@ const Index = () => {
             </>
           )}
           
-          {/* Jamaah Tracker – only visible for logged-in users */}
+          {/* Portal Jamaah shortcut — only visible for logged-in jamaah users */}
+          <JamaahPortalBanner />
+
+          {/* Jamaah Tracker – only visible for guests */}
           <JamaahTrackerWidget />
 
           {enabledSections.map((section: HomepageSection) => {
