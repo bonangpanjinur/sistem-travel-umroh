@@ -136,6 +136,7 @@ let cachedAdminConfig: {
   model: string;
   enableFAQContext: boolean;
   channelPrompts: Record<string, string>;
+  geminiApiKey?: string;
   ts: number;
 } | null = null;
 
@@ -144,6 +145,7 @@ async function getAdminConfig(): Promise<{
   model: string;
   enableFAQContext: boolean;
   channelPrompts: Record<string, string>;
+  geminiApiKey?: string;
 }> {
   const now = Date.now();
   if (cachedAdminConfig && now - cachedAdminConfig.ts < 60_000) {
@@ -152,6 +154,7 @@ async function getAdminConfig(): Promise<{
       model: cachedAdminConfig.model,
       enableFAQContext: cachedAdminConfig.enableFAQContext,
       channelPrompts: cachedAdminConfig.channelPrompts,
+      geminiApiKey: cachedAdminConfig.geminiApiKey,
     };
   }
 
@@ -167,6 +170,7 @@ async function getAdminConfig(): Promise<{
     let model = 'gemini-2.0-flash';
     let enableFAQContext = true;
     let channelPrompts: Record<string, string> = {};
+    let geminiApiKey: string | undefined;
 
     for (const row of rows) {
       if (row.key === 'gemini_chatbot_config') {
@@ -178,12 +182,15 @@ async function getAdminConfig(): Promise<{
           if (cfg.channelPrompts && typeof cfg.channelPrompts === 'object') {
             channelPrompts = cfg.channelPrompts;
           }
+          if (cfg.geminiApiKey && typeof cfg.geminiApiKey === 'string') {
+            geminiApiKey = cfg.geminiApiKey;
+          }
         } catch {}
       }
     }
 
-    cachedAdminConfig = { systemPrompt, model, enableFAQContext, channelPrompts, ts: now };
-    return { systemPrompt, model, enableFAQContext, channelPrompts };
+    cachedAdminConfig = { systemPrompt, model, enableFAQContext, channelPrompts, geminiApiKey, ts: now };
+    return { systemPrompt, model, enableFAQContext, channelPrompts, geminiApiKey };
   } catch {
     return defaults;
   }
@@ -322,7 +329,10 @@ router.post('/', async (req: any, res: any) => {
     let isUnanswered = false;
 
     // Try Gemini — env var takes priority, DB key as fallback
-    const geminiKey = process.env['GEMINI_API_KEY'];
+    let geminiKey = process.env['GEMINI_API_KEY'];
+    if (!geminiKey && adminConfig.geminiApiKey) {
+      geminiKey = adminConfig.geminiApiKey;
+    }
     if (geminiKey) {
       try {
         answer = await callGemini(geminiKey, systemPrompt, message, conversationHistory, model);
@@ -383,7 +393,10 @@ router.get('/config', async (_req: any, res: any) => {
   try {
     const config = await getAdminConfig();
     const geminiKeySet = !!process.env['GEMINI_API_KEY'];
-    return res.json({ ...config, geminiKeySet });
+    const isDatabaseKeySet = !!config.geminiApiKey;
+    // Do not send the actual API key back to the frontend
+    const { geminiApiKey, ...configWithoutKey } = config;
+    return res.json({ ...configWithoutKey, geminiKeySet, isDatabaseKeySet });
   } catch {
     return res.status(500).json({ error: 'Internal server error' });
   }
@@ -393,7 +406,7 @@ router.get('/config', async (_req: any, res: any) => {
 // Save chatbot config (system prompt, model, etc.) to app_settings
 router.post('/config', async (req: any, res: any) => {
   try {
-    const { model, systemPrompt, botName, greeting, enableLeadCapture, enableFAQContext, channelPrompts } = req.body;
+    const { model, systemPrompt, botName, greeting, enableLeadCapture, enableFAQContext, channelPrompts, geminiApiKey } = req.body;
 
     if (model && !ALLOWED_GEMINI_MODELS.has(model)) {
       return res.status(400).json({ error: 'Model tidak valid.' });
@@ -407,6 +420,7 @@ router.post('/config', async (req: any, res: any) => {
     if (enableLeadCapture !== undefined) cfg.enableLeadCapture = enableLeadCapture;
     if (enableFAQContext !== undefined) cfg.enableFAQContext = enableFAQContext;
     if (channelPrompts !== undefined) cfg.channelPrompts = channelPrompts;
+    if (geminiApiKey !== undefined) cfg.geminiApiKey = geminiApiKey;
 
     await db
       .insert(appSettings)
@@ -421,7 +435,7 @@ router.post('/config', async (req: any, res: any) => {
   } catch (e: any) {
     return res.status(500).json({ error: e.message || 'Internal server error' });
   }
-});
+}
 
 // ─── PATCH /api/v1/chatbot/rate ───────────────────────────────────────────────
 router.patch('/rate', async (req: any, res: any) => {

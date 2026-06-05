@@ -14,7 +14,7 @@ import {
   Bot, Key, CheckCircle2, AlertCircle,
   Loader2, ExternalLink, Send, RefreshCcw, Sparkles,
   MessageSquare, Settings, Info, Zap, Package, Database,
-  HelpCircle, BookOpen, ToggleLeft, ToggleRight,
+  HelpCircle, BookOpen, ToggleLeft, ToggleRight, Eye, EyeOff,
 } from "lucide-react";
 import { buildPackageContext } from "@/lib/packageContext";
 import { buildFAQContext } from "@/lib/faqContext";
@@ -46,6 +46,9 @@ export default function AdminGeminiAI() {
   const [botName, setBotName] = useState("Asisten Vinstour");
   const [greeting, setGreeting] = useState("Halo! Selamat datang. Ada yang bisa saya bantu? 😊");
   const [enableLeadCapture, setEnableLeadCapture] = useState(true);
+  const [apiKey, setApiKey] = useState("");
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [isDatabaseKeySet, setIsDatabaseKeySet] = useState(false);
 
   const GEMINI_MODELS = [
     {
@@ -140,6 +143,7 @@ export default function AdminGeminiAI() {
           if (cfg.systemPrompt) setSystemPrompt(cfg.systemPrompt);
           if (typeof cfg.enableFAQContext === "boolean") setEnableFAQContext(cfg.enableFAQContext);
           if (cfg.geminiKeySet) setConfigured(true);
+          if (cfg.isDatabaseKeySet) setIsDatabaseKeySet(true);
         }
       } catch {}
       setLoading(false);
@@ -152,12 +156,13 @@ export default function AdminGeminiAI() {
       const res = await fetch("/api/v1/chatbot/config", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model, systemPrompt, botName, greeting, enableLeadCapture, enableFAQContext }),
+        body: JSON.stringify({ model, systemPrompt, botName, greeting, enableLeadCapture, enableFAQContext, geminiApiKey: apiKey || undefined }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error((err as any)?.error || "Gagal menyimpan");
       }
+      if (apiKey) setIsDatabaseKeySet(true);
       toast.success("Konfigurasi Gemini AI berhasil disimpan!");
     } catch (e: any) {
       toast.error(`Gagal menyimpan konfigurasi: ${e.message}`);
@@ -241,42 +246,107 @@ export default function AdminGeminiAI() {
         </AlertDescription>
       </Alert>
 
-      {/* API Key — Environment Secret */}
-      <Card className={configured ? "border-green-200 bg-green-50/30" : "border-amber-200 bg-amber-50/30"}>
+      {/* API Key — Database atau Environment Secret */}
+      <Card className={configured || isDatabaseKeySet ? "border-green-200 bg-green-50/30" : "border-amber-200 bg-amber-50/30"}>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
             <Key className="h-4 w-4 text-purple-500" /> Gemini API Key
-            {configured
+            {configured || isDatabaseKeySet
               ? <span className="ml-auto text-xs font-normal text-green-700 flex items-center gap-1"><CheckCircle2 className="h-3.5 w-3.5" /> Terkonfigurasi</span>
               : <span className="ml-auto text-xs font-normal text-amber-700 flex items-center gap-1"><AlertCircle className="h-3.5 w-3.5" /> Belum dikonfigurasi</span>
             }
           </CardTitle>
-          <CardDescription>API key disimpan sebagai environment secret di server — aman, tidak terekspos ke browser</CardDescription>
+          <CardDescription>
+            API key dapat disimpan di environment secret Replit atau langsung di database melalui form di bawah. Prioritas: Environment Secret → Database.
+          </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="space-y-4">
+          {/* Info Banner */}
+          <Alert className="bg-blue-50 border-blue-200">
+            <Info className="h-4 w-4 text-blue-600" />
+            <AlertDescription className="text-blue-800 text-sm">
+              <strong>Gratis!</strong> Gemini 2.0 Flash tersedia gratis di Google AI Studio — 15 request/menit, 1 juta token/hari.
+              Dapatkan API key di{" "}
+              <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer"
+                className="underline font-medium inline-flex items-center gap-1">
+                aistudio.google.com <ExternalLink className="h-3 w-3" />
+              </a>
+            </AlertDescription>
+          </Alert>
+
+          {/* API Key Input Field */}
+          <div className="space-y-2">
+            <Label htmlFor="gemini-api-key">Gemini API Key (Opsional - Simpan di Database)</Label>
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Input
+                  id="gemini-api-key"
+                  type={showApiKey ? "text" : "password"}
+                  value={apiKey}
+                  onChange={e => setApiKey(e.target.value)}
+                  placeholder="AIzaSy... (jika ingin menyimpan di database)"
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowApiKey(!showApiKey)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+              <Button onClick={testGemini} disabled={testing || !apiKey} size="sm" className="gap-1.5 whitespace-nowrap">
+                {testing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                Test
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Masukkan API key Anda dan klik Test untuk memverifikasi sebelum disimpan. Jika kosong, sistem akan menggunakan environment secret (jika ada).
+            </p>
+          </div>
+
+          {/* Status Info */}
+          <div className="grid grid-cols-2 gap-3 text-xs">
+            <div className="rounded-lg border p-2.5 bg-white">
+              <p className="text-muted-foreground mb-1">Environment Secret</p>
+              {configured ? (
+                <div className="flex items-center gap-1.5 text-green-700 font-semibold">
+                  <CheckCircle2 className="h-3.5 w-3.5" /> Aktif
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5 text-amber-700 font-semibold">
+                  <AlertCircle className="h-3.5 w-3.5" /> Tidak ada
+                </div>
+              )}
+            </div>
+            <div className="rounded-lg border p-2.5 bg-white">
+              <p className="text-muted-foreground mb-1">Database Key</p>
+              {isDatabaseKeySet ? (
+                <div className="flex items-center gap-1.5 text-green-700 font-semibold">
+                  <CheckCircle2 className="h-3.5 w-3.5" /> Tersimpan
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5 text-gray-600 font-semibold">
+                  <AlertCircle className="h-3.5 w-3.5" /> Kosong
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Alternative: Environment Secret Setup */}
+          <Separator />
           <Alert className="bg-purple-50 border-purple-200">
             <Key className="h-4 w-4 text-purple-600" />
             <AlertDescription className="text-purple-800 text-sm space-y-1">
-              <p className="font-semibold">Cara mengatur API key:</p>
+              <p className="font-semibold">Alternatif: Setup via Environment Secret Replit (Lebih Aman)</p>
               <ol className="list-decimal list-inside space-y-1 text-xs">
                 <li>Buka <strong>Tools → Secrets</strong> di panel Replit (ikon kunci 🔑)</li>
                 <li>Tambahkan secret baru dengan nama: <code className="bg-purple-100 px-1 rounded font-mono">GEMINI_API_KEY</code></li>
-                <li>Nilai: API key Anda dari Google AI Studio (format: <code className="bg-purple-100 px-1 rounded font-mono">AIzaSy...</code>)</li>
+                <li>Nilai: API key Anda (format: <code className="bg-purple-100 px-1 rounded font-mono">AIzaSy...</code>)</li>
                 <li>Restart server — chatbot langsung aktif tanpa perlu simpan ulang</li>
               </ol>
             </AlertDescription>
           </Alert>
-          <div className="flex gap-2 items-center">
-            <a
-              href="https://aistudio.google.com/apikey"
-              target="_blank" rel="noopener noreferrer"
-              className="text-xs text-purple-600 hover:underline flex items-center gap-1"
-            >
-              <ExternalLink className="h-3 w-3" /> Buat API Key di Google AI Studio
-            </a>
-            <span className="text-muted-foreground text-xs">·</span>
-            <span className="text-xs text-muted-foreground">Gratis, tidak perlu kartu kredit</span>
-          </div>
         </CardContent>
       </Card>
 
