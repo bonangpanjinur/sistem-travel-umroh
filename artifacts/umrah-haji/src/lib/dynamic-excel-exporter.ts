@@ -100,6 +100,9 @@ export interface BookingData {
   booking_status: string;
   payment_status: string;
   created_at: string;
+  adult_count?: number;
+  child_count?: number;
+  infant_count?: number;
 }
 
 interface PeriodStats {
@@ -141,7 +144,7 @@ export function exportDynamicBookingExcel(
     font: { bold: true, color: { rgb: styleConfig.title_bg_color }, sz: 16 },
     alignment: { horizontal: 'left', vertical: 'center' },
   });
-  merges.push({ s: { r, c: 0 }, e: { r, c: 11 } });
+  merges.push({ s: { r, c: 0 }, e: { r, c: 14 } });
   r++;
 
   // Company Address
@@ -149,7 +152,7 @@ export function exportDynamicBookingExcel(
     font: { bold: false, color: { rgb: '4B5563' }, sz: 10 },
     alignment: { horizontal: 'left', vertical: 'center' },
   });
-  merges.push({ s: { r, c: 0 }, e: { r, c: 11 } });
+  merges.push({ s: { r, c: 0 }, e: { r, c: 14 } });
   r++;
 
   // Company Contact (Phone & Email)
@@ -158,14 +161,14 @@ export function exportDynamicBookingExcel(
     font: { bold: false, color: { rgb: '4B5563' }, sz: 10 },
     alignment: { horizontal: 'left', vertical: 'center' },
   });
-  merges.push({ s: { r, c: 0 }, e: { r, c: 11 } });
+  merges.push({ s: { r, c: 0 }, e: { r, c: 14 } });
   r++;
 
   // Separator Line
   setCell(r, 0, '', 's', {
     fill: { patternType: 'solid', fgColor: { rgb: styleConfig.title_bg_color } },
   });
-  merges.push({ s: { r, c: 0 }, e: { r, c: 11 } });
+  merges.push({ s: { r, c: 0 }, e: { r, c: 14 } });
   r++;
   r++; // Empty space
 
@@ -176,7 +179,7 @@ export function exportDynamicBookingExcel(
     alignment: { horizontal: 'center', vertical: 'center' },
     border: ALL_BORDERS,
   });
-  merges.push({ s: { r, c: 0 }, e: { r, c: 11 } });
+  merges.push({ s: { r, c: 0 }, e: { r, c: 14 } });
   r++;
 
   // Date range
@@ -188,7 +191,7 @@ export function exportDynamicBookingExcel(
       alignment: { horizontal: 'center', vertical: 'center' },
       border: ALL_BORDERS,
     });
-    merges.push({ s: { r, c: 0 }, e: { r, c: 11 } });
+    merges.push({ s: { r, c: 0 }, e: { r, c: 14 } });
     r++;
   }
 
@@ -212,7 +215,7 @@ export function exportDynamicBookingExcel(
     alignment: { horizontal: 'left', vertical: 'center' },
     border: ALL_BORDERS,
   });
-  merges.push({ s: { r, c: 0 }, e: { r, c: 11 } });
+  merges.push({ s: { r, c: 0 }, e: { r, c: 14 } });
   r++;
 
   for (const [label, value] of summaryData) {
@@ -228,14 +231,14 @@ export function exportDynamicBookingExcel(
       alignment: { horizontal: 'right', vertical: 'center' },
       border: ALL_BORDERS,
     });
-    merges.push({ s: { r, c: 1 }, e: { r, c: 11 } });
+    merges.push({ s: { r, c: 1 }, e: { r, c: 14 } });
     r++;
   }
 
   r++; // Empty row
 
   // ===== Table Headers =====
-  const headers = ['Kode Booking', 'Customer', 'Telepon', 'Paket', 'Keberangkatan', 'Pax', 'Kamar', 'Total', 'Dibayar', 'Sisa', 'Status Booking', 'Status Bayar'];
+  const headers = ['Kode Booking', 'Customer', 'Telepon', 'Paket', 'Keberangkatan', 'Pax', 'Kamar', 'Total', 'Dibayar', 'Sisa', 'Status Booking', 'Status Bayar', 'Dewasa', 'Anak', 'Bayi'];
   headers.forEach((h, c) => {
     setCell(r, c, h, 's', {
       font: { bold: styleConfig.header_bold, color: { rgb: styleConfig.header_text_color }, sz: styleConfig.header_font_size },
@@ -264,14 +267,18 @@ export function exportDynamicBookingExcel(
       formatCurrency(booking.remaining_amount),
       formatStatus(booking.booking_status),
       formatPaymentStatus(booking.payment_status),
+      (booking.adult_count ?? booking.total_pax).toString(),
+      (booking.child_count ?? 0).toString(),
+      (booking.infant_count ?? 0).toString(),
     ];
 
     rowData.forEach((value, c) => {
       const isNumeric = c >= 7 && c <= 9; // Currency columns
+      const paxTypeCol = c >= 12; // Dewasa/Anak/Bayi columns
       setCell(r, c, value, isNumeric ? 'n' : 's', {
         font: { bold: false, color: { rgb: styleConfig.row_text_color }, sz: styleConfig.body_font_size },
         fill: { patternType: 'solid', fgColor: { rgb: bgColor } },
-        alignment: { horizontal: c >= 7 ? 'right' : 'left', vertical: 'center' },
+        alignment: { horizontal: (c >= 7 && c <= 9) || paxTypeCol ? 'center' : 'left', vertical: 'center' },
         border: ALL_BORDERS,
       });
     });
@@ -288,7 +295,7 @@ export function exportDynamicBookingExcel(
   });
 
   // ===== Finalize Sheet =====
-  ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: r, c: 11 } });
+  ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: r, c: 14 } });
   ws['!merges'] = merges;
   ws['!cols'] = [
     { wch: 18 }, // Kode Booking
@@ -303,6 +310,9 @@ export function exportDynamicBookingExcel(
     { wch: 15 }, // Sisa
     { wch: 14 }, // Status Booking
     { wch: 12 }, // Status Bayar
+    { wch: 9 },  // Dewasa
+    { wch: 7 },  // Anak
+    { wch: 7 },  // Bayi
   ];
 
   const workbook = XLSX.utils.book_new();

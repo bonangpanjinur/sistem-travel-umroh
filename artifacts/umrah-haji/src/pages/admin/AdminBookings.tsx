@@ -423,6 +423,9 @@ export default function AdminBookings() {
               booking_status: b.booking_status || 'pending',
               payment_status: b.payment_status || 'pending',
               created_at: b.created_at || '',
+              adult_count: (b as any).adult_count ?? b.total_pax ?? 0,
+              child_count: (b as any).child_count ?? 0,
+              infant_count: (b as any).infant_count ?? 0,
             }));
 
             exportDynamicBookingExcel(
