@@ -36,6 +36,7 @@ function statusConfig(status: string) {
     case "pending":   return { label: "Menunggu", color: "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400" };
     default:          return { label: status, color: "bg-muted text-muted-foreground border-border" };
   }
+  return { label: status, color: "bg-muted text-muted-foreground border-border" };
 }
 
 export function JamaahPortalBanner() {
