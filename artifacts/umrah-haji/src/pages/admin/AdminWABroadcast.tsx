@@ -538,6 +538,168 @@ export default function AdminWABroadcast() {
     },
   });
 
+  // ── Execute-from-history state ────────────────────────────────────────────
+  const [executingId,  setExecutingId]  = useState<string | null>(null);
+  const [execSent,     setExecSent]     = useState(0);
+  const [execTotal,    setExecTotal]    = useState(0);
+  const [expandedId,   setExpandedId]   = useState<string | null>(null);
+  const [confirmId,    setConfirmId]    = useState<string | null>(null);
+
+  // ── Fetch recipients from saved segment_filters ──────────────────────────
+  async function fetchRecipientsForFilters(filters: any) {
+    const {
+      package_ids    = [] as string[],
+      departure_ids  = [] as string[],
+      payment_statuses  = [] as string[],
+      booking_statuses  = [] as string[],
+    } = filters || {};
+
+    let q = supabase
+      .from("bookings")
+      .select(`
+        id, booking_code, total_price, paid_amount, remaining_amount,
+        payment_status, booking_status,
+        customer:profiles(id, full_name, phone),
+        departure:departures(id, departure_date, package:packages(id, name))
+      `)
+      .limit(500);
+
+    if (booking_statuses.length > 0) {
+      q = q.in("booking_status", booking_statuses);
+    } else {
+      q = q.not("booking_status", "eq", "cancelled");
+    }
+    if (payment_statuses.length > 0) {
+      q = q.in("payment_status", payment_statuses);
+    }
+
+    const depIds: string[] = [...departure_ids];
+    if (depIds.length === 0 && package_ids.length > 0) {
+      const { data: deps } = await supabase
+        .from("departures").select("id").in("package_id", package_ids);
+      (deps || []).forEach((d: any) => depIds.push(d.id));
+    }
+    if (depIds.length > 0) q = q.in("departure_id", depIds);
+
+    const { data, error } = await q.order("created_at", { ascending: false });
+    if (error) throw error;
+
+    return (data || [])
+      .filter((b: any) => b.customer?.phone)
+      .map((b: any) => ({
+        id:              b.id,
+        bookingCode:     b.booking_code,
+        totalPrice:      Number(b.total_price   || 0),
+        paidAmount:      Number(b.paid_amount    || 0),
+        remainingAmount: Number(b.remaining_amount || 0),
+        paymentStatus:   b.payment_status,
+        fullName:        b.customer?.full_name || "-",
+        phone:           b.customer?.phone,
+        packageName:     b.departure?.package?.name || "-",
+        departureDate:   b.departure?.departure_date || null,
+      }));
+  }
+
+  // ── Build message from saved template ────────────────────────────────────
+  function buildFromTemplate(template: string, r: any) {
+    return template
+      .replace(/{nama}/g,              r.fullName)
+      .replace(/{kode_booking}/g,      r.bookingCode)
+      .replace(/{nama_paket}/g,        r.packageName)
+      .replace(/{sisa_bayar}/g,        formatRp(r.remainingAmount))
+      .replace(/{total_harga}/g,       formatRp(r.totalPrice))
+      .replace(/{terbayar}/g,          formatRp(r.paidAmount))
+      .replace(/{tanggal_berangkat}/g, fmtDate(r.departureDate));
+  }
+
+  // ── Execute a scheduled campaign from history ────────────────────────────
+  async function executeScheduledCampaign(campaign: any) {
+    setConfirmId(null);
+    if (executingId) { toast.error("Sedang mengirim kampanye lain. Tunggu selesai."); return; }
+
+    setExecutingId(campaign.id);
+    setExecSent(0);
+    setExecTotal(0);
+
+    try {
+      await supabase.from("wa_broadcast_campaigns")
+        .update({ status: "sending" }).eq("id", campaign.id);
+      qc.invalidateQueries({ queryKey: ["broadcast-campaigns"] });
+
+      const recipients = await fetchRecipientsForFilters(campaign.segment_filters);
+      if (recipients.length === 0) {
+        toast.error("Tidak ada penerima yang cocok dengan filter kampanye ini");
+        await supabase.from("wa_broadcast_campaigns")
+          .update({ status: "scheduled" }).eq("id", campaign.id);
+        qc.invalidateQueries({ queryKey: ["broadcast-campaigns"] });
+        return;
+      }
+
+      setExecTotal(recipients.length);
+      let successCount = 0;
+      let failCount    = 0;
+
+      for (let i = 0; i < recipients.length; i++) {
+        const r   = recipients[i] as any;
+        const msg = buildFromTemplate(campaign.message_template, r);
+        try {
+          const resp   = await fetch("/api/v1/whatsapp/send", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ target: r.phone, message: msg }),
+          });
+          const result = await resp.json().catch(() => ({ success: false }));
+          const ok     = result.success || resp.ok;
+          if (ok) successCount++; else failCount++;
+          supabase.from("wa_broadcast_logs").insert({
+            campaign_id: campaign.id,
+            booking_id:  r.id,
+            phone:       r.phone,
+            message:     msg,
+            status:      ok ? "sent" : "failed",
+            sent_at:     new Date().toISOString(),
+            error_msg:   result.message || null,
+          }).then(() => {});
+        } catch {
+          failCount++;
+        }
+        setExecSent(i + 1);
+        if (i < recipients.length - 1) await new Promise(res => setTimeout(res, 1200));
+      }
+
+      await supabase.from("wa_broadcast_campaigns").update({
+        status:           "done",
+        sent_at:          new Date().toISOString(),
+        total_recipients: recipients.length,
+        success_count:    successCount,
+        fail_count:       failCount,
+      }).eq("id", campaign.id);
+
+      qc.invalidateQueries({ queryKey: ["broadcast-campaigns"] });
+
+      if (failCount === 0)        toast.success(`✅ ${successCount} pesan berhasil dikirim`);
+      else if (successCount > 0)  toast.success(`${successCount} berhasil, ${failCount} gagal`);
+      else                        toast.error("Semua pesan gagal. Periksa konfigurasi Provider WA.");
+    } catch (e: any) {
+      toast.error("Error: " + e.message);
+      await supabase.from("wa_broadcast_campaigns")
+        .update({ status: "scheduled" }).eq("id", campaign.id);
+      qc.invalidateQueries({ queryKey: ["broadcast-campaigns"] });
+    } finally {
+      setExecutingId(null);
+      setExecSent(0);
+      setExecTotal(0);
+    }
+  }
+
+  // ── Cancel a scheduled campaign ──────────────────────────────────────────
+  async function cancelCampaign(campaignId: string) {
+    await supabase.from("wa_broadcast_campaigns")
+      .update({ status: "cancelled" }).eq("id", campaignId);
+    qc.invalidateQueries({ queryKey: ["broadcast-campaigns"] });
+    toast.success("Kampanye dibatalkan");
+  }
+
   // ── Step nav ────────────────────────────────────────────────────────────────
   const filtersActive = selectedPackages.size > 0 || selectedDepartures.size > 0 || selectedPayStatus.size > 0;
   const stepDone = [
@@ -1008,17 +1170,36 @@ export default function AdminWABroadcast() {
         </TabsContent>
 
         {/* ── TAB: Histori ────────────────────────────────────────────────── */}
-        <TabsContent value="histori" className="mt-4">
+        <TabsContent value="histori" className="mt-4 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-semibold flex items-center gap-2">
+              <History className="h-4 w-4" /> Histori Kampanye Broadcast
+            </h2>
+            <Button variant="outline" size="sm" onClick={() => qc.invalidateQueries({ queryKey: ["broadcast-campaigns"] })}>
+              <RotateCw className="h-3.5 w-3.5 mr-1.5" /> Refresh
+            </Button>
+          </div>
+
+          {/* Global sending banner */}
+          {executingId && (
+            <div className="flex items-center gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+              <RefreshCcw className="h-4 w-4 text-amber-600 animate-spin flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-amber-800">Mengirim kampanye…</p>
+                <Progress
+                  value={execTotal > 0 ? (execSent / execTotal) * 100 : 0}
+                  className="h-1.5 mt-1.5"
+                />
+                <p className="text-xs text-amber-700 mt-1">{execSent} / {execTotal} pesan dikirim</p>
+              </div>
+            </div>
+          )}
+
           <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <History className="h-4 w-4" /> Histori Kampanye Broadcast
-              </CardTitle>
-            </CardHeader>
             <CardContent className="p-0">
               {campaignsLoading ? (
                 <div className="p-4 space-y-3">
-                  {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}
+                  {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-20 w-full" />)}
                 </div>
               ) : campaigns.length === 0 ? (
                 <div className="py-16 text-center text-muted-foreground">
@@ -1030,50 +1211,212 @@ export default function AdminWABroadcast() {
                 </div>
               ) : (
                 <div className="divide-y">
-                  {campaigns.map((c: any) => (
-                    <div key={c.id} className="px-5 py-4 hover:bg-muted/30 transition-colors">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <p className="font-medium text-sm truncate">{c.name}</p>
-                            {statusBadge(c.status)}
+                  {campaigns.map((c: any) => {
+                    const isRunning  = executingId === c.id;
+                    const isExpanded = expandedId   === c.id;
+                    const isConfirm  = confirmId    === c.id;
+                    const filters    = c.segment_filters || {};
+                    const hasPkgs    = (filters.package_ids   || []).length > 0;
+                    const hasDeps    = (filters.departure_ids || []).length > 0;
+                    const hasPay     = (filters.payment_statuses || []).length > 0;
+                    const noFilter   = !hasPkgs && !hasDeps && !hasPay;
+
+                    return (
+                      <div
+                        key={c.id}
+                        className={`px-5 py-4 transition-colors ${isRunning ? "bg-amber-50/60" : "hover:bg-muted/20"}`}
+                      >
+                        {/* ─ Row header ───────────────────────────────────── */}
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="font-semibold text-sm">{c.name}</p>
+                              {statusBadge(c.status)}
+                            </div>
+                            <p className="text-[11px] text-muted-foreground mt-0.5">
+                              Dibuat: {fmtDate(c.created_at)}
+                              {c.scheduled_at && <> · <CalendarClock className="inline h-2.5 w-2.5 mx-0.5" />Dijadwal: {fmtDate(c.scheduled_at)}</>}
+                              {c.sent_at      && <> · Terkirim: {fmtDate(c.sent_at)}</>}
+                            </p>
                           </div>
-                          <p className="text-[11px] text-muted-foreground mt-0.5">
-                            Dibuat: {fmtDate(c.created_at)}
-                            {c.scheduled_at && ` · Dijadwal: ${fmtDate(c.scheduled_at)}`}
-                            {c.sent_at && ` · Dikirim: ${fmtDate(c.sent_at)}`}
-                          </p>
-                        </div>
-                        <div className="flex-shrink-0 text-right text-sm">
-                          {c.total_recipients != null && (
-                            <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                              <span className="flex items-center gap-1 text-emerald-700">
+
+                          {/* Stats (done) */}
+                          {c.status === "done" && c.total_recipients != null && (
+                            <div className="flex items-center gap-3 text-xs flex-shrink-0">
+                              <span className="flex items-center gap-1 text-emerald-700 font-medium">
                                 <CheckCircle2 className="h-3 w-3" />{c.success_count}
                               </span>
                               {c.fail_count > 0 && (
-                                <span className="flex items-center gap-1 text-red-600">
+                                <span className="flex items-center gap-1 text-red-600 font-medium">
                                   <XCircle className="h-3 w-3" />{c.fail_count}
                                 </span>
                               )}
-                              <span className="flex items-center gap-1">
+                              <span className="flex items-center gap-1 text-muted-foreground">
                                 <Users className="h-3 w-3" />{c.total_recipients}
                               </span>
                             </div>
                           )}
+
+                          {/* Expand toggle */}
+                          <button
+                            className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0 mt-0.5"
+                            onClick={() => setExpandedId(isExpanded ? null : c.id)}
+                            title={isExpanded ? "Tutup" : "Detail"}
+                          >
+                            <ChevronRight className={`h-4 w-4 transition-transform ${isExpanded ? "rotate-90" : ""}`} />
+                          </button>
                         </div>
+
+                        {/* ─ Sending progress bar (inline) ────────────────── */}
+                        {isRunning && (
+                          <div className="mt-3">
+                            <Progress
+                              value={execTotal > 0 ? (execSent / execTotal) * 100 : 5}
+                              className="h-2"
+                            />
+                            <p className="text-xs text-amber-700 mt-1 text-center">
+                              {execSent} / {execTotal} dikirim…
+                            </p>
+                          </div>
+                        )}
+
+                        {/* ─ Expanded detail ──────────────────────────────── */}
+                        {isExpanded && (
+                          <div className="mt-4 space-y-3 border-t pt-4">
+                            {/* Segment filters */}
+                            <div>
+                              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
+                                Filter Segmen
+                              </p>
+                              <div className="flex flex-wrap gap-1.5">
+                                {noFilter && (
+                                  <Badge variant="outline" className="text-[11px]">Semua jamaah aktif</Badge>
+                                )}
+                                {hasPkgs && (
+                                  <Badge variant="secondary" className="text-[11px] gap-1">
+                                    <Package className="h-2.5 w-2.5" />
+                                    {filters.package_ids.length} paket
+                                  </Badge>
+                                )}
+                                {hasDeps && (
+                                  <Badge variant="secondary" className="text-[11px] gap-1">
+                                    <Plane className="h-2.5 w-2.5" />
+                                    {filters.departure_ids.length} keberangkatan
+                                  </Badge>
+                                )}
+                                {hasPay && filters.payment_statuses.map((s: string) => (
+                                  <Badge key={s} variant="outline" className="text-[11px]">
+                                    {s === "paid" ? "Lunas" : s === "partial" ? "Sebagian" : "Belum Bayar"}
+                                  </Badge>
+                                ))}
+                                {(filters.booking_statuses || []).length > 0 && (
+                                  <Badge variant="outline" className="text-[11px]">
+                                    Booking: {filters.booking_statuses.join(", ")}
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Message preview */}
+                            <div>
+                              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
+                                Template Pesan
+                              </p>
+                              <div className="bg-[#dcf8c6] dark:bg-emerald-900 rounded-xl rounded-br-sm p-3 text-xs whitespace-pre-wrap max-h-32 overflow-y-auto text-gray-900 dark:text-gray-100 shadow-sm leading-relaxed">
+                                {c.message_template
+                                  ? c.message_template.slice(0, 300) + (c.message_template.length > 300 ? "…" : "")
+                                  : <span className="italic text-muted-foreground">Tidak ada template</span>
+                                }
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* ─ Action row (scheduled) ───────────────────────── */}
+                        {c.status === "scheduled" && !isRunning && (
+                          <div className="mt-3 flex flex-wrap items-center gap-2">
+                            {isConfirm ? (
+                              /* Inline confirmation */
+                              <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg w-full">
+                                <AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0" />
+                                <p className="text-xs text-amber-800 flex-1">
+                                  Kirim ke semua penerima yang cocok sekarang?{" "}
+                                  {c.total_recipients != null && (
+                                    <span className="font-semibold">~{c.total_recipients} jamaah</span>
+                                  )}
+                                </p>
+                                <div className="flex gap-1.5 flex-shrink-0">
+                                  <Button
+                                    size="sm"
+                                    className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 gap-1"
+                                    onClick={() => executeScheduledCampaign(c)}
+                                    disabled={!!executingId}
+                                  >
+                                    <Send className="h-3 w-3" /> Ya, Kirim
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-7 text-xs"
+                                    onClick={() => setConfirmId(null)}
+                                  >
+                                    Batal
+                                  </Button>
+                                </div>
+                              </div>
+                            ) : (
+                              <>
+                                <Button
+                                  size="sm"
+                                  className="h-8 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700"
+                                  onClick={() => setConfirmId(c.id)}
+                                  disabled={!!executingId}
+                                >
+                                  <Send className="h-3 w-3" /> Kirim Sekarang
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-8 text-xs gap-1.5 text-red-600 border-red-200 hover:bg-red-50"
+                                  onClick={() => cancelCampaign(c.id)}
+                                  disabled={!!executingId}
+                                >
+                                  <XCircle className="h-3 w-3" /> Batalkan
+                                </Button>
+                                {c.scheduled_at && (
+                                  <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                                    <CalendarClock className="h-3 w-3" />
+                                    Dijadwal {fmtDate(c.scheduled_at)}
+                                  </span>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        )}
+
+                        {/* ─ Sending state ────────────────────────────────── */}
+                        {c.status === "sending" && !isRunning && (
+                          <p className="mt-2 text-xs text-amber-700 flex items-center gap-1.5">
+                            <RefreshCcw className="h-3 w-3 animate-spin" />
+                            Sedang dikirim di sesi lain…
+                          </p>
+                        )}
+
+                        {/* ─ Done result bar ──────────────────────────────── */}
+                        {c.status === "done" && c.total_recipients > 0 && (
+                          <div className="mt-2">
+                            <Progress
+                              value={(c.success_count / c.total_recipients) * 100}
+                              className="h-1.5"
+                            />
+                            <p className="text-[10px] text-muted-foreground mt-0.5">
+                              {c.success_count} berhasil · {c.fail_count} gagal · {c.total_recipients} total
+                            </p>
+                          </div>
+                        )}
                       </div>
-                      {c.status === "scheduled" && (
-                        <div className="mt-2">
-                          <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5" onClick={() => {
-                            // TODO: trigger send for scheduled campaign
-                            toast.info("Kirim manual: fitur segera hadir");
-                          }}>
-                            <Send className="h-3 w-3" /> Kirim Sekarang
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </CardContent>
