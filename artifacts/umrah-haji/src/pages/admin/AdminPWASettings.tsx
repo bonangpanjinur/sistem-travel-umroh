@@ -218,6 +218,28 @@ function NavItemRow({ item, index, onChange }: {
   index: number;
   onChange: (updated: BottomNavItem) => void;
 }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(item.label);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const startEdit = () => {
+    setDraft(item.label);
+    setEditing(true);
+    setTimeout(() => inputRef.current?.select(), 0);
+  };
+
+  const commitEdit = () => {
+    const trimmed = draft.trim();
+    if (trimmed && trimmed !== item.label) onChange({ ...item, label: trimmed });
+    else setDraft(item.label);
+    setEditing(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") commitEdit();
+    if (e.key === "Escape") { setDraft(item.label); setEditing(false); }
+  };
+
   return (
     <Draggable draggableId={item.id} index={index}>
       {(provided, snapshot) => (
@@ -239,10 +261,38 @@ function NavItemRow({ item, index, onChange }: {
             onChange={(iconName) => onChange({ ...item, icon: iconName })}
           />
           <div className="flex-1 min-w-0">
-            <p className={cn("text-sm font-medium leading-tight", !item.enabled && "text-muted-foreground")}>
-              {item.label}
-            </p>
-            <p className="text-[10px] text-muted-foreground truncate font-mono">
+            {editing ? (
+              <input
+                ref={inputRef}
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onBlur={commitEdit}
+                onKeyDown={handleKeyDown}
+                maxLength={20}
+                className={cn(
+                  "w-full text-sm font-medium leading-tight bg-transparent border-b border-primary outline-none",
+                  "placeholder:text-muted-foreground",
+                )}
+                autoFocus
+              />
+            ) : (
+              <button
+                type="button"
+                onClick={startEdit}
+                className={cn(
+                  "group flex items-center gap-1 text-sm font-medium leading-tight text-left w-full",
+                  "hover:text-primary transition-colors",
+                  !item.enabled && "text-muted-foreground",
+                )}
+                title="Klik untuk mengubah label"
+              >
+                {item.label}
+                <span className="opacity-0 group-hover:opacity-60 text-[9px] font-normal text-muted-foreground ml-0.5">
+                  ✎
+                </span>
+              </button>
+            )}
+            <p className="text-[10px] text-muted-foreground truncate font-mono mt-0.5">
               {item.icon} · {item.path}
             </p>
           </div>
