@@ -52,7 +52,7 @@ import {
   Copy, CheckCheck, MessageCircle, Building2, UserCheck,
   Shield, ShieldAlert, ShieldCheck, ExternalLink, Clock3,
   Stethoscope, Baby, BriefcaseMedical, RotateCcw, Wallet,
-  TriangleAlert, Receipt
+  TriangleAlert, Receipt, Plus
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -1939,9 +1939,20 @@ export default function AdminBookingDetail() {
             </div>
             <CardContent className="p-0">
               {!payments || payments.length === 0 ? (
-                <div className="text-center py-12">
+                <div className="text-center py-12 px-6 space-y-3">
                   <CreditCard className="h-12 w-12 text-muted-foreground/30 mx-auto mb-3" />
-                  <p className="text-muted-foreground">Belum ada riwayat pembayaran</p>
+                  <p className="text-muted-foreground text-sm">Belum ada riwayat pembayaran</p>
+                  {canAddPayment && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-2 text-emerald-600 border-emerald-200 hover:bg-emerald-50"
+                      onClick={() => setShowManagePaymentModal(true)}
+                    >
+                      <Plus className="h-4 w-4" />
+                      Catat Pembayaran
+                    </Button>
+                  )}
                 </div>
               ) : (
                 <div className="overflow-x-auto">
@@ -2295,8 +2306,19 @@ export default function AdminBookingDetail() {
                   </Accordion>
                 </div>
               ) : (
-                <div className="px-5 py-4">
-                  <p className="text-xs text-muted-foreground text-center italic">Belum ada pembayaran tercatat</p>
+                <div className="px-5 py-6 text-center space-y-3">
+                  <p className="text-xs text-muted-foreground italic">Belum ada pembayaran tercatat</p>
+                  {canAddPayment && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-2 text-emerald-600 border-emerald-200 hover:bg-emerald-50"
+                      onClick={() => setShowManagePaymentModal(true)}
+                    >
+                      <Plus className="h-4 w-4" />
+                      Catat Pembayaran
+                    </Button>
+                  )}
                 </div>
               )}
 
