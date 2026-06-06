@@ -55,6 +55,9 @@ const PackageLabelManagerDialog = lazy(() =>
 const PackageLabelAssignDialog = lazy(() =>
   import("@/components/admin/packages/PackageLabelAssignDialog").then(m => ({ default: m.PackageLabelAssignDialog }))
 );
+const DepartureForm = lazy(() =>
+  import("@/components/admin/forms/DepartureForm").then(m => ({ default: m.DepartureForm }))
+);
 
 const FormFallback = () => (
   <div className="flex items-center justify-center py-12">
@@ -109,6 +112,7 @@ export default function AdminPackages() {
   const [selectedPackageForManifest, setSelectedPackageForManifest] = useState<any>(null);
   const [isLabelManagerOpen, setIsLabelManagerOpen] = useState(false);
   const [labelAssignFor, setLabelAssignFor] = useState<{ id: string; name: string } | null>(null);
+  const [addJadwalFor, setAddJadwalFor] = useState<{ id: string; name: string } | null>(null);
   const { data: labelsMap } = usePackageLabelsMap();
   
   const queryClient = useQueryClient();
@@ -1103,6 +1107,12 @@ export default function AdminPackages() {
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 className="text-xs font-semibold gap-2 py-2.5 cursor-pointer rounded-lg"
+                                onClick={() => setAddJadwalFor({ id: pkg.id, name: pkg.name })}
+                              >
+                                <Calendar className="h-4 w-4 text-emerald-500" /> Tambah Jadwal
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                className="text-xs font-semibold gap-2 py-2.5 cursor-pointer rounded-lg"
                                 onClick={() => duplicatePackageMutation.mutate(pkg)}
                                 disabled={duplicatePackageMutation.isPending}
                               >
@@ -1347,6 +1357,23 @@ export default function AdminPackages() {
               packageName={labelAssignFor?.name}
             />
           </Suspense>
+        )}
+
+        {!!addJadwalFor && (
+          <Dialog open={!!addJadwalFor} onOpenChange={(v) => !v && setAddJadwalFor(null)}>
+            <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Tambah Jadwal — {addJadwalFor?.name}</DialogTitle>
+              </DialogHeader>
+              <Suspense fallback={<FormFallback />}>
+                <DepartureForm
+                  packageId={addJadwalFor?.id}
+                  onSuccess={() => setAddJadwalFor(null)}
+                  onCancel={() => setAddJadwalFor(null)}
+                />
+              </Suspense>
+            </DialogContent>
+          </Dialog>
         )}
       </div>
     </TooltipProvider>

@@ -35,7 +35,7 @@ export function AdminBookingCommissionCard({ bookingId, hasAgent }: Props) {
       const { data, error } = await supabase
         .from("agent_commissions")
         .select(`
-          id, commission_amount, commission_rate, status, notes, created_at, paid_at,
+          id, commission_amount, status, notes, created_at, paid_at,
           agent:agents(id, company_name, agent_code, commission_rate)
         `)
         .eq("booking_id", bookingId)

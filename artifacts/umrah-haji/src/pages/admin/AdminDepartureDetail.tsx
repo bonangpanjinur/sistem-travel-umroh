@@ -88,6 +88,10 @@ import { useDepartureBudget, useDepartureCosts, computeBudgetSummary } from "@/h
 import { DepartureCertificateGenerator } from "@/components/departure/DepartureCertificateGenerator";
 import { PriceHistoryCard } from "@/components/admin/PriceHistoryCard";
 import { DepartureMarginCalculator } from "@/components/admin/financial/DepartureMarginCalculator";
+import { DeparturePLSummaryCard } from "@/components/admin/financial/DeparturePLSummaryCard";
+import { DepartureCostItemsCard } from "@/components/admin/financial/DepartureCostItemsCard";
+import { DepartureExpensesCard } from "@/components/admin/financial/DepartureExpensesCard";
+import { DepartureOtherRevenuesCard } from "@/components/admin/financial/DepartureOtherRevenuesCard";
 import { useMarginAlert } from "@/hooks/useMarginAlert";
 import { DeparturePreChecklist } from "@/components/admin/departure/DeparturePreChecklist";
 import { DepartureVisaSummary } from "@/components/admin/departure/DepartureVisaSummary";
@@ -1060,6 +1064,10 @@ export default function AdminDepartureDetail() {
           </TabsTrigger>
           <TabsTrigger value="harga" className="text-xs">Riwayat Harga</TabsTrigger>
           <TabsTrigger value="operasional" className="text-xs">Operasional</TabsTrigger>
+          <TabsTrigger value="keuangan" className="text-xs flex items-center gap-1">
+            <TrendingUp className="h-3 w-3" />
+            Keuangan
+          </TabsTrigger>
 
         </TabsList>
 
@@ -1927,16 +1935,58 @@ export default function AdminDepartureDetail() {
               <p className="text-muted-foreground mb-4">
                 Fitur operasional dapat diakses melalui menu Operasional di sidebar
               </p>
-              <div className="space-y-2 text-sm">
-                <p>• Manifest Jamaah</p>
-                <p>• Manajemen Perlengkapan</p>
-                <p>• Penugasan Kamar</p>
-                <p>• Manajemen Bus</p>
-                <p>• Check-in</p>
-                <p>• QR Code</p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-2">
+                <Button variant="outline" className="h-auto py-3 flex flex-col gap-1" asChild>
+                  <Link to={`/admin/manifest?departure=${id}`}>
+                    <FileDown className="h-5 w-5 text-blue-500" />
+                    <span className="text-xs font-medium">Manifest Jamaah</span>
+                  </Link>
+                </Button>
+                <Button variant="outline" className="h-auto py-3 flex flex-col gap-1" asChild>
+                  <Link to={`/admin/equipment?departure=${id}`}>
+                    <Package className="h-5 w-5 text-amber-500" />
+                    <span className="text-xs font-medium">Perlengkapan</span>
+                  </Link>
+                </Button>
+                <Button variant="outline" className="h-auto py-3 flex flex-col gap-1" asChild>
+                  <Link to={`/admin/room-assignments?departure=${id}`}>
+                    <BedDouble className="h-5 w-5 text-purple-500" />
+                    <span className="text-xs font-medium">Penugasan Kamar</span>
+                  </Link>
+                </Button>
+                <Button variant="outline" className="h-auto py-3 flex flex-col gap-1" onClick={() => setIsCheckinOpen(true)}>
+                  <ScanLine className="h-5 w-5 text-green-500" />
+                  <span className="text-xs font-medium">Check-in QR</span>
+                </Button>
+                <Button variant="outline" className="h-auto py-3 flex flex-col gap-1" onClick={() => setIsEmailManifestOpen(true)}>
+                  <Mail className="h-5 w-5 text-indigo-500" />
+                  <span className="text-xs font-medium">Email Manifest</span>
+                </Button>
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Tab: Keuangan / P&L */}
+        <TabsContent value="keuangan" className="space-y-6">
+          <DeparturePLSummaryCard
+            departureId={id || ""}
+            departureLabel={departure?.package?.name}
+            paxCount={passengers?.length || 0}
+            quota={departure?.quota || 0}
+          />
+          <DepartureCostItemsCard
+            departureId={id || ""}
+            packageId={departure?.package?.id}
+            packageName={departure?.package?.name}
+            paxCount={passengers?.length || 0}
+            departureLabel={departure?.departure_date ? formatDate(departure.departure_date) : undefined}
+            priceQuad={departure?.price_quad || 0}
+            priceTriple={departure?.price_triple || 0}
+            priceDouble={departure?.price_double || 0}
+          />
+          <DepartureExpensesCard departureId={id || ""} />
+          <DepartureOtherRevenuesCard departureId={id || ""} />
         </TabsContent>
       </Tabs>
 

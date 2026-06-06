@@ -27,7 +27,7 @@ import {
   CalendarDays, Building2, Link2Off, MapPin, Hotel,
   MessageCircle, Bell, Send, DollarSign, MoreVertical,
   ChevronLeft, ChevronRight, Eye, RefreshCw, TrendingUp,
-  Zap, AlertCircle, Download
+  Zap, AlertCircle, Download, Copy, CheckCircle2
 } from "lucide-react";
 import { LinkItineraryForm } from "@/components/admin/forms/LinkItineraryForm";
 import { downloadICS, type ICSEvent } from "@/lib/ics";
@@ -216,6 +216,7 @@ export default function AdminDepartures() {
   const [deleteDeparture, setDeleteDeparture] = useState<any>(null);
   const [itineraryDeparture, setItineraryDeparture] = useState<any>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [duplicatingDep, setDuplicatingDep] = useState<any>(null);
 
   // Sinkronkan ulang booked_count dari data booking aktif (rekonsiliasi)
   const recalcMutation = useMutation({
@@ -326,6 +327,58 @@ export default function AdminDepartures() {
     onError: (error: Error) => {
       toast.error(error.message || "Gagal menghapus jadwal");
     },
+  });
+
+  // Query departure IDs yang sudah ada HPP (departure_cost_items)
+  const { data: departuresWithHPP = [] } = useQuery({
+    queryKey: ['departures-with-hpp'],
+    queryFn: async () => {
+      const db = supabase as any;
+      const { data, error } = await db
+        .from('departure_cost_items')
+        .select('departure_id')
+        .limit(5000);
+      if (error) return [];
+      return [...new Set((data || []).map((r: any) => r.departure_id))] as string[];
+    },
+  });
+
+  const duplicateMutation = useMutation({
+    mutationFn: async (dep: any) => {
+      const { data, error } = await supabase
+        .from('departures')
+        .insert({
+          package_id: dep.package_id || null,
+          airline_id: dep.airline_id || null,
+          departure_airport_id: dep.departure_airport_id || null,
+          arrival_airport_id: dep.arrival_airport_id || null,
+          hotel_makkah_id: dep.hotel_makkah_id || null,
+          hotel_madinah_id: dep.hotel_madinah_id || null,
+          muthawif_id: dep.muthawif_id || null,
+          flight_number: dep.flight_number || null,
+          quota: dep.quota || 0,
+          price_quad: dep.price_quad || 0,
+          price_triple: dep.price_triple || 0,
+          price_double: dep.price_double || 0,
+          price_single: dep.price_single || 0,
+          status: 'open',
+          booked_count: 0,
+          departure_date: null,
+          return_date: null,
+        })
+        .select('id')
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      toast.success('Jadwal berhasil diduplikat — lengkapi tanggal keberangkatan');
+      queryClient.invalidateQueries({ queryKey: ['admin-departures'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-departures-stats'] });
+      setDuplicatingDep(null);
+      navigate(`/admin/departures/${data.id}`);
+    },
+    onError: (e: any) => toast.error('Gagal menduplikat jadwal: ' + (e?.message ?? 'unknown')),
   });
 
   const sendNotificationMutation = useMutation({
@@ -717,7 +770,18 @@ export default function AdminDepartures() {
                         </div>
                       </TableCell>
                       <TableCell className="text-center">
-                        {getStatusBadge(dep.status ?? '')}
+                        <div className="flex flex-col items-center gap-1.5">
+                          {getStatusBadge(dep.status ?? '')}
+                          {departuresWithHPP.includes(dep.id) ? (
+                            <span className="text-[10px] text-emerald-600 font-medium flex items-center gap-0.5">
+                              <CheckCircle2 className="h-3 w-3" /> HPP
+                            </span>
+                          ) : (
+                            <span className="text-[10px] text-amber-500 font-medium flex items-center gap-0.5">
+                              <AlertCircle className="h-3 w-3" /> No HPP
+                            </span>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                         <DropdownMenu>
@@ -735,6 +799,10 @@ export default function AdminDepartures() {
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => setItineraryDeparture(dep)}>
                               <MapPin className="h-4 w-4 mr-2" /> Kelola Itinerary
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => setDuplicatingDep(dep)}>
+                              <Copy className="h-4 w-4 mr-2 text-blue-500" /> Duplikat Jadwal
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem 
@@ -865,6 +933,26 @@ export default function AdminDepartures() {
               onClick={() => deleteMutation.mutate(deleteDeparture.id)}
             >
               Hapus
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!duplicatingDep} onOpenChange={(open) => !open && setDuplicatingDep(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Duplikat Jadwal Keberangkatan?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Jadwal baru akan dibuat dengan data yang sama (paket, maskapai, hotel, harga, kuota) namun tanggal keberangkatan dikosongkan dan status direset ke <strong>Buka</strong>. Anda akan diarahkan ke halaman detail untuk melengkapi tanggal.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => duplicatingDep && duplicateMutation.mutate(duplicatingDep)}
+              disabled={duplicateMutation.isPending}
+            >
+              {duplicateMutation.isPending ? 'Menduplikat...' : 'Duplikat'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
