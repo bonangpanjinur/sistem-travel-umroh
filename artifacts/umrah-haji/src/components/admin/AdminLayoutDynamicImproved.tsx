@@ -90,13 +90,18 @@ const ROLE_BADGE_CLASSES: Record<string, string> = {
 };
 
 // ─── Memoised menu group row ─────────────────────────────────────────────────
-const MenuGroupItem = memo(({ group, isExpanded, onToggle, isPathActive, onNavigate }: {
+const MenuGroupItem = memo(({ group, isExpanded, onToggle, isPathActive, onNavigate, badgeMap = {} }: {
   group: { name: string; items: any[] };
   isExpanded: boolean;
   onToggle: (name: string) => void;
   isPathActive: (path: string) => boolean;
   onNavigate: () => void;
-}) => (
+  badgeMap?: Record<string, number>;
+}) => {
+  // Check if any item in this group has a badge (for collapsed group indicator)
+  const groupBadgeTotal = group.items.reduce((sum, item) => sum + (badgeMap[item.path] ?? 0), 0);
+
+  return (
   <div className="space-y-0.5">
     <button
       onClick={() => onToggle(group.name)}
@@ -109,6 +114,11 @@ const MenuGroupItem = memo(({ group, isExpanded, onToggle, isPathActive, onNavig
       aria-expanded={isExpanded}
     >
       <span className="flex-1 text-left">{group.name}</span>
+      {!isExpanded && groupBadgeTotal > 0 && (
+        <span className="mr-1 h-4 min-w-4 px-1 rounded-full bg-green-500 text-white text-[9px] font-bold flex items-center justify-center">
+          {groupBadgeTotal > 9 ? '9+' : groupBadgeTotal}
+        </span>
+      )}
       <ChevronDown
         className={cn(
           'w-3 h-3 transition-transform duration-200 flex-shrink-0',
@@ -130,6 +140,7 @@ const MenuGroupItem = memo(({ group, isExpanded, onToggle, isPathActive, onNavig
             {group.items.map((item: any) => {
               const active = isPathActive(item.path);
               const IconComp = getMenuIcon(item.icon);
+              const itemBadge = badgeMap[item.path] ?? 0;
               return (
                 <Link
                   key={item.id ?? item.key}
@@ -152,6 +163,16 @@ const MenuGroupItem = memo(({ group, isExpanded, onToggle, isPathActive, onNavig
                     )}
                   />
                   <span className="flex-1 truncate text-[13px]">{item.label}</span>
+                  {itemBadge > 0 && (
+                    <span className={cn(
+                      'h-4 min-w-4 px-1 rounded-full text-[9px] font-bold flex items-center justify-center shrink-0',
+                      active
+                        ? 'bg-white/30 text-white'
+                        : 'bg-green-500 text-white'
+                    )}>
+                      {itemBadge > 9 ? '9+' : itemBadge}
+                    </span>
+                  )}
                 </Link>
               );
             })}
@@ -160,7 +181,8 @@ const MenuGroupItem = memo(({ group, isExpanded, onToggle, isPathActive, onNavig
       )}
     </AnimatePresence>
   </div>
-));
+  );
+});
 MenuGroupItem.displayName = 'MenuGroupItem';
 
 // ─── Main layout ─────────────────────────────────────────────────────────────
@@ -170,6 +192,16 @@ function AdminLayoutDynamicImproved() {
   const { getSetting } = useCompanySettings();
   const adminNotifications = useAdminNotifications();
   const { isDark, toggle: toggleDark } = useDarkMode();
+
+  // Badge counts for sidebar nav items (payment notifications unread)
+  const sidebarBadgeMap = useMemo(() => {
+    const paymentCount = adminNotifications.notifications.filter(n => !n.read && n.type === 'payment').length;
+    const bookingCount = adminNotifications.notifications.filter(n => !n.read && n.type === 'booking').length;
+    return {
+      '/admin/payments': paymentCount,
+      '/admin/bookings': bookingCount,
+    } as Record<string, number>;
+  }, [adminNotifications.notifications]);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -379,6 +411,7 @@ function AdminLayoutDynamicImproved() {
                   onToggle={toggleGroup}
                   isPathActive={isPathActive}
                   onNavigate={handleNavigate}
+                  badgeMap={sidebarBadgeMap}
                 />
               ))
             )}

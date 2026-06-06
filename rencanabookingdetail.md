@@ -117,18 +117,27 @@
 
 ## SARAN FITUR LANJUTAN
 
-### 1. Laporan Reminder
+### 1. Laporan Reminder ✅
 - Daftar semua scheduled + sent reminders lintas booking
 - Filter: by status (pending/sent/failed), by booking, by tanggal
 - Bulk-send untuk booking yang mendekati jatuh tempo
+- **SELESAI** — `AdminLaporanReminder.tsx`, route `/admin/laporan/reminder`
 
-### 2. Boarding Pass Digital
+### 2. Boarding Pass Digital ✅
 - QR code per jamaah yang bisa discan di counter keberangkatan
 - Include: nama, passport no, flight, seat, hotel
+- **SELESAI** — `BoardingPassModal.tsx` + `boarding-pass-generator.ts`
+- QR code real (bukan placeholder) sekarang tampil di preview card modal
+- QR encode URL `/transaksi/:public_token` untuk verifikasi jamaah
+- PDF download per jamaah & ZIP bulk download
 
-### 3. Notifikasi Real-time
+### 3. Notifikasi Real-time ✅
 - Push notification ke browser staf saat pembayaran masuk
 - Badge counter di menu admin
+- **SELESAI** — `useAdminNotifications.ts` + `AdminLayoutDynamicImproved.tsx`
+- Browser Notification API: izin diminta otomatis saat login admin, OS-level popup saat ada pembayaran baru / bukti pembayaran diupload
+- Badge counter hijau di sidebar item Pembayaran & Booking (angka = notif belum dibaca)
+- Badge juga muncul di grup yang sedang di-collapse
 
 ### 4. Komisi Auto-Calculate
 - Otomatis hitung komisi agen saat status = 'confirmed'

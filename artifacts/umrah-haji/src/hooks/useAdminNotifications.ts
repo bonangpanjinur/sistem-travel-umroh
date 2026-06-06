@@ -22,6 +22,34 @@ type EmployeeDevice = Database['public']['Tables']['employee_devices']['Row'];
 
 let adminChannelInstance: ReturnType<typeof supabase.channel> | null = null;
 let channelSubscriberCount = 0;
+let browserNotifPermission: NotificationPermission = 'default';
+
+function requestBrowserNotifPermission() {
+  if (typeof Notification === 'undefined') return;
+  if (Notification.permission === 'granted') {
+    browserNotifPermission = 'granted';
+    return;
+  }
+  if (Notification.permission !== 'denied') {
+    Notification.requestPermission().then(p => { browserNotifPermission = p; });
+  }
+}
+
+function showBrowserNotification(title: string, body: string, link?: string) {
+  if (typeof Notification === 'undefined') return;
+  if (Notification.permission !== 'granted') return;
+  try {
+    const n = new Notification(title, {
+      body,
+      icon: '/pwa-192x192.png',
+      badge: '/pwa-192x192.png',
+      tag: 'admin-payment',
+      requireInteraction: false,
+    });
+    if (link) n.onclick = () => { window.focus(); window.location.hash = link; n.close(); };
+    setTimeout(() => n.close(), 8000);
+  } catch { /* browser may block */ }
+}
 
 export function useAdminNotifications() {
   const [notifications, setNotifications] = useState<AdminNotification[]>([]);
@@ -29,6 +57,9 @@ export function useAdminNotifications() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const isSubscribedRef = useRef(false);
+
+  // Request browser notification permission once on mount
+  useEffect(() => { requestBrowserNotifPermission(); }, []);
 
   const addNotification = useCallback((notification: Omit<AdminNotification, 'id' | 'createdAt' | 'read'>) => {
     const newNotification: AdminNotification = {
@@ -101,13 +132,11 @@ export function useAdminNotifications() {
             const payment = payload.new as PaymentRow;
             const { data: booking } = await supabase
               .from('bookings').select('id, booking_code').eq('id', payment.booking_id).single();
-            addNotification({
-              type: 'payment',
-              title: '💰 Pembayaran Masuk!',
-              message: `Pembayaran ${payment.payment_code} untuk booking ${booking?.booking_code || ''} senilai ${formatCurrency(payment.amount)}`,
-              link: booking ? `/admin/bookings/${booking.id}` : '/admin/payments',
-              data: payment,
-            });
+            const title = '💰 Pembayaran Masuk!';
+            const message = `Pembayaran ${payment.payment_code} untuk booking ${booking?.booking_code || ''} senilai ${formatCurrency(payment.amount)}`;
+            const link = booking ? `/admin/bookings/${booking.id}` : '/admin/payments';
+            showBrowserNotification(title, message, link);
+            addNotification({ type: 'payment', title, message, link, data: payment });
           }
         )
 
@@ -120,13 +149,11 @@ export function useAdminNotifications() {
             if (oldPayment.status !== 'pending' && payment.status === 'pending' && payment.proof_url) {
               const { data: booking } = await supabase
                 .from('bookings').select('id, booking_code').eq('id', payment.booking_id).single();
-              addNotification({
-                type: 'payment',
-                title: '📄 Bukti Pembayaran Diunggah',
-                message: `Pembayaran ${payment.payment_code} menunggu verifikasi — booking ${booking?.booking_code || ''}`,
-                link: booking ? `/admin/bookings/${booking.id}` : '/admin/payments',
-                data: payment,
-              });
+              const title = '📄 Bukti Pembayaran Diunggah';
+              const message = `Pembayaran ${payment.payment_code} menunggu verifikasi — booking ${booking?.booking_code || ''}`;
+              const link = booking ? `/admin/bookings/${booking.id}` : '/admin/payments';
+              showBrowserNotification(title, message, link);
+              addNotification({ type: 'payment', title, message, link, data: payment });
             }
           }
         )

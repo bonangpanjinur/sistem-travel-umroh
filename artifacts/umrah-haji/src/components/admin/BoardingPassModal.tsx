@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import JSZip from "jszip";
+import QRCode from "qrcode";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
@@ -74,6 +75,16 @@ function BoardingPassCard({
 }: { passenger: BoardingPassPassenger; data: BoardingPassData; small?: boolean }) {
   const dep = fmtDate(data.departure_date);
   const ret = fmtDate(data.return_date);
+
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+  useEffect(() => {
+    const qrText = data.public_token
+      ? `${window.location.origin}/transaksi/${data.public_token}`
+      : `BOOKING:${data.booking_code}`;
+    QRCode.toDataURL(qrText, { width: 120, margin: 1, color: { dark: '#0f172a', light: '#ffffff' } })
+      .then(url => setQrDataUrl(url))
+      .catch(() => setQrDataUrl(null));
+  }, [data.public_token, data.booking_code]);
   const roomVal = passenger.room_number
     ? `${roomLabel(passenger.room_type)} · No. ${passenger.room_number}`
     : roomLabel(passenger.room_type);
@@ -173,10 +184,14 @@ function BoardingPassCard({
             </div>
           )}
 
-          {/* QR placeholder */}
+          {/* QR Code */}
           <div className="flex flex-col items-center pt-1">
-            <div className="w-14 h-14 bg-white border border-slate-200 rounded-lg flex items-center justify-center">
-              <QrCode className="h-8 w-8 text-slate-300" />
+            <div className="w-14 h-14 bg-white border border-slate-200 rounded-lg flex items-center justify-center overflow-hidden">
+              {qrDataUrl ? (
+                <img src={qrDataUrl} alt="QR Code" className="w-full h-full object-contain" />
+              ) : (
+                <QrCode className="h-8 w-8 text-slate-300" />
+              )}
             </div>
             <p className="text-[8px] text-slate-400 mt-1 text-center leading-tight">Scan untuk<br />verifikasi</p>
           </div>
