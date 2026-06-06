@@ -435,7 +435,7 @@ router.post('/config', async (req: any, res: any) => {
   } catch (e: any) {
     return res.status(500).json({ error: e.message || 'Internal server error' });
   }
-}
+});
 
 // ─── PATCH /api/v1/chatbot/rate ───────────────────────────────────────────────
 router.patch('/rate', async (req: any, res: any) => {
