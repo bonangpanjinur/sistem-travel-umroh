@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,7 +28,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Plus, Edit, Trash2, Download, Eye, EyeOff } from "lucide-react";
+import { Plus, Edit, Trash2, Download, Eye, EyeOff, Upload, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { formatBytes } from "@/lib/format";
@@ -70,6 +70,8 @@ export default function AdminMarketingMaterials() {
     tags: [] as string[],
   });
   const [tagsInput, setTagsInput] = useState("");
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch materials
   const { data: materials = [], isLoading } = useQuery({
@@ -186,6 +188,56 @@ export default function AdminMarketingMaterials() {
     setIsDialogOpen(true);
   };
 
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file size (max 50MB)
+    if (file.size > 50 * 1024 * 1024) {
+      toast.error("Ukuran file terlalu besar. Maksimal 50MB.");
+      return;
+    }
+
+    setIsUploadingFile(true);
+
+    try {
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
+      const filePath = `marketing-materials/${fileName}`;
+
+      // Upload to Supabase Storage
+      const { error: uploadError } = await (supabase as any).storage
+        .from("marketing-materials")
+        .upload(filePath, file, { cacheControl: "3600", upsert: false });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: urlData } = (supabase as any).storage
+        .from("marketing-materials")
+        .getPublicUrl(filePath);
+
+      // Update form data with file info
+      setFormData({
+        ...formData,
+        file_url: urlData.publicUrl,
+        file_name: file.name,
+        file_size: file.size,
+        file_type: file.type || fileExt || "unknown",
+      });
+
+      toast.success("File berhasil diunggah");
+    } catch (error: any) {
+      console.error("File upload error:", error);
+      toast.error("Gagal mengunggah file: " + error.message);
+    } finally {
+      setIsUploadingFile(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -282,27 +334,42 @@ export default function AdminMarketingMaterials() {
                 />
               </div>
 
-              <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                  <Label>URL File *</Label>
-                  <Input
-                    value={formData.file_url}
-                    onChange={(e) =>
-                      setFormData({ ...formData, file_url: e.target.value })
-                    }
-                    placeholder="https://..."
+              <div>
+                <Label>Unggah File *</Label>
+                <div className="flex gap-2 items-center">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploadingFile}
+                    className="w-full"
+                  >
+                    {isUploadingFile ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Mengunggah...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="h-4 w-4 mr-2" />
+                        Pilih File
+                      </>
+                    )}
+                  </Button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    onChange={handleFileSelect}
+                    className="hidden"
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.gif,.mp4,.webm"
                   />
                 </div>
-                <div>
-                  <Label>Nama File *</Label>
-                  <Input
-                    value={formData.file_name}
-                    onChange={(e) =>
-                      setFormData({ ...formData, file_name: e.target.value })
-                    }
-                    placeholder="brochure.pdf"
-                  />
-                </div>
+                {formData.file_name && (
+                  <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-sm">
+                    <p className="text-green-800 font-medium">✓ File terpilih: {formData.file_name}</p>
+                    <p className="text-green-700 text-xs">Ukuran: {formatBytes(formData.file_size)}</p>
+                  </div>
+                )}
               </div>
 
               <div>
