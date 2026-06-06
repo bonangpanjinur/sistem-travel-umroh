@@ -23,11 +23,12 @@ import { Label } from "@/components/ui/label";
 import { formatCurrency, formatDate, getPaymentStatusLabel } from "@/lib/format";
 import { 
   CheckCircle, XCircle, Eye, AlertCircle, Loader2, 
-  CreditCard, Calendar, User, Search, Info, Plus, Upload
+  CreditCard, Calendar, User, Search, Info, Plus, Upload, Bell
 } from "lucide-react";
 import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/useAuth";
+import { useFinanceNotifier } from "@/hooks/useFinanceNotifier";
 
 interface ManagePaymentModalProps {
   isOpen: boolean;
@@ -50,6 +51,7 @@ export function ManagePaymentModal({
 }: ManagePaymentModalProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { notifyFinance } = useFinanceNotifier();
   const [selectedPayment, setSelectedPayment] = useState<any>(null);
   const [showProofDialog, setShowProofDialog] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
@@ -180,13 +182,39 @@ export function ManagePaymentModal({
         verified_by: proofUrl ? null : user?.id,
       });
       if (error) throw error;
+      // Return proof info so onSuccess can trigger finance notification
+      return { proofUrl: proofUrl ?? null, amount: data.amount };
     },
-    onSuccess: () => {
+    onSuccess: async ({ proofUrl, amount }) => {
       queryClient.invalidateQueries({ queryKey: ['admin-booking', bookingId] });
       queryClient.invalidateQueries({ queryKey: ['booking-payments', bookingId] });
       queryClient.invalidateQueries({ queryKey: ['admin-bookings'] });
       queryClient.invalidateQueries({ queryKey: ['admin-payments'] });
-      toast.success('Pembayaran berhasil ditambahkan');
+
+      if (proofUrl) {
+        // Bukti bayar diunggah → status pending → notifikasi staf finance
+        toast.success('Pembayaran berhasil ditambahkan — bukti menunggu verifikasi finance');
+
+        // Fire-and-forget: tidak blokir UI
+        notifyFinance({ bookingId, bookingCode, customerName, amount })
+          .then(({ sent, failed }) => {
+            if (sent > 0) {
+              toast.info(`🔔 Notifikasi WA terkirim ke ${sent} staf finance`, {
+                description: failed > 0 ? `${failed} gagal terkirim` : undefined,
+                duration: 5000,
+                icon: <Bell className="h-4 w-4 text-blue-500" />,
+              });
+            } else if (failed > 0) {
+              console.warn('[Finance Notif] Semua gagal terkirim, cek konfigurasi WA.');
+            }
+            // If sent=0 & failed=0: WA belum dikonfigurasi atau tidak ada staf finance — diam saja
+          })
+          .catch(() => { /* diam saja */ });
+      } else {
+        // Pembayaran langsung disetujui (tanpa bukti) — tidak perlu notif finance
+        toast.success('Pembayaran berhasil ditambahkan dan langsung dikonfirmasi');
+      }
+
       setShowAddPayment(false);
       setNewPayment({
         amount: "",
