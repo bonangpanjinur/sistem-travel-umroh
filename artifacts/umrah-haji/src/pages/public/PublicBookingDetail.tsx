@@ -6,12 +6,18 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import {
   Loader2, ShieldCheck, Plane, Calendar, Package, User, CreditCard,
   Home, Building2, MessageCircle, Phone, Mail, MapPin, Download,
   CheckCircle2, Clock, XCircle, AlertTriangle, Printer, Users,
   FileText, ChevronRight, Star, Info, ArrowLeft,
-  Hotel, Navigation2,
+  Hotel, Navigation2, Upload, Send,
 } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { DynamicPublicLayout } from "@/components/layout/DynamicPublicLayout";
@@ -126,6 +132,14 @@ export default function PublicBookingDetail() {
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
+
+  // ── Payment form state ────────────────────────────────────────────────────
+  const [showPayForm, setShowPayForm]     = useState(false);
+  const [payAmount, setPayAmount]         = useState("");
+  const [payMethod, setPayMethod]         = useState("bank_transfer");
+  const [payBankName, setPayBankName]     = useState("");
+  const [payNotes, setPayNotes]           = useState("");
+  const [isSubmittingPay, setIsSubmittingPay] = useState(false);
 
   // ── Fetch all data ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -313,6 +327,56 @@ export default function PublicBookingDetail() {
       setDownloading(false);
     }
   }, [booking, passengers, company]);
+
+  // ── Submit konfirmasi pembayaran (publik, tanpa login) ────────────────────
+  const handleSubmitPayment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!booking) return;
+
+    const amountNum = parseFloat(payAmount.replace(/\./g, "").replace(",", "."));
+    if (isNaN(amountNum) || amountNum <= 0) {
+      toast.error("Masukkan jumlah pembayaran yang valid");
+      return;
+    }
+
+    setIsSubmittingPay(true);
+    try {
+      const res = await fetch("/api/public/payments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          booking_id:    booking.id,
+          customer_name: booking.customer?.full_name ?? "Jamaah",
+          amount:        amountNum,
+          payment_method: payMethod,
+          bank_name:     payBankName || null,
+          notes:         payNotes || null,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error ?? "Gagal mengirim konfirmasi");
+
+      toast.success("Konfirmasi pembayaran berhasil dikirim! Tim finance kami akan memverifikasi segera.");
+      setShowPayForm(false);
+      setPayAmount("");
+      setPayBankName("");
+      setPayNotes("");
+      setPayMethod("bank_transfer");
+
+      // Refresh daftar pembayaran
+      const { data: pmts } = await (supabase as any)
+        .from("payments")
+        .select("amount, payment_method, created_at, status")
+        .eq("booking_id", booking.id)
+        .in("status", ["paid", "verified", "partial", "pending"])
+        .order("created_at", { ascending: true });
+      if (pmts) setPayments(pmts);
+    } catch (err: any) {
+      toast.error(err.message ?? "Gagal mengirim konfirmasi pembayaran");
+    } finally {
+      setIsSubmittingPay(false);
+    }
+  };
 
   // ── Derived values ─────────────────────────────────────────────────────────
   const paymentPct = booking && booking.total_price > 0
@@ -752,6 +816,129 @@ export default function PublicBookingDetail() {
                   )}
                 </CardContent>
               </Card>
+
+              {/* ── Konfirmasi Pembayaran (Publik) ───────────────────── */}
+              {booking.payment_status !== "paid" && booking.booking_status !== "cancelled" && (
+                <Card className="border-none shadow-md overflow-hidden no-print">
+                  <div className="bg-amber-500/8 dark:bg-amber-500/10 px-5 py-3.5 border-b flex items-center gap-2">
+                    <Upload className="h-4 w-4 text-amber-600" />
+                    <h2 className="font-black text-sm uppercase tracking-wider text-amber-700 dark:text-amber-400">
+                      Konfirmasi Pembayaran
+                    </h2>
+                  </div>
+                  <CardContent className="p-5">
+                    {!showPayForm ? (
+                      <div className="space-y-3">
+                        <p className="text-sm text-muted-foreground leading-relaxed">
+                          Sudah melakukan transfer? Konfirmasikan pembayaran Anda agar tim finance kami dapat
+                          segera memverifikasi dan memperbarui status booking.
+                        </p>
+                        <Button
+                          onClick={() => setShowPayForm(true)}
+                          className="h-11 w-full font-bold text-sm rounded-xl gap-2"
+                        >
+                          <Send className="h-4 w-4" />
+                          Konfirmasi Pembayaran Transfer
+                        </Button>
+                      </div>
+                    ) : (
+                      <form onSubmit={handleSubmitPayment} className="space-y-4">
+                        <div className="space-y-1.5">
+                          <Label htmlFor="pay-amount" className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                            Jumlah yang Ditransfer <span className="text-red-500">*</span>
+                          </Label>
+                          <Input
+                            id="pay-amount"
+                            type="number"
+                            min={1}
+                            step={1}
+                            placeholder="Contoh: 5000000"
+                            value={payAmount}
+                            onChange={(e) => setPayAmount(e.target.value)}
+                            required
+                            className="h-11 rounded-xl"
+                          />
+                          {booking.remaining_amount > 0 && (
+                            <p className="text-[10px] text-muted-foreground">
+                              Sisa tagihan: <span className="font-bold text-amber-600">{formatCurrency(booking.remaining_amount)}</span>
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <Label htmlFor="pay-method" className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                            Metode Pembayaran <span className="text-red-500">*</span>
+                          </Label>
+                          <Select value={payMethod} onValueChange={setPayMethod}>
+                            <SelectTrigger id="pay-method" className="h-11 rounded-xl">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="bank_transfer">Transfer Bank</SelectItem>
+                              <SelectItem value="cash">Tunai</SelectItem>
+                              <SelectItem value="qris">QRIS</SelectItem>
+                              <SelectItem value="other">Lainnya</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <Label htmlFor="pay-bank" className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                            Nama Bank / Nama Pengirim
+                          </Label>
+                          <Input
+                            id="pay-bank"
+                            type="text"
+                            placeholder="Contoh: BCA – Budi Santoso"
+                            value={payBankName}
+                            onChange={(e) => setPayBankName(e.target.value)}
+                            className="h-11 rounded-xl"
+                          />
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <Label htmlFor="pay-notes" className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                            Nomor Referensi / Catatan
+                          </Label>
+                          <Textarea
+                            id="pay-notes"
+                            placeholder="No. referensi transfer, tanggal, atau catatan lain"
+                            value={payNotes}
+                            onChange={(e) => setPayNotes(e.target.value)}
+                            className="rounded-xl resize-none"
+                            rows={2}
+                          />
+                        </div>
+
+                        <div className="flex gap-2 pt-1">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setShowPayForm(false)}
+                            disabled={isSubmittingPay}
+                            className="flex-1 h-11 rounded-xl"
+                          >
+                            Batal
+                          </Button>
+                          <Button
+                            type="submit"
+                            disabled={isSubmittingPay}
+                            className="flex-1 h-11 font-bold rounded-xl gap-2"
+                          >
+                            {isSubmittingPay
+                              ? <><Loader2 className="h-4 w-4 animate-spin" /> Mengirim…</>
+                              : <><Send className="h-4 w-4" /> Kirim Konfirmasi</>}
+                          </Button>
+                        </div>
+
+                        <p className="text-[10px] text-center text-muted-foreground">
+                          Tim finance kami akan menerima notifikasi dan memverifikasi dalam waktu dekat.
+                        </p>
+                      </form>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
 
               {/* ── Form Transaksi / Dokumen ──────────────────────────── */}
               <Card className="border-none shadow-md overflow-hidden">

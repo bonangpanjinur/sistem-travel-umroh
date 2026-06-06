@@ -19,6 +19,7 @@ import schedulerRouter from "./scheduler.js";
 import reportsRouter from "./reports.js";
 import migrationsRouter from "./migrations.js";
 import cancellationRulesRouter from "./cancellationRules.js";
+import publicPaymentsRouter from "./publicPayments.js";
 
 const router: IRouter = Router();
 
@@ -42,5 +43,6 @@ router.use("/scheduler", schedulerRouter);
 router.use("/reports", reportsRouter);
 router.use("/admin/migrations", migrationsRouter);
 router.use("/cancellation-rules", cancellationRulesRouter);
+router.use("/public/payments", publicPaymentsRouter);
 
 export default router;

@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/format";
 import { toast } from "sonner";
 import { ArrowLeft, Upload, Loader2, CheckCircle, CreditCard, Zap, AlertCircle } from "lucide-react";
+import { useFinanceNotifier } from "@/hooks/useFinanceNotifier";
 
 declare global {
   interface Window {
@@ -68,6 +69,8 @@ export default function PaymentUpload() {
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSnapPaying, setIsSnapPaying] = useState(false);
+
+  const { notifyFinance } = useFinanceNotifier();
 
   const supabaseRaw: any = supabase;
 
@@ -271,6 +274,13 @@ export default function PaymentUpload() {
         booking_id: bookingId,
         is_read: false,
       });
+
+      notifyFinance({
+        bookingId,
+        bookingCode: booking.booking_code,
+        customerName: (booking as any).customer?.full_name ?? user?.email ?? "Jamaah",
+        amount: amountNum,
+      }).catch(() => {});
 
       toast.success("Bukti pembayaran berhasil diupload! Tim kami akan memverifikasi dalam 1x24 jam.");
       navigate(`/my-bookings/${bookingId}`);
