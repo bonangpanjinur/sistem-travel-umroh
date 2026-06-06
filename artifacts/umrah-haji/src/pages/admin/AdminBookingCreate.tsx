@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -154,6 +154,7 @@ function PassengerCard({ passenger: p, idx, setPassengers }: {
 
 export default function AdminBookingCreate() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
@@ -175,6 +176,23 @@ export default function AdminBookingCreate() {
   const [newCustomer, setNewCustomer] = useState({ full_name: "", phone: "", email: "", nik: "" });
   const { sendBookingConfirm } = useWhatsAppNotifier();
   const emailNotifier = useEmailNotifier();
+
+  // Pre-fill departure from URL param (?departure_id=xxx)
+  const urlDepartureId = searchParams.get("departure_id");
+  useEffect(() => {
+    if (!urlDepartureId) return;
+    (async () => {
+      const { data } = await supabase
+        .from("departures")
+        .select("id, package_id")
+        .eq("id", urlDepartureId)
+        .single();
+      if (data?.package_id) {
+        setPackageId(data.package_id);
+        setDepartureId(data.id);
+      }
+    })();
+  }, [urlDepartureId]);
 
   // Fetch active packages
   const { data: packages } = useQuery<PackageData[]>({

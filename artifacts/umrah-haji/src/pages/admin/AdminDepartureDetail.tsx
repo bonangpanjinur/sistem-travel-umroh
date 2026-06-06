@@ -75,6 +75,7 @@ import {
   UserX,
   Send,
   Layers,
+  PlusCircle,
 } from "lucide-react";
 import { DepartureForm } from "@/components/admin/forms/DepartureForm";
 import { LinkItineraryForm } from "@/components/admin/forms/LinkItineraryForm";
@@ -1005,6 +1006,13 @@ export default function AdminDepartureDetail() {
             <Link to={`/admin/equipment?departure=${id}`}>
               <Package className="h-3.5 w-3.5 mr-1.5" />
               Perlengkapan
+            </Link>
+          </Button>
+          {/* Tambah Booking shortcut */}
+          <Button variant="outline" size="sm" asChild>
+            <Link to={`/admin/bookings/create?departure_id=${id}`}>
+              <PlusCircle className="h-3.5 w-3.5 mr-1.5" />
+              Tambah Booking
             </Link>
           </Button>
           {/* K4 — Quick status change */}

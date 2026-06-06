@@ -210,6 +210,7 @@ export default function AdminDepartures() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [monthFilter, setMonthFilter] = useState<string>("all");
+  const [yearFilter, setYearFilter] = useState<string>("all");
   const [linkedFilter, setLinkedFilter] = useState<string>("all");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingDeparture, setEditingDeparture] = useState<any>(null);
@@ -254,7 +255,7 @@ export default function AdminDepartures() {
   });
 
   const { data: departuresData, isLoading } = useQuery({
-    queryKey: ['admin-departures', currentPage, searchTerm, statusFilter, monthFilter, linkedFilter],
+    queryKey: ['admin-departures', currentPage, searchTerm, statusFilter, monthFilter, yearFilter, linkedFilter],
     queryFn: async () => {
       let query = supabase
         .from('departures')
@@ -277,8 +278,10 @@ export default function AdminDepartures() {
       if (statusFilter !== "all") {
         query = query.eq('status', statusFilter);
       }
-      if (monthFilter !== "all") {
-        query = query.ilike('departure_date', `${monthFilter}%`);
+      if (yearFilter !== "all") {
+        query = query.ilike('departure_date', `${yearFilter}%`);
+      } else if (monthFilter !== "all") {
+        query = query.ilike('departure_date', `%-${monthFilter}-%`);
       }
       if (linkedFilter === "linked") {
         query = query.not('package_id', 'is', null);
@@ -645,6 +648,17 @@ export default function AdminDepartures() {
                   <SelectItem value="closed">Tutup</SelectItem>
                   <SelectItem value="full">Penuh</SelectItem>
                   <SelectItem value="departed">Berangkat</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={yearFilter} onValueChange={(val) => { setYearFilter(val); setCurrentPage(1); }}>
+                <SelectTrigger className="w-[120px] bg-muted/50 border-0">
+                  <SelectValue placeholder="Tahun" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Tahun</SelectItem>
+                  {Array.from({ length: 6 }, (_, i) => new Date().getFullYear() - 1 + i).map(yr => (
+                    <SelectItem key={yr} value={String(yr)}>{yr}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <Select value={linkedFilter} onValueChange={(val) => { setLinkedFilter(val); setCurrentPage(1); }}>
