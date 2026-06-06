@@ -175,8 +175,8 @@
 | P2.3 | Tab Operasional Fungsional | ✅ DONE | Juni 2025 |
 | P2.4 | Rekonsiliasi Kuota dari Detail | ✅ DONE | Juni 2025 |
 | P2.5 | Harga Anak/Bayi di Card | ✅ DONE | Juni 2025 |
-| P3.1 | SEO Fields | Planned | - |
-| P3.2 | Package Groups | Planned | - |
+| P3.1 | SEO Fields | ✅ DONE | Juni 2025 |
+| P3.2 | Package Groups | ✅ DONE | Juni 2025 |
 | P3.3 | Duplikat + Copy HPP | ✅ DONE | Juni 2025 |
-| P3.4 | Analytics Terintegrasi | Planned | - |
+| P3.4 | Analytics Terintegrasi | ✅ DONE | Juni 2025 |
 | P3.5 | Bulk Status Change | ✅ DONE | Juni 2025 |

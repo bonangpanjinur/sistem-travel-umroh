@@ -13,7 +13,7 @@ import {
   MoreHorizontal, Star, Info, Hotel, Plane, Clock, CheckCircle2, AlertCircle,
   Power, PowerOff, ChevronDown, Layers, TrendingUp, DollarSign, Users, Zap,
   ArrowUpRight, ArrowDownRight, Download, FileSpreadsheet, FileText,
-  AlertTriangle, CheckSquare, Square, BarChart3
+  AlertTriangle, CheckSquare, Square, BarChart3, LayoutGrid, List
 } from "lucide-react";
 import {
   Dialog,
@@ -103,6 +103,7 @@ export default function AdminPackages() {
   const [customEndDate, setCustomEndDate] = useState("");
   const [selectedPackages, setSelectedPackages] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState("packages");
+  const [groupedView, setGroupedView] = useState(false);
   const [isTypeFormOpen, setIsTypeFormOpen] = useState(false);
   const [editingType, setEditingType] = useState<any>(null);
   const [typeSearchTerm, setTypeSearchTerm] = useState("");
@@ -656,7 +657,8 @@ export default function AdminPackages() {
           {/* Packages Tab */}
           <TabsContent value="packages" className="space-y-6 mt-6">
             {/* Quick Action Tabs */}
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 items-center justify-between">
+              <div className="flex flex-wrap gap-2">
               <Button 
                 variant={quickFilter === "all" ? "default" : "outline"} 
                 size="sm" 
@@ -692,6 +694,22 @@ export default function AdminPackages() {
                 <Clock className="h-3.5 w-3.5" />
                 Segera Berangkat
               </Button>
+              </div>
+              {/* P3.2 — Grouped View Toggle */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant={groupedView ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setGroupedView(g => !g)}
+                    className="rounded-full px-3 h-9 gap-2"
+                  >
+                    {groupedView ? <List className="h-3.5 w-3.5" /> : <LayoutGrid className="h-3.5 w-3.5" />}
+                    <span className="hidden sm:inline">{groupedView ? "Grid Biasa" : "Per Tipe"}</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{groupedView ? "Tampilkan grid biasa" : "Kelompokkan berdasarkan tipe paket"}</TooltipContent>
+              </Tooltip>
             </div>
 
             {/* Search & Filter Bar */}
@@ -810,9 +828,21 @@ export default function AdminPackages() {
                 title="Tidak ada paket ditemukan"
                 description="Coba ubah kata kunci pencarian atau filter Anda."
               />
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredPackages.map((pkg) => {
+            ) : groupedView ? (
+              /* P3.2 — Grouped view by package type */
+              <div className="space-y-8">
+                {Array.from(new Set(filteredPackages.map(p => p.package_type))).map(type => {
+                  const group = filteredPackages.filter(p => p.package_type === type);
+                  return (
+                    <div key={type} className="space-y-4">
+                      <div className="flex items-center gap-3">
+                        <div className="h-8 w-1 rounded-full bg-primary" />
+                        <h3 className="text-base font-bold text-foreground">{formatPackageType(type)}</h3>
+                        <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full font-medium">{group.length} paket</span>
+                        <div className="flex-1 h-px bg-border" />
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {group.map((pkg) => {
                   const upcoming = getUpcomingDepartures(pkg.departures || []);
                   const lowestPrice = getLowestPrice(pkg);
                   const isSelected = selectedPackages.includes(pkg.id);
@@ -1142,6 +1172,113 @@ export default function AdminPackages() {
                               >
                                 <Trash2 className="h-4 w-4" /> Hapus Permanen
                               </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+            ) : (
+              /* Flat grid (default view) */
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredPackages.map((pkg) => {
+                  const upcoming = getUpcomingDepartures(pkg.departures || []);
+                  const lowestPrice = getLowestPrice(pkg);
+                  const isSelected = selectedPackages.includes(pkg.id);
+                  const mainDep = upcoming[0];
+                  const occupancyRate = mainDep ? (mainDep.booked_count / mainDep.quota) * 100 : 0;
+                  const remainingQuota = mainDep ? mainDep.quota - mainDep.booked_count : 0;
+                  const isLowQuota = remainingQuota > 0 && remainingQuota < 5;
+                  const hasNoDepartures = !pkg.departures || pkg.departures.length === 0;
+                  const upcomingMissingHPP = upcoming.filter((d: any) => !departuresWithHPP.includes(d.id));
+                  const hasMissingHPP = upcomingMissingHPP.length > 0;
+                  let progressColor = "bg-emerald-500";
+                  let progressLabel = "Aman";
+                  if (occupancyRate > 90) { progressColor = "bg-rose-500"; progressLabel = "Hampir Penuh"; }
+                  else if (occupancyRate > 50) { progressColor = "bg-amber-500"; progressLabel = "Setengah"; }
+
+                  return (
+                    <Card
+                      key={pkg.id}
+                      className={cn(
+                        "group overflow-hidden rounded-3xl border-none shadow-sm hover:shadow-xl transition-all duration-500 flex flex-col bg-card relative",
+                        !pkg.is_active && "opacity-75 grayscale-[0.5]",
+                        isSelected && "ring-2 ring-primary ring-offset-2"
+                      )}
+                    >
+                      <div className={cn("absolute top-4 right-4 z-20 cursor-pointer transition-transform hover:scale-110", isSelected ? "text-primary" : "text-white/50 group-hover:text-white")} onClick={() => toggleSelectPackage(pkg.id)}>
+                        {isSelected ? <CheckSquare className="h-6 w-6" /> : <Square className="h-6 w-6" />}
+                      </div>
+                      <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
+                        {pkg.is_featured && <Badge className="bg-amber-500/90 hover:bg-amber-500 text-white border-none shadow-lg backdrop-blur-sm px-3 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase flex items-center gap-1"><Star className="h-3 w-3 fill-current" /> UNGGULAN</Badge>}
+                        {!pkg.is_active && <Badge variant="destructive" className="shadow-lg backdrop-blur-sm px-3 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase">NONAKTIF</Badge>}
+                        {isLowQuota && <Badge className="bg-rose-500 text-white border-none shadow-lg backdrop-blur-sm px-3 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase animate-pulse flex items-center gap-1"><AlertTriangle className="h-3 w-3" /> KUOTA MENIPIS</Badge>}
+                        {hasNoDepartures && pkg.is_active && <Tooltip><TooltipTrigger asChild><Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-200 shadow-lg backdrop-blur-sm px-3 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase"><AlertTriangle className="h-3 w-3 mr-1" /> DATA TIDAK LENGKAP</Badge></TooltipTrigger><TooltipContent>Paket aktif tetapi belum memiliki jadwal keberangkatan</TooltipContent></Tooltip>}
+                        {hasMissingHPP && <Tooltip><TooltipTrigger asChild><Badge className="bg-violet-500/90 hover:bg-violet-500 text-white border-none shadow-lg backdrop-blur-sm px-3 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase flex items-center gap-1"><DollarSign className="h-3 w-3" /> HPP BELUM DIISI</Badge></TooltipTrigger><TooltipContent>{upcomingMissingHPP.length} keberangkatan belum ada data HPP/modal</TooltipContent></Tooltip>}
+                      </div>
+                      <div className="relative h-52 overflow-hidden">
+                        {pkg.featured_image ? (
+                          <img src={pkg.featured_image} alt={pkg.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                        ) : (
+                          <div className="w-full h-full bg-muted flex items-center justify-center"><Package className="h-12 w-12 text-muted-foreground/20" /></div>
+                        )}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
+                        <div className="absolute bottom-4 left-4 right-4">
+                          <p className="text-white/80 text-[10px] font-bold uppercase tracking-widest mb-1">{pkg.package_type ? formatPackageType(pkg.package_type) : '—'}</p>
+                          <p className="text-white font-bold text-lg leading-snug line-clamp-2">{pkg.name}</p>
+                        </div>
+                      </div>
+                      <CardContent className="p-5 flex flex-col gap-4 flex-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            {lowestPrice !== null ? (
+                              <p className="text-2xl font-extrabold tracking-tight text-primary">{formatCurrency(lowestPrice)}</p>
+                            ) : (
+                              <p className="text-sm text-muted-foreground italic">Harga belum diatur</p>
+                            )}
+                            <p className="text-[10px] text-muted-foreground font-medium">per jamaah, mulai dari</p>
+                          </div>
+                          {pkg.duration_days && <span className="shrink-0 flex items-center gap-1 text-[11px] bg-primary/10 text-primary rounded-full px-2.5 py-1 font-bold"><Clock className="h-3 w-3" />{pkg.duration_days}H</span>}
+                        </div>
+                        {mainDep && (
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-1.5"><div className={cn("h-2 w-2 rounded-full", occupancyRate > 90 ? "bg-rose-500 animate-pulse" : occupancyRate > 50 ? "bg-amber-500" : "bg-emerald-500")} /><p className={cn("text-xs font-bold", occupancyRate > 90 ? "text-rose-600" : occupancyRate > 50 ? "text-amber-600" : "text-emerald-600")}>{progressLabel}</p></div>
+                              <span className={cn("text-xs font-bold px-2 py-1 rounded-full", occupancyRate > 90 ? "bg-rose-100 text-rose-600" : occupancyRate > 50 ? "bg-amber-100 text-amber-600" : "bg-emerald-100 text-emerald-600")}>{mainDep.booked_count} / {mainDep.quota} PAX</span>
+                            </div>
+                            <div className="space-y-1"><Progress value={occupancyRate} className="h-3 bg-slate-100 rounded-full" indicatorClassName={cn("rounded-full transition-all", progressColor)} /><div className="flex justify-between text-[9px] text-muted-foreground"><span>0%</span><span>{occupancyRate.toFixed(0)}%</span><span>100%</span></div></div>
+                          </div>
+                        )}
+                        <div className="grid grid-cols-2 gap-3 py-3 border-y border-border/50">
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground"><div className="bg-primary/10 p-1.5 rounded-lg text-primary"><Hotel className="h-3.5 w-3.5" /></div><div className="truncate"><span className="block font-bold text-foreground text-[9px] uppercase tracking-tighter">Hotel</span><span className="truncate block font-medium">{pkg.hotel_makkah?.name || '-'}</span></div></div>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground"><div className="bg-primary/10 p-1.5 rounded-lg text-primary"><Plane className="h-3.5 w-3.5" /></div><div className="truncate"><span className="block font-bold text-foreground text-[9px] uppercase tracking-tighter">Pesawat</span><span className="truncate block font-medium">{pkg.airline?.name || '-'}</span></div></div>
+                        </div>
+                        <div className="bg-muted/30 rounded-2xl p-3 flex items-center justify-between">
+                          <div className="flex items-center gap-2"><div className="h-8 w-8 rounded-xl bg-background flex items-center justify-center shadow-sm"><Calendar className="h-4 w-4 text-primary" /></div><div><p className="text-[10px] font-bold text-foreground uppercase">Jadwal Aktif</p><p className="text-xs text-muted-foreground font-medium">{upcoming.length} Keberangkatan</p></div></div>
+                          <div className="flex items-center gap-1">
+                            <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-primary hover:bg-primary/10" onClick={() => downloadManifest(pkg)}><FileText className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Download Manifest Jamaah</TooltipContent></Tooltip>
+                            <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-primary hover:bg-primary/10" onClick={() => setAddJadwalFor({ id: pkg.id, name: pkg.name })}><Plus className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Tambah Jadwal Keberangkatan</TooltipContent></Tooltip>
+                          </div>
+                        </div>
+                        <div className="pt-2 flex gap-2 mt-auto">
+                          <Button variant="outline" size="sm" className="flex-1 rounded-xl h-10 font-bold text-[10px] gap-1.5 border-primary/20 hover:bg-primary/5 text-primary" asChild><Link to={`/admin/packages/${pkg.id}`}><Eye className="h-3.5 w-3.5" /> DETAIL</Link></Button>
+                          <Button variant="outline" size="sm" onClick={() => handleEdit(pkg)} className="flex-1 rounded-xl h-10 font-bold text-[10px] gap-1.5 border-primary/20 hover:bg-primary/5 text-primary"><Edit className="h-3.5 w-3.5" /> EDIT</Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild><Button variant="outline" size="icon" className="h-10 w-10 rounded-xl border-primary/20 hover:bg-primary/5 text-primary"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="rounded-xl p-1 w-48">
+                              <DropdownMenuItem className="text-xs font-semibold gap-2 py-2.5 cursor-pointer rounded-lg" onClick={() => toggleFeaturedMutation.mutate({ id: pkg.id, is_featured: !pkg.is_featured })}><Star className={cn("h-4 w-4", pkg.is_featured ? "fill-amber-500 text-amber-500" : "text-muted-foreground")} />{pkg.is_featured ? 'Hapus Unggulan' : 'Jadikan Unggulan'}</DropdownMenuItem>
+                              <DropdownMenuItem className="text-xs font-semibold gap-2 py-2.5 cursor-pointer rounded-lg" onClick={() => setLabelAssignFor({ id: pkg.id, name: pkg.name })}><Star className="h-4 w-4 text-primary" />Atur Label</DropdownMenuItem>
+                              <DropdownMenuItem className="text-xs font-semibold gap-2 py-2.5 cursor-pointer rounded-lg" onClick={() => toggleStatusMutation.mutate({ id: pkg.id, is_active: !pkg.is_active })}>{pkg.is_active ? (<><PowerOff className="h-4 w-4 text-orange-500" />Nonaktifkan Paket</>) : (<><Power className="h-4 w-4 text-emerald-500" />Aktifkan Paket</>)}</DropdownMenuItem>
+                              <DropdownMenuItem className="text-xs font-semibold gap-2 py-2.5 cursor-pointer rounded-lg" onClick={() => setAddJadwalFor({ id: pkg.id, name: pkg.name })}><Calendar className="h-4 w-4 text-emerald-500" /> Tambah Jadwal</DropdownMenuItem>
+                              <DropdownMenuItem className="text-xs font-semibold gap-2 py-2.5 cursor-pointer rounded-lg" onClick={() => duplicatePackageMutation.mutate(pkg)} disabled={duplicatePackageMutation.isPending}><Copy className="h-4 w-4 text-blue-500" /> Duplikat Paket</DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem className="text-xs font-semibold gap-2 py-2.5 cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/10 rounded-lg" onClick={() => setDeletePackage(pkg)}><Trash2 className="h-4 w-4" /> Hapus Permanen</DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>

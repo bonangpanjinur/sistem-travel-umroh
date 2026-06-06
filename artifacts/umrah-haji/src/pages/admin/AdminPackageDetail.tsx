@@ -35,7 +35,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { formatCurrency, formatPackageType, formatDate } from "@/lib/format";
-import { ArrowLeft, Link2, Edit, Trash2, Calendar, Users, Plane, ChevronDown, Eye, AlertCircle, CheckCircle2, Clock, TrendingUp, Box, ExternalLink, DollarSign } from "lucide-react";
+import { ArrowLeft, Link2, Edit, Trash2, Calendar, Users, Plane, ChevronDown, Eye, AlertCircle, CheckCircle2, Clock, TrendingUp, Box, ExternalLink, DollarSign, Search, BarChart3, ShoppingCart, Target, ArrowUpRight } from "lucide-react";
 import { useState, useMemo } from "react";
 import { slugify } from "@/lib/slug";
 import { LinkDepartureForm } from "@/components/admin/forms/LinkDepartureForm";
@@ -148,6 +148,37 @@ export default function AdminPackageDetail() {
   });
 
   const linkedDepartureIds = departures?.map(d => d.id) || [];
+
+  // P3.4 — Per-package booking analytics
+  const { data: pkgStats } = useQuery({
+    queryKey: ['package-booking-stats', id, linkedDepartureIds],
+    queryFn: async () => {
+      if (!linkedDepartureIds.length) return null;
+      const { data: bookings, error } = await supabase
+        .from('bookings')
+        .select('id, booking_status, payment_status, total_price, paid_amount, total_pax, created_at')
+        .in('departure_id', linkedDepartureIds);
+      if (error) throw error;
+      if (!bookings || !bookings.length) return null;
+
+      const total = bookings.length;
+      const confirmed = bookings.filter(b => b.booking_status === 'confirmed' || b.booking_status === 'completed').length;
+      const cancelled = bookings.filter(b => b.booking_status === 'cancelled').length;
+      const pending = bookings.filter(b => b.booking_status === 'pending').length;
+      const totalPax = bookings.reduce((s, b) => s + (b.total_pax || 0), 0);
+      const totalRevenue = bookings.filter(b => b.booking_status !== 'cancelled').reduce((s, b) => s + (b.total_price || 0), 0);
+      const totalPaid = bookings.filter(b => b.booking_status !== 'cancelled').reduce((s, b) => s + (b.paid_amount || 0), 0);
+      const conversionRate = total > 0 ? Math.round((confirmed / total) * 100) : 0;
+      const avgBookingValue = confirmed > 0
+        ? bookings.filter(b => b.booking_status === 'confirmed' || b.booking_status === 'completed')
+            .reduce((s, b) => s + (b.total_price || 0), 0) / confirmed
+        : 0;
+      const paidRate = totalRevenue > 0 ? Math.round((totalPaid / totalRevenue) * 100) : 0;
+
+      return { total, confirmed, cancelled, pending, totalPax, totalRevenue, totalPaid, conversionRate, avgBookingValue, paidRate };
+    },
+    enabled: linkedDepartureIds.length > 0,
+  });
 
   // Logic to get dynamic data from departures
   const getDynamicData = () => {
@@ -716,6 +747,200 @@ export default function AdminPackageDetail() {
           )}
         </CardContent>
       </Card>
+
+      {/* ─── P3.4 Analytics per Paket ─────────────────────────────────── */}
+      {pkgStats && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BarChart3 className="h-5 w-5 text-primary" />
+              Analitik Paket
+            </CardTitle>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              Statistik booking dan konversi dari seluruh keberangkatan paket ini.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-4 mb-6">
+              <div className="rounded-xl bg-primary/5 p-4 text-center">
+                <ShoppingCart className="h-5 w-5 text-primary mx-auto mb-1" />
+                <p className="text-2xl font-bold text-primary">{pkgStats.total}</p>
+                <p className="text-xs text-muted-foreground mt-1">Total Booking</p>
+              </div>
+              <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/30 p-4 text-center">
+                <CheckCircle2 className="h-5 w-5 text-emerald-600 mx-auto mb-1" />
+                <p className="text-2xl font-bold text-emerald-600">{pkgStats.confirmed}</p>
+                <p className="text-xs text-muted-foreground mt-1">Dikonfirmasi</p>
+              </div>
+              <div className="rounded-xl bg-blue-50 dark:bg-blue-950/30 p-4 text-center">
+                <Users className="h-5 w-5 text-blue-600 mx-auto mb-1" />
+                <p className="text-2xl font-bold text-blue-600">{pkgStats.totalPax}</p>
+                <p className="text-xs text-muted-foreground mt-1">Total Jamaah</p>
+              </div>
+              <div className="rounded-xl bg-amber-50 dark:bg-amber-950/30 p-4 text-center">
+                <DollarSign className="h-5 w-5 text-amber-600 mx-auto mb-1" />
+                <p className="text-lg font-bold text-amber-600">{formatCurrency(pkgStats.totalRevenue)}</p>
+                <p className="text-xs text-muted-foreground mt-1">Total Pendapatan</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {/* Conversion Rate */}
+              <div className="p-4 border rounded-xl">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Target className="h-4 w-4 text-primary" />
+                    <p className="text-sm font-semibold">Conversion Rate</p>
+                  </div>
+                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full flex items-center gap-0.5 ${pkgStats.conversionRate >= 60 ? 'bg-emerald-100 text-emerald-700' : pkgStats.conversionRate >= 30 ? 'bg-amber-100 text-amber-700' : 'bg-rose-100 text-rose-700'}`}>
+                    <ArrowUpRight className="h-3 w-3" />
+                    {pkgStats.conversionRate}%
+                  </span>
+                </div>
+                <div className="w-full bg-muted h-2 rounded-full overflow-hidden">
+                  <div className={`h-full rounded-full transition-all ${pkgStats.conversionRate >= 60 ? 'bg-emerald-500' : pkgStats.conversionRate >= 30 ? 'bg-amber-500' : 'bg-rose-500'}`} style={{ width: `${pkgStats.conversionRate}%` }} />
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">{pkgStats.confirmed} konfirmasi dari {pkgStats.total} booking</p>
+              </div>
+
+              {/* Payment Rate */}
+              <div className="p-4 border rounded-xl">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <DollarSign className="h-4 w-4 text-emerald-600" />
+                    <p className="text-sm font-semibold">Tingkat Pelunasan</p>
+                  </div>
+                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${pkgStats.paidRate >= 80 ? 'bg-emerald-100 text-emerald-700' : pkgStats.paidRate >= 50 ? 'bg-amber-100 text-amber-700' : 'bg-rose-100 text-rose-700'}`}>
+                    {pkgStats.paidRate}%
+                  </span>
+                </div>
+                <div className="w-full bg-muted h-2 rounded-full overflow-hidden">
+                  <div className={`h-full rounded-full transition-all ${pkgStats.paidRate >= 80 ? 'bg-emerald-500' : pkgStats.paidRate >= 50 ? 'bg-amber-500' : 'bg-rose-500'}`} style={{ width: `${pkgStats.paidRate}%` }} />
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">{formatCurrency(pkgStats.totalPaid)} terbayar dari {formatCurrency(pkgStats.totalRevenue)}</p>
+              </div>
+
+              {/* Avg Booking Value */}
+              <div className="p-4 border rounded-xl">
+                <div className="flex items-center gap-2 mb-3">
+                  <TrendingUp className="h-4 w-4 text-blue-600" />
+                  <p className="text-sm font-semibold">Rata-rata Nilai Booking</p>
+                </div>
+                <p className="text-xl font-bold text-blue-600">{formatCurrency(pkgStats.avgBookingValue)}</p>
+                <p className="text-xs text-muted-foreground mt-2">per booking yang dikonfirmasi</p>
+                <div className="mt-2 flex gap-2 flex-wrap">
+                  {pkgStats.pending > 0 && (
+                    <span className="text-[10px] bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded-full font-medium">{pkgStats.pending} pending</span>
+                  )}
+                  {pkgStats.cancelled > 0 && (
+                    <span className="text-[10px] bg-rose-50 text-rose-700 px-1.5 py-0.5 rounded-full font-medium">{pkgStats.cancelled} dibatalkan</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ─── P3.1 SEO & Mesin Pencari ───────────────────────────────────── */}
+      {((packageData as any)?.meta_title || (packageData as any)?.meta_description || ((packageData as any)?.keywords?.length ?? 0) > 0) ? (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Search className="h-5 w-5 text-blue-600" />
+                SEO & Mesin Pencari
+              </CardTitle>
+              <button onClick={() => setIsPackageFormOpen(true)} className="text-xs text-primary hover:underline font-medium">
+                Edit SEO →
+              </button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* SERP Preview */}
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Preview di Google</p>
+              <div className="p-4 bg-white border rounded-xl space-y-1 shadow-sm">
+                <p className="text-[#1a0dab] text-base font-medium line-clamp-1 hover:underline cursor-pointer">
+                  {(packageData as any)?.meta_title || packageData.name}
+                </p>
+                <p className="text-[#006621] text-xs">
+                  https://vinstour.com/packages/{slugify(packageData.name)}
+                </p>
+                <p className="text-[#545454] text-sm line-clamp-2">
+                  {(packageData as any)?.meta_description || packageData.description || 'Belum ada meta description.'}
+                </p>
+              </div>
+            </div>
+
+            {/* SEO Metrics */}
+            <div className="grid grid-cols-3 gap-3">
+              <div className="text-center p-3 bg-muted/50 rounded-xl">
+                <p className="text-[10px] text-muted-foreground uppercase font-bold">Meta Title</p>
+                {(packageData as any)?.meta_title ? (
+                  <>
+                    <p className="text-sm font-bold mt-1">{(packageData as any).meta_title.length}<span className="text-muted-foreground">/70</span></p>
+                    <div className="w-full bg-muted h-1.5 rounded-full mt-1 overflow-hidden">
+                      <div className={`h-full rounded-full ${(packageData as any).meta_title.length > 60 ? 'bg-emerald-500' : 'bg-amber-400'}`} style={{ width: `${Math.min(100, ((packageData as any).meta_title.length / 70) * 100)}%` }} />
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-xs text-rose-500 font-medium mt-1">Belum diisi</p>
+                )}
+              </div>
+              <div className="text-center p-3 bg-muted/50 rounded-xl">
+                <p className="text-[10px] text-muted-foreground uppercase font-bold">Meta Desc</p>
+                {(packageData as any)?.meta_description ? (
+                  <>
+                    <p className="text-sm font-bold mt-1">{(packageData as any).meta_description.length}<span className="text-muted-foreground">/160</span></p>
+                    <div className="w-full bg-muted h-1.5 rounded-full mt-1 overflow-hidden">
+                      <div className={`h-full rounded-full ${(packageData as any).meta_description.length >= 120 ? 'bg-emerald-500' : 'bg-amber-400'}`} style={{ width: `${Math.min(100, ((packageData as any).meta_description.length / 160) * 100)}%` }} />
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-xs text-rose-500 font-medium mt-1">Belum diisi</p>
+                )}
+              </div>
+              <div className="text-center p-3 bg-muted/50 rounded-xl">
+                <p className="text-[10px] text-muted-foreground uppercase font-bold">Keywords</p>
+                <p className="text-sm font-bold mt-1">{(packageData as any)?.keywords?.length ?? 0}</p>
+                <p className="text-[10px] text-muted-foreground">kata kunci</p>
+              </div>
+            </div>
+
+            {/* Keywords */}
+            {(packageData as any)?.keywords?.length > 0 && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-2 font-medium">Kata Kunci:</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {(packageData as any).keywords.map((k: string, i: number) => (
+                    <span key={i} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">
+                      {k}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="border-dashed">
+          <CardContent className="p-5 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-full bg-blue-50 flex items-center justify-center">
+                <Search className="h-5 w-5 text-blue-500" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold">SEO belum dikonfigurasi</p>
+                <p className="text-xs text-muted-foreground">Tambahkan meta title, description, dan keywords agar paket mudah ditemukan di Google.</p>
+              </div>
+            </div>
+            <button onClick={() => setIsPackageFormOpen(true)} className="text-sm text-primary hover:underline font-medium whitespace-nowrap ml-4">
+              Isi Sekarang →
+            </button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* ─── Keuangan per Keberangkatan ─────────────────────────────── */}
       <Card>
