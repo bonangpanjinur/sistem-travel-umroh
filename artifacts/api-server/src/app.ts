@@ -5,6 +5,7 @@ import { rateLimit } from "express-rate-limit";
 import router from "./routes";
 import { supabaseProxyRouter } from "./routes/supabaseProxy.js";
 import { logger } from "./lib/logger";
+import sitemapRouter from "./routes/sitemap.js";
 
 const app: Express = express();
 
@@ -55,6 +56,9 @@ app.use("/api/v1/leads", leadsLimiter);  // Strict limit for lead submission
 app.use("/api", generalLimiter);         // General limit for all API routes
 
 app.use("/api", router);
+
+// Sitemap — mounted at root (no /api prefix) so search engines can access /sitemap.xml
+app.use(sitemapRouter);
 
 // Supabase-compatible proxy — mounted at root so the Supabase JS client can
 // hit /auth/v1/* and /rest/v1/* via the Vite dev-server proxy.
