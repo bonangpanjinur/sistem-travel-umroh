@@ -133,6 +133,30 @@ function getPWAIconConfig(settings: WebsiteSettings | null | undefined): PWAIcon
   return ((raw as Record<string, unknown>).pwa_icon_config ?? {}) as PWAIconConfig;
 }
 
+function applyGA4(measurementId: string) {
+  if (!measurementId || typeof window === 'undefined') return;
+
+  // Check if already loaded
+  if (document.getElementById('google-analytics-script')) return;
+
+  const script1 = document.createElement('script');
+  script1.id = 'google-analytics-script';
+  script1.async = true;
+  script1.src = `https://www.googletagmanager.com/gtag/js?id=${measurementId}`;
+  document.head.appendChild(script1);
+
+  const script2 = document.createElement('script');
+  script2.innerHTML = `
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', '${measurementId}', {
+      page_path: window.location.pathname,
+    });
+  `;
+  document.head.appendChild(script2);
+}
+
 function applyMetaTags(settings: WebsiteSettings | null | undefined) {
   if (!settings) return;
 
@@ -274,6 +298,14 @@ export function ThemeProvider({ children, settings: propSettings }: ThemeProvide
     // custom_sections holds pwa_icon_config (shortName, themeColor, iconUrl)
     settings?.custom_sections,
   ]);
+
+  // Effect 5: Google Analytics 4
+  useEffect(() => {
+    const gaId = (settings as any)?.ga_measurement_id || (settings as any)?.google_analytics_id;
+    if (gaId) {
+      applyGA4(gaId);
+    }
+  }, [settings]);
 
   // Effect 4: Cache write — only when the settings hash actually changes.
   useEffect(() => {

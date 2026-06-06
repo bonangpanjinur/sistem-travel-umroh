@@ -172,11 +172,13 @@ export default function PublicBlog() {
               >
                 <div className="md:w-1/2">
                   {featured.cover_image_url ? (
-                    <img
-                      src={featured.cover_image_url}
-                      alt={featured.title}
-                      className="h-64 md:h-full w-full object-cover"
-                    />
+	                    <img
+	                      src={featured.cover_image_url}
+	                      alt={featured.title}
+	                      className="h-64 md:h-full w-full object-cover"
+	                      loading="eager"
+	                      fetchpriority="high"
+	                    />
                   ) : (
                     <div className="h-64 md:h-full bg-muted flex items-center justify-center">
                       <BookOpen className="h-12 w-12 text-muted-foreground" />
@@ -219,11 +221,12 @@ export default function PublicBlog() {
                 >
                   <div className="h-48 overflow-hidden">
                     {a.cover_image_url ? (
-                      <img
-                        src={a.cover_image_url}
-                        alt={a.title}
-                        className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
+	                      <img
+	                        src={a.cover_image_url}
+	                        alt={a.title}
+	                        className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
+	                        loading="lazy"
+	                      />
                     ) : (
                       <div className="h-full bg-muted flex items-center justify-center">
                         <BookOpen className="h-10 w-10 text-muted-foreground" />

@@ -70,9 +70,25 @@ router.get("/sitemap.xml", async (req, res) => {
     { loc: `${baseUrl}/about`, changefreq: "monthly", priority: "0.6", lastmod: today },
     { loc: `${baseUrl}/contact`, changefreq: "monthly", priority: "0.6", lastmod: today },
     { loc: `${baseUrl}/cek-booking`, changefreq: "monthly", priority: "0.5", lastmod: today },
+    { loc: `${baseUrl}/blog`, changefreq: "daily", priority: "0.7", lastmod: today },
+    { loc: `${baseUrl}/departures`, changefreq: "weekly", priority: "0.7", lastmod: today },
+    { loc: `${baseUrl}/testimonials`, changefreq: "monthly", priority: "0.5", lastmod: today },
+    { loc: `${baseUrl}/fitur`, changefreq: "monthly", priority: "0.5", lastmod: today },
+    { loc: `${baseUrl}/kurs`, changefreq: "monthly", priority: "0.5", lastmod: today },
+    { loc: `${baseUrl}/jamaah-info`, changefreq: "monthly", priority: "0.5", lastmod: today },
+    { loc: `${baseUrl}/sholat`, changefreq: "monthly", priority: "0.5", lastmod: today },
+    { loc: `${baseUrl}/alquran`, changefreq: "monthly", priority: "0.5", lastmod: today },
+    { loc: `${baseUrl}/kiblat`, changefreq: "monthly", priority: "0.5", lastmod: today },
+    { loc: `${baseUrl}/cuaca`, changefreq: "monthly", priority: "0.5", lastmod: today },
+    { loc: `${baseUrl}/tracker-ibadah`, changefreq: "monthly", priority: "0.5", lastmod: today },
+    { loc: `${baseUrl}/kalkulator-islami`, changefreq: "monthly", priority: "0.5", lastmod: today },
+    { loc: `${baseUrl}/tasbih`, changefreq: "monthly", priority: "0.5", lastmod: today },
+    { loc: `${baseUrl}/panduan-manasik`, changefreq: "monthly", priority: "0.5", lastmod: today },
   ];
 
   let packageEntries: UrlEntry[] = [];
+  let blogEntries: UrlEntry[] = [];
+  let landingPageEntries: UrlEntry[] = [];
 
   try {
     const client = await pool.connect();
@@ -107,10 +123,64 @@ router.get("/sitemap.xml", async (req, res) => {
     }
   } catch (err: any) {
     // Still serve static pages even if DB fails
-    console.error("[Sitemap] DB error:", err?.message);
+    console.error("[Sitemap] DB error fetching packages:", err?.message);
   }
 
-  const xml = buildSitemapXml(baseUrl, [...staticPages, ...packageEntries]);
+  try {
+    const client = await pool.connect();
+    try {
+      const { rows } = await client.query<{
+        id: string;
+        slug: string;
+        updated_at: string | null;
+      }>(
+        `SELECT id, slug, updated_at
+         FROM blog_articles
+         WHERE status = 'published'
+         ORDER BY updated_at DESC NULLS LAST`,
+      );
+
+      blogEntries = rows.map((article) => ({
+        loc: `${baseUrl}/blog/${article.slug}`,
+        lastmod: toW3CDate(article.updated_at),
+        changefreq: "weekly",
+        priority: "0.8",
+      }));
+    } finally {
+      client.release();
+    }
+  } catch (err: any) {
+    console.error("[Sitemap] DB error fetching blog articles:", err?.message);
+  }
+
+  try {
+    const client = await pool.connect();
+    try {
+      const { rows } = await client.query<{
+        id: string;
+        slug: string;
+        updated_at: string | null;
+      }>(
+        `SELECT id, slug, updated_at
+         FROM landing_pages
+         WHERE is_published = true
+         ORDER BY updated_at DESC NULLS LAST`,
+      );
+
+      landingPageEntries = rows.map((lp) => ({
+        loc: `${baseUrl}/lp/${lp.slug}`,
+        lastmod: toW3CDate(lp.updated_at),
+        changefreq: "monthly",
+        priority: "0.7",
+      }));
+    } finally {
+      client.release();
+    }
+  } catch (err: any) {
+    console.error("[Sitemap] DB error fetching landing pages:", err?.message);
+  }
+
+  const xml = buildSitemapXml(baseUrl, [...staticPages, ...packageEntries, ...blogEntries, ...landingPageEntries]);
   res.send(xml);
 });
 

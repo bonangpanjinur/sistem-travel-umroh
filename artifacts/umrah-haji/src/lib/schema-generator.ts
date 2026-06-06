@@ -212,6 +212,45 @@ export function generateBreadcrumbSchema(breadcrumbs: Array<{
 /**
  * Generate WebPage schema (generic)
  */
+/**
+ * Generate Article/BlogPosting schema
+ */
+export function generateArticleSchema(options: SchemaGeneratorOptions & {
+  authorName?: string;
+  publishedDate?: string;
+  modifiedDate?: string;
+}) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    headline: options.title,
+    description: options.description,
+    image: options.imageUrl,
+    url: options.url,
+    datePublished: options.publishedDate || new Date().toISOString(),
+    dateModified: options.modifiedDate || options.publishedDate || new Date().toISOString(),
+    author: {
+      "@type": "Person",
+      name: options.authorName || options.companyName || "Vinstour Travel",
+    },
+    publisher: {
+      "@type": "Organization",
+      name: options.companyName || "Vinstour Travel",
+      logo: {
+        "@type": "ImageObject",
+        url: options.companyLogo || "", // Replace with actual logo URL
+      },
+    },
+    mainEntityOfPage: {
+      "@type": "WebPage",
+      "@id": options.url,
+    },
+  };
+}
+
+/**
+ * Generate WebPage schema (generic)
+ */
 export function generateWebPageSchema(options: SchemaGeneratorOptions) {
   return {
     "@context": "https://schema.org",
@@ -257,6 +296,8 @@ export function generateSchema(
       return generateFAQPageSchema(options);
     case "LocalBusiness":
       return generateLocalBusinessSchema(options);
+    case "Article":
+      return generateArticleSchema(options);
     default:
       return generateWebPageSchema(options);
   }

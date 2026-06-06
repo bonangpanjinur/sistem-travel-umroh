@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase as supabaseRaw } from "@/integrations/supabase/client";
 const supabase: any = supabaseRaw;
 import { PublicLayout } from "@/components/layout/PublicLayout";
+import { generateArticleSchema, schemaToScriptTag } from "@/lib/schema-generator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Clock, Eye, Share2, BookOpen, Calendar } from "lucide-react";
@@ -204,6 +205,88 @@ export default function PublicBlogDetail() {
     );
   }
 
+  const siteTitle = "Vinstour Travel";
+
+  // Inject SEO meta tags + JSON-LD + canonical dynamically
+  useEffect(() => {
+    if (!article) return;
+
+    const metaTitle = article.meta_title || `${article.title} — ${siteTitle}`;
+    const metaDesc = article.meta_description || article.excerpt || article.content.substring(0, 160);
+    const canonicalUrl = window.location.href.split('?')[0];
+
+    document.title = metaTitle;
+
+    const setMeta = (name: string, content: string, prop = false) => {
+      const attr = prop ? "property" : "name";
+      let el = document.querySelector<HTMLMetaElement>(`meta[${attr}="${name}"]`);
+      if (!el) {
+        el = document.createElement("meta");
+        el.setAttribute(attr, name);
+        document.head.appendChild(el);
+      }
+      el.setAttribute("content", content);
+    };
+
+    setMeta("description", metaDesc);
+    setMeta("robots", "index, follow");
+
+    // Open Graph
+    setMeta("og:title", metaTitle, true);
+    setMeta("og:description", metaDesc, true);
+    setMeta("og:type", "article", true);
+    if (article.cover_image_url) setMeta("og:image", article.cover_image_url, true);
+    setMeta("og:url", canonicalUrl, true);
+    setMeta("og:locale", "id_ID", true);
+    setMeta("og:site_name", siteTitle, true);
+
+    // Twitter Card
+    setMeta("twitter:card", "summary_large_image");
+    setMeta("twitter:title", metaTitle);
+    setMeta("twitter:description", metaDesc);
+    if (article.cover_image_url) setMeta("twitter:image", article.cover_image_url);
+
+    // Canonical link
+    let canonical = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+    if (!canonical) {
+      canonical = document.createElement("link");
+      canonical.setAttribute("rel", "canonical");
+      document.head.appendChild(canonical);
+    }
+    canonical.setAttribute("href", canonicalUrl);
+
+    // JSON-LD structured data (Article schema)
+    const jsonLd = generateArticleSchema({
+      pageType: "Article",
+      title: article.title,
+      description: metaDesc,
+      imageUrl: article.cover_image_url,
+      url: canonicalUrl,
+      authorName: article.author,
+      publishedDate: article.published_at,
+      modifiedDate: article.updated_at || article.published_at,
+      companyName: siteTitle,
+      companyLogo: "/logo.png", // Replace with actual logo URL
+    });
+
+    let ldScript = document.querySelector<HTMLScriptElement>('script[data-schema="blog-article"]');
+    if (!ldScript) {
+      ldScript = document.createElement("script");
+      ldScript.setAttribute("type", "application/ld+json");
+      ldScript.setAttribute("data-schema", "blog-article");
+      document.head.appendChild(ldScript);
+    }
+    ldScript.textContent = JSON.stringify(jsonLd);
+
+    return () => {
+      document.title = siteTitle;
+      const ldEl = document.querySelector('script[data-schema="blog-article"]');
+      if (ldEl) ldEl.remove();
+      const canonicalEl = document.querySelector('link[rel="canonical"]');
+      if (canonicalEl) canonicalEl.remove();
+    };
+  }, [article]);
+
   return (
     <PublicLayout>
       <div className="container max-w-3xl mx-auto px-4 py-8">
@@ -243,14 +326,15 @@ export default function PublicBlogDetail() {
           </button>
         </div>
 
-        {/* Cover Image */}
-        {article.cover_image_url && (
-          <img
-            src={article.cover_image_url}
-            alt={article.title}
-            className="w-full h-72 sm:h-96 object-cover rounded-2xl mb-8 shadow-sm"
-          />
-        )}
+	        {/* Cover Image */}
+	        {article.cover_image_url && (
+	          <img
+	            src={article.cover_image_url}
+	            alt={article.title}
+	            className="w-full h-72 sm:h-96 object-cover rounded-2xl mb-8 shadow-sm"
+	            fetchpriority="high"
+	          />
+	        )}
 
         {/* Excerpt highlight */}
         {article.excerpt && (
