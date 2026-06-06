@@ -73,7 +73,7 @@ import { ManagePaymentModal } from "@/components/admin/ManagePaymentModal";
 import { ChangePackageDialogV2 } from "@/components/admin/ChangePackageDialogV2";
 import { ChangeRoomTypeDialog } from "@/components/admin/ChangeRoomTypeDialog";
 import { RoomTypeAssignmentDialog } from "@/components/admin/RoomTypeAssignmentDialog";
-import { useWhatsAppNotifier } from "@/hooks/useWhatsAppNotifier";
+import { useWhatsAppNotifierSecure } from "@/hooks/useWhatsAppNotifierSecure";
 import { useEmailNotifier } from "@/hooks/useEmailNotifier";
 import { useFinanceNotifier } from "@/hooks/useFinanceNotifier";
 import { BookingDocumentActions } from "@/components/admin/BookingDocumentActions";
@@ -158,7 +158,7 @@ export default function AdminBookingDetail() {
   const { user, hasRole, isAdmin, isSuperAdmin } = useAuth();
   const { company: companyInfo, bankAccount: companyBankAccount, isLoading: companyInfoLoading } = useCompanyInfo();
   const queryClient = useQueryClient();
-  const waNotifier = useWhatsAppNotifier();
+  const waNotifier = useWhatsAppNotifierSecure();
   const emailNotifier = useEmailNotifier();
   const { notifyFinance } = useFinanceNotifier();
   const { logDocument } = useDocumentLogger();

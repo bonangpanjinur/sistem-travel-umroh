@@ -54,7 +54,7 @@ import {
 } from "lucide-react";
 import { AddManualPaymentDialog } from "@/components/admin/AddManualPaymentDialog";
 import { Link } from "react-router-dom";
-import { useWhatsAppNotifier } from "@/hooks/useWhatsAppNotifier";
+import { useWhatsAppNotifierSecure } from "@/hooks/useWhatsAppNotifierSecure";
 import { useEmailNotifier } from "@/hooks/useEmailNotifier";
 
 const PAGE_SIZE = 20;
@@ -104,7 +104,7 @@ export default function AdminPayments() {
   const [isSendingReminders, setIsSendingReminders] = useState(false);
   const [showSyncConfirm, setShowSyncConfirm] = useState(false);
   const [syncResult, setSyncResult] = useState<{ updatedCount: number; totalProcessed: number; durationMs: number } | null>(null);
-  const { sendPaymentConfirmation, isReady: waReady } = useWhatsAppNotifier();
+  const { sendPaymentConfirmation, isReady: waReady } = useWhatsAppNotifierSecure();
   const emailNotifier = useEmailNotifier();
 
   const canSync = isSuperAdmin() || hasRole('owner');

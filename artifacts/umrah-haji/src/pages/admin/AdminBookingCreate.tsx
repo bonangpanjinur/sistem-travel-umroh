@@ -28,7 +28,7 @@ import { Link } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { RoomType } from "@/types/database";
-import { useWhatsAppNotifier } from "@/hooks/useWhatsAppNotifier";
+import { useWhatsAppNotifierSecure } from "@/hooks/useWhatsAppNotifierSecure";
 import { useEmailNotifier } from "@/hooks/useEmailNotifier";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -174,7 +174,7 @@ export default function AdminBookingCreate() {
   const [showAddCustomer, setShowAddCustomer] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [newCustomer, setNewCustomer] = useState({ full_name: "", phone: "", email: "", nik: "" });
-  const { sendBookingConfirm } = useWhatsAppNotifier();
+  const { sendBookingConfirm } = useWhatsAppNotifierSecure();
   const emailNotifier = useEmailNotifier();
 
   // Pre-fill departure from URL param (?departure_id=xxx)

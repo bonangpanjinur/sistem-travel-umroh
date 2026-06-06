@@ -16,7 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { formatCurrency, formatDate } from "@/lib/format";
-import { useWhatsAppNotifier } from "@/hooks/useWhatsAppNotifier";
+import { useWhatsAppNotifierSecure } from "@/hooks/useWhatsAppNotifierSecure";
 import { toast } from "sonner";
 import {
   Wallet, Plus, Search, TrendingUp, CheckCircle, Clock,
@@ -53,7 +53,7 @@ const payBadge = (status: string) => {
 // ─── component ─────────────────────────────────────────────────────────────
 export default function AdminSavingsPlans() {
   const queryClient = useQueryClient();
-  const wa = useWhatsAppNotifier();
+  const wa = useWhatsAppNotifierSecure();
 
   // bulk reminder state
   const [sendingReminders, setSendingReminders] = useState(false);

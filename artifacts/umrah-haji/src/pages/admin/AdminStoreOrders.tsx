@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useStoreOrders, useStoreOrderMutations } from "@/hooks/useStore";
 import type { StoreOrder, StoreShipment } from "@/hooks/useStore";
-import { useWhatsAppNotifier } from "@/hooks/useWhatsAppNotifier";
+import { useWhatsAppNotifierSecure } from "@/hooks/useWhatsAppNotifierSecure";
 import { formatCurrency } from "@/lib/format";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -85,7 +85,7 @@ export default function AdminStoreOrders() {
 
   const { data: orders = [], isLoading } = useStoreOrders(tab === "all" ? undefined : tab);
   const { updateStatus, confirmPayment, upsertShipment } = useStoreOrderMutations();
-  const wa = useWhatsAppNotifier();
+  const wa = useWhatsAppNotifierSecure();
 
   const filtered = search
     ? orders.filter((o) =>

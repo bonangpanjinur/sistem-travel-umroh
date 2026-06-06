@@ -2,10 +2,14 @@
  * useFinanceNotifier
  * Kirim notifikasi WhatsApp ke semua staf finance saat ada bukti pembayaran masuk.
  * Fire-and-forget: tidak memblokir UI jika gagal.
+ * 
+ * ⚠️ MIGRATED TO SECURE BACKEND API
+ * Previously sent tokens directly from browser — now uses /api/whatsapp/send
  */
 import { supabase } from "@/integrations/supabase/client";
-import { sendWhatsAppMessage } from "@/lib/whatsapp-notifier";
 import { formatCurrency } from "@/lib/format";
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 
 export interface FinanceNotifyParams {
   bookingId: string;
@@ -24,22 +28,14 @@ export function useFinanceNotifier() {
   /**
    * Kirim WA ke semua staf finance yang punya nomor HP.
    * Returns jumlah pesan terkirim / gagal.
+   * 
+   * Sekarang menggunakan backend API — token tidak pernah terekspos ke browser.
    */
   const notifyFinance = async (params: FinanceNotifyParams): Promise<FinanceNotifyResult> => {
     const { bookingId, bookingCode, customerName, amount } = params;
 
     try {
-      // ── 1. Fetch konfigurasi WA ──────────────────────────────────────
-      const { data: config } = await (supabase as any)
-        .from("whatsapp_config")
-        .select("api_key, is_active")
-        .maybeSingle();
-
-      if (!config?.is_active || !config?.api_key) {
-        return { sent: 0, failed: 0, skipped: 0 };
-      }
-
-      // ── 2. Ambil semua user_id dengan role 'finance' ─────────────────
+      // ── 1. Ambil semua user_id dengan role 'finance' ─────────────────
       const { data: financeRoles, error: rolesError } = await (supabase as any)
         .from("user_roles")
         .select("user_id")
@@ -51,7 +47,7 @@ export function useFinanceNotifier() {
 
       const userIds: string[] = financeRoles.map((r: any) => r.user_id);
 
-      // ── 3. Fetch profil mereka untuk dapat nomor HP ──────────────────
+      // ── 2. Fetch profil mereka untuk dapat nomor HP ──────────────────
       const { data: profiles, error: profilesError } = await supabase
         .from("profiles")
         .select("full_name, phone")
@@ -68,7 +64,7 @@ export function useFinanceNotifier() {
         return { sent: 0, failed: 0, skipped };
       }
 
-      // ── 4. Bangun pesan ──────────────────────────────────────────────
+      // ── 3. Bangun pesan ──────────────────────────────────────────────
       const deepLink = `${window.location.origin}/admin/bookings/${bookingId}`;
       const tanggal = new Date().toLocaleDateString("id-ID", {
         day: "numeric",
@@ -87,22 +83,35 @@ export function useFinanceNotifier() {
         `🔗 Klik untuk verifikasi:\n${deepLink}\n\n` +
         `_Mohon segera diverifikasi. Terima kasih._`;
 
-      // ── 5. Kirim WA ke setiap staf finance ──────────────────────────
+      // ── 4. Kirim WA ke setiap staf finance via backend API ───────────
       let sent = 0;
       let failed = 0;
 
       for (const staff of staffWithPhone) {
-        const result = await sendWhatsAppMessage({
-          token: config.api_key,
-          target: staff.phone!,
-          message,
-        });
-        if (result.success) {
-          sent++;
-        } else {
+        try {
+          const res = await fetch(`${API_BASE}/api/whatsapp/send`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              target: staff.phone!,
+              message,
+            }),
+          });
+
+          const data = (await res.json()) as { success?: boolean; error?: string };
+
+          if (data.success) {
+            sent++;
+          } else {
+            failed++;
+            console.warn(
+              `[FinanceNotifier] Gagal kirim ke ${staff.full_name ?? "staf"}: ${data.error}`
+            );
+          }
+        } catch (err: any) {
           failed++;
           console.warn(
-            `[FinanceNotifier] Gagal kirim ke ${staff.full_name ?? "staf"}: ${result.error}`
+            `[FinanceNotifier] Network error untuk ${staff.full_name ?? "staf"}: ${err.message}`
           );
         }
       }
