@@ -185,6 +185,49 @@ export default function PackageDetail() {
     }
   }, [pkg?.id]);
 
+  // Inject SEO meta tags dynamically
+  useEffect(() => {
+    if (!pkg) return;
+
+    const siteTitle = "Vinstour Travel";
+    const metaTitle = (pkg as any).meta_title || `${pkg.name} — ${siteTitle}`;
+    const metaDesc = (pkg as any).meta_description || pkg.description || `Paket ${pkg.name} selama ${pkg.duration_days} hari bersama ${siteTitle}.`;
+    const keywords: string[] = (pkg as any).keywords ?? [];
+
+    document.title = metaTitle;
+
+    const setMeta = (name: string, content: string, prop = false) => {
+      const attr = prop ? "property" : "name";
+      let el = document.querySelector<HTMLMetaElement>(`meta[${attr}="${name}"]`);
+      if (!el) {
+        el = document.createElement("meta");
+        el.setAttribute(attr, name);
+        document.head.appendChild(el);
+      }
+      el.setAttribute("content", content);
+    };
+
+    setMeta("description", metaDesc);
+    if (keywords.length > 0) setMeta("keywords", keywords.join(", "));
+
+    // Open Graph
+    setMeta("og:title", metaTitle, true);
+    setMeta("og:description", metaDesc, true);
+    setMeta("og:type", "product", true);
+    if (pkg.featured_image) setMeta("og:image", pkg.featured_image, true);
+    setMeta("og:url", window.location.href, true);
+
+    // Twitter Card
+    setMeta("twitter:card", "summary_large_image");
+    setMeta("twitter:title", metaTitle);
+    setMeta("twitter:description", metaDesc);
+    if (pkg.featured_image) setMeta("twitter:image", pkg.featured_image);
+
+    return () => {
+      document.title = siteTitle;
+    };
+  }, [pkg]);
+
   if (isLoading) {
     return (
       <DynamicPublicLayout>

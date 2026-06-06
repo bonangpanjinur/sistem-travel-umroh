@@ -24,7 +24,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { toast } from "sonner";
-import { Loader2, Upload, X, ImageIcon, Info } from "lucide-react";
+import { Loader2, Upload, X, ImageIcon, Info, Search } from "lucide-react";
 import { useState, useRef } from "react";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -67,6 +67,11 @@ const packageSchema = z.object({
   fee_referral: z.coerce.number().min(0, "Fee referral jemaah tidak boleh negatif").default(0),
   child_price_percent: z.coerce.number().min(0).max(100).default(75),
   infant_price_percent: z.coerce.number().min(0).max(100).default(10),
+
+  // SEO fields
+  meta_title: z.string().max(70, "Meta title maksimal 70 karakter").optional(),
+  meta_description: z.string().max(160, "Meta description maksimal 160 karakter").optional(),
+  keywords: z.string().optional(),
 });
 
 type PackageFormValues = z.infer<typeof packageSchema>;
@@ -108,6 +113,10 @@ export function PackageForm({ packageData, onSuccess, onCancel }: PackageFormPro
       fee_referral: (packageData as any)?.fee_referral || 0,
       child_price_percent: (packageData as any)?.child_price_percent ?? 75,
       infant_price_percent: (packageData as any)?.infant_price_percent ?? 10,
+
+      meta_title: (packageData as any)?.meta_title || "",
+      meta_description: (packageData as any)?.meta_description || "",
+      keywords: (packageData as any)?.keywords?.join(", ") || "",
     },
   });
 
@@ -163,7 +172,7 @@ export function PackageForm({ packageData, onSuccess, onCancel }: PackageFormPro
 
   const mutation = useMutation({
     mutationFn: async (values: PackageFormValues) => {
-      const { fee_branch, fee_agent, fee_sub_agent, fee_referral, ...rest } = values;
+      const { fee_branch, fee_agent, fee_sub_agent, fee_referral, keywords, ...rest } = values;
       const payload: any = {
         ...rest,
         code: isEditing ? rest.code : generatePackageCode(rest.package_type),
@@ -183,6 +192,10 @@ export function PackageForm({ packageData, onSuccess, onCancel }: PackageFormPro
         fee_agent,
         fee_sub_agent,
         fee_referral,
+        // SEO fields
+        meta_title: rest.meta_title || null,
+        meta_description: rest.meta_description || null,
+        keywords: keywords ? keywords.split(",").map((k) => k.trim()).filter(Boolean) : [],
       };
 
       if (isEditing && packageData) {
@@ -561,6 +574,80 @@ export function PackageForm({ packageData, onSuccess, onCancel }: PackageFormPro
               )}
             />
           </div>
+        </div>
+
+        {/* SEO */}
+        <div className="space-y-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <div>
+            <div className="flex items-center gap-2">
+              <Search className="h-4 w-4 text-blue-700" />
+              <h4 className="text-sm font-semibold text-blue-900 uppercase tracking-wide">SEO & Mesin Pencari</h4>
+            </div>
+            <p className="text-xs text-blue-800 mt-0.5">
+              Isi field ini agar paket mudah ditemukan di Google. Jika kosong, sistem akan menggunakan nama paket dan deskripsi secara otomatis.
+            </p>
+          </div>
+
+          <FormField
+            control={form.control}
+            name="meta_title"
+            render={({ field }) => {
+              const len = field.value?.length ?? 0;
+              return (
+                <FormItem>
+                  <FormLabel>Meta Title</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Contoh: Paket Umroh Reguler 9 Hari — Vinstour Travel" {...field} />
+                  </FormControl>
+                  <div className="flex justify-between">
+                    <p className="text-[10px] text-muted-foreground">Judul yang tampil di hasil pencarian Google. Idealnya 50–60 karakter.</p>
+                    <span className={`text-[10px] ${len > 70 ? "text-destructive" : "text-muted-foreground"}`}>{len}/70</span>
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              );
+            }}
+          />
+
+          <FormField
+            control={form.control}
+            name="meta_description"
+            render={({ field }) => {
+              const len = field.value?.length ?? 0;
+              return (
+                <FormItem>
+                  <FormLabel>Meta Description</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="Contoh: Nikmati perjalanan umroh 9 hari bersama Vinstour Travel dengan fasilitas hotel bintang 4, muthawif berpengalaman, dan harga terjangkau."
+                      rows={3}
+                      {...field}
+                    />
+                  </FormControl>
+                  <div className="flex justify-between">
+                    <p className="text-[10px] text-muted-foreground">Ringkasan yang muncul di bawah judul di Google. Idealnya 120–160 karakter.</p>
+                    <span className={`text-[10px] ${len > 160 ? "text-destructive" : "text-muted-foreground"}`}>{len}/160</span>
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              );
+            }}
+          />
+
+          <FormField
+            control={form.control}
+            name="keywords"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Keywords (Kata Kunci)</FormLabel>
+                <FormControl>
+                  <Input placeholder="umroh murah, paket umroh jakarta, umroh reguler 2025" {...field} />
+                </FormControl>
+                <p className="text-[10px] text-muted-foreground">Pisahkan dengan koma. Contoh: umroh murah, paket umroh jakarta</p>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
         </div>
 
         <div className="flex justify-end gap-3 pt-4 border-t">
