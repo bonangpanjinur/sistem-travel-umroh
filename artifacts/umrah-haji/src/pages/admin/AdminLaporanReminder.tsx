@@ -119,6 +119,7 @@ export default function AdminLaporanReminder() {
   // Filters & selection
   const [filterStatus,  setFilterStatus]  = useState<FilterStatus>("all");
   const [filterChannel, setFilterChannel] = useState<"all" | "wa" | "email">("all");
+  const [dateRange,     setDateRange]     = useState<{ from: string; to: string }>({ from: "", to: "" });
   const [search,        setSearch]        = useState("");
   const [bulkWindow,    setBulkWindow]    = useState<BulkWindow>("7");
   const [selectedIds,   setSelectedIds]   = useState<Set<string>>(new Set());
@@ -476,6 +477,12 @@ export default function AdminLaporanReminder() {
       r.status === "pending" && r.payment_deadline && isPast(parseISO(r.payment_deadline))
     );
     if (filterChannel !== "all") list = list.filter(r => r.channel === filterChannel);
+    if (dateRange.from) {
+      list = list.filter(r => r.payment_deadline && r.payment_deadline >= dateRange.from);
+    }
+    if (dateRange.to) {
+      list = list.filter(r => r.payment_deadline && r.payment_deadline <= dateRange.to);
+    }
     if (search) {
       const q = search.toLowerCase();
       list = list.filter(r =>
@@ -775,6 +782,32 @@ export default function AdminLaporanReminder() {
                 <SelectItem value="email">Email</SelectItem>
               </SelectContent>
             </Select>
+
+            <div className="flex items-center gap-2">
+              <Input
+                type="date"
+                className="w-[150px]"
+                value={dateRange.from}
+                onChange={e => setDateRange(prev => ({ ...prev, from: e.target.value }))}
+              />
+              <span className="text-muted-foreground">s/d</span>
+              <Input
+                type="date"
+                className="w-[150px]"
+                value={dateRange.to}
+                onChange={e => setDateRange(prev => ({ ...prev, to: e.target.value }))}
+              />
+              {(dateRange.from || dateRange.to) && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => setDateRange({ from: "", to: "" })}
+                  className="h-8 px-2 text-muted-foreground"
+                >
+                  Reset
+                </Button>
+              )}
+            </div>
 
             {selectedIds.size > 0 && (
               <div className="flex gap-2 items-center flex-wrap">
