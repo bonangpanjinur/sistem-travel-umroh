@@ -58,7 +58,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
 import { cn } from "@/lib/utils";
@@ -168,6 +168,18 @@ export default function AdminBookingDetail() {
   );
   const isBankNotConfigured = !companyInfoLoading && !companyBankAccount;
   const isCompanyInfoIncomplete = isAdmin() && (isCompanyNameDefault || isBankNotConfigured);
+
+  // Gap #9: Room number conflict detection — room numbers used by more than one passenger
+  const roomNumberConflicts = useMemo(() => {
+    if (!passengers || passengers.length === 0) return new Set<string>();
+    const counts: Record<string, number> = {};
+    for (const p of passengers) {
+      const rn = (p.room_number || '').trim();
+      if (rn) counts[rn] = (counts[rn] || 0) + 1;
+    }
+    return new Set(Object.keys(counts).filter(rn => counts[rn] > 1));
+  }, [passengers]);
+  const hasRoomConflicts = roomNumberConflicts.size > 0;
 
   const [notifErrorMsg, setNotifErrorMsg] = useState<string | null>(null);
   const [showBarcodeModal, setShowBarcodeModal] = useState(false);
@@ -1758,6 +1770,21 @@ export default function AdminBookingDetail() {
             </div>
           )}
 
+          {/* Gap #9: Room Number Conflict Warning */}
+          {hasRoomConflicts && (
+            <div className="flex items-start gap-3 p-4 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800">
+              <TriangleAlert className="h-5 w-5 text-red-600 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-sm font-bold text-red-800 dark:text-red-300">Konflik Nomor Kamar Terdeteksi</p>
+                <p className="text-xs text-red-700 dark:text-red-400 mt-0.5">
+                  Nomor kamar{' '}
+                  <strong>{[...roomNumberConflicts].sort().join(', ')}</strong>
+                  {' '}digunakan oleh lebih dari satu jamaah. Segera perbaiki assignment kamar di tabel manifest di bawah.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Section: Passengers Manifest */}
           <Card className="overflow-hidden border-none shadow-md">
             <div className="bg-indigo-500/5 px-6 py-4 border-b flex items-center justify-between">
@@ -1885,9 +1912,16 @@ export default function AdminBookingDetail() {
                                 </div>
                               ) : (
                                 <div className="flex items-center gap-1">
-                                  <span className={`text-[10px] font-mono ${p.room_number ? 'font-bold text-foreground' : 'text-muted-foreground'}`}>
-                                    {p.room_number || '—'}
-                                  </span>
+                                  {p.room_number && roomNumberConflicts.has(p.room_number.trim()) ? (
+                                    <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-950/40 border border-red-300 dark:border-red-700 rounded px-1.5 py-0.5" title="Nomor kamar bentrok dengan jamaah lain">
+                                      <TriangleAlert className="h-3 w-3 shrink-0" />
+                                      {p.room_number}
+                                    </span>
+                                  ) : (
+                                    <span className={`text-[10px] font-mono ${p.room_number ? 'font-bold text-foreground' : 'text-muted-foreground'}`}>
+                                      {p.room_number || '—'}
+                                    </span>
+                                  )}
                                   {isAdmin() && (
                                     <button
                                       onClick={() => { setEditingRoomNumber(p.id); setRoomNumberValue(p.room_number || ''); }}
