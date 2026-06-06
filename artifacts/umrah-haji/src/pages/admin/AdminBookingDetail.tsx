@@ -174,18 +174,6 @@ export default function AdminBookingDetail() {
   const isBankNotConfigured = !companyInfoLoading && !companyBankAccount;
   const isCompanyInfoIncomplete = isAdmin() && (isCompanyNameDefault || isBankNotConfigured);
 
-  // Gap #9: Room number conflict detection — room numbers used by more than one passenger
-  const roomNumberConflicts = useMemo(() => {
-    if (!passengers || passengers.length === 0) return new Set<string>();
-    const counts: Record<string, number> = {};
-    for (const p of passengers) {
-      const rn = (p.room_number || '').trim();
-      if (rn) counts[rn] = (counts[rn] || 0) + 1;
-    }
-    return new Set(Object.keys(counts).filter(rn => counts[rn] > 1));
-  }, [passengers]);
-  const hasRoomConflicts = roomNumberConflicts.size > 0;
-
   const [notifErrorMsg, setNotifErrorMsg] = useState<string | null>(null);
   const [showBarcodeModal, setShowBarcodeModal] = useState(false);
   const [newStatus, setNewStatus] = useState<BookingStatus | null>(null);
@@ -352,6 +340,18 @@ export default function AdminBookingDetail() {
     },
     enabled: !!id,
   });
+
+  // Gap #9: Room number conflict detection — room numbers used by more than one passenger
+  const roomNumberConflicts = useMemo(() => {
+    if (!passengers || passengers.length === 0) return new Set<string>();
+    const counts: Record<string, number> = {};
+    for (const p of passengers) {
+      const rn = (p.room_number || '').trim();
+      if (rn) counts[rn] = (counts[rn] || 0) + 1;
+    }
+    return new Set(Object.keys(counts).filter(rn => counts[rn] > 1));
+  }, [passengers]);
+  const hasRoomConflicts = roomNumberConflicts.size > 0;
 
   const { data: payments } = useQuery({
     queryKey: ['booking-payments', id],

@@ -187,7 +187,7 @@ export default function PublicBookingDetail() {
         (async () => {
           const { data: ws } = await supabase
             .from("website_settings")
-            .select("company_name, logo_url, phone, whatsapp, email, address, website, tagline")
+            .select("company_name, logo_url, footer_phone, footer_whatsapp, footer_email, footer_address, tagline")
             .maybeSingle();
           const { data: banks } = await (supabase as any)
             .from("bank_accounts")
@@ -198,11 +198,11 @@ export default function PublicBookingDetail() {
             setCompany({
               company_name: ws.company_name || "Travel Agency",
               logo_url: ws.logo_url || null,
-              phone: ws.phone || null,
-              whatsapp: ws.whatsapp || ws.phone || null,
-              email: ws.email || null,
-              address: ws.address || null,
-              website: ws.website || null,
+              phone: ws.footer_phone || null,
+              whatsapp: ws.footer_whatsapp || ws.footer_phone || null,
+              email: ws.footer_email || null,
+              address: ws.footer_address || null,
+              website: null,
               tagline: ws.tagline || null,
               bank_name: banks?.bank_name || null,
               bank_account: banks?.account_number || null,
