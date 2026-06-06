@@ -151,7 +151,7 @@ export default function AdminBookingDetail() {
   const { id } = useParams<{ id: string }>() as { id: string };
   const navigate = useNavigate();
   const { user, hasRole, isAdmin, isSuperAdmin } = useAuth();
-  const { company: companyInfo } = useCompanyInfo();
+  const { company: companyInfo, bankAccount: companyBankAccount, isLoading: companyInfoLoading } = useCompanyInfo();
   const queryClient = useQueryClient();
   const waNotifier = useWhatsAppNotifier();
   const emailNotifier = useEmailNotifier();
@@ -161,6 +161,13 @@ export default function AdminBookingDetail() {
   const isFinance = hasRole('finance');
   const canVerifyPayment = isAdmin() || isFinance;
   const canAddPayment = isAdmin() || isFinance || hasRole('agent');
+
+  // Gap #8: Company Info Warning — detect if company settings are incomplete for PDF generation
+  const isCompanyNameDefault = !companyInfoLoading && (
+    !companyInfo.name || companyInfo.name === "PT. Umrah Haji Travel"
+  );
+  const isBankNotConfigured = !companyInfoLoading && !companyBankAccount;
+  const isCompanyInfoIncomplete = isAdmin() && (isCompanyNameDefault || isBankNotConfigured);
 
   const [notifErrorMsg, setNotifErrorMsg] = useState<string | null>(null);
   const [showBarcodeModal, setShowBarcodeModal] = useState(false);
@@ -2515,6 +2522,32 @@ export default function AdminBookingDetail() {
               <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Aksi Cepat</h3>
             </div>
             <CardContent className="p-4 space-y-4">
+              {/* Company Info Warning (Gap #8) */}
+              {isCompanyInfoIncomplete && (
+                <div className="flex items-start gap-2.5 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-700 px-3 py-2.5">
+                  <TriangleAlert className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold text-amber-800 dark:text-amber-300 leading-snug">
+                      Data perusahaan belum lengkap
+                    </p>
+                    <p className="text-[11px] text-amber-700 dark:text-amber-400 mt-0.5 leading-snug">
+                      {isCompanyNameDefault && isBankNotConfigured
+                        ? "Nama perusahaan & rekening bank belum diisi."
+                        : isCompanyNameDefault
+                        ? "Nama perusahaan belum diisi."
+                        : "Rekening bank belum dikonfigurasi."}
+                      {" "}Invoice PDF mungkin tidak lengkap.
+                    </p>
+                    <Link
+                      to="/admin/settings"
+                      className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-800 dark:text-amber-300 underline underline-offset-2 mt-1 hover:text-amber-900"
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                      Lengkapi Sekarang
+                    </Link>
+                  </div>
+                </div>
+              )}
               <div className="grid grid-cols-1 gap-2">
                 <Button
                   className="w-full justify-start h-11 font-black text-xs border-2 bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
