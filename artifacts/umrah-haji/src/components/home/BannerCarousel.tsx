@@ -229,42 +229,43 @@ function SlideContent({
     return (
       <div className="absolute inset-0 flex items-end p-2">
         {/* Decorative elements */}
-        <div className="absolute top-3 right-3 z-20">
-          <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-black/30 backdrop-blur-md border border-white/10 text-[9px] text-white/90 font-medium">
-            <Sparkles className="h-2.5 w-2.5 text-amber-400" />
+        <div className="absolute top-4 right-4 z-20">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-lg border border-white/20 text-[9px] text-white/95 font-semibold tracking-wide">
+            <Sparkles className="h-3 w-3 text-amber-300 animate-pulse" />
             <span>Premium</span>
           </div>
         </div>
 
-        {/* Strong bottom gradient for readability */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent rounded-3xl pointer-events-none" />
-        <div className="absolute inset-0 bg-gradient-to-r from-black/40 via-transparent to-transparent rounded-3xl pointer-events-none" />
+        {/* Enhanced gradient overlays for better readability */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/50 via-transparent to-transparent pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/10 to-transparent pointer-events-none" />
         
         {/* Content pinned to bottom */}
         <div
           className={cn(
-            'relative z-10 w-full px-5 pb-5 transition-all duration-700',
+            'relative z-10 w-full px-5 pb-6 pt-2 transition-all duration-700',
             isActive ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
           )}
           style={{ transitionDelay: isActive ? '150ms' : '0ms' }}
         >
           {banner.title && (
-            <p className="text-lg font-extrabold text-white leading-tight drop-shadow-md line-clamp-2 mb-2 tracking-tight">
+            <p className="text-base md:text-lg font-black text-white leading-snug drop-shadow-lg line-clamp-2 mb-2 tracking-tight">
               {banner.title}
             </p>
           )}
           {banner.subtitle && (
-            <p className="text-[11px] text-white/80 line-clamp-1 mb-3 font-medium">
+            <p className="text-xs md:text-sm text-white/85 line-clamp-1 mb-3 font-medium leading-relaxed">
               {banner.subtitle}
             </p>
           )}
           {banner.cta_text && banner.cta_url && (
             <a
               href={banner.cta_url}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-white text-[11px] font-bold hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-primary/20"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary hover:bg-primary/90 text-white text-xs md:text-sm font-bold active:scale-95 transition-all shadow-xl shadow-primary/30 backdrop-blur-sm border border-white/10"
             >
               {banner.cta_text}
-              <ArrowRight className="h-3 w-3" />
+              <ArrowRight className="h-3.5 w-3.5" />
             </a>
           )}
         </div>
@@ -422,11 +423,11 @@ export function BannerCarousel({ compact = false, template = 'classic', waNumber
   return (
     <section
       className={cn(
-        'relative w-full overflow-hidden',
+        'relative overflow-hidden',
         cfg.wrapperBg,
         cfg.borderClass,
         cfg.glowClass,
-        compact && 'rounded-3xl mx-3 my-3 shadow-xl'
+        compact ? 'w-[calc(100%-24px)] mx-auto my-3 rounded-3xl shadow-xl' : 'w-full'
       )}
     >
       {template === 'futuristic' && (
@@ -434,7 +435,7 @@ export function BannerCarousel({ compact = false, template = 'classic', waNumber
       )}
 
       {/* Carousel viewport */}
-      <div className="overflow-hidden rounded-3xl" ref={emblaRef}>
+      <div className={cn('overflow-hidden', compact && 'rounded-3xl')} ref={emblaRef}>
         <div className="flex touch-pan-y">
           {banners.map((banner, index) => (
             <div key={banner.id} className="relative flex-[0_0_100%] min-w-0">
