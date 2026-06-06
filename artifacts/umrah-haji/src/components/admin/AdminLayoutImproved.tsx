@@ -282,6 +282,9 @@ function AdminLayoutImproved() {
               <div className="relative group">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
                 <Input
+                  type="search"
+                  name="admin-sidebar-search-alt"
+                  autoComplete="off"
                   placeholder="Cari menu..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
