@@ -366,9 +366,9 @@ export default function AdminDepartures() {
           price_single: dep.price_single || 0,
           status: 'open',
           booked_count: 0,
-          departure_date: null,
-          return_date: null,
-        })
+          departure_date: null as any,
+          return_date: null as any,
+        } as any)
         .select('id')
         .single();
       if (error) throw error;
