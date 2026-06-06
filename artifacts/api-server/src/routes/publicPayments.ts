@@ -203,20 +203,21 @@ router.post('/', async (req, res) => {
         logger.warn({ err }, '[PublicPayments] Gagal insert notifikasi admin'),
       );
 
-    // 5. Kirim response lebih dulu, baru kirim WA (non-blocking)
-    res.json({ success: true, payment_code: paymentCode });
-
-    notifyFinanceViaWA({
+    // 5. Kirim WA di background (fire-and-forget), lalu kirim response
+    void notifyFinanceViaWA({
       bookingId: booking_id,
       bookingCode: booking.booking_code,
       customerName: customer_name ?? 'Pelanggan',
       amount: amountNum,
     });
+
+    return res.json({ success: true, payment_code: paymentCode });
   } catch (err: any) {
     logger.error({ err }, '[PublicPayments] Error submit payment publik');
     if (!res.headersSent) {
       res.status(500).json({ success: false, error: 'Gagal menyimpan pembayaran. Silakan coba lagi.' });
     }
+    return;
   } finally {
     client.release();
   }

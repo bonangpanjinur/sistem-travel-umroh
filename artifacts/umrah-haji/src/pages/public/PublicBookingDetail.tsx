@@ -227,13 +227,13 @@ export default function PublicBookingDetail() {
           }
         })(),
 
-        // Payments history
+        // Payments history (including pending so customer can see "menunggu verifikasi")
         (async () => {
           const { data: pmts } = await (supabase as any)
             .from("payments")
             .select("amount, payment_method, created_at, status")
             .eq("booking_id", bookingId)
-            .in("status", ["paid", "verified", "partial"])
+            .in("status", ["paid", "verified", "partial", "pending"])
             .order("created_at", { ascending: true });
           if (!cancelled && pmts) setPayments(pmts);
         })(),
@@ -382,6 +382,9 @@ export default function PublicBookingDetail() {
   const paymentPct = booking && booking.total_price > 0
     ? Math.min(100, Math.round(((booking.paid_amount || 0) / booking.total_price) * 100))
     : 0;
+
+  const pendingPayments = payments.filter((p) => p.status === "pending");
+  const verifiedPayments = payments.filter((p) => p.status !== "pending");
 
   const deadline = booking?.payment_deadline ? new Date(booking.payment_deadline) : null;
   const daysUntilDeadline = deadline ? differenceInDays(deadline, new Date()) : null;
@@ -784,6 +787,24 @@ export default function PublicBookingDetail() {
                     </div>
                   )}
 
+                  {/* Menunggu Verifikasi Banner */}
+                  {pendingPayments.length > 0 && (
+                    <div className="flex items-start gap-3 px-4 py-3.5 rounded-xl border-2 border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-700">
+                      <Clock className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                      <div className="flex-1">
+                        <p className="font-black text-sm text-amber-800 dark:text-amber-300">
+                          Menunggu Verifikasi
+                        </p>
+                        <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
+                          {pendingPayments.length === 1
+                            ? "Konfirmasi pembayaran Anda sudah diterima dan sedang diverifikasi oleh tim finance kami."
+                            : `${pendingPayments.length} konfirmasi pembayaran sudah diterima dan sedang diverifikasi oleh tim finance kami.`}
+                          {" "}Mohon tunggu, proses biasanya selesai dalam 1×24 jam kerja.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Payment history */}
                   {payments.length > 0 && (
                     <div>
@@ -791,26 +812,51 @@ export default function PublicBookingDetail() {
                         Riwayat Setoran ({payments.length} transaksi)
                       </p>
                       <div className="space-y-1.5">
-                        {payments.map((pmt, idx) => (
-                          <div key={idx} className="flex items-center justify-between px-3 py-2.5 rounded-lg border bg-background text-sm">
-                            <div className="flex items-center gap-2">
-                              <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-                              <div>
-                                <p className="font-bold">
-                                  {format(new Date(pmt.created_at), "dd MMM yyyy", { locale: localeId })}
-                                </p>
-                                {pmt.payment_method && (
-                                  <p className="text-[10px] text-muted-foreground capitalize">
-                                    {pmt.payment_method.replace(/_/g, " ")}
+                        {payments.map((pmt, idx) => {
+                          const isPending = pmt.status === "pending";
+                          return (
+                            <div
+                              key={idx}
+                              className={cn(
+                                "flex items-center justify-between px-3 py-2.5 rounded-lg border text-sm",
+                                isPending
+                                  ? "bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800"
+                                  : "bg-background border"
+                              )}
+                            >
+                              <div className="flex items-center gap-2">
+                                {isPending ? (
+                                  <Clock className="h-4 w-4 text-amber-500 shrink-0" />
+                                ) : (
+                                  <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                                )}
+                                <div>
+                                  <p className="font-bold">
+                                    {format(new Date(pmt.created_at), "dd MMM yyyy", { locale: localeId })}
                                   </p>
+                                  <p className="text-[10px] capitalize text-muted-foreground">
+                                    {isPending
+                                      ? "Menunggu Verifikasi"
+                                      : (pmt.payment_method || "").replace(/_/g, " ")}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <span className={cn(
+                                  "font-black",
+                                  isPending
+                                    ? "text-amber-600 dark:text-amber-400"
+                                    : "text-emerald-700 dark:text-emerald-400"
+                                )}>
+                                  {formatCurrency(pmt.amount)}
+                                </span>
+                                {isPending && (
+                                  <p className="text-[10px] text-amber-500 font-bold">Pending</p>
                                 )}
                               </div>
                             </div>
-                            <span className="font-black text-emerald-700 dark:text-emerald-400">
-                              {formatCurrency(pmt.amount)}
-                            </span>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   )}
