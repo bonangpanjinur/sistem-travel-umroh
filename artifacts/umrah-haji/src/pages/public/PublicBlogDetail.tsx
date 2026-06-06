@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase as supabaseRaw } from "@/integrations/supabase/client";
@@ -332,7 +333,7 @@ export default function PublicBlogDetail() {
 	            src={article.cover_image_url}
 	            alt={article.title}
 	            className="w-full h-72 sm:h-96 object-cover rounded-2xl mb-8 shadow-sm"
-	            fetchpriority="high"
+	            fetchPriority="high"
 	          />
 	        )}
 

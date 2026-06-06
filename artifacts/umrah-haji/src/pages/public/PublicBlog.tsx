@@ -177,7 +177,7 @@ export default function PublicBlog() {
 	                      alt={featured.title}
 	                      className="h-64 md:h-full w-full object-cover"
 	                      loading="eager"
-	                      fetchpriority="high"
+	                      fetchPriority="high"
 	                    />
                   ) : (
                     <div className="h-64 md:h-full bg-muted flex items-center justify-center">
