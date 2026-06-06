@@ -3,7 +3,8 @@ import QRCode from "qrcode";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Printer, QrCode, Check } from "lucide-react";
+import { Printer, QrCode, Check, Copy, Share2, MessageCircle, ExternalLink } from "lucide-react";
+import { toast } from "sonner";
 
 interface BookingBarcodeModalProps {
   open: boolean;
@@ -38,6 +39,7 @@ export function BookingBarcodeModal({
 }: BookingBarcodeModalProps) {
   const [qrUrl, setQrUrl] = useState<string>("");
   const [size, setSize] = useState<LabelSize>("card");
+  const [copied, setCopied] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
 
   const verifyUrl = `${window.location.origin}/transaksi/${publicToken || bookingId}`;
@@ -50,6 +52,39 @@ export function BookingBarcodeModal({
       color: { dark: "#1a1a2e", light: "#ffffff" },
     }).then(setQrUrl);
   }, [open, verifyUrl]);
+
+  // Gap #10: Copy share link to clipboard
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(verifyUrl);
+      setCopied(true);
+      toast.success("Link berhasil disalin!");
+      setTimeout(() => setCopied(false), 2500);
+    } catch {
+      // Fallback: select text manually
+      const input = document.createElement("input");
+      input.value = verifyUrl;
+      document.body.appendChild(input);
+      input.select();
+      document.execCommand("copy");
+      document.body.removeChild(input);
+      setCopied(true);
+      toast.success("Link berhasil disalin!");
+      setTimeout(() => setCopied(false), 2500);
+    }
+  };
+
+  // Gap #10: Share via WhatsApp
+  const handleShareWA = () => {
+    const text = encodeURIComponent(
+      `📋 *${bookingCode}*\n` +
+      (customerName ? `👤 ${customerName}\n` : "") +
+      (packageName ? `📦 ${packageName}\n` : "") +
+      (departureDate ? `📅 ${departureDate}\n` : "") +
+      `\n🔗 Lihat status booking:\n${verifyUrl}`
+    );
+    window.open(`https://wa.me/?text=${text}`, "_blank");
+  };
 
   function handlePrint() {
     const printWin = window.open("", "_blank", "width=800,height=600");
@@ -228,6 +263,59 @@ export function BookingBarcodeModal({
                 Scan untuk verifikasi
               </p>
             </div>
+          </div>
+
+          {/* Gap #10: Share Link Section */}
+          <div className="rounded-xl border bg-muted/30 p-3 space-y-2.5">
+            <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+              <Share2 className="h-3.5 w-3.5" />
+              Bagikan Link Verifikasi
+            </p>
+
+            {/* URL display */}
+            <div className="flex items-center gap-2 bg-background border rounded-lg px-3 py-2">
+              <span className="text-[11px] text-muted-foreground truncate flex-1 font-mono">
+                {verifyUrl}
+              </span>
+              <a
+                href={verifyUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-muted-foreground hover:text-primary shrink-0"
+                title="Buka di tab baru"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+              </a>
+            </div>
+
+            {/* Share actions */}
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                className="flex-1 h-8 text-xs gap-1.5"
+                onClick={handleCopyLink}
+              >
+                {copied ? (
+                  <><Check className="h-3.5 w-3.5 text-emerald-600" /> Tersalin!</>
+                ) : (
+                  <><Copy className="h-3.5 w-3.5" /> Salin Link</>
+                )}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="flex-1 h-8 text-xs gap-1.5 text-emerald-700 border-emerald-200 hover:bg-emerald-50"
+                onClick={handleShareWA}
+              >
+                <MessageCircle className="h-3.5 w-3.5" />
+                Bagikan WA
+              </Button>
+            </div>
+
+            <p className="text-[10px] text-muted-foreground leading-relaxed">
+              Jamaah bisa membuka link ini untuk memantau status booking mereka secara mandiri.
+            </p>
           </div>
 
           <div className="flex justify-end gap-2 pt-1">

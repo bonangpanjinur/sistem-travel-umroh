@@ -52,7 +52,8 @@ import {
   Copy, CheckCheck, MessageCircle, Building2, UserCheck,
   Shield, ShieldAlert, ShieldCheck, ExternalLink, Clock3,
   Stethoscope, Baby, BriefcaseMedical, RotateCcw, Wallet,
-  TriangleAlert, Receipt, Plus
+  TriangleAlert, Receipt, Plus, CheckCircle2, Ban, Activity,
+  Tag, ArrowRight, ClipboardList
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -78,6 +79,7 @@ import { useFinanceNotifier } from "@/hooks/useFinanceNotifier";
 import { BookingDocumentActions } from "@/components/admin/BookingDocumentActions";
 import { BookingBarcodeModal } from "@/components/admin/BookingBarcodeModal";
 import { BulkPassengerExport } from "@/components/admin/BulkPassengerExport";
+import { BookingDepartureChecklist } from "@/components/admin/BookingDepartureChecklist";
 import { BookingDocumentHistory } from "@/components/admin/BookingDocumentHistory";
 import { QuickInvoiceSheet } from "@/components/admin/QuickInvoiceSheet";
 import { PaymentReminderScheduler } from "@/components/admin/PaymentReminderScheduler";
@@ -2832,133 +2834,198 @@ export default function AdminBookingDetail() {
         </div>
       </div>
 
-      {/* Activity Timeline — B1+D1: Real data from booking_status_history */}
+      {/* Gap #11: Enhanced Activity Timeline — visual icons per status type */}
       <div className="mt-2">
         <Card className="border-none shadow-md overflow-hidden">
           <div className="bg-slate-50 dark:bg-slate-900 px-6 py-4 border-b flex items-center justify-between">
             <h2 className="font-bold text-sm uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-              <Clock3 className="h-4 w-4" />
+              <Activity className="h-4 w-4" />
               Timeline Aktivitas
             </h2>
-            {statusHistory && statusHistory.length > 0 && (
-              <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded-full flex items-center gap-1">
-                <CheckCircle className="h-3 w-3" />
-                Data nyata
-              </span>
-            )}
+            <div className="flex items-center gap-2">
+              {statusHistory && statusHistory.length > 0 && (
+                <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <CheckCircle2 className="h-3 w-3" />
+                  {statusHistory.length} perubahan status
+                </span>
+              )}
+              {payments && payments.length > 0 && (
+                <span className="text-[10px] font-bold text-blue-600 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <CreditCard className="h-3 w-3" />
+                  {payments.length} transaksi
+                </span>
+              )}
+            </div>
           </div>
           <CardContent className="p-6">
-            <div className="relative">
-              <div className="absolute left-3 top-0 bottom-0 w-0.5 bg-border" />
-              <div className="space-y-5 ml-10">
-                {/* Booking Created — always first */}
+            {/* Gap #11: Build a merged & sorted timeline from status history + payments */}
+            {(() => {
+              type TimelineEvent =
+                | { kind: 'created'; ts: string }
+                | { kind: 'status'; entry: NonNullable<typeof statusHistory>[number]; ts: string }
+                | { kind: 'payment'; pay: any; ts: string };
+
+              const events: TimelineEvent[] = [];
+              events.push({ kind: 'created', ts: booking.created_at || '' });
+
+              (statusHistory || []).forEach((entry) => {
+                events.push({ kind: 'status', entry, ts: entry.created_at });
+              });
+              (payments || []).forEach((pay: any) => {
+                events.push({ kind: 'payment', pay, ts: pay.created_at });
+              });
+
+              events.sort((a, b) => new Date(a.ts || 0).getTime() - new Date(b.ts || 0).getTime());
+
+              const getStatusIcon = (status: string) => {
+                const map: Record<string, { icon: React.ReactNode; dot: string }> = {
+                  confirmed:  { icon: <CheckCircle2 className="h-3.5 w-3.5 text-green-700" />, dot: 'bg-green-100 border-green-400 dark:bg-green-900/40 dark:border-green-600' },
+                  completed:  { icon: <CheckCircle2 className="h-3.5 w-3.5 text-emerald-700" />, dot: 'bg-emerald-100 border-emerald-400 dark:bg-emerald-900/40 dark:border-emerald-600' },
+                  cancelled:  { icon: <Ban className="h-3.5 w-3.5 text-red-700" />, dot: 'bg-red-100 border-red-400 dark:bg-red-900/40 dark:border-red-600' },
+                  refunded:   { icon: <RotateCcw className="h-3.5 w-3.5 text-orange-700" />, dot: 'bg-orange-100 border-orange-400 dark:bg-orange-900/40 dark:border-orange-600' },
+                  processing: { icon: <Loader2 className="h-3.5 w-3.5 text-blue-700" />, dot: 'bg-blue-100 border-blue-400 dark:bg-blue-900/40 dark:border-blue-600' },
+                  pending:    { icon: <Clock3 className="h-3.5 w-3.5 text-yellow-700" />, dot: 'bg-yellow-100 border-yellow-400 dark:bg-yellow-900/40 dark:border-yellow-600' },
+                };
+                return map[status] || { icon: <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />, dot: 'bg-muted border-border' };
+              };
+
+              return (
                 <div className="relative">
-                  <div className="absolute -left-[46px] flex items-center justify-center w-7 h-7 rounded-full bg-primary/10 border-2 border-primary/30">
-                    <span className="text-[10px] font-bold text-primary">+</span>
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold text-foreground">Booking Dibuat</p>
-                    <p className="text-[11px] text-muted-foreground">
-                      {booking.created_at ? formatDate(booking.created_at) : '-'}
-                      {/* A2 — staf yang menginput */}
-                      {salesProfile?.full_name
-                        ? ` — diinput oleh ${salesProfile.full_name}`
-                        : ' — oleh sistem'}
-                    </p>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">Kode: <span className="font-mono font-semibold">{booking.booking_code}</span></p>
+                  <div className="absolute left-3.5 top-3.5 bottom-3.5 w-px bg-gradient-to-b from-primary/30 via-border to-transparent" />
+                  <div className="space-y-6 ml-10">
+                    {events.map((ev, idx) => {
+                      if (ev.kind === 'created') {
+                        return (
+                          <div key="created" className="relative group">
+                            <div className="absolute -left-[42px] flex items-center justify-center w-7 h-7 rounded-full bg-primary/15 border-2 border-primary/40 shadow-sm">
+                              <Tag className="h-3.5 w-3.5 text-primary" />
+                            </div>
+                            <div className="pl-1 pb-1 border-l-2 border-transparent group-hover:border-primary/20 transition-colors rounded-r">
+                              <p className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                                Booking Dibuat
+                                <span className="inline-flex items-center text-[10px] font-mono bg-primary/10 text-primary px-1.5 py-0.5 rounded">
+                                  {booking.booking_code}
+                                </span>
+                              </p>
+                              <p className="text-[11px] text-muted-foreground mt-0.5">
+                                {booking.created_at ? formatDate(booking.created_at) : '-'}
+                                {salesProfile?.full_name && (
+                                  <> · <span className="font-semibold">{salesProfile.full_name}</span></>
+                                )}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      if (ev.kind === 'status') {
+                        const { entry } = ev;
+                        const { icon, dot } = getStatusIcon(entry.to_status);
+                        return (
+                          <div key={entry.id} className="relative group">
+                            <div className={`absolute -left-[42px] flex items-center justify-center w-7 h-7 rounded-full border-2 shadow-sm ${dot}`}>
+                              {icon}
+                            </div>
+                            <div className="pl-1 pb-1 border-l-2 border-transparent group-hover:border-primary/20 transition-colors rounded-r">
+                              <p className="text-xs font-bold text-foreground flex flex-wrap items-center gap-1.5">
+                                <span className="text-muted-foreground font-normal">Status →</span>
+                                {getBookingStatusLabel(entry.to_status)}
+                                {entry.from_status && (
+                                  <span className="text-[10px] font-normal text-muted-foreground">
+                                    (dari {getBookingStatusLabel(entry.from_status)})
+                                  </span>
+                                )}
+                              </p>
+                              <p className="text-[11px] text-muted-foreground mt-0.5">
+                                {entry.created_at ? formatDate(entry.created_at) : '-'}
+                                {entry.changed_by_profile?.full_name && (
+                                  <> · oleh <span className="font-semibold">{entry.changed_by_profile.full_name}</span></>
+                                )}
+                              </p>
+                              {entry.notes && (
+                                <p className="text-[11px] text-muted-foreground italic mt-1 border-l-2 border-muted pl-2">
+                                  {entry.notes}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      if (ev.kind === 'payment') {
+                        const { pay } = ev;
+                        const isPaid = pay.status === 'paid' || pay.status === 'verified';
+                        const isPending = pay.status === 'pending';
+                        const dotClass = isPaid
+                          ? 'bg-emerald-100 border-emerald-400 dark:bg-emerald-900/40'
+                          : isPending
+                          ? 'bg-amber-100 border-amber-400 dark:bg-amber-900/40'
+                          : 'bg-gray-100 border-gray-300 dark:bg-gray-800 dark:border-gray-600';
+                        return (
+                          <div key={`pay-${pay.id}`} className="relative group">
+                            <div className={`absolute -left-[42px] flex items-center justify-center w-7 h-7 rounded-full border-2 shadow-sm ${dotClass}`}>
+                              <CreditCard className={`h-3.5 w-3.5 ${isPaid ? 'text-emerald-700' : isPending ? 'text-amber-700' : 'text-gray-500'}`} />
+                            </div>
+                            <div className="pl-1 pb-1 border-l-2 border-transparent group-hover:border-primary/20 transition-colors rounded-r">
+                              <p className="text-xs font-bold text-foreground flex flex-wrap items-center gap-1.5">
+                                {isPaid ? 'Pembayaran Diverifikasi' : isPending ? 'Pembayaran Menunggu Verifikasi' : 'Pembayaran Ditolak'}
+                                <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${isPaid ? 'bg-emerald-100 text-emerald-700' : isPending ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600'}`}>
+                                  {pay.status}
+                                </span>
+                              </p>
+                              <p className="text-[11px] text-muted-foreground mt-0.5">
+                                {pay.created_at ? formatDate(pay.created_at) : '-'}
+                              </p>
+                              <p className="text-xs font-bold text-emerald-700 dark:text-emerald-400 mt-0.5">
+                                {pay.amount ? formatCurrency(pay.amount) : '-'}
+                                <span className="font-normal text-muted-foreground ml-1.5">via {pay.payment_method || '-'}</span>
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      return null;
+                    })}
+
+                    {/* Current status indicator at end (only in fallback mode) */}
+                    {(!statusHistory || statusHistory.length === 0) && (
+                      <div className="relative group">
+                        <div className={`absolute -left-[42px] flex items-center justify-center w-7 h-7 rounded-full border-2 shadow-sm ${
+                          booking.booking_status === 'completed' ? 'bg-emerald-100 border-emerald-400' :
+                          booking.booking_status === 'cancelled' ? 'bg-red-100 border-red-400' :
+                          'bg-blue-100 border-blue-400'
+                        }`}>
+                          <Activity className={`h-3.5 w-3.5 ${
+                            booking.booking_status === 'completed' ? 'text-emerald-700' :
+                            booking.booking_status === 'cancelled' ? 'text-red-700' :
+                            'text-blue-700'
+                          }`} />
+                        </div>
+                        <div className="pl-1">
+                          <p className="text-xs font-bold text-foreground">Status Saat Ini</p>
+                          <p className="text-[11px] text-muted-foreground mt-0.5">
+                            {booking.updated_at ? formatDate(booking.updated_at) : '-'}
+                          </p>
+                          <p className="text-[11px] font-semibold mt-0.5">{getBookingStatusLabel(booking.booking_status ?? '')}</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
-
-                {/* Real status history entries (B1, D1) */}
-                {statusHistory && statusHistory.length > 0 ? (
-                  statusHistory.map((entry) => {
-                    const statusColors: Record<string, string> = {
-                      confirmed: 'bg-green-100 border-green-400 dark:bg-green-900/40',
-                      completed: 'bg-emerald-100 border-emerald-400 dark:bg-emerald-900/40',
-                      cancelled: 'bg-red-100 border-red-400 dark:bg-red-900/40',
-                      refunded:  'bg-orange-100 border-orange-400 dark:bg-orange-900/40',
-                      processing:'bg-blue-100 border-blue-400 dark:bg-blue-900/40',
-                      pending:   'bg-yellow-100 border-yellow-400 dark:bg-yellow-900/40',
-                    };
-                    const colorClass = statusColors[entry.to_status] || 'bg-muted border-border';
-                    return (
-                      <div key={entry.id} className="relative">
-                        <div className={`absolute -left-[46px] flex items-center justify-center w-7 h-7 rounded-full border-2 ${colorClass}`}>
-                          <span className="text-[10px] font-bold">→</span>
-                        </div>
-                        <div>
-                          <p className="text-xs font-semibold text-foreground">
-                            Status berubah → <span className="font-bold">{getBookingStatusLabel(entry.to_status)}</span>
-                            {entry.from_status && (
-                              <span className="font-normal text-muted-foreground"> (dari {getBookingStatusLabel(entry.from_status)})</span>
-                            )}
-                          </p>
-                          <p className="text-[11px] text-muted-foreground">
-                            {entry.created_at ? formatDate(entry.created_at) : '-'}
-                            {entry.changed_by_profile?.full_name && (
-                              <> — oleh <span className="font-semibold">{entry.changed_by_profile.full_name}</span></>
-                            )}
-                          </p>
-                          {entry.notes && (
-                            <p className="text-[11px] text-muted-foreground italic mt-0.5 border-l-2 border-muted pl-2">
-                              {entry.notes}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })
-                ) : (
-                  /* Fallback to manual timeline if no status_history records yet */
-                  <>
-                    {payments && payments.length > 0 && [...payments].reverse().map((pay: any) => (
-                      <div key={pay.id} className="relative">
-                        <div className={`absolute -left-[46px] flex items-center justify-center w-7 h-7 rounded-full border-2 ${pay.status === 'paid' || pay.status === 'verified' ? 'bg-green-100 border-green-400' : pay.status === 'pending' ? 'bg-yellow-100 border-yellow-400' : 'bg-gray-100 border-gray-400'}`}>
-                          <CreditCard className="h-3 w-3 text-emerald-700" />
-                        </div>
-                        <div>
-                          <p className="text-xs font-semibold text-foreground">
-                            Pembayaran {pay.status === 'paid' || pay.status === 'verified' ? 'Diverifikasi' : pay.status === 'pending' ? 'Menunggu Verifikasi' : 'Dibatalkan'}
-                          </p>
-                          <p className="text-[11px] text-muted-foreground">{pay.created_at ? formatDate(pay.created_at) : '-'}</p>
-                          <p className="text-[11px] font-semibold text-emerald-700 mt-0.5">{pay.amount ? formatCurrency(pay.amount) : '-'} via {pay.payment_method || '-'}</p>
-                        </div>
-                      </div>
-                    ))}
-                    <div className="relative">
-                      <div className={`absolute -left-[46px] flex items-center justify-center w-7 h-7 rounded-full border-2 ${booking.booking_status === 'completed' ? 'bg-green-100 border-green-400' : booking.booking_status === 'cancelled' ? 'bg-red-100 border-red-400' : 'bg-blue-100 border-blue-400'}`}>
-                        <span className="text-[10px] font-bold text-blue-700">●</span>
-                      </div>
-                      <div>
-                        <p className="text-xs font-semibold text-foreground">Status Saat Ini</p>
-                        <p className="text-[11px] text-muted-foreground">{booking.updated_at ? formatDate(booking.updated_at) : '-'}</p>
-                        <p className="text-[11px] font-semibold mt-0.5">{getBookingStatusLabel(booking.booking_status ?? '')}</p>
-                      </div>
-                    </div>
-                  </>
-                )}
-
-                {/* Payment events interspersed if status_history is present */}
-                {statusHistory && statusHistory.length > 0 && payments && payments.length > 0 && (
-                  [...payments].reverse().map((pay: any) => (
-                    <div key={`pay-${pay.id}`} className="relative">
-                      <div className={`absolute -left-[46px] flex items-center justify-center w-7 h-7 rounded-full border-2 ${pay.status === 'paid' || pay.status === 'verified' ? 'bg-green-100 border-green-400' : pay.status === 'pending' ? 'bg-yellow-100 border-yellow-400' : 'bg-gray-100 border-gray-400'}`}>
-                        <CreditCard className="h-3 w-3 text-emerald-700" />
-                      </div>
-                      <div>
-                        <p className="text-xs font-semibold text-foreground">
-                          Pembayaran {pay.status === 'paid' || pay.status === 'verified' ? 'Diverifikasi' : pay.status === 'pending' ? 'Menunggu Verifikasi' : 'Dibatalkan'}
-                        </p>
-                        <p className="text-[11px] text-muted-foreground">{pay.created_at ? formatDate(pay.created_at) : '-'}</p>
-                        <p className="text-[11px] font-semibold text-emerald-700 mt-0.5">{pay.amount ? formatCurrency(pay.amount) : '-'} via {pay.payment_method || '-'}</p>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
+              );
+            })()}
           </CardContent>
         </Card>
+      </div>
+
+      {/* Gap #12: Checklist Keberangkatan per Booking */}
+      <div className="mt-2">
+        <BookingDepartureChecklist
+          bookingId={id}
+          bookingCode={booking.booking_code || undefined}
+          passengerCount={booking.total_pax || undefined}
+        />
       </div>
 
       {/* Status Change Confirmation */}
