@@ -227,26 +227,41 @@ function SlideContent({
   /* ── COMPACT MODE: dedicated app-card layout ── */
   if (compact) {
     return (
-      <div className="absolute inset-0 flex items-end">
+      <div className="absolute inset-0 flex items-end p-2">
+        {/* Decorative elements */}
+        <div className="absolute top-3 right-3 z-20">
+          <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-black/30 backdrop-blur-md border border-white/10 text-[9px] text-white/90 font-medium">
+            <Sparkles className="h-2.5 w-2.5 text-amber-400" />
+            <span>Premium</span>
+          </div>
+        </div>
+
         {/* Strong bottom gradient for readability */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-transparent pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent rounded-3xl pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/40 via-transparent to-transparent rounded-3xl pointer-events-none" />
+        
         {/* Content pinned to bottom */}
         <div
           className={cn(
-            'relative z-10 w-full px-4 pb-4 transition-all duration-500',
-            isActive ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
+            'relative z-10 w-full px-5 pb-5 transition-all duration-700',
+            isActive ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
           )}
-          style={{ transitionDelay: isActive ? '100ms' : '0ms' }}
+          style={{ transitionDelay: isActive ? '150ms' : '0ms' }}
         >
           {banner.title && (
-            <p className="text-[15px] font-bold text-white leading-snug drop-shadow-sm line-clamp-1 mb-1.5">
+            <p className="text-lg font-extrabold text-white leading-tight drop-shadow-md line-clamp-2 mb-2 tracking-tight">
               {banner.title}
+            </p>
+          )}
+          {banner.subtitle && (
+            <p className="text-[11px] text-white/80 line-clamp-1 mb-3 font-medium">
+              {banner.subtitle}
             </p>
           )}
           {banner.cta_text && banner.cta_url && (
             <a
               href={banner.cta_url}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/20 backdrop-blur-sm border border-white/30 text-white text-[11px] font-semibold hover:bg-white/30 active:scale-95 transition-all"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-white text-[11px] font-bold hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-primary/20"
             >
               {banner.cta_text}
               <ArrowRight className="h-3 w-3" />
@@ -411,7 +426,7 @@ export function BannerCarousel({ compact = false, template = 'classic', waNumber
         cfg.wrapperBg,
         cfg.borderClass,
         cfg.glowClass,
-        compact && 'rounded-2xl mx-4 my-3'
+        compact && 'rounded-3xl mx-3 my-3 shadow-xl'
       )}
     >
       {template === 'futuristic' && (
@@ -419,11 +434,11 @@ export function BannerCarousel({ compact = false, template = 'classic', waNumber
       )}
 
       {/* Carousel viewport */}
-      <div className="overflow-hidden" ref={emblaRef}>
+      <div className="overflow-hidden rounded-3xl" ref={emblaRef}>
         <div className="flex touch-pan-y">
           {banners.map((banner, index) => (
             <div key={banner.id} className="relative flex-[0_0_100%] min-w-0">
-              <div className={cn('relative w-full', cfg.sectionHeight, compact && '!h-[160px]')}>
+              <div className={cn('relative w-full', cfg.sectionHeight, compact && '!h-[200px]')}>
 
                 {/* Background image with parallax-feel */}
                 <img

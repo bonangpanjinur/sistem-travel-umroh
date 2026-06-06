@@ -308,11 +308,7 @@ export function JamaahBottomNav({ noSidebar = false }: JamaahBottomNavProps) {
             {isDark ? <Sun className="h-4 w-4 shrink-0" /> : <Moon className="h-4 w-4 shrink-0" />}
             {!sidebarCollapsed && <span className="text-sm">{isDark ? "Mode Terang" : "Mode Gelap"}</span>}
           </button>
-          {!sidebarCollapsed && (
-            <Link to="/" className="text-[11px] text-muted-foreground hover:text-foreground transition-colors block px-2">
-              ← Kembali ke Website
-            </Link>
-          )}
+
         </div>
       </aside>}
 
