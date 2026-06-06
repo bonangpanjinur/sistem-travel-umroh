@@ -81,7 +81,7 @@ import { BookingDocumentHistory } from "@/components/admin/BookingDocumentHistor
 import { QuickInvoiceSheet } from "@/components/admin/QuickInvoiceSheet";
 import { PaymentReminderScheduler } from "@/components/admin/PaymentReminderScheduler";
 import { useDocumentLogger } from "@/hooks/useDocumentLogger";
-import { format as dfFormat } from "date-fns";
+import { format as dfFormat, isPast, differenceInDays } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import { autoCalculateCommission } from "@/hooks/useAutoCommission";
 
@@ -381,6 +381,35 @@ export default function AdminBookingDetail() {
       return data as { id: string; full_name: string } | null;
     },
     enabled: !!(booking as any)?.sales_id,
+  });
+
+  // Fetch hotel & airline objects using FK IDs from departure
+  const { data: hotelAirlineData } = useQuery({
+    queryKey: ['booking-hotel-airline', (booking as any)?.departure?.hotel_makkah_id, (booking as any)?.departure?.hotel_madinah_id, (booking as any)?.departure?.airline_id],
+    queryFn: async () => {
+      const dep = (booking as any)?.departure;
+      if (!dep) return null;
+
+      const results = await Promise.allSettled([
+        dep.hotel_makkah_id
+          ? (supabase as any).from('hotels').select('id, name, city, star_rating').eq('id', dep.hotel_makkah_id).maybeSingle()
+          : Promise.resolve({ data: null }),
+        dep.hotel_madinah_id
+          ? (supabase as any).from('hotels').select('id, name, city, star_rating').eq('id', dep.hotel_madinah_id).maybeSingle()
+          : Promise.resolve({ data: null }),
+        dep.airline_id
+          ? (supabase as any).from('airlines').select('id, name, code, logo_url').eq('id', dep.airline_id).maybeSingle()
+          : Promise.resolve({ data: null }),
+      ]);
+
+      return {
+        hotelMakkah: results[0].status === 'fulfilled' ? (results[0].value as any)?.data : null,
+        hotelMadinah: results[1].status === 'fulfilled' ? (results[1].value as any)?.data : null,
+        airline: results[2].status === 'fulfilled' ? (results[2].value as any)?.data : null,
+      };
+    },
+    enabled: !!booking,
+    staleTime: 5 * 60 * 1000,
   });
 
   // Fetch booking status history — real timeline data (B1, D1)
@@ -1282,6 +1311,18 @@ export default function AdminBookingDetail() {
     return pricePerPax * (booking.total_pax || 1);
   })();
 
+  // ── Derived: payment deadline overdue ──────────────────────────────────────
+  const paymentDeadlineRaw = (booking as any).payment_deadline as string | null;
+  const isDeadlineOverdue =
+    paymentDeadlineRaw &&
+    isPast(new Date(paymentDeadlineRaw)) &&
+    (booking as any).payment_status !== 'paid' &&
+    booking.booking_status !== 'cancelled' &&
+    booking.booking_status !== 'refunded';
+  const daysOverdue = isDeadlineOverdue
+    ? differenceInDays(new Date(), new Date(paymentDeadlineRaw!))
+    : 0;
+
   return (
     <div className="space-y-6 pb-12">
       {/* Header & Status Bar */}
@@ -1354,6 +1395,52 @@ export default function AdminBookingDetail() {
           </div>
         </div>
       </div>
+
+      {/* ── ALERT: Jatuh Tempo Terlewat ────────────────────────────────── */}
+      {isDeadlineOverdue && (
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 sm:p-5 rounded-xl bg-red-600 text-white shadow-lg border border-red-700 animate-pulse-subtle">
+          <div className="flex items-start gap-3 flex-1 min-w-0">
+            <div className="bg-white/20 rounded-full p-2 shrink-0">
+              <TriangleAlert className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <p className="font-black text-base leading-snug">
+                ⚠️ Jatuh Tempo Pembayaran Sudah Terlewat!
+              </p>
+              <p className="text-red-100 text-sm mt-0.5">
+                Batas bayar <strong>{dfFormat(new Date(paymentDeadlineRaw!), 'd MMMM yyyy', { locale: localeId })}</strong> telah lewat{' '}
+                <strong>{daysOverdue} hari</strong> yang lalu.
+                Sisa tagihan: <strong>{formatCurrency(computedRemainingAmount)}</strong>
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 text-xs font-bold bg-white/10 hover:bg-white/20 border-white/30 text-white"
+              onClick={() => {
+                const el = document.getElementById('payment-reminder-section');
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }}
+            >
+              <Clock3 className="h-3.5 w-3.5 mr-1.5" /> Kirim Reminder
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 text-xs font-bold bg-white/10 hover:bg-white/20 border-white/30 text-white"
+              onClick={() => {
+                setEditingDeadline(true);
+                const el = document.getElementById('payment-deadline-section');
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              }}
+            >
+              <Pencil className="h-3.5 w-3.5 mr-1.5" /> Perpanjang Deadline
+            </Button>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Content Area */}
@@ -1563,24 +1650,89 @@ export default function AdminBookingDetail() {
                       </div>
                     )}
                   </div>
-                  {/* Hotel info */}
-                  {(departure?.hotel_makkah || pkg?.hotel_makkah || departure?.hotel_madinah || pkg?.hotel_madinah) && (
-                    <div className="mt-3 p-3 rounded-lg bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/50 space-y-1.5 text-xs">
-                      <p className="font-bold text-amber-700 dark:text-amber-400 uppercase tracking-tight text-[10px]">Info Hotel</p>
-                      {(departure?.hotel_makkah || pkg?.hotel_makkah) && (
-                        <p className="flex items-start gap-2 text-foreground">
-                          <span className="font-semibold text-muted-foreground shrink-0">Makkah:</span>
-                          <span>{departure?.hotel_makkah || pkg?.hotel_makkah}</span>
-                        </p>
-                      )}
-                      {(departure?.hotel_madinah || pkg?.hotel_madinah) && (
-                        <p className="flex items-start gap-2 text-foreground">
-                          <span className="font-semibold text-muted-foreground shrink-0">Madinah:</span>
-                          <span>{departure?.hotel_madinah || pkg?.hotel_madinah}</span>
-                        </p>
-                      )}
-                    </div>
-                  )}
+                  {/* Hotel & Maskapai info — rich cards */}
+                  {(() => {
+                    const hMakkah  = hotelAirlineData?.hotelMakkah  || null;
+                    const hMadinah = hotelAirlineData?.hotelMadinah || null;
+                    const airlineObj = hotelAirlineData?.airline    || null;
+                    // fallback to string fields
+                    const hMakkahStr  = departure?.hotel_makkah  || pkg?.hotel_makkah  || null;
+                    const hMadinahStr = departure?.hotel_madinah || pkg?.hotel_madinah || null;
+                    const airlineStr  = departure?.airline_name  || departure?.package?.airline?.name || null;
+                    const hasAny = hMakkah || hMadinah || hMakkahStr || hMadinahStr || airlineObj || airlineStr;
+                    if (!hasAny) return null;
+                    return (
+                      <div className="mt-3 space-y-2">
+                        {/* Maskapai */}
+                        {(airlineObj || airlineStr) && (
+                          <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-blue-50/60 dark:bg-blue-950/20 border border-blue-200/50 dark:border-blue-800/40">
+                            <Plane className="h-4 w-4 text-blue-600 shrink-0" />
+                            <div className="min-w-0">
+                              <p className="text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400 mb-0.5">Maskapai</p>
+                              <p className="text-sm font-bold text-foreground truncate">
+                                {airlineObj?.name || airlineStr}
+                                {airlineObj?.code && (
+                                  <span className="ml-1.5 text-xs font-mono text-muted-foreground">({airlineObj.code})</span>
+                                )}
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                        {/* Hotel Makkah */}
+                        {(hMakkah || hMakkahStr) && (
+                          <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200/50 dark:border-amber-800/40">
+                            <Building2 className="h-4 w-4 text-amber-600 shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 mb-0.5">Hotel Makkah</p>
+                              <p className="text-sm font-bold text-foreground truncate">
+                                {hMakkah?.name || hMakkahStr}
+                              </p>
+                              {(hMakkah?.city || hMakkah?.star_rating) && (
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  {hMakkah.city && (
+                                    <span className="text-[10px] text-muted-foreground">{hMakkah.city}</span>
+                                  )}
+                                  {hMakkah.star_rating && (
+                                    <span className="flex gap-0.5">
+                                      {Array.from({ length: Number(hMakkah.star_rating) }).map((_, i) => (
+                                        <span key={i} className="text-amber-400 text-[10px]">★</span>
+                                      ))}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                        {/* Hotel Madinah */}
+                        {(hMadinah || hMadinahStr) && (
+                          <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-200/50 dark:border-emerald-800/40">
+                            <Building2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 mb-0.5">Hotel Madinah</p>
+                              <p className="text-sm font-bold text-foreground truncate">
+                                {hMadinah?.name || hMadinahStr}
+                              </p>
+                              {(hMadinah?.city || hMadinah?.star_rating) && (
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  {hMadinah.city && (
+                                    <span className="text-[10px] text-muted-foreground">{hMadinah.city}</span>
+                                  )}
+                                  {hMadinah.star_rating && (
+                                    <span className="flex gap-0.5">
+                                      {Array.from({ length: Number(hMadinah.star_rating) }).map((_, i) => (
+                                        <span key={i} className="text-amber-400 text-[10px]">★</span>
+                                      ))}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             </CardContent>
@@ -1945,7 +2097,9 @@ export default function AdminBookingDetail() {
 
           {/* ── Payment Reminder Scheduler ──────────────────────────── */}
           {booking && booking.payment_status !== 'paid' && (
-            <PaymentReminderScheduler booking={booking} />
+            <div id="payment-reminder-section">
+              <PaymentReminderScheduler booking={booking} />
+            </div>
           )}
         </div>
 
@@ -2004,7 +2158,7 @@ export default function AdminBookingDetail() {
             {/* Body: Riwayat Pembayaran */}
             <CardContent className="p-0">
               {/* C2 — Batas Bayar (editable) */}
-              <div className="px-5 py-3 bg-amber-50 dark:bg-amber-950/30 border-b flex justify-between items-center gap-2">
+              <div id="payment-deadline-section" className="px-5 py-3 bg-amber-50 dark:bg-amber-950/30 border-b flex justify-between items-center gap-2">
                 <span className="text-xs font-bold text-amber-700 dark:text-amber-400 uppercase tracking-tight shrink-0">Batas Bayar</span>
                 {editingDeadline ? (
                   <div className="flex items-center gap-1.5">
