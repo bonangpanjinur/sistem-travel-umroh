@@ -368,22 +368,36 @@ router.post('/', async (req: any, res: any) => {
 });
 
 // ─── POST /api/v1/chatbot/test ────────────────────────────────────────────────
-// Server-side test — validates the GEMINI_API_KEY env var
+// Server-side test — validates the GEMINI_API_KEY from env or request body
 router.post('/test', async (req: any, res: any) => {
   try {
-    const { message = 'Apa saja paket umroh yang tersedia?', model: reqModel } = req.body;
-    const geminiKey = process.env['GEMINI_API_KEY'];
+    const { 
+      message = 'Apa saja paket umroh yang tersedia?', 
+      model: reqModel,
+      geminiApiKey: manualKey // Ambil key dari request body jika ada
+    } = req.body;
+
+    // Prioritas: Key manual dari form > Environment variable
+    const geminiKey = manualKey || process.env['GEMINI_API_KEY'];
+
     if (!geminiKey) {
-      return res.status(400).json({ ok: false, error: 'GEMINI_API_KEY belum dikonfigurasi di environment secrets.' });
+      return res.status(400).json({ 
+        ok: false, 
+        error: 'API Key tidak ditemukan. Masukkan key di form atau konfigurasi environment secrets.' 
+      });
     }
+
     const model = (reqModel && ALLOWED_GEMINI_MODELS.has(reqModel)) ? reqModel : 'gemini-2.0-flash';
+    
     try {
       const answer = await callGemini(geminiKey, DEFAULT_SYSTEM_PROMPT, message, [], model);
       return res.json({ ok: true, answer, model, source: 'gemini' });
     } catch (e: any) {
+      console.error('Gemini test error:', e);
       return res.status(400).json({ ok: false, error: e.message });
     }
-  } catch {
+  } catch (e) {
+    console.error('Test endpoint crash:', e);
     return res.status(500).json({ ok: false, error: 'Internal server error' });
   }
 });

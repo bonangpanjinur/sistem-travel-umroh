@@ -177,15 +177,31 @@ export default function AdminGeminiAI() {
       const res = await fetch("/api/v1/chatbot/test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: testInput, model }),
+        body: JSON.stringify({ 
+          message: testInput, 
+          model,
+          geminiApiKey: apiKey || undefined // Kirim key yang sedang diinput jika ada
+        }),
       });
-      const data: any = await res.json();
-      if (!res.ok || !data.ok) {
-        throw new Error(data.error || `HTTP ${res.status}`);
+
+      // Cek apakah respons adalah JSON
+      const contentType = res.headers.get("content-type");
+      if (contentType && contentType.indexOf("application/json") !== -1) {
+        const data: any = await res.json();
+        if (!res.ok || !data.ok) {
+          throw new Error(data.error || `HTTP ${res.status}`);
+        }
+        setTestResult({ answer: data.answer, source: "gemini" });
+        setConfigured(true);
+        toast.success("Koneksi Gemini AI berhasil!");
+      } else {
+        // Jika bukan JSON, ambil sebagai teks (mungkin HTML error)
+        const text = await res.text();
+        const errorMessage = text.includes("<!DOCTYPE html>") 
+          ? "Server mengembalikan halaman HTML (Error 404/500). Pastikan backend aktif." 
+          : text.substring(0, 100);
+        throw new Error(errorMessage);
       }
-      setTestResult({ answer: data.answer, source: "gemini" });
-      setConfigured(true);
-      toast.success("Koneksi Gemini AI berhasil!");
     } catch (e: any) {
       toast.error(`Test gagal: ${e.message}`);
       setTestResult({ answer: `Error: ${e.message}`, source: "error" });
@@ -246,7 +262,7 @@ export default function AdminGeminiAI() {
         </AlertDescription>
       </Alert>
 
-      {/* API Key — Database atau Environment Secret */}
+      {/* API Key — Konfigurasi Database */}
       <Card className={configured || isDatabaseKeySet ? "border-green-200 bg-green-50/30" : "border-amber-200 bg-amber-50/30"}>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
@@ -257,22 +273,11 @@ export default function AdminGeminiAI() {
             }
           </CardTitle>
           <CardDescription>
-            API key dapat disimpan di environment secret Replit atau langsung di database melalui form di bawah. Prioritas: Environment Secret → Database.
+            API key dapat disimpan langsung di database melalui form di bawah untuk mengaktifkan chatbot.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Info Banner */}
-          <Alert className="bg-blue-50 border-blue-200">
-            <Info className="h-4 w-4 text-blue-600" />
-            <AlertDescription className="text-blue-800 text-sm">
-              <strong>Gratis!</strong> Gemini 2.0 Flash tersedia gratis di Google AI Studio — 15 request/menit, 1 juta token/hari.
-              Dapatkan API key di{" "}
-              <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer"
-                className="underline font-medium inline-flex items-center gap-1">
-                aistudio.google.com <ExternalLink className="h-3 w-3" />
-              </a>
-            </AlertDescription>
-          </Alert>
+
 
           {/* API Key Input Field */}
           <div className="space-y-2">
@@ -333,20 +338,7 @@ export default function AdminGeminiAI() {
             </div>
           </div>
 
-          {/* Alternative: Environment Secret Setup */}
-          <Separator />
-          <Alert className="bg-purple-50 border-purple-200">
-            <Key className="h-4 w-4 text-purple-600" />
-            <AlertDescription className="text-purple-800 text-sm space-y-1">
-              <p className="font-semibold">Alternatif: Setup via Environment Secret Replit (Lebih Aman)</p>
-              <ol className="list-decimal list-inside space-y-1 text-xs">
-                <li>Buka <strong>Tools → Secrets</strong> di panel Replit (ikon kunci 🔑)</li>
-                <li>Tambahkan secret baru dengan nama: <code className="bg-purple-100 px-1 rounded font-mono">GEMINI_API_KEY</code></li>
-                <li>Nilai: API key Anda (format: <code className="bg-purple-100 px-1 rounded font-mono">AIzaSy...</code>)</li>
-                <li>Restart server — chatbot langsung aktif tanpa perlu simpan ulang</li>
-              </ol>
-            </AlertDescription>
-          </Alert>
+
         </CardContent>
       </Card>
 
