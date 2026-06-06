@@ -74,6 +74,7 @@ import { ChangeRoomTypeDialog } from "@/components/admin/ChangeRoomTypeDialog";
 import { RoomTypeAssignmentDialog } from "@/components/admin/RoomTypeAssignmentDialog";
 import { useWhatsAppNotifier } from "@/hooks/useWhatsAppNotifier";
 import { useEmailNotifier } from "@/hooks/useEmailNotifier";
+import { useFinanceNotifier } from "@/hooks/useFinanceNotifier";
 import { BookingDocumentActions } from "@/components/admin/BookingDocumentActions";
 import { BookingBarcodeModal } from "@/components/admin/BookingBarcodeModal";
 import { BulkPassengerExport } from "@/components/admin/BulkPassengerExport";
@@ -155,6 +156,7 @@ export default function AdminBookingDetail() {
   const queryClient = useQueryClient();
   const waNotifier = useWhatsAppNotifier();
   const emailNotifier = useEmailNotifier();
+  const { notifyFinance } = useFinanceNotifier();
   const { logDocument } = useDocumentLogger();
   
   // Permission check - use isAdmin() which includes super_admin, owner, branch_manager
@@ -463,6 +465,30 @@ export default function AdminBookingDetail() {
     enabled: !!id,
   });
 
+  // Gap #6: Fetch note edit history from audit_logs
+  const { data: noteHistory } = useQuery({
+    queryKey: ['booking-note-history', id],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from('audit_logs')
+        .select('id, created_at, old_value, new_value, user_id, metadata')
+        .eq('entity_type', 'booking')
+        .eq('entity_id', id)
+        .eq('action', 'notes_updated')
+        .order('created_at', { ascending: false })
+        .limit(10);
+      return (data || []) as Array<{
+        id: string;
+        created_at: string;
+        old_value: string | null;
+        new_value: string | null;
+        user_id: string | null;
+        metadata: any;
+      }>;
+    },
+    enabled: !!id,
+  });
+
   // Fetch customer documents for all passengers in this booking (C6)
   const { data: passengerDocs } = useQuery({
     queryKey: ['booking-passenger-docs', id],
@@ -711,6 +737,13 @@ export default function AdminBookingDetail() {
             silent: true,
           });
         }
+        // Gap #3: Notifikasi ke finance bahwa pembayaran telah diverifikasi
+        notifyFinance({
+          bookingId: id,
+          bookingCode: booking.booking_code || id,
+          customerName: customer?.full_name || 'Jamaah',
+          amount: Number(selectedPayment?.amount || 0),
+        }).catch(() => {/* silent — notif finance is best-effort */});
       }
 
       // Auto WA notification if trigger is enabled
@@ -785,15 +818,26 @@ export default function AdminBookingDetail() {
   // C1 — Save notes inline
   const updateNotesMutation = useMutation({
     mutationFn: async (notes: string) => {
+      const oldNotes = (booking as any)?.notes || '';
       const { error } = await (supabase as any)
         .from('bookings')
         .update({ notes: notes || null, updated_at: new Date().toISOString() })
         .eq('id', id);
       if (error) throw error;
+      // Gap #6: Log catatan audit ke activity log
+      logActivity({
+        entity_type: 'booking',
+        entity_id: id,
+        action: 'notes_updated',
+        old_value: oldNotes,
+        new_value: notes || '',
+        metadata: { booking_code: (booking as any)?.booking_code || id },
+      }).catch(() => {/* silent */});
     },
     onSuccess: () => {
       toast.success('Catatan berhasil disimpan');
       queryClient.invalidateQueries({ queryKey: ['admin-booking', id] });
+      queryClient.invalidateQueries({ queryKey: ['booking-note-history', id] });
       setEditingNotes(false);
     },
     onError: (err: any) => toast.error(err.message || 'Gagal menyimpan catatan'),
@@ -2176,23 +2220,44 @@ export default function AdminBookingDetail() {
                     </div>
                   ))
                 ) : (
-                  /* Fallback if no line items yet */
+                  /* Gap #4: Fallback — per-passenger-type breakdown from passengers data */
                   (() => {
                     const getPrice = (rt: string): number => {
                       const fromDep = (departure as any)?.[`price_${rt}`] as number | null | undefined;
                       const fromPkg = (pkg as any)?.[`price_${rt}`] as number | null | undefined;
                       return fromDep || fromPkg || 0;
                     };
-
                     const rtLabels: Record<string, string> = { quad: "Quad", triple: "Triple", double: "Double", single: "Single" };
+                    const typeLabels: Record<string, string> = { adult: "Dewasa", child: "Anak", infant: "Bayi" };
+
+                    if (passengers && passengers.length > 0) {
+                      // Build per-type, per-room breakdown
+                      const groups: Record<string, { qty: number; price: number; label: string }> = {};
+                      for (const p of passengers) {
+                        const rt = (p.room_preference || booking.room_type || 'quad') as string;
+                        const ptype = (p.passenger_type || 'adult') as string;
+                        const key = `${ptype}_${rt}`;
+                        const price = getPrice(rt);
+                        if (!groups[key]) groups[key] = { qty: 0, price, label: `${typeLabels[ptype] || ptype} - ${rtLabels[rt] || rt}` };
+                        groups[key].qty += 1;
+                      }
+                      return (
+                        <>
+                          {Object.entries(groups).map(([key, g]) => (
+                            <div key={key} className="flex justify-between text-sm">
+                              <span className="opacity-80">{g.label} {g.qty > 1 ? `×${g.qty}` : ''}</span>
+                              <span className="font-semibold">{formatCurrency(g.price * g.qty)}</span>
+                            </div>
+                          ))}
+                        </>
+                      );
+                    }
+
+                    // Absolute fallback — no passenger data
                     const rt = (booking.room_type || 'quad') as string;
-                    const pricePerPax = getPrice(rt) || (booking.base_price > booking.total_price / 2 && (booking.total_pax ?? 0) > 1 ? Math.round(booking.base_price / (booking.total_pax ?? 1)) : booking.base_price);
-                    
                     return (
                       <div className="flex justify-between text-sm">
-                        <span className="opacity-80">
-                          Paket {rtLabels[rt] || rt} ({booking.total_pax || 1} orang)
-                        </span>
+                        <span className="opacity-80">Paket {rtLabels[rt] || rt} ({booking.total_pax || 1} orang)</span>
                         <span className="font-semibold">{formatCurrency(booking.total_price)}</span>
                       </div>
                     );
@@ -2730,6 +2795,37 @@ export default function AdminBookingDetail() {
                 <p className="text-xs italic text-muted-foreground/50">
                   Belum ada catatan.{(isAdmin() || isFinance) ? ' Klik ✏️ untuk menambahkan.' : ''}
                 </p>
+              )}
+
+              {/* Gap #6: Riwayat edit catatan */}
+              {noteHistory && noteHistory.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-amber-200/60">
+                  <p className="text-[10px] uppercase font-bold tracking-widest text-amber-600/70 mb-2 flex items-center gap-1">
+                    <Clock3 className="h-3 w-3" />
+                    Riwayat Edit Catatan
+                  </p>
+                  <div className="space-y-2">
+                    {noteHistory.map((entry) => (
+                      <div key={entry.id} className="text-[10px] rounded-md bg-white/60 dark:bg-black/10 border border-amber-100 dark:border-amber-900/30 px-2.5 py-1.5">
+                        <p className="text-muted-foreground">
+                          {entry.created_at ? formatDate(entry.created_at) : '-'}
+                        </p>
+                        {entry.new_value ? (
+                          <p className="font-medium text-foreground/80 mt-0.5 line-clamp-1 italic">
+                            "{entry.new_value}"
+                          </p>
+                        ) : (
+                          <p className="text-muted-foreground/60 italic mt-0.5">catatan dihapus</p>
+                        )}
+                        {entry.old_value && (
+                          <p className="text-muted-foreground/50 line-clamp-1 mt-0.5">
+                            sebelumnya: "{entry.old_value}"
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
               )}
             </CardContent>
           </Card>

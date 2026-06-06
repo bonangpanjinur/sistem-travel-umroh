@@ -419,20 +419,55 @@ export function ChangePackageDialogV2({
           </div>
 
           {/* Selected Departure Details */}
-          {selectedDeparture && (
-            <div className="p-3 rounded-md bg-muted text-xs space-y-1">
-              <p>
-                <strong>Paket:</strong> {selectedDeparture.package?.name}
-              </p>
-              <p>
-                <strong>Tanggal:</strong> {formatDate(selectedDeparture.departure_date)}
-              </p>
-              <p>
-                <strong>Sisa Kuota:</strong>{" "}
-                {selectedDeparture.quota - (selectedDeparture.booked_count || 0)} pax
-              </p>
-            </div>
-          )}
+          {selectedDeparture && (() => {
+            const availableSlots = (selectedDeparture.quota || 0) - (selectedDeparture.booked_count || 0);
+            const isQuotaFull = availableSlots <= 0;
+            const isQuotaLow = !isQuotaFull && availableSlots <= 5;
+            return (
+              <>
+                <div className="p-3 rounded-md bg-muted text-xs space-y-1">
+                  <p>
+                    <strong>Paket:</strong> {selectedDeparture.package?.name}
+                  </p>
+                  <p>
+                    <strong>Tanggal:</strong> {formatDate(selectedDeparture.departure_date)}
+                  </p>
+                  <p>
+                    <strong>Total Kuota:</strong> {selectedDeparture.quota || 0} pax
+                  </p>
+                  <p>
+                    <strong>Terisi:</strong> {selectedDeparture.booked_count || 0} pax
+                  </p>
+                  <p className={isQuotaFull ? "text-red-600 font-bold" : isQuotaLow ? "text-amber-600 font-bold" : "text-green-700 font-semibold"}>
+                    <strong>Sisa Kuota:</strong>{" "}
+                    {availableSlots <= 0 ? "PENUH" : `${availableSlots} pax`}
+                  </p>
+                </div>
+
+                {/* Gap #5: Kuota penuh — blokir submit */}
+                {isQuotaFull && (
+                  <div className="p-3 rounded-lg bg-red-50 border border-red-300 flex items-start gap-2">
+                    <AlertTriangle className="h-4 w-4 text-red-600 mt-0.5 shrink-0" />
+                    <div className="text-xs text-red-800">
+                      <p className="font-bold">Kuota Keberangkatan Penuh</p>
+                      <p className="mt-0.5">Tidak dapat memindahkan booking ke keberangkatan ini karena kuota sudah habis. Silakan pilih keberangkatan lain.</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Gap #5: Kuota hampir habis — warn tapi bisa submit */}
+                {isQuotaLow && (
+                  <div className="p-3 rounded-lg bg-amber-50 border border-amber-300 flex items-start gap-2">
+                    <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+                    <div className="text-xs text-amber-800">
+                      <p className="font-bold">Kuota Hampir Habis</p>
+                      <p className="mt-0.5">Hanya tersisa <strong>{availableSlots} tempat</strong> lagi. Segera konfirmasi jika ingin memindahkan booking ini.</p>
+                    </div>
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </div>
 
         <DialogFooter>
@@ -441,7 +476,12 @@ export function ChangePackageDialogV2({
           </Button>
           <Button
             onClick={() => changePackageMutation.mutate()}
-            disabled={!selectedDepartureId || changePackageMutation.isPending}
+            disabled={
+              !selectedDepartureId ||
+              changePackageMutation.isPending ||
+              /* Gap #5: blokir jika kuota penuh */
+              (!!selectedDeparture && (selectedDeparture.quota || 0) - (selectedDeparture.booked_count || 0) <= 0)
+            }
           >
             {changePackageMutation.isPending && (
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
