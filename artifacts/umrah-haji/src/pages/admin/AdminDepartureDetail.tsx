@@ -74,6 +74,7 @@ import {
   UserCheck,
   UserX,
   Send,
+  Layers,
 } from "lucide-react";
 import { DepartureForm } from "@/components/admin/forms/DepartureForm";
 import { LinkItineraryForm } from "@/components/admin/forms/LinkItineraryForm";
@@ -90,6 +91,7 @@ import { DepartureMarginCalculator } from "@/components/admin/financial/Departur
 import { useMarginAlert } from "@/hooks/useMarginAlert";
 import { DeparturePreChecklist } from "@/components/admin/departure/DeparturePreChecklist";
 import { DepartureVisaSummary } from "@/components/admin/departure/DepartureVisaSummary";
+import { BulkChecklistApplyDialog } from "@/components/admin/departure/BulkChecklistApplyDialog";
 
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -122,6 +124,7 @@ export default function AdminDepartureDetail() {
 
   // K8 — H-X notification state
   const [sendingHX, setSendingHX] = useState<number | null>(null);
+  const [bulkChecklistOpen, setBulkChecklistOpen] = useState(false);
 
   // K9 — Ringkasan budget di tab trigger
   const { data: _budgets = [] } = useDepartureBudget(id || "");
@@ -1838,13 +1841,50 @@ export default function AdminDepartureDetail() {
           </Card>
         </TabsContent>
 
-        {/* Tab: Pre-Departure Checklist — K2 */}
+        {/* Tab: Pre-Departure Checklist — K2 + Bulk Apply */}
         <TabsContent value="checklist" className="space-y-4">
+          {/* Bulk apply banner */}
+          <div className="flex items-center justify-between rounded-xl border bg-gradient-to-r from-primary/5 to-primary/10 px-4 py-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/15">
+                <Layers className="h-4 w-4 text-primary" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-foreground">Terapkan Template Checklist ke Semua Booking</p>
+                <p className="text-[11px] text-muted-foreground">
+                  Centang item yang sama ke seluruh jamaah dalam keberangkatan ini sekaligus
+                </p>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="shrink-0 border-primary/40 hover:bg-primary/10 text-primary hover:text-primary"
+              onClick={() => setBulkChecklistOpen(true)}
+            >
+              <Layers className="h-3.5 w-3.5 mr-1.5" />
+              Bulk Apply
+            </Button>
+          </div>
+
           <DeparturePreChecklist
             departureId={id || ""}
             departure={departure}
             passengerStats={passengerStats}
             passengers={passengers || []}
+          />
+
+          {/* Bulk checklist dialog */}
+          <BulkChecklistApplyDialog
+            open={bulkChecklistOpen}
+            onOpenChange={setBulkChecklistOpen}
+            departureId={id || ""}
+            departureName={(departure as any)?.name || (departure as any)?.package?.name || undefined}
+            departureDate={
+              (departure as any)?.departure_date
+                ? formatDate((departure as any).departure_date)
+                : undefined
+            }
           />
         </TabsContent>
 
