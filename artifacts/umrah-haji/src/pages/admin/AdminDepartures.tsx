@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -27,7 +28,8 @@ import {
   CalendarDays, Building2, Link2Off, MapPin, Hotel,
   MessageCircle, Bell, Send, DollarSign, MoreVertical,
   ChevronLeft, ChevronRight, Eye, RefreshCw, TrendingUp,
-  Zap, AlertCircle, Download, Copy, CheckCircle2
+  Zap, AlertCircle, Download, Copy, CheckCircle2,
+  CheckSquare, Square, X, ListChecks,
 } from "lucide-react";
 import { LinkItineraryForm } from "@/components/admin/forms/LinkItineraryForm";
 import { downloadICS, type ICSEvent } from "@/lib/ics";
@@ -218,6 +220,9 @@ export default function AdminDepartures() {
   const [itineraryDeparture, setItineraryDeparture] = useState<any>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [duplicatingDep, setDuplicatingDep] = useState<any>(null);
+  const [copyHPP, setCopyHPP] = useState(false);
+  const [selectedDepartureIds, setSelectedDepartureIds] = useState<string[]>([]);
+  const [bulkStatusTarget, setBulkStatusTarget] = useState<string | null>(null);
 
   // Sinkronkan ulang booked_count dari data booking aktif (rekonsiliasi)
   const recalcMutation = useMutation({
@@ -347,7 +352,7 @@ export default function AdminDepartures() {
   });
 
   const duplicateMutation = useMutation({
-    mutationFn: async (dep: any) => {
+    mutationFn: async ({ dep, withHPP }: { dep: any; withHPP: boolean }) => {
       const { data, error } = await supabase
         .from('departures')
         .insert({
@@ -372,16 +377,54 @@ export default function AdminDepartures() {
         .select('id')
         .single();
       if (error) throw error;
+
+      if (withHPP) {
+        const db = supabase as any;
+        const { data: costItems } = await db
+          .from('departure_cost_items')
+          .select('*')
+          .eq('departure_id', dep.id);
+        if (costItems && costItems.length > 0) {
+          const newItems = costItems.map(({ id: _id, created_at: _ca, updated_at: _ua, ...item }: any) => ({
+            ...item,
+            departure_id: data.id,
+          }));
+          await db.from('departure_cost_items').insert(newItems);
+        }
+      }
+
       return data;
     },
-    onSuccess: (data) => {
-      toast.success('Jadwal berhasil diduplikat — lengkapi tanggal keberangkatan');
+    onSuccess: (data, variables) => {
+      const hppMsg = variables.withHPP ? ' beserta HPP template' : '';
+      toast.success(`Jadwal berhasil diduplikat${hppMsg} — lengkapi tanggal keberangkatan`);
       queryClient.invalidateQueries({ queryKey: ['admin-departures'] });
       queryClient.invalidateQueries({ queryKey: ['admin-departures-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['departures-with-hpp'] });
       setDuplicatingDep(null);
+      setCopyHPP(false);
       navigate(`/admin/departures/${data.id}`);
     },
     onError: (e: any) => toast.error('Gagal menduplikat jadwal: ' + (e?.message ?? 'unknown')),
+  });
+
+  const bulkStatusMutation = useMutation({
+    mutationFn: async ({ ids, status }: { ids: string[]; status: string }) => {
+      const { error } = await supabase
+        .from('departures')
+        .update({ status } as any)
+        .in('id', ids);
+      if (error) throw error;
+    },
+    onSuccess: (_, variables) => {
+      const statusLabel: Record<string, string> = { open: 'Buka', closed: 'Tutup', full: 'Penuh', departed: 'Berangkat' };
+      toast.success(`${variables.ids.length} jadwal status diubah ke "${statusLabel[variables.status] ?? variables.status}"`);
+      queryClient.invalidateQueries({ queryKey: ['admin-departures'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-departures-stats'] });
+      setSelectedDepartureIds([]);
+      setBulkStatusTarget(null);
+    },
+    onError: (e: any) => toast.error('Gagal mengubah status: ' + (e?.message ?? 'unknown')),
   });
 
   const sendNotificationMutation = useMutation({
@@ -675,10 +718,80 @@ export default function AdminDepartures() {
           </div>
         </CardHeader>
         <CardContent>
+          {/* Bulk Action Bar */}
+          {selectedDepartureIds.length > 0 && (
+            <div className="mb-3 flex items-center gap-3 p-3 bg-primary/5 border border-primary/20 rounded-lg">
+              <span className="text-sm font-semibold text-primary flex items-center gap-1.5">
+                <ListChecks className="h-4 w-4" />
+                {selectedDepartureIds.length} jadwal dipilih
+              </span>
+              <div className="flex items-center gap-2 ml-2">
+                <span className="text-xs text-muted-foreground">Ubah status ke:</span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs gap-1 border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                  onClick={() => bulkStatusMutation.mutate({ ids: selectedDepartureIds, status: 'open' })}
+                  disabled={bulkStatusMutation.isPending}
+                >
+                  Buka
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs gap-1 border-slate-300 text-slate-700 hover:bg-slate-50"
+                  onClick={() => bulkStatusMutation.mutate({ ids: selectedDepartureIds, status: 'closed' })}
+                  disabled={bulkStatusMutation.isPending}
+                >
+                  Tutup
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs gap-1 border-red-300 text-red-700 hover:bg-red-50"
+                  onClick={() => bulkStatusMutation.mutate({ ids: selectedDepartureIds, status: 'full' })}
+                  disabled={bulkStatusMutation.isPending}
+                >
+                  Penuh
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs gap-1 border-blue-300 text-blue-700 hover:bg-blue-50"
+                  onClick={() => bulkStatusMutation.mutate({ ids: selectedDepartureIds, status: 'departed' })}
+                  disabled={bulkStatusMutation.isPending}
+                >
+                  Berangkat
+                </Button>
+              </div>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="ml-auto h-7 text-xs text-muted-foreground"
+                onClick={() => setSelectedDepartureIds([])}
+              >
+                <X className="h-3.5 w-3.5 mr-1" /> Batal Pilih
+              </Button>
+            </div>
+          )}
+
           <div className="rounded-lg border border-border/50 overflow-hidden">
             <Table>
               <TableHeader className="bg-muted/30">
                 <TableRow className="border-0 hover:bg-transparent">
+                  <TableHead className="w-10 pl-4">
+                    <Checkbox
+                      checked={departures.length > 0 && selectedDepartureIds.length === departures.length}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setSelectedDepartureIds(departures.map((d: any) => d.id));
+                        } else {
+                          setSelectedDepartureIds([]);
+                        }
+                      }}
+                      aria-label="Pilih semua"
+                    />
+                  </TableHead>
                   <TableHead className="font-semibold">Jadwal & Paket</TableHead>
                   <TableHead className="font-semibold">Penerbangan</TableHead>
                   <TableHead className="font-semibold">Hotel (Mk/Md)</TableHead>
@@ -691,6 +804,7 @@ export default function AdminDepartures() {
                 {isLoading ? (
                   Array.from({ length: 5 }).map((_, i) => (
                     <TableRow key={i} className="border-b border-border/30 hover:bg-transparent">
+                      <TableCell className="pl-4"><Skeleton className="h-5 w-5" /></TableCell>
                       <TableCell><Skeleton className="h-10 w-full" /></TableCell>
                       <TableCell><Skeleton className="h-10 w-full" /></TableCell>
                       <TableCell><Skeleton className="h-10 w-full" /></TableCell>
@@ -701,7 +815,7 @@ export default function AdminDepartures() {
                   ))
                 ) : departures.length === 0 ? (
                   <TableRow className="border-0 hover:bg-transparent">
-                    <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
+                    <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
                       <div className="flex flex-col items-center gap-2">
                         <Calendar className="h-8 w-8 opacity-40" />
                         <p className="font-medium">Tidak ada jadwal ditemukan</p>
@@ -713,9 +827,22 @@ export default function AdminDepartures() {
                   departures.map((dep) => (
                     <TableRow 
                       key={dep.id}
-                      className="border-b border-border/30 hover:bg-muted/40 transition-colors cursor-pointer"
+                      className={`border-b border-border/30 hover:bg-muted/40 transition-colors cursor-pointer ${selectedDepartureIds.includes(dep.id) ? 'bg-primary/5' : ''}`}
                       onClick={() => navigate(`/admin/departures/${dep.id}`)}
                     >
+                      <TableCell className="pl-4" onClick={(e) => e.stopPropagation()}>
+                        <Checkbox
+                          checked={selectedDepartureIds.includes(dep.id)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSelectedDepartureIds(prev => [...prev, dep.id]);
+                            } else {
+                              setSelectedDepartureIds(prev => prev.filter(id => id !== dep.id));
+                            }
+                          }}
+                          aria-label={`Pilih jadwal ${dep.id}`}
+                        />
+                      </TableCell>
                       <TableCell>
                         <div className="space-y-2">
                           {getDepartureLabel(dep)}
@@ -952,21 +1079,56 @@ export default function AdminDepartures() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog open={!!duplicatingDep} onOpenChange={(open) => !open && setDuplicatingDep(null)}>
+      <AlertDialog open={!!duplicatingDep} onOpenChange={(open) => { if (!open) { setDuplicatingDep(null); setCopyHPP(false); } }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Duplikat Jadwal Keberangkatan?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Jadwal baru akan dibuat dengan data yang sama (paket, maskapai, hotel, harga, kuota) namun tanggal keberangkatan dikosongkan dan status direset ke <strong>Buka</strong>. Anda akan diarahkan ke halaman detail untuk melengkapi tanggal.
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Copy className="h-5 w-5 text-blue-500" />
+              Duplikat Jadwal Keberangkatan?
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>
+                  Jadwal baru akan dibuat dengan data yang sama (paket, maskapai, hotel, harga, kuota) namun tanggal keberangkatan dikosongkan dan status direset ke <strong>Buka</strong>.
+                </p>
+
+                {/* HPP Option */}
+                <div className={`rounded-lg border p-3 space-y-1 ${
+                  duplicatingDep && departuresWithHPP.includes(duplicatingDep.id)
+                    ? 'bg-emerald-50 border-emerald-200'
+                    : 'bg-muted/50 border-border'
+                }`}>
+                  {duplicatingDep && departuresWithHPP.includes(duplicatingDep.id) ? (
+                    <label className="flex items-start gap-3 cursor-pointer">
+                      <Checkbox
+                        checked={copyHPP}
+                        onCheckedChange={(v) => setCopyHPP(!!v)}
+                        className="mt-0.5"
+                      />
+                      <div>
+                        <p className="text-sm font-semibold text-emerald-800">Salin template HPP juga</p>
+                        <p className="text-xs text-emerald-700">
+                          Jadwal sumber memiliki data HPP. Centang ini untuk menyalin semua item biaya ke jadwal baru — hemat waktu pengisian HPP dari nol.
+                        </p>
+                      </div>
+                    </label>
+                  ) : (
+                    <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                      <AlertCircle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                      Jadwal sumber belum memiliki data HPP — template HPP tidak akan disalin.
+                    </p>
+                  )}
+                </div>
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => setCopyHPP(false)}>Batal</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => duplicatingDep && duplicateMutation.mutate(duplicatingDep)}
+              onClick={() => duplicatingDep && duplicateMutation.mutate({ dep: duplicatingDep, withHPP: copyHPP })}
               disabled={duplicateMutation.isPending}
             >
-              {duplicateMutation.isPending ? 'Menduplikat...' : 'Duplikat'}
+              {duplicateMutation.isPending ? 'Menduplikat...' : copyHPP ? 'Duplikat + Salin HPP' : 'Duplikat'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
