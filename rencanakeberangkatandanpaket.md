@@ -170,11 +170,11 @@
 | P1.2 | Duplikat Jadwal | ✅ DONE | Juni 2025 |
 | P1.3 | Indikator HPP di Daftar Jadwal | ✅ DONE | Juni 2025 |
 | P1.4 | Tombol Tambah Jadwal dari Card Paket | ✅ DONE | Juni 2025 |
-| P2.1 | Filter Tahun | Planned | - |
-| P2.2 | Tombol Tambah Booking dari Detail | Planned | - |
-| P2.3 | Tab Operasional Fungsional | Planned | - |
-| P2.4 | Rekonsiliasi Kuota dari Detail | Planned | - |
-| P2.5 | Harga Anak/Bayi di Card | Planned | - |
+| P2.1 | Filter Tahun | ✅ DONE | Juni 2025 |
+| P2.2 | Tombol Tambah Booking dari Detail | ✅ DONE | Juni 2025 |
+| P2.3 | Tab Operasional Fungsional | ✅ DONE | Juni 2025 |
+| P2.4 | Rekonsiliasi Kuota dari Detail | ✅ DONE | Juni 2025 |
+| P2.5 | Harga Anak/Bayi di Card | ✅ DONE | Juni 2025 |
 | P3.1 | SEO Fields | Planned | - |
 | P3.2 | Package Groups | Planned | - |
 | P3.3 | Duplikat + Copy HPP | Planned | - |

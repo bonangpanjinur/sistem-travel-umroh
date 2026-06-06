@@ -944,6 +944,23 @@ export default function AdminPackages() {
                           </div>
                         </div>
 
+                        {/* Harga Anak / Bayi */}
+                        {((pkg as any).child_price_percent || (pkg as any).infant_price_percent) && (
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {(pkg as any).child_price_percent && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-sky-50 text-sky-700 border border-sky-100 rounded-full px-2 py-0.5">
+                                Anak {(pkg as any).child_price_percent}%
+                              </span>
+                            )}
+                            {(pkg as any).infant_price_percent && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-pink-50 text-pink-700 border border-pink-100 rounded-full px-2 py-0.5">
+                                Bayi {(pkg as any).infant_price_percent}%
+                              </span>
+                            )}
+                            <span className="text-[9px] text-muted-foreground">dari harga kamar</span>
+                          </div>
+                        )}
+
                         {/* Quota Progress Bar - Enhanced */}
                         {mainDep && (
                           <div className="space-y-2">

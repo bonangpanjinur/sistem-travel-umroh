@@ -76,6 +76,9 @@ import {
   Send,
   Layers,
   PlusCircle,
+  RefreshCw,
+  BarChart3,
+  ClipboardList,
 } from "lucide-react";
 import { DepartureForm } from "@/components/admin/forms/DepartureForm";
 import { LinkItineraryForm } from "@/components/admin/forms/LinkItineraryForm";
@@ -473,6 +476,22 @@ export default function AdminDepartureDetail() {
       return data || null;
     },
     enabled: !!id,
+  });
+
+  // P2.4 — Rekonsiliasi kuota dari halaman detail
+  const recalcDetailMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await (supabase.rpc as any)('recalculate_departure_booked_count', {
+        p_departure_id: id,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Kuota berhasil disinkronkan');
+      queryClient.invalidateQueries({ queryKey: ['admin-departure-detail', id] });
+      queryClient.invalidateQueries({ queryKey: ['admin-departures'] });
+    },
+    onError: (e: any) => toast.error('Gagal sinkronkan kuota: ' + (e?.message ?? 'unknown')),
   });
 
   // K4 — Quick status change mutation
@@ -1193,10 +1212,22 @@ export default function AdminDepartureDetail() {
             {/* Kuota & Jemaah - sinkron dengan tabel jemaah (termasuk virtual) */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="h-5 w-5" />
-                  Kuota & Jemaah
-                </CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5" />
+                    Kuota & Jemaah
+                  </CardTitle>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5 text-xs h-8"
+                    onClick={() => recalcDetailMutation.mutate()}
+                    disabled={recalcDetailMutation.isPending}
+                  >
+                    <RefreshCw className={`h-3.5 w-3.5 ${recalcDetailMutation.isPending ? 'animate-spin' : ''}`} />
+                    Sinkronkan Kuota
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
@@ -1207,9 +1238,11 @@ export default function AdminDepartureDetail() {
                     {passengerStats.total} / {departure.quota || 0}
                   </p>
                   {departure.booked_count !== passengerStats.total && (
-                    <p className="text-[11px] text-amber-600 mt-1">
-                      booked_count DB: {departure.booked_count || 0} (mismatch)
-                    </p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <p className="text-[11px] text-amber-600">
+                        booked_count DB: {departure.booked_count || 0} (mismatch — klik Sinkronkan untuk memperbaiki)
+                      </p>
+                    </div>
                   )}
                 </div>
                 <div className="w-full bg-secondary h-2 rounded-full overflow-hidden">
@@ -1935,42 +1968,146 @@ export default function AdminDepartureDetail() {
 
         {/* Tab: Operasional */}
         <TabsContent value="operasional" className="space-y-6">
+          {/* Shortcut Utama */}
           <Card>
             <CardHeader>
-              <CardTitle>Fitur Operasional</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <Zap className="h-5 w-5 text-primary" />
+                Akses Cepat Operasional
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-muted-foreground mb-4">
-                Fitur operasional dapat diakses melalui menu Operasional di sidebar
-              </p>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-2">
-                <Button variant="outline" className="h-auto py-3 flex flex-col gap-1" asChild>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                <Button variant="outline" className="h-auto py-4 flex flex-col gap-1.5 hover:border-blue-300 hover:bg-blue-50" asChild>
                   <Link to={`/admin/manifest?departure=${id}`}>
                     <FileDown className="h-5 w-5 text-blue-500" />
-                    <span className="text-xs font-medium">Manifest Jamaah</span>
+                    <span className="text-xs font-semibold">Manifest PDF</span>
+                    <span className="text-[10px] text-muted-foreground">{passengerStats.total} jamaah</span>
                   </Link>
                 </Button>
-                <Button variant="outline" className="h-auto py-3 flex flex-col gap-1" asChild>
-                  <Link to={`/admin/equipment?departure=${id}`}>
-                    <Package className="h-5 w-5 text-amber-500" />
-                    <span className="text-xs font-medium">Perlengkapan</span>
-                  </Link>
-                </Button>
-                <Button variant="outline" className="h-auto py-3 flex flex-col gap-1" asChild>
+                <Button variant="outline" className="h-auto py-4 flex flex-col gap-1.5 hover:border-purple-300 hover:bg-purple-50" asChild>
                   <Link to={`/admin/room-assignments?departure=${id}`}>
                     <BedDouble className="h-5 w-5 text-purple-500" />
-                    <span className="text-xs font-medium">Penugasan Kamar</span>
+                    <span className="text-xs font-semibold">Penugasan Kamar</span>
+                    <span className="text-[10px] text-muted-foreground">Rooming list</span>
                   </Link>
                 </Button>
-                <Button variant="outline" className="h-auto py-3 flex flex-col gap-1" onClick={() => setIsCheckinOpen(true)}>
-                  <ScanLine className="h-5 w-5 text-green-500" />
-                  <span className="text-xs font-medium">Check-in QR</span>
+                <Button variant="outline" className="h-auto py-4 flex flex-col gap-1.5 hover:border-amber-300 hover:bg-amber-50" asChild>
+                  <Link to={`/admin/equipment?departure=${id}`}>
+                    <Package className="h-5 w-5 text-amber-500" />
+                    <span className="text-xs font-semibold">Perlengkapan</span>
+                    <span className="text-[10px] text-muted-foreground">Distribusi jamaah</span>
+                  </Link>
                 </Button>
-                <Button variant="outline" className="h-auto py-3 flex flex-col gap-1" onClick={() => setIsEmailManifestOpen(true)}>
+                <Button variant="outline" className="h-auto py-4 flex flex-col gap-1.5 hover:border-green-300 hover:bg-green-50" onClick={() => setIsCheckinOpen(true)}>
+                  <ScanLine className="h-5 w-5 text-green-500" />
+                  <span className="text-xs font-semibold">Check-in QR</span>
+                  <span className="text-[10px] text-muted-foreground">{passengerStats.checkedIn} / {passengerStats.total}</span>
+                </Button>
+                <Button variant="outline" className="h-auto py-4 flex flex-col gap-1.5 hover:border-indigo-300 hover:bg-indigo-50" onClick={() => setIsEmailManifestOpen(true)}>
                   <Mail className="h-5 w-5 text-indigo-500" />
-                  <span className="text-xs font-medium">Email Manifest</span>
+                  <span className="text-xs font-semibold">Email Manifest</span>
+                  <span className="text-[10px] text-muted-foreground">Kirim via email</span>
+                </Button>
+                <Button variant="outline" className="h-auto py-4 flex flex-col gap-1.5 hover:border-emerald-300 hover:bg-emerald-50" onClick={() => setActiveTab('jamaah')}>
+                  <Users className="h-5 w-5 text-emerald-500" />
+                  <span className="text-xs font-semibold">Daftar Jamaah</span>
+                  <span className="text-[10px] text-muted-foreground">Tab Jemaah</span>
+                </Button>
+                <Button variant="outline" className="h-auto py-4 flex flex-col gap-1.5 hover:border-orange-300 hover:bg-orange-50" onClick={() => setActiveTab('keuangan')}>
+                  <BarChart3 className="h-5 w-5 text-orange-500" />
+                  <span className="text-xs font-semibold">Keuangan P&L</span>
+                  <span className="text-[10px] text-muted-foreground">HPP & Laba Rugi</span>
+                </Button>
+                <Button variant="outline" className="h-auto py-4 flex flex-col gap-1.5 hover:border-cyan-300 hover:bg-cyan-50" onClick={() => setActiveTab('checklist')}>
+                  <ClipboardList className="h-5 w-5 text-cyan-500" />
+                  <span className="text-xs font-semibold">Pre-Departure</span>
+                  <span className="text-[10px] text-muted-foreground">Checklist</span>
                 </Button>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Rekonsiliasi Kuota */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <RefreshCw className="h-4 w-4" />
+                Rekonsiliasi Kuota
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between p-4 rounded-lg bg-muted/40 border">
+                <div>
+                  <p className="text-sm font-medium">booked_count saat ini: <span className="font-bold">{departure.booked_count ?? 0}</span></p>
+                  <p className="text-sm font-medium">Jamaah aktif di tabel: <span className="font-bold">{passengerStats.total}</span></p>
+                  {departure.booked_count !== passengerStats.total ? (
+                    <p className="text-xs text-amber-600 mt-1 font-semibold">⚠ Mismatch terdeteksi — perlu sinkronisasi</p>
+                  ) : (
+                    <p className="text-xs text-emerald-600 mt-1 font-semibold">✓ Data sudah sinkron</p>
+                  )}
+                </div>
+                <Button
+                  variant={departure.booked_count !== passengerStats.total ? "default" : "outline"}
+                  size="sm"
+                  className="gap-2 shrink-0"
+                  onClick={() => recalcDetailMutation.mutate()}
+                  disabled={recalcDetailMutation.isPending}
+                >
+                  <RefreshCw className={`h-4 w-4 ${recalcDetailMutation.isPending ? 'animate-spin' : ''}`} />
+                  {recalcDetailMutation.isPending ? 'Menghitung...' : 'Sinkronkan Kuota'}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Sinkronisasi akan menghitung ulang jumlah booking aktif (bukan cancelled) dari tabel bookings dan memperbarui kolom booked_count di jadwal ini.
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Notifikasi WA */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Bell className="h-4 w-4" />
+                Notifikasi WhatsApp
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => sendHXNotification(7)}
+                  disabled={sendingHX !== null}
+                >
+                  <Send className="h-3.5 w-3.5 text-green-500" />
+                  {sendingHX === 7 ? 'Mengirim...' : 'Blast H-7'}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => sendHXNotification(3)}
+                  disabled={sendingHX !== null}
+                >
+                  <Send className="h-3.5 w-3.5 text-green-500" />
+                  {sendingHX === 3 ? 'Mengirim...' : 'Blast H-3'}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => sendHXNotification(1)}
+                  disabled={sendingHX !== null}
+                >
+                  <Send className="h-3.5 w-3.5 text-green-500" />
+                  {sendingHX === 1 ? 'Mengirim...' : 'Blast H-1'}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                Kirim pengingat keberangkatan ke semua jamaah yang memiliki nomor WhatsApp ({(passengers || []).filter((p: any) => p.customer?.phone).length} dari {passengerStats.total} jamaah).
+              </p>
             </CardContent>
           </Card>
         </TabsContent>
