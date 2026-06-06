@@ -339,6 +339,19 @@ export async function runMigrations(): Promise<void> {
       logger.info("runMigrations: 11_cancellation_rule_audit — already applied, skipping");
     }
 
+    // ── Step 1k: booking departure checklists table ───────────────────────
+    const departureChecklistApplied = await isApplied(client, "12_booking_departure_checklist");
+    if (!departureChecklistApplied) {
+      await runSqlFile(
+        client,
+        sqlPath("12_booking_departure_checklist.sql"),
+        "12_booking_departure_checklist (per-booking departure readiness checklist table)",
+      );
+      await markApplied(client, "12_booking_departure_checklist");
+    } else {
+      logger.info("runMigrations: 12_booking_departure_checklist — already applied, skipping");
+    }
+
     // ── Step 2: payment sync trigger (always re-applied each boot) ────────
     // Wrapped in its own try/catch so a missing table on a broken DB state
     // doesn't crash the server — it just logs and continues.
