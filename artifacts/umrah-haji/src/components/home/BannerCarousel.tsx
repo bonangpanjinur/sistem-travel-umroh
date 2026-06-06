@@ -230,16 +230,15 @@ function SlideContent({
       <div className="absolute inset-0 flex items-end p-2">
         {/* Decorative elements */}
         <div className="absolute top-4 right-4 z-20">
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-lg border border-white/20 text-[9px] text-white/95 font-semibold tracking-wide">
-            <Sparkles className="h-3 w-3 text-amber-300 animate-pulse" />
+          <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/20 backdrop-blur-md border border-white/30 text-[8px] text-white font-semibold">
+            <Sparkles className="h-2.5 w-2.5 text-amber-300" />
             <span>Premium</span>
           </div>
         </div>
 
-        {/* Enhanced gradient overlays for better readability */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent pointer-events-none" />
-        <div className="absolute inset-0 bg-gradient-to-r from-black/50 via-transparent to-transparent pointer-events-none" />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/10 to-transparent pointer-events-none" />
+        {/* Optimized gradient overlays - lighter for better image visibility */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/30 via-transparent to-transparent pointer-events-none" />
         
         {/* Content pinned to bottom */}
         <div
@@ -250,22 +249,22 @@ function SlideContent({
           style={{ transitionDelay: isActive ? '150ms' : '0ms' }}
         >
           {banner.title && (
-            <p className="text-base md:text-lg font-black text-white leading-snug drop-shadow-lg line-clamp-2 mb-2 tracking-tight">
+            <p className="text-base font-bold text-white leading-snug drop-shadow-md line-clamp-2 mb-1.5">
               {banner.title}
             </p>
           )}
           {banner.subtitle && (
-            <p className="text-xs md:text-sm text-white/85 line-clamp-1 mb-3 font-medium leading-relaxed">
+            <p className="text-xs text-white/80 line-clamp-1 mb-3 font-normal">
               {banner.subtitle}
             </p>
           )}
           {banner.cta_text && banner.cta_url && (
             <a
               href={banner.cta_url}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary hover:bg-primary/90 text-white text-xs md:text-sm font-bold active:scale-95 transition-all shadow-xl shadow-primary/30 backdrop-blur-sm border border-white/10"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-white text-primary text-xs font-bold hover:bg-white/95 active:scale-95 transition-all shadow-lg"
             >
               {banner.cta_text}
-              <ArrowRight className="h-3.5 w-3.5" />
+              <ArrowRight className="h-3 w-3" />
             </a>
           )}
         </div>
