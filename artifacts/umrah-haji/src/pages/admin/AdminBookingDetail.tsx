@@ -53,7 +53,7 @@ import {
   Shield, ShieldAlert, ShieldCheck, ExternalLink, Clock3,
   Stethoscope, Baby, BriefcaseMedical, RotateCcw, Wallet,
   TriangleAlert, Receipt, Plus, CheckCircle2, Ban, Activity,
-  Tag, ArrowRight, ClipboardList
+  Tag, ArrowRight, ClipboardList, Ticket
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -79,6 +79,7 @@ import { useFinanceNotifier } from "@/hooks/useFinanceNotifier";
 import { BookingDocumentActions } from "@/components/admin/BookingDocumentActions";
 import { BookingBarcodeModal } from "@/components/admin/BookingBarcodeModal";
 import { BulkPassengerExport } from "@/components/admin/BulkPassengerExport";
+import { BoardingPassModal } from "@/components/admin/BoardingPassModal";
 import { BookingDepartureChecklist } from "@/components/admin/BookingDepartureChecklist";
 import { BookingDocumentHistory } from "@/components/admin/BookingDocumentHistory";
 import { QuickInvoiceSheet } from "@/components/admin/QuickInvoiceSheet";
@@ -200,6 +201,7 @@ export default function AdminBookingDetail() {
   const [showChangeRoomTypeDialog, setShowChangeRoomTypeDialog] = useState(false);
   const [showRoomTypeAssignmentDialog, setShowRoomTypeAssignmentDialog] = useState(false);
   const [showQuickInvoice, setShowQuickInvoice] = useState(false);
+  const [showBoardingPassModal, setShowBoardingPassModal] = useState(false);
 
   // C1 — Edit notes inline
   const [editingNotes, setEditingNotes] = useState(false);
@@ -2001,6 +2003,28 @@ export default function AdminBookingDetail() {
             )}
 
             <CardContent className="p-0 pt-3">
+              {/* Boarding Pass button */}
+              <div className="px-4 pb-3 flex items-center justify-between">
+                <p className="text-xs text-muted-foreground">
+                  Export dokumen perjalanan per jamaah
+                </p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-2 border-teal-200 text-teal-700 hover:bg-teal-50 dark:border-teal-800 dark:text-teal-400 dark:hover:bg-teal-950/30 h-8 text-xs"
+                  onClick={() => setShowBoardingPassModal(true)}
+                  disabled={!passengers?.length}
+                >
+                  <Ticket className="h-3.5 w-3.5" />
+                  Boarding Pass Digital
+                  {passengers?.length ? (
+                    <span className="bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300 rounded-full px-1.5 text-[10px] font-bold">
+                      {passengers.length}
+                    </span>
+                  ) : null}
+                </Button>
+              </div>
+
               <BulkPassengerExport
                 passengers={passengers || []}
                 booking={booking}
@@ -3387,6 +3411,18 @@ export default function AdminBookingDetail() {
           bankAccounts={bankAccounts || []}
           cancellationPolicy={cancellationPolicy}
           invoiceTemplate={invoiceTemplate}
+        />
+      )}
+
+      {/* ── Boarding Pass Modal ─────────────────────────────────────── */}
+      {booking && (
+        <BoardingPassModal
+          open={showBoardingPassModal}
+          onClose={() => setShowBoardingPassModal(false)}
+          passengers={passengers || []}
+          booking={booking}
+          hotelAirlineData={hotelAirlineData}
+          companyInfo={companyInfo}
         />
       )}
     </div>
