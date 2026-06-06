@@ -52,36 +52,66 @@
 - Menampilkan: nama hotel, kota, bintang (star rating), nama maskapai
 - Fallback ke string fields jika objek tidak tersedia
 
----
+### Gap #1 — Notifikasi ke Finance saat Pembayaran Masuk ✅
+- File: `src/components/admin/ManagePaymentModal.tsx`
+- Saat customer upload bukti bayar (status → pending), `notifyFinance()` dipanggil
+- Toast info menampilkan jumlah staf yang berhasil dinotifikasi via WA
 
-## GAP YANG DITEMUKAN (Belum Diimplementasikan)
+### Gap #2 — Refund Bank Account Form ✅
+- File: `src/pages/admin/AdminBookingDetail.tsx` (Refund Dialog)
+- Dialog pembatalan booking dengan: alasan pembatalan, jumlah refund (quick %-), metode refund, info rekening/akun tujuan (label adaptif per metode), preview notifikasi ke jamaah
+- Mencatat ke tabel `booking_refunds` via `processRefundMutation`
 
-### 🔴 Prioritas Tinggi
+### Gap #3 — Verifikasi Pembayaran: Notif ke Finance ✅
+- File: `src/pages/admin/AdminBookingDetail.tsx` (`verifyPaymentMutation.onSuccess`)
+- Saat admin approve pembayaran (status → paid), `notifyFinance()` dipanggil agar finance mencatat/mengarsipkan
 
-| # | Gap | Lokasi | Catatan |
-|---|-----|--------|---------|
-| 1 | **Notifikasi ke Finance saat ada pembayaran masuk** | ManagePaymentModal | Customer submit bukti → auto notif WA ke staff finance |
-| 2 | **Refund Bank Account Form** | Cancellation workflow | Saat ubah status → "refunded", paksa isi no. rek tujuan + nama |
-| 3 | **Verifikasi pembayaran: notif ke finance** | AdminBookingDetail | Tombol "Verifikasi" hanya ada, tapi tidak ada notif menunggu verifikasi |
+### Gap #4 — Booking Line Items Detail ✅
+- File: `src/pages/admin/AdminBookingDetail.tsx` (sidebar Rincian Tagihan)
+- Query ke `booking_line_items` — jika ada, render per baris; jika tidak ada, fallback ke breakdown per tipe jamaah (dewasa/anak/bayi) × tipe kamar dari `booking_passengers`
 
-### 🟡 Prioritas Menengah
+### Gap #5 — Validasi Kapasitas saat Pindah Paket ✅
+- File: `src/components/admin/ChangePackageDialogV2.tsx`
+- Menampilkan sisa kuota keberangkatan tujuan
+- Kuota penuh → tombol submit diblokir + warning merah
+- Kuota hampir habis (≤5) → warning amber tapi tetap bisa submit
 
-| # | Gap | Lokasi | Catatan |
-|---|-----|--------|---------|
-| 4 | **Booking Line Items Detail** | Seksi pembayaran | Tabel dewasa/anak/bayi dengan harga masing-masing dari `booking_line_items` |
-| 5 | **Validasi kapasitas saat Pindah Paket** | ChangePackageDialogV2 | Cek sisa quota sebelum allow pindah |
-| 6 | **Note/Catatan history** | AdminBookingDetail | Log siapa edit, kapan, dari isi apa ke apa |
-| 7 | **Tombol "Catat Pembayaran" di empty state** | Seksi Riwayat Pembayaran | Shortcut langsung ke form tambah jika belum ada pembayaran |
-| 8 | **Company info warning** | AdminBookingDetail | Peringatan jika company_settings kosong sebelum generate PDF |
+### Gap #6 — Note/Catatan History ✅
+- File: `src/pages/admin/AdminBookingDetail.tsx` (C1 — Catatan Admin)
+- `updateNotesMutation` memanggil `logActivity({ action: 'notes_updated', old_value, new_value })`
+- `noteHistory` query dari `audit_logs` ditampilkan di bawah editor catatan
 
-### 🟢 Nice to Have
+### Gap #7 — Tombol "Catat Pembayaran" di Empty State ✅
+- File: `src/pages/admin/AdminBookingDetail.tsx` (Riwayat Pembayaran)
+- Tombol "+ Catat Pembayaran" tampil di empty state jika belum ada pembayaran
+- Tersedia di dua lokasi: card "Riwayat Pembayaran" (main content) + sidebar (akordion kosong)
 
-| # | Gap | Lokasi | Catatan |
-|---|-----|--------|---------|
-| 9 | **Konflik nomor kamar** | Passenger manifest | Warning jika 2 pax di nomor kamar yang sama |
-| 10 | **Share link booking** | BookingBarcodeModal | Tombol salin link + kirim WA dari dalam modal |
-| 11 | **Timeline visual** | Riwayat Status | Format timeline vertikal bergambar, bukan list teks |
-| 12 | **Checklist keberangkatan** | Passenger manifest | Paspor/visa/yellow card sudah lengkap semua pax? |
+### Gap #8 — Company Info Warning ✅
+- File: `src/pages/admin/AdminBookingDetail.tsx` (Quick Actions sidebar)
+- Banner amber muncul jika nama perusahaan masih default ATAU rekening bank belum dikonfigurasi
+- Pesan adaptif tergantung apa yang kosong, dengan link "Lengkapi Sekarang" ke `/admin/settings`
+
+### Gap #9 — Konflik Nomor Kamar ✅
+- File: `src/pages/admin/AdminBookingDetail.tsx` (Passenger Manifest)
+- `roomNumberConflicts` useMemo mendeteksi nomor kamar yang dipakai lebih dari 1 pax
+- Nomor yang bentrok ditampilkan dengan ikon TriangleAlert + warna merah di baris manifest
+- Banner warning global juga muncul di header card passengers jika ada konflik
+
+### Gap #10 — Share Link Booking ✅
+- File: `src/components/admin/BookingBarcodeModal.tsx`
+- Salin link ke clipboard dengan feedback "Tersalin!"
+- Tombol "Bagikan WA" membuka wa.me dengan pesan berformat (kode booking, nama, paket, tanggal, link)
+
+### Gap #11 — Timeline Visual ✅
+- File: `src/pages/admin/AdminBookingDetail.tsx` (Timeline Aktivitas)
+- Merge status history + payment history + booking creation menjadi satu timeline kronologis
+- Setiap event punya ikon + warna dot berbeda per tipe status
+- Fallback ke status saat ini jika `booking_status_history` kosong
+
+### Gap #12 — Checklist Keberangkatan ✅
+- File: `src/components/admin/BookingDepartureChecklist.tsx`
+- Dirender di AdminBookingDetail di bawah Timeline Aktivitas
+- Paspor, visa, yellow card per jamaah
 
 ---
 
@@ -118,7 +148,7 @@
 - `payments` — riwayat pembayaran
 - `payment_reminders` — jadwal reminder (id, booking_id, reminder_type, scheduled_at, status)
 - `booking_status_history` — timeline perubahan status
-- `audit_logs` — log hapus pembayaran
+- `audit_logs` — log hapus pembayaran & edit catatan
 
 ### Field Kritis
 - `bookings.public_token` — token untuk URL QR publik `/transaksi/:token`
