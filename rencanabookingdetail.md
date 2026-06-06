@@ -139,13 +139,23 @@
 - Badge counter hijau di sidebar item Pembayaran & Booking (angka = notif belum dibaca)
 - Badge juga muncul di grup yang sedang di-collapse
 
-### 4. Komisi Auto-Calculate
+### 4. Komisi Auto-Calculate ✅
 - Otomatis hitung komisi agen saat status = 'confirmed'
 - Log komisi di tabel terpisah
+- **SELESAI** — `useAutoCommission.ts` + `AdminBookingCommissionCard.tsx`
+- Auto-trigger sudah terpasang di `AdminBookingDetail.tsx` saat status → 'confirmed'
+- Panel **Komisi Booking** baru muncul di sidebar booking detail: tampilkan daftar komisi yang sudah tercatat (agen + parent agen), status masing-masing (pending/approved/paid/rejected), total, tanggal
+- Tombol **Hitung Ulang Komisi** jika ingin re-trigger manual
+- Jika belum ada komisi, tampil tombol **Hitung Komisi Sekarang** (idempoten — tidak duplikat)
 
-### 5. E-Ticket Generator
+### 5. E-Ticket Generator ✅
 - Generate e-ticket PDF per jamaah dari booking detail
 - Include QR, flight info, hotel, itinerary
+- **SELESAI** — `document-generator.ts` + `BookingDocumentActions.tsx`
+- **QR Code** otomatis di-embed di kanan atas e-ticket (encode: `bookingCode|nama|paspor`)
+- **Itinerary** — membaca `packages.itinerary` JSON dan menampilkan program hari-per-hari (multi-page jika panjang)
+- **Per-jamaah bulk** — jika booking punya 2+ jamaah di manifest, tombol **E-TICKET SEMUA JAMAAH (ZIP)** muncul: satu PDF per jamaah, dikemas jadi ZIP download
+- Single download tetap tersedia untuk booking holder
 
 ---
 

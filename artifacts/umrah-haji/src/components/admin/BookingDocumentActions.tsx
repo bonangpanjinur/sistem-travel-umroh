@@ -283,48 +283,112 @@ export function BookingDocumentActions({ booking, companyInfo, passengers = [] }
     }
   };
 
-  // ── E-Ticket ──────────────────────────────────────────────────────────────
+  // ── E-Ticket helpers ──────────────────────────────────────────────────────
+  const buildItinerary = () => {
+    const raw = pkg?.itinerary;
+    if (!raw || !Array.isArray(raw)) return undefined;
+    return (raw as any[])
+      .filter((d: any) => d && (d.day || d.title))
+      .map((d: any, i: number) => ({
+        day: Number(d.day ?? d.hari ?? i + 1),
+        title: String(d.title ?? d.judul ?? `Hari ${i + 1}`),
+        description: d.description ?? d.kegiatan ?? d.desc ?? undefined,
+      }));
+  };
+
+  const buildTicketData = (passengerName: string, passportNumber: string): ETicketData => ({
+    bookingCode: booking.booking_code || "-",
+    passengerName,
+    passportNumber,
+    packageName: pkg?.name || "-",
+    departureDate: departure?.departure_date ? new Date(departure.departure_date) : new Date(),
+    returnDate: departure?.return_date
+      ? new Date(departure.return_date)
+      : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+    departureAirport:
+      departure?.departure_airport?.city || departure?.departure_airport?.code || "Jakarta",
+    arrivalAirport:
+      departure?.arrival_airport?.city || departure?.arrival_airport?.code || "Jeddah",
+    flightNumber: departure?.flight_number || undefined,
+    airline: pkg?.airline?.name || undefined,
+    departureTime: departure?.departure_time || undefined,
+    hotelMakkah: departure?.hotel_makkah || pkg?.hotel_makkah || undefined,
+    hotelMadinah: departure?.hotel_madinah || pkg?.hotel_madinah || undefined,
+    roomType: booking.room_type || "quad",
+    itinerary: buildItinerary(),
+  });
+
+  // ── E-Ticket — single (booking holder) ───────────────────────────────────
   const handleETicket = async () => {
     if (!customer || !departure) return;
     setLoading("eticket");
     try {
-      const ticketData: ETicketData = {
-        bookingCode: booking.booking_code || "-",
-        passengerName: customer.full_name || "-",
-        passportNumber: customer.passport_number || "-",
-        packageName: pkg?.name || "-",
-        departureDate: departure.departure_date
-          ? new Date(departure.departure_date)
-          : new Date(),
-        returnDate: departure.return_date
-          ? new Date(departure.return_date)
-          : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
-        departureAirport:
-          departure.departure_airport?.city ||
-          departure.departure_airport?.code ||
-          "Jakarta",
-        arrivalAirport:
-          departure.arrival_airport?.city ||
-          departure.arrival_airport?.code ||
-          "Jeddah",
-        flightNumber: departure.flight_number || undefined,
-        airline: pkg?.airline?.name || undefined,
-        departureTime: departure.departure_time || undefined,
-        hotelMakkah: departure.hotel_makkah || pkg?.hotel_makkah || undefined,
-        hotelMadinah: departure.hotel_madinah || pkg?.hotel_madinah || undefined,
-        roomType: booking.room_type || "quad",
-        seatNumber: undefined,
-      };
+      const ticketData = buildTicketData(customer.full_name || "-", customer.passport_number || "-");
       const doc = await generateETicket(ticketData, companyInfo);
-      doc.save(
-        `eticket-${booking.booking_code || customer.full_name?.replace(/\s+/g, "-")}.pdf`
-      );
+      doc.save(`eticket-${booking.booking_code || customer.full_name?.replace(/\s+/g, "-")}.pdf`);
       toast.success("E-Ticket berhasil diunduh");
       await logDocument({ bookingId: booking.id, documentType: "eticket", documentLabel: "E-Ticket", jamaahName: customer.full_name });
       queryClient.invalidateQueries({ queryKey: ["booking-document-logs", booking.id] });
     } catch (err) {
       console.error(err);
       toast.error("Gagal membuat e-ticket");
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  // ── E-Ticket — per-jamaah bulk (ZIP) ─────────────────────────────────────
+  const handleETicketBulk = async () => {
+    if (!departure) return;
+    const allJamaah: Array<{ name: string; passport: string }> = [];
+
+    if (passengers && passengers.length > 0) {
+      for (const p of passengers) {
+        const c = p.customer ?? p;
+        allJamaah.push({ name: c.full_name || "-", passport: c.passport_number || "-" });
+      }
+    } else if (customer) {
+      allJamaah.push({ name: customer.full_name || "-", passport: customer.passport_number || "-" });
+    }
+
+    if (allJamaah.length === 0) { toast.error("Tidak ada jamaah terdaftar"); return; }
+
+    if (allJamaah.length === 1) {
+      setLoading("eticket-bulk");
+      try {
+        const doc = await generateETicket(buildTicketData(allJamaah[0].name, allJamaah[0].passport), companyInfo);
+        doc.save(`eticket-${allJamaah[0].name.replace(/\s+/g, "-")}.pdf`);
+        toast.success("E-Ticket berhasil diunduh");
+      } catch (err) { console.error(err); toast.error("Gagal membuat e-ticket"); }
+      finally { setLoading(null); }
+      return;
+    }
+
+    setLoading("eticket-bulk");
+    try {
+      const JSZip = (await import("jszip")).default;
+      const zip = new JSZip();
+      const folder = zip.folder(`eticket-${booking.booking_code}`)!;
+
+      for (const jamaah of allJamaah) {
+        const doc = await generateETicket(buildTicketData(jamaah.name, jamaah.passport), companyInfo);
+        const blob = doc.output("blob");
+        folder.file(`eticket-${jamaah.name.replace(/\s+/g, "-")}.pdf`, blob);
+      }
+
+      const zipBlob = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(zipBlob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `eticket-bulk-${booking.booking_code}.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success(`${allJamaah.length} E-Ticket berhasil diunduh (ZIP)`);
+      await logDocument({ bookingId: booking.id, documentType: "eticket", documentLabel: `E-Ticket Bulk (${allJamaah.length} jamaah)`, jamaahName: customer?.full_name });
+      queryClient.invalidateQueries({ queryKey: ["booking-document-logs", booking.id] });
+    } catch (err) {
+      console.error(err);
+      toast.error("Gagal membuat e-ticket bulk");
     } finally {
       setLoading(null);
     }
@@ -521,7 +585,7 @@ export function BookingDocumentActions({ booking, companyInfo, passengers = [] }
             SERTIFIKAT UMRAH
           </Button>
 
-          {/* E-Ticket — direct */}
+          {/* E-Ticket — direct (booking holder) */}
           <Button
             className="w-full justify-start h-10 font-bold text-xs"
             variant="outline"
@@ -535,6 +599,23 @@ export function BookingDocumentActions({ booking, companyInfo, passengers = [] }
             )}
             E-TICKET
           </Button>
+
+          {/* E-Ticket Bulk — per jamaah + ZIP */}
+          {passengers && passengers.length > 1 && (
+            <Button
+              className="w-full justify-start h-10 font-bold text-xs"
+              variant="outline"
+              onClick={handleETicketBulk}
+              disabled={!!loading}
+            >
+              {isLoading("eticket-bulk") ? (
+                <Loader2 className="h-4 w-4 mr-3 animate-spin text-sky-600" />
+              ) : (
+                <Download className="h-4 w-4 mr-3 text-sky-600" />
+              )}
+              E-TICKET SEMUA JAMAAH (ZIP)
+            </Button>
+          )}
 
           {/* Surat Umum — dialog */}
           <Button

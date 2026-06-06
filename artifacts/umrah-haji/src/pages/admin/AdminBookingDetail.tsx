@@ -77,6 +77,7 @@ import { useWhatsAppNotifier } from "@/hooks/useWhatsAppNotifier";
 import { useEmailNotifier } from "@/hooks/useEmailNotifier";
 import { useFinanceNotifier } from "@/hooks/useFinanceNotifier";
 import { BookingDocumentActions } from "@/components/admin/BookingDocumentActions";
+import { AdminBookingCommissionCard } from "@/components/admin/AdminBookingCommissionCard";
 import { BookingBarcodeModal } from "@/components/admin/BookingBarcodeModal";
 import { BulkPassengerExport } from "@/components/admin/BulkPassengerExport";
 import { BoardingPassModal } from "@/components/admin/BoardingPassModal";
@@ -2640,6 +2641,12 @@ export default function AdminBookingDetail() {
               </CardContent>
             </Card>
           )}
+
+          {/* Komisi Booking Card */}
+          <AdminBookingCommissionCard
+            bookingId={id}
+            hasAgent={!!(booking as any)?.agent_id}
+          />
 
           {/* Quick Actions Card */}
           <Card className="border-none shadow-md overflow-hidden">

@@ -203,6 +203,12 @@ export interface GeneralLetterData {
   };
 }
 
+export interface ETicketItineraryDay {
+  day: number;
+  title: string;
+  description?: string;
+}
+
 export interface ETicketData {
   bookingCode: string;
   passengerName: string;
@@ -219,6 +225,8 @@ export interface ETicketData {
   hotelMadinah?: string;
   roomType: string;
   seatNumber?: string;
+  qrDataUrl?: string;
+  itinerary?: ETicketItineraryDay[];
 }
 
 export interface UmrahCertificateData {
@@ -1166,11 +1174,24 @@ export async function generateETicket(
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.width;
   const settings = company.settings;
-  
-  const accentColor = settings?.invoice_accent_color || '#16a34a'; // Default green for ticket
+
+  const accentColor = settings?.invoice_accent_color || '#16a34a';
   const rgb = hexToRgb(accentColor);
 
-  // Header with company branding
+  // Pre-generate QR code if not provided
+  let qrDataUrl = data.qrDataUrl;
+  if (!qrDataUrl) {
+    try {
+      qrDataUrl = await QRCode.toDataURL(
+        `${data.bookingCode}|${data.passengerName}|${data.passportNumber}`,
+        { width: 120, margin: 1, color: { dark: '#000000', light: '#ffffff' } }
+      );
+    } catch (_) {
+      qrDataUrl = undefined;
+    }
+  }
+
+  // ── HEADER ──────────────────────────────────────────────────────────────
   doc.setFillColor(rgb.r, rgb.g, rgb.b);
   doc.rect(0, 0, pageWidth, 40, 'F');
 
@@ -1184,118 +1205,155 @@ export async function generateETicket(
   doc.text(`Booking Code: ${data.bookingCode}`, pageWidth / 2, 36, { align: 'center' });
 
   doc.setTextColor(0, 0, 0);
-  let y = 55;
+  let y = 52;
 
-  // Passenger Information Section
-  doc.setFillColor(240, 240, 240);
-  doc.rect(14, y - 5, pageWidth - 28, 35, 'F');
+  // ── PASSENGER + QR side by side ────────────────────────────────────────
+  const qrSize = 35;
+  const qrX = pageWidth - 14 - qrSize;
 
-  doc.setFontSize(12);
+  doc.setFillColor(245, 245, 245);
+  doc.roundedRect(14, y - 4, pageWidth - 28, 40, 2, 2, 'F');
+
+  doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
-  doc.text('INFORMASI PENUMPANG', 20, y);
+  doc.setTextColor(rgb.r, rgb.g, rgb.b);
+  doc.text('INFORMASI PENUMPANG', 20, y + 2);
+  doc.setTextColor(0, 0, 0);
   y += 10;
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
-  doc.text(`Nama Penumpang: ${data.passengerName}`, 20, y);
+  doc.text(`Nama   : ${data.passengerName}`, 20, y);
   y += 7;
-  doc.text(`No. Paspor: ${data.passportNumber}`, 20, y);
+  doc.text(`Paspor  : ${data.passportNumber}`, 20, y);
   y += 7;
-  doc.text(`Paket: ${data.packageName}`, 20, y);
+  doc.text(`Paket   : ${data.packageName}`, 20, y);
+
+  if (qrDataUrl) {
+    doc.addImage(qrDataUrl, 'PNG', qrX, y - 20, qrSize, qrSize);
+    doc.setFontSize(7);
+    doc.setTextColor(100);
+    doc.text('Scan untuk verifikasi', qrX + qrSize / 2, y + qrSize - 22, { align: 'center' });
+    doc.setTextColor(0);
+  }
 
   y += 20;
 
-  // Flight Information Section
+  // ── FLIGHT INFO ─────────────────────────────────────────────────────────
   doc.setFillColor(rgb.r, rgb.g, rgb.b);
-  doc.rect(14, y - 5, pageWidth - 28, 8, 'F');
+  doc.rect(14, y, pageWidth - 28, 7, 'F');
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
-  doc.text('INFORMASI PENERBANGAN', 20, y);
+  doc.setFontSize(10);
+  doc.text('INFORMASI PENERBANGAN', 20, y + 5);
   doc.setTextColor(0, 0, 0);
-  y += 12;
+  y += 13;
 
-  // Departure
-  doc.setFontSize(11);
+  doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
   doc.text('KEBERANGKATAN', 20, y);
-  y += 8;
+  y += 7;
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
-  doc.text(`Tanggal: ${format(data.departureDate, 'd MMMM yyyy', { locale: id })}`, 20, y);
-  if (data.departureTime) {
-    doc.text(`Waktu: ${data.departureTime}`, 100, y);
-  }
-  y += 7;
-  doc.text(`Dari: ${data.departureAirport}`, 20, y);
-  doc.text(`Ke: ${data.arrivalAirport}`, 100, y);
-  y += 7;
-  if (data.airline) {
-    doc.text(`Maskapai: ${data.airline}`, 20, y);
-  }
-  if (data.flightNumber) {
-    doc.text(`No. Penerbangan: ${data.flightNumber}`, 100, y);
-  }
+  doc.text(`Tanggal : ${format(data.departureDate, 'd MMMM yyyy', { locale: id })}`, 20, y);
+  if (data.departureTime) doc.text(`Pukul : ${data.departureTime}`, 105, y);
+  y += 6;
+  doc.text(`Dari      : ${data.departureAirport}`, 20, y);
+  doc.text(`Tujuan : ${data.arrivalAirport}`, 105, y);
+  y += 6;
+  if (data.airline) doc.text(`Maskapai : ${data.airline}`, 20, y);
+  if (data.flightNumber) doc.text(`No. Penerbangan : ${data.flightNumber}`, 105, y);
+  y += 10;
 
-  y += 15;
-
-  // Return
-  doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
   doc.text('KEPULANGAN', 20, y);
-  y += 8;
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
-  doc.text(`Tanggal: ${format(data.returnDate, 'd MMMM yyyy', { locale: id })}`, 20, y);
-
-  y += 20;
-
-  // Accommodation Information
-  doc.setFillColor(rgb.r, rgb.g, rgb.b);
-  doc.rect(14, y - 5, pageWidth - 28, 8, 'F');
-  doc.setTextColor(255, 255, 255);
-  doc.setFont('helvetica', 'bold');
-  doc.text('INFORMASI AKOMODASI', 20, y);
-  doc.setTextColor(0, 0, 0);
-  y += 12;
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
-  if (data.hotelMakkah) {
-    doc.text(`Hotel Makkah: ${data.hotelMakkah}`, 20, y);
-    y += 7;
-  }
-  if (data.hotelMadinah) {
-    doc.text(`Hotel Madinah: ${data.hotelMadinah}`, 20, y);
-    y += 7;
-  }
-  doc.text(`Tipe Kamar: ${data.roomType}`, 20, y);
-
-  y += 25;
-
-  // Important Notes
-  doc.setFillColor(255, 243, 205);
-  doc.rect(14, y - 5, pageWidth - 28, 40, 'F');
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
-  doc.text('CATATAN PENTING:', 20, y);
   y += 7;
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
-  doc.text('• Harap tiba di bandara minimal 4 jam sebelum keberangkatan', 20, y);
-  y += 5;
-  doc.text('• Pastikan paspor masih berlaku minimal 6 bulan dari tanggal keberangkatan', 20, y);
-  y += 5;
-  doc.text('• Bawa dokumen asli: Paspor, Visa, Buku Kuning (Vaksin Meningitis)', 20, y);
-  y += 5;
-  doc.text('• E-Ticket ini wajib dicetak dan dibawa saat keberangkatan', 20, y);
+  doc.text(`Tanggal : ${format(data.returnDate, 'd MMMM yyyy', { locale: id })}`, 20, y);
+  y += 12;
 
-  // Footer
-  const pageHeight = doc.internal.pageSize.height;
-  doc.setFontSize(8);
-  doc.setTextColor(128);
-  doc.text(`Dicetak: ${format(new Date(), 'd MMMM yyyy HH:mm', { locale: id })}`, 14, pageHeight - 15);
-  doc.text(`${company.phone} | ${company.email}`, pageWidth - 14, pageHeight - 15, { align: 'right' });
-  doc.setTextColor(0);
+  // ── ACCOMMODATION ───────────────────────────────────────────────────────
+  doc.setFillColor(rgb.r, rgb.g, rgb.b);
+  doc.rect(14, y, pageWidth - 28, 7, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.text('INFORMASI AKOMODASI', 20, y + 5);
+  doc.setTextColor(0, 0, 0);
+  y += 13;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  if (data.hotelMakkah) { doc.text(`Hotel Makkah  : ${data.hotelMakkah}`, 20, y); y += 6; }
+  if (data.hotelMadinah) { doc.text(`Hotel Madinah : ${data.hotelMadinah}`, 20, y); y += 6; }
+  doc.text(`Tipe Kamar    : ${data.roomType}`, 20, y);
+  y += 12;
+
+  // ── ITINERARY ───────────────────────────────────────────────────────────
+  if (data.itinerary && data.itinerary.length > 0) {
+    if (y > 200) { doc.addPage(); y = 20; }
+
+    doc.setFillColor(rgb.r, rgb.g, rgb.b);
+    doc.rect(14, y, pageWidth - 28, 7, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.text('PROGRAM PERJALANAN', 20, y + 5);
+    doc.setTextColor(0, 0, 0);
+    y += 12;
+
+    for (const day of data.itinerary) {
+      if (y > 265) { doc.addPage(); y = 20; }
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.setTextColor(rgb.r, rgb.g, rgb.b);
+      doc.text(`Hari ${day.day} — ${day.title}`, 20, y);
+      doc.setTextColor(0, 0, 0);
+      y += 5;
+
+      if (day.description) {
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8.5);
+        const lines = doc.splitTextToSize(day.description, pageWidth - 44);
+        for (const line of lines) {
+          if (y > 270) { doc.addPage(); y = 20; }
+          doc.text(line, 26, y);
+          y += 4.5;
+        }
+      }
+      y += 3;
+    }
+    y += 4;
+  }
+
+  // ── IMPORTANT NOTES ─────────────────────────────────────────────────────
+  if (y > 225) { doc.addPage(); y = 20; }
+
+  doc.setFillColor(255, 243, 205);
+  doc.rect(14, y, pageWidth - 28, 34, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  y += 6;
+  doc.text('CATATAN PENTING:', 20, y);
+  y += 6;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8.5);
+  doc.text('• Harap tiba di bandara minimal 4 jam sebelum keberangkatan', 22, y); y += 5;
+  doc.text('• Pastikan paspor masih berlaku minimal 6 bulan dari tanggal keberangkatan', 22, y); y += 5;
+  doc.text('• Bawa dokumen asli: Paspor, Visa, Buku Kuning (Vaksin Meningitis)', 22, y); y += 5;
+  doc.text('• E-Ticket ini wajib dicetak dan dibawa saat keberangkatan', 22, y);
+
+  // ── FOOTER ───────────────────────────────────────────────────────────────
+  const pageCount = (doc.internal as any).getNumberOfPages?.() ?? 1;
+  for (let pg = 1; pg <= pageCount; pg++) {
+    doc.setPage(pg);
+    const ph = doc.internal.pageSize.height;
+    doc.setFontSize(8);
+    doc.setTextColor(128);
+    doc.text(`Dicetak: ${format(new Date(), 'd MMMM yyyy HH:mm', { locale: id })}  |  Hal ${pg}/${pageCount}`, 14, ph - 10);
+    doc.text(`${company.phone} | ${company.email}`, pageWidth - 14, ph - 10, { align: 'right' });
+    doc.setTextColor(0);
+  }
 
   return doc;
 }
