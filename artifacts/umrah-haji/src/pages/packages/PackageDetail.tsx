@@ -185,7 +185,7 @@ export default function PackageDetail() {
     }
   }, [pkg?.id]);
 
-  // Inject SEO meta tags dynamically
+  // Inject SEO meta tags + JSON-LD + canonical dynamically
   useEffect(() => {
     if (!pkg) return;
 
@@ -193,6 +193,7 @@ export default function PackageDetail() {
     const metaTitle = (pkg as any).meta_title || `${pkg.name} — ${siteTitle}`;
     const metaDesc = (pkg as any).meta_description || pkg.description || `Paket ${pkg.name} selama ${pkg.duration_days} hari bersama ${siteTitle}.`;
     const keywords: string[] = (pkg as any).keywords ?? [];
+    const canonicalUrl = window.location.href.split('?')[0];
 
     document.title = metaTitle;
 
@@ -209,13 +210,16 @@ export default function PackageDetail() {
 
     setMeta("description", metaDesc);
     if (keywords.length > 0) setMeta("keywords", keywords.join(", "));
+    setMeta("robots", "index, follow");
 
     // Open Graph
     setMeta("og:title", metaTitle, true);
     setMeta("og:description", metaDesc, true);
     setMeta("og:type", "product", true);
     if (pkg.featured_image) setMeta("og:image", pkg.featured_image, true);
-    setMeta("og:url", window.location.href, true);
+    setMeta("og:url", canonicalUrl, true);
+    setMeta("og:locale", "id_ID", true);
+    setMeta("og:site_name", siteTitle, true);
 
     // Twitter Card
     setMeta("twitter:card", "summary_large_image");
@@ -223,8 +227,68 @@ export default function PackageDetail() {
     setMeta("twitter:description", metaDesc);
     if (pkg.featured_image) setMeta("twitter:image", pkg.featured_image);
 
+    // Canonical link
+    let canonical = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+    if (!canonical) {
+      canonical = document.createElement("link");
+      canonical.setAttribute("rel", "canonical");
+      document.head.appendChild(canonical);
+    }
+    canonical.setAttribute("href", canonicalUrl);
+
+    // JSON-LD structured data (Product schema for Google rich results)
+    const upcomingDeps = (pkg.departures || [])
+      .filter((d: any) => d.status === 'open' && new Date(d.departure_date) > new Date())
+      .sort((a: any, b: any) => new Date(a.departure_date).getTime() - new Date(b.departure_date).getTime());
+
+    const lowestPrice = upcomingDeps.length > 0
+      ? Math.min(...upcomingDeps.flatMap((d: any) => [d.price_quad, d.price_triple, d.price_double, d.price_single].filter(Boolean)))
+      : (pkg.price_quad || pkg.price_triple || pkg.price_double || pkg.price_single || null);
+
+    const jsonLd: Record<string, any> = {
+      "@context": "https://schema.org",
+      "@type": "Product",
+      "name": pkg.name,
+      "description": metaDesc,
+      "url": canonicalUrl,
+      "brand": { "@type": "Brand", "name": siteTitle },
+      "category": (pkg as any).package_type === 'haji' ? 'Paket Haji' : 'Paket Umroh',
+    };
+    if (pkg.featured_image) jsonLd["image"] = pkg.featured_image;
+    if (lowestPrice) {
+      jsonLd["offers"] = {
+        "@type": "AggregateOffer",
+        "priceCurrency": pkg.currency || "IDR",
+        "lowPrice": lowestPrice,
+        "availability": upcomingDeps.length > 0
+          ? "https://schema.org/InStock"
+          : "https://schema.org/OutOfStock",
+        "url": canonicalUrl,
+      };
+    }
+    if (pkg.duration_days) {
+      jsonLd["additionalProperty"] = {
+        "@type": "PropertyValue",
+        "name": "Durasi",
+        "value": `${pkg.duration_days} hari`,
+      };
+    }
+
+    let ldScript = document.querySelector<HTMLScriptElement>('script[data-schema="package-detail"]');
+    if (!ldScript) {
+      ldScript = document.createElement("script");
+      ldScript.setAttribute("type", "application/ld+json");
+      ldScript.setAttribute("data-schema", "package-detail");
+      document.head.appendChild(ldScript);
+    }
+    ldScript.textContent = JSON.stringify(jsonLd);
+
     return () => {
       document.title = siteTitle;
+      const ldEl = document.querySelector('script[data-schema="package-detail"]');
+      if (ldEl) ldEl.remove();
+      const canonicalEl = document.querySelector('link[rel="canonical"]');
+      if (canonicalEl) canonicalEl.remove();
     };
   }, [pkg]);
 

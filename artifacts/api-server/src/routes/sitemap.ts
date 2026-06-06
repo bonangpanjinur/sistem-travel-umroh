@@ -57,7 +57,6 @@ ${urls}
 router.get("/sitemap.xml", async (req, res) => {
   res.setHeader("Content-Type", "application/xml; charset=utf-8");
   res.setHeader("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400");
-  res.setHeader("X-Robots-Tag", "noindex");
 
   const proto = req.headers["x-forwarded-proto"] || req.protocol || "https";
   const host = req.headers["x-forwarded-host"] || req.headers.host || "localhost:5000";
@@ -113,6 +112,19 @@ router.get("/sitemap.xml", async (req, res) => {
 
   const xml = buildSitemapXml(baseUrl, [...staticPages, ...packageEntries]);
   res.send(xml);
+});
+
+// robots.txt — allow crawlers, point to sitemap
+router.get("/robots.txt", (req, res) => {
+  const proto = req.headers["x-forwarded-proto"] || req.protocol || "https";
+  const host = req.headers["x-forwarded-host"] || req.headers.host || "localhost:5000";
+  const baseUrl = `${proto}://${host}`;
+
+  res.setHeader("Content-Type", "text/plain; charset=utf-8");
+  res.setHeader("Cache-Control", "public, max-age=86400");
+  res.send(
+    `User-agent: *\nAllow: /\nDisallow: /admin/\nDisallow: /api/\nDisallow: /auth/\n\nSitemap: ${baseUrl}/sitemap.xml\n`,
+  );
 });
 
 export default router;
