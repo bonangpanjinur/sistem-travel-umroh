@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
-import { formatPackageType } from '@/lib/format';
+import { formatPackageType, formatCurrency } from '@/lib/format';
 import { PackageBookingFormSimple } from '@/components/packages/PackageBookingFormSimple';
 
 import { 
@@ -1190,6 +1190,140 @@ export default function PackageDetail() {
             <PackageBookingFormSimple pkg={pkg} />
           </div>
         </div>
+
+        {/* ── Related Departures ── */}
+        {upcomingDepartures.length > 0 && (
+          <div className="mt-12 pt-8 border-t">
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h2 className="text-xl font-bold text-foreground">
+                  Jadwal Keberangkatan Tersedia
+                </h2>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  {upcomingDepartures.length} jadwal berikutnya untuk paket ini
+                </p>
+              </div>
+              <Link
+                to="/departures"
+                className="text-sm text-primary hover:underline flex items-center gap-1 font-medium"
+              >
+                Lihat semua <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {upcomingDepartures.slice(0, 6).map((dep: any) => {
+                const slotsLeft = dep.quota - (dep.booked_count || 0);
+                const isFull = slotsLeft <= 0;
+                const prices = [dep.price_quad, dep.price_triple, dep.price_double, dep.price_single, dep.price_adult]
+                  .filter((p: number) => p > 0);
+                const lowestPrice = prices.length > 0 ? Math.min(...prices) : null;
+                const depDate = new Date(dep.departure_date);
+                const dayNum = depDate.getDate();
+                const monthStr = depDate.toLocaleDateString('id-ID', { month: 'short' });
+                const yearStr = depDate.getFullYear();
+                const daysUntil = Math.ceil((depDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+                const durationDays = dep.return_date
+                  ? Math.ceil((new Date(dep.return_date).getTime() - depDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
+                  : pkg?.duration_days ?? null;
+                const depSlug = dep.slug || `${dep.id}-${slugify(pkg?.name || 'keberangkatan')}`;
+
+                return (
+                  <Link
+                    key={dep.id}
+                    to={`/departures/${depSlug}`}
+                    className="group block rounded-xl border bg-card hover:border-primary hover:shadow-md transition-all duration-200"
+                  >
+                    <div className="p-4 flex gap-4 items-start">
+                      {/* Date block */}
+                      <div className="flex-shrink-0 w-14 text-center rounded-lg bg-primary/10 group-hover:bg-primary/15 transition-colors py-2">
+                        <p className="text-[10px] font-bold uppercase tracking-wide text-primary">{monthStr}</p>
+                        <p className="text-2xl font-black text-primary leading-none">{dayNum}</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">{yearStr}</p>
+                      </div>
+
+                      {/* Details */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <div>
+                            {daysUntil <= 30 ? (
+                              <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-4 mb-1">
+                                {daysUntil} hari lagi
+                              </Badge>
+                            ) : daysUntil <= 90 ? (
+                              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 mb-1">
+                                {daysUntil} hari lagi
+                              </Badge>
+                            ) : null}
+                          </div>
+                          <Badge
+                            variant={isFull ? 'destructive' : slotsLeft <= 5 ? 'secondary' : 'outline'}
+                            className="text-[10px] px-1.5 py-0 h-4 flex-shrink-0"
+                          >
+                            {isFull ? 'Penuh' : `Sisa ${slotsLeft}`}
+                          </Badge>
+                        </div>
+
+                        <div className="space-y-1">
+                          {durationDays && (
+                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                              <CalendarIcon className="h-3 w-3 flex-shrink-0" />
+                              <span>{durationDays} hari</span>
+                              {dep.return_date && (
+                                <span className="text-muted-foreground/60">
+                                  · s/d {new Date(dep.return_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                          {dep.airline?.name && (
+                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                              <Plane className="h-3 w-3 flex-shrink-0" />
+                              <span className="truncate">{dep.airline.name}</span>
+                            </div>
+                          )}
+                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <Users className="h-3 w-3 flex-shrink-0" />
+                            <span>Kuota {dep.quota} orang</span>
+                          </div>
+                        </div>
+
+                        {lowestPrice && (
+                          <p className="mt-2 text-sm font-bold text-primary">
+                            {formatCurrency(lowestPrice)}
+                            <span className="text-[10px] font-normal text-muted-foreground ml-1">/orang</span>
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="px-4 pb-3">
+                      <div className={cn(
+                        "w-full text-center text-xs font-medium py-1.5 rounded-lg transition-colors",
+                        isFull
+                          ? "bg-muted text-muted-foreground"
+                          : "bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground"
+                      )}>
+                        {isFull ? 'Kursi Penuh' : 'Lihat Detail & Daftar'}
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+
+            {upcomingDepartures.length > 6 && (
+              <div className="text-center mt-5">
+                <Button variant="outline" asChild>
+                  <Link to="/departures">
+                    Lihat {upcomingDepartures.length - 6} jadwal lainnya
+                    <ArrowRight className="h-4 w-4 ml-1.5" />
+                  </Link>
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </DynamicPublicLayout>
   );
