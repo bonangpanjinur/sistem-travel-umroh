@@ -129,6 +129,7 @@ router.get("/sitemap.xml", async (req, res) => {
   ];
 
   let packageEntries: UrlEntry[] = [];
+  let departureEntries: UrlEntry[] = [];
   let blogEntries: UrlEntry[] = [];
   let landingPageEntries: UrlEntry[] = [];
 
@@ -184,6 +185,62 @@ router.get("/sitemap.xml", async (req, res) => {
       }));
     } else {
       console.error("[Sitemap] All package fetch methods failed");
+    }
+  }
+
+  // ── Departures ─────────────────────────────────────────────────────────────
+  try {
+    const rows = await supabaseGet<{
+      id: string;
+      slug: string | null;
+      departure_date: string | null;
+      updated_at: string | null;
+      package: { name: string } | null;
+    }>("departures", {
+      select: "id,slug,departure_date,updated_at,package:packages(name)",
+      status: "eq.open",
+      order: "departure_date.asc.nullslast",
+    });
+    departureEntries = rows
+      .filter((d) => {
+        if (!d.departure_date) return false;
+        return new Date(d.departure_date) >= new Date(Date.now() - 86400000);
+      })
+      .map((d) => {
+        const depSlug =
+          d.slug ||
+          `${d.id}-${slugify((d.package as any)?.name || "keberangkatan")}`;
+        return {
+          loc: `${baseUrl}/departures/${depSlug}`,
+          lastmod: toW3CDate(d.updated_at),
+          changefreq: "weekly",
+          priority: "0.75",
+        };
+      });
+  } catch {
+    const result = await tryPool(async (pool: any) => {
+      const client = await pool.connect();
+      try {
+        const { rows } = await client.query(
+          `SELECT d.id, d.slug, d.departure_date, d.updated_at, p.name AS package_name
+           FROM departures d
+           LEFT JOIN packages p ON p.id = d.package_id
+           WHERE d.status = 'open' AND d.departure_date >= CURRENT_DATE - 1
+           ORDER BY d.departure_date ASC`,
+        );
+        return rows;
+      } finally { client.release(); }
+    });
+    if (result) {
+      departureEntries = result.map((d: any) => {
+        const depSlug = d.slug || `${d.id}-${slugify(d.package_name || "keberangkatan")}`;
+        return {
+          loc: `${baseUrl}/departures/${depSlug}`,
+          lastmod: toW3CDate(d.updated_at),
+          changefreq: "weekly",
+          priority: "0.75",
+        };
+      });
     }
   }
 
@@ -260,6 +317,7 @@ router.get("/sitemap.xml", async (req, res) => {
   const xml = buildSitemapXml(baseUrl, [
     ...staticPages,
     ...packageEntries,
+    ...departureEntries,
     ...blogEntries,
     ...landingPageEntries,
   ]);

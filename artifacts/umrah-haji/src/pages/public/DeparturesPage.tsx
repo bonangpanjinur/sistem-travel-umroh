@@ -210,11 +210,18 @@ export default function DeparturesPage() {
                       </p>
                     </div>
 
-                    <Button asChild className="w-full">
-                      <Link to={dep.package?.id ? `/packages/${dep.package.id}-${slugify(dep.package.name)}` : "/packages"}>
-                        Daftar Sekarang
-                      </Link>
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button variant="outline" asChild className="flex-1">
+                        <Link to={`/departures/${dep.slug || `${dep.id}-${slugify(dep.package?.name || 'keberangkatan')}`}`}>
+                          Lihat Detail
+                        </Link>
+                      </Button>
+                      <Button asChild className="flex-1">
+                        <Link to={dep.package_id ? `/booking/${dep.package_id}?departureId=${dep.id}` : "/packages"}>
+                          Daftar
+                        </Link>
+                      </Button>
+                    </div>
                   </CardContent>
                 </Card>
               );

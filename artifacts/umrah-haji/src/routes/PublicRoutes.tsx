@@ -15,6 +15,7 @@ const PackageDetail = lazy(() => import("@/pages/packages/PackageDetail"));
 const AboutPage = lazy(() => import("@/pages/public/AboutPage"));
 const ContactPage = lazy(() => import("@/pages/public/ContactPage"));
 const DeparturesPage = lazy(() => import("@/pages/public/DeparturesPage"));
+const DepartureDetail = lazy(() => import("@/pages/public/DepartureDetail"));
 const StaticPage = lazy(() => import("@/pages/public/StaticPage"));
 const PublicFAQPage = lazy(() => import("@/pages/public/PublicFAQPage"));
 const SavingsPackages = lazy(() => import("@/pages/savings/SavingsPackages"));
@@ -74,6 +75,7 @@ export default function PublicRoutes() {
       <Route path="/savings/success/:planId" element={<LazyPage><SavingsSuccess /></LazyPage>} />
       <Route path="/savings/dashboard" element={<LazyPage><SavingsDashboard /></LazyPage>} />
       <Route path="/departures" element={<LazyPage><DeparturesPage /></LazyPage>} />
+      <Route path="/departures/:slug" element={<LazyPage><DepartureDetail /></LazyPage>} />
       <Route path="/faq" element={<LazyPage><PublicFAQPage /></LazyPage>} />
       <Route path="/terms" element={<LazyPage><StaticPage /></LazyPage>} />
       <Route path="/privacy" element={<LazyPage><StaticPage /></LazyPage>} />
