@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,13 +17,17 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { format } from "date-fns";
+import { format, subMonths } from "date-fns";
 import { id as localeId } from "date-fns/locale";
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, AreaChart, Area,
+} from "recharts";
 import { formatCurrency } from "@/lib/format";
 import {
   ArrowLeft, User, Building2, Phone, Mail, MapPin, CreditCard,
   TrendingUp, Users, DollarSign, BookOpen, ShieldOff, ShieldCheck,
-  KeyRound, RefreshCw, Network, CheckCircle2, XCircle, Clock,
+  KeyRound, RefreshCw, Network, CheckCircle2, XCircle, Clock, BarChart3,
 } from "lucide-react";
 
 const API_BASE = "/api";
@@ -86,6 +90,31 @@ export default function AdminAgentDetail() {
   const bookings: any[] = data?.bookings ?? [];
   const commissions: any[] = data?.commissions ?? [];
   const stats = data?.stats;
+
+  const perfData = useMemo(() => {
+    const months: { key: string; bulan: string; booking: number; revenue: number; komisi: number }[] = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = subMonths(new Date(), i);
+      months.push({
+        key: format(d, "yyyy-MM"),
+        bulan: format(d, "MMM yy", { locale: localeId }),
+        booking: 0, revenue: 0, komisi: 0,
+      });
+    }
+    bookings.forEach((b: any) => {
+      if (!b.created_at) return;
+      const key = b.created_at.slice(0, 7);
+      const m = months.find((x) => x.key === key);
+      if (m) { m.booking++; m.revenue += Number(b.total_price || 0); }
+    });
+    commissions.forEach((c: any) => {
+      if (!c.created_at) return;
+      const key = c.created_at.slice(0, 7);
+      const m = months.find((x) => x.key === key);
+      if (m) m.komisi += Number(c.commission_amount || 0);
+    });
+    return months;
+  }, [bookings, commissions]);
 
   const statusMutation = useMutation({
     mutationFn: (status: string) =>
@@ -228,6 +257,9 @@ export default function AdminAgentDetail() {
           <TabsTrigger value="commissions">Komisi</TabsTrigger>
           <TabsTrigger value="sub_agents">
             Sub-Agen {subAgents.length > 0 && `(${subAgents.length})`}
+          </TabsTrigger>
+          <TabsTrigger value="performa">
+            <BarChart3 className="h-3.5 w-3.5 mr-1" />Performa
           </TabsTrigger>
         </TabsList>
 
@@ -432,6 +464,59 @@ export default function AdminAgentDetail() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Tab Performa */}
+        <TabsContent value="performa">
+          <div className="grid gap-4">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-primary" /> Booking 6 Bulan Terakhir
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={200}>
+                  <BarChart data={perfData} margin={{ top: 4, right: 4, left: -16, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="bulan" tick={{ fontSize: 11 }} />
+                    <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
+                    <Tooltip formatter={(v: any) => [v, "Booking"]} />
+                    <Bar dataKey="booking" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <DollarSign className="h-4 w-4 text-emerald-600" /> Revenue & Komisi 6 Bulan Terakhir
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={200}>
+                  <AreaChart data={perfData} margin={{ top: 4, right: 4, left: -8, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="gRev" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                      </linearGradient>
+                      <linearGradient id="gKom" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="bulan" tick={{ fontSize: 11 }} />
+                    <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${(v / 1_000_000).toFixed(0)}jt`} />
+                    <Tooltip formatter={(v: any, name: string) => [formatCurrency(v), name === "revenue" ? "Revenue" : "Komisi"]} />
+                    <Area type="monotone" dataKey="revenue" stroke="#10b981" fill="url(#gRev)" strokeWidth={2} name="revenue" />
+                    <Area type="monotone" dataKey="komisi" stroke="#f59e0b" fill="url(#gKom)" strokeWidth={2} name="komisi" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
 

@@ -27,7 +27,7 @@ import { formatCurrency } from "@/lib/format";
 import {
   Search, Users, CheckCircle, Clock, XCircle,
   DollarSign, Eye, Check, X, Edit2, Percent,
-  Plus, ChevronRight, UserPlus, Network
+  Plus, ChevronRight, UserPlus, Network, Download
 } from "lucide-react";
 import AddAgentDialog from "@/components/admin/AddAgentDialog";
 
@@ -323,6 +323,31 @@ export default function AdminAgents() {
       .reduce((sum, c) => sum + Number(c.commission_amount), 0) || 0,
   };
 
+  const exportCSV = () => {
+    const rows = (allAgents || []).map((a: any) => [
+      a.agent_code ?? "",
+      a.profile?.full_name ?? "",
+      a.company_name ?? "",
+      a.email ?? "",
+      a.phone ?? a.profile?.phone ?? "",
+      `${a.commission_rate ?? 0}%`,
+      a.is_active ? "Aktif" : "Nonaktif",
+      a.created_at ? format(new Date(a.created_at), "d/M/yyyy", { locale: id }) : "",
+      a.parent_agent_id ? "Sub-Agen" : "Agen Utama",
+    ]);
+    const header = ["Kode", "Nama", "Perusahaan", "Email", "HP", "Komisi", "Status", "Bergabung", "Tipe"];
+    const csv = [header, ...rows]
+      .map((r) => r.map((v: any) => `"${String(v).replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+    const url = URL.createObjectURL(new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `agen-vinstour-${format(new Date(), "yyyyMMdd")}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success(`${rows.length} data agen diekspor`);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -340,6 +365,10 @@ export default function AdminAgents() {
               className="pl-10 w-full sm:w-64"
             />
           </div>
+          <Button variant="outline" onClick={exportCSV} title="Export CSV">
+            <Download className="h-4 w-4 mr-2" />
+            Export
+          </Button>
           <Button onClick={() => setShowAddDialog(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Tambah Agent

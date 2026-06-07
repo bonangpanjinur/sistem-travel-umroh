@@ -42,6 +42,17 @@ const RESERVED_PARAMS = new Set([
   "select", "order", "limit", "offset", "on_conflict",
 ]);
 
+/**
+ * Tables that are scoped to a single branch when the caller is a branch_manager.
+ * For these tables the proxy automatically injects a branch_id = JWT.branch_id filter.
+ */
+const BRANCH_SCOPED_TABLES = new Set([
+  "bookings",
+  "agents",
+  "discount_requests",
+  "branch_commissions",
+]);
+
 function parseFilters(query: Record<string, string>): Filter[] {
   const out: Filter[] = [];
   for (const [col, expr] of Object.entries(query)) {
@@ -345,6 +356,16 @@ supabaseProxyRouter.get("/rest/v1/:table", async (req, res) => {
   const params: unknown[] = [];
   const selectCols = parseSelect(q.select);
   const filters = parseFilters(q);
+
+  // Branch data scoping: branch_manager can only see their own branch's data
+  const caller = await getCallerPayload(req.headers["authorization"]);
+  if (caller?.role === "branch_manager" && caller?.branch_id && BRANCH_SCOPED_TABLES.has(table)) {
+    // Inject branch_id filter — overrides any existing branch_id sent by the client
+    const idx = filters.findIndex((f) => f.col === "branch_id");
+    if (idx >= 0) filters.splice(idx, 1);
+    filters.push({ col: "branch_id", op: "eq", raw: caller.branch_id as string });
+  }
+
   const where = buildWhere(filters, params);
   const order = buildOrder(q.order);
   const limitVal = q.limit ? Math.min(parseInt(q.limit, 10), 1000) : 1000;

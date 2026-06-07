@@ -49,7 +49,7 @@ export default function BranchDashboard() {
       const startMonth = new Date(`${dateFrom}T00:00:00`).toISOString();
       const endMonth = new Date(`${dateTo}T23:59:59`).toISOString();
 
-      const [bookingsRes, agentsRes, customersRes, revenueRes, pendingDiskon] = await Promise.all([
+      const [bookingsRes, agentsRes, customersRes, revenueRes, pendingDiskon, komisiRes] = await Promise.all([
         supabase.from("bookings").select("id, status, total_price, created_at", { count: "exact" })
           .eq("branch_id", bId).gte("created_at", startMonth).lte("created_at", endMonth),
         (supabase as any).from("agents").select("id", { count: "exact" }).eq("branch_id", bId).eq("status", "active"),
@@ -59,9 +59,17 @@ export default function BranchDashboard() {
           .gte("created_at", startMonth).lte("created_at", endMonth),
         (supabase as any).from("discount_requests").select("id", { count: "exact" })
           .eq("branch_id", bId).eq("status", "pending"),
+        (supabase as any).from("branch_commissions").select("commission_amount, status")
+          .eq("branch_id", bId),
       ]);
 
       const revenue = (revenueRes.data || []).reduce((s: number, b: any) => s + Number(b.total_price || 0), 0);
+      const komisiPending = (komisiRes.data || [])
+        .filter((k: any) => k.status === "pending")
+        .reduce((s: number, k: any) => s + Number(k.commission_amount || 0), 0);
+      const komisiDibayar = (komisiRes.data || [])
+        .filter((k: any) => k.status === "paid")
+        .reduce((s: number, k: any) => s + Number(k.commission_amount || 0), 0);
       return {
         bookings: bookingsRes.count || 0,
         confirmed: (bookingsRes.data || []).filter((b: any) => ["confirmed", "processing", "completed"].includes(b.status)).length,
@@ -69,6 +77,8 @@ export default function BranchDashboard() {
         customers: customersRes.count || 0,
         revenue,
         pendingDiskon: pendingDiskon.count || 0,
+        komisiPending,
+        komisiDibayar,
       };
     },
   });
@@ -117,9 +127,11 @@ export default function BranchDashboard() {
 
   const KPI = [
     { label: "Booking Periode", value: stats?.bookings ?? 0, sub: `${stats?.confirmed ?? 0} konfirmasi`, icon: Package, color: "text-blue-600", bg: "bg-blue-50" },
-    { label: "Revenue Periode", value: formatCurrency(stats?.revenue ?? 0), sub: "Booking confirmed", icon: DollarSign, color: "text-green-600", bg: "bg-green-50", isCurrency: true },
+    { label: "Revenue Periode", value: formatCurrency(stats?.revenue ?? 0), sub: "Booking confirmed", icon: DollarSign, color: "text-green-600", bg: "bg-green-50" },
     { label: "Agen Aktif", value: stats?.agents ?? 0, sub: "di cabang ini", icon: Users, color: "text-purple-600", bg: "bg-purple-50" },
     { label: "Total Jamaah", value: stats?.customers ?? 0, sub: "terdaftar", icon: TrendingUp, color: "text-amber-600", bg: "bg-amber-50" },
+    { label: "Komisi Pending", value: formatCurrency(stats?.komisiPending ?? 0), sub: "menunggu pembayaran", icon: Clock, color: "text-orange-600", bg: "bg-orange-50" },
+    { label: "Komisi Dibayar", value: formatCurrency(stats?.komisiDibayar ?? 0), sub: "telah dicairkan", icon: CheckCircle2, color: "text-emerald-600", bg: "bg-emerald-50" },
   ];
 
   return (
@@ -178,7 +190,7 @@ export default function BranchDashboard() {
       </Card>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
         {KPI.map((k) => {
           const Icon = k.icon;
           return (
