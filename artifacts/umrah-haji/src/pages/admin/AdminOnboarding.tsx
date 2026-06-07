@@ -16,8 +16,9 @@ import { toast } from "sonner";
 import {
   ClipboardList, Plus, Pencil, Trash2, Users, CheckCircle2,
   Clock, AlertCircle, ChevronDown, ChevronUp, Search,
-  LayoutTemplate, UserCheck, Calendar, RefreshCw,
+  LayoutTemplate, UserCheck, Calendar, RefreshCw, FileDown,
 } from "lucide-react";
+import OnboardingReportDialog from "@/components/hr/OnboardingReportDialog";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Employee { id: string; full_name: string; employee_code: string; position?: string; department?: string; join_date?: string }
@@ -59,6 +60,9 @@ export default function AdminOnboarding() {
 
   // ── Employee detail expansion ─────────────────────────────────────────────
   const [expandedEmployee, setExpandedEmployee] = useState<string | null>(null);
+
+  // ── Report dialog ──────────────────────────────────────────────────────────
+  const [isReportOpen, setIsReportOpen] = useState(false);
 
   // ── Assign template dialog ─────────────────────────────────────────────────
   const [isAssignOpen, setIsAssignOpen] = useState(false);
@@ -352,6 +356,9 @@ export default function AdminOnboarding() {
             </p>
           </div>
           <div className="flex gap-2 flex-wrap">
+            <Button variant="outline" size="sm" onClick={() => setIsReportOpen(true)}>
+              <FileDown className="h-4 w-4 mr-1.5" /> Laporan & Ekspor PDF
+            </Button>
             <Button variant="outline" size="sm" onClick={() => { setIsAssignOpen(true); setAssignEmployeeId(""); setAssignTemplateId(""); }}>
               <UserCheck className="h-4 w-4 mr-1.5" /> Tetapkan Checklist
             </Button>
@@ -867,6 +874,14 @@ export default function AdminOnboarding() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* ── Report Dialog ────────────────────────────────────────────────────── */}
+      <OnboardingReportDialog
+        open={isReportOpen}
+        onClose={() => setIsReportOpen(false)}
+        employees={employees as Employee[]}
+        allTasks={allTasks as OnboardingTask[]}
+      />
     </>
   );
 }
