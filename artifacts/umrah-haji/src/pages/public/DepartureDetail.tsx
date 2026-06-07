@@ -123,16 +123,15 @@ export default function DepartureDetail() {
         *,
         package:packages(
           id, name, package_type, duration_days, is_active,
-          description, featured_image, meta_title, meta_description,
-          airline:airlines(name, code)
+          description, featured_image
         ),
         airline:airlines(id, name, code),
         hotel_makkah:hotels!departures_hotel_makkah_id_fkey(id, name, star_rating, city),
         hotel_madinah:hotels!departures_hotel_madinah_id_fkey(id, name, star_rating, city),
         departure_airport:airports!departures_departure_airport_id_fkey(id, name, code, city),
         arrival_airport:airports!departures_arrival_airport_id_fkey(id, name, code, city),
-        muthawif:users!departures_muthawif_id_fkey(id, full_name),
-        team_leader:users!departures_team_leader_id_fkey(id, full_name)
+        muthawif:employees!departures_muthawif_id_fkey(id, full_name),
+        team_leader:employees!departures_team_leader_id_fkey(id, full_name)
       `;
 
       // 1. Try by custom slug field
@@ -377,64 +376,79 @@ export default function DepartureDetail() {
                 <div>
                   <p className="text-xs text-muted-foreground mb-0.5">Harga mulai dari</p>
                   <p className="text-3xl font-bold text-primary">{formatCurrency(lowestPrice)}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">per orang</p>
                 </div>
-                <div className="flex gap-2 flex-wrap">
-                  {waLink && (
-                    <Button variant="outline" asChild>
-                      <a href={waLink} target="_blank" rel="noopener noreferrer">
-                        <Phone className="h-4 w-4 mr-1.5" />
-                        Tanya via WA
-                      </a>
-                    </Button>
-                  )}
-                  {packageSlug && !isFull && (
-                    <Button asChild>
-                      <Link to={`/booking/${dep.package_id}?departureId=${dep.id}`}>
-                        Daftar Sekarang
-                      </Link>
-                    </Button>
-                  )}
-                  {isFull && (
-                    <Button disabled variant="outline">
-                      <AlertCircle className="h-4 w-4 mr-1.5" />
-                      Kursi Penuh
-                    </Button>
-                  )}
-                </div>
+                {!isFull ? (
+                  <Button size="lg" asChild className="w-full sm:w-auto px-8">
+                    <Link to={`/booking/${dep.package_id}?departureId=${dep.id}`}>
+                      Daftar Sekarang
+                    </Link>
+                  </Button>
+                ) : (
+                  <Button size="lg" disabled className="w-full sm:w-auto px-8" variant="outline">
+                    Sudah Penuh
+                  </Button>
+                )}
               </div>
             )}
           </div>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-6">
+        {/* ── Content Grid ── */}
+        <div className="grid lg:grid-cols-3 gap-8">
           {/* ── Left: details ── */}
-          <div className="md:col-span-2 space-y-6">
-
-            {/* Package description */}
+          <div className="lg:col-span-2 space-y-6">
+            
+            {/* Description */}
             {dep.package?.description && (
               <Section title="Tentang Paket">
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  {dep.package.description}
-                </p>
+                <div 
+                  className="text-sm text-muted-foreground leading-relaxed prose prose-sm max-w-none"
+                  dangerouslySetInnerHTML={{ __html: dep.package.description }}
+                />
               </Section>
             )}
 
-            {/* Hotels */}
-            {(dep.hotel_makkah || dep.hotel_madinah) && (
+            {/* Facilities / Logistics */}
+            <div className="grid md:grid-cols-2 gap-4">
+              <Section title="Penerbangan">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-lg bg-primary/5 flex items-center justify-center">
+                      <Plane className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Maskapai</p>
+                      <p className="text-sm font-medium">{dep.airline?.name || "Akan diinfokan"}</p>
+                      {dep.flight_number && <p className="text-[10px] text-muted-foreground">Flight: {dep.flight_number}</p>}
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
+                    <div>
+                      <p className="text-xs text-muted-foreground">Rute</p>
+                      <p className="text-sm">
+                        {dep.departure_airport?.city || "Jakarta"} ({dep.departure_airport?.code || "CGK"})
+                        <ChevronRight className="inline h-3 w-3 mx-1" />
+                        {dep.arrival_airport?.city || "Jeddah"} ({dep.arrival_airport?.code || "JED"})
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </Section>
+
               <Section title="Akomodasi">
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {dep.hotel_makkah && (
-                    <HotelRow
-                      icon={<MapPin className="h-4 w-4 text-primary" />}
+                    <HotelRow 
+                      icon={<BedDouble className="h-4 w-4 text-muted-foreground mt-0.5" />}
                       city="Makkah"
                       name={dep.hotel_makkah.name}
                       stars={dep.hotel_makkah.star_rating}
                     />
                   )}
                   {dep.hotel_madinah && (
-                    <HotelRow
-                      icon={<MapPin className="h-4 w-4 text-primary" />}
+                    <HotelRow 
+                      icon={<BedDouble className="h-4 w-4 text-muted-foreground mt-0.5" />}
                       city="Madinah"
                       name={dep.hotel_madinah.name}
                       stars={dep.hotel_madinah.star_rating}
@@ -442,61 +456,62 @@ export default function DepartureDetail() {
                   )}
                 </div>
               </Section>
-            )}
+            </div>
 
-            {/* Airline + airports */}
-            {(dep.airline || dep.departure_airport || dep.arrival_airport) && (
-              <Section title="Penerbangan">
-                <div className="space-y-2">
-                  {dep.airline && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <Plane className="h-4 w-4 text-primary flex-shrink-0" />
-                      <span className="font-medium">{dep.airline.name}</span>
-                      {dep.airline.code && (
-                        <span className="text-muted-foreground">({dep.airline.code})</span>
-                      )}
-                      {dep.flight_number && (
-                        <Badge variant="outline" className="text-xs">{dep.flight_number}</Badge>
-                      )}
+            {/* Team */}
+            {(dep.muthawif || dep.team_leader) && (
+              <Section title="Pendamping">
+                <div className="grid sm:grid-cols-2 gap-4">
+                  {dep.muthawif && (
+                    <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30">
+                      <UserCheck className="h-5 w-5 text-primary" />
+                      <div>
+                        <p className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider">Muthawif</p>
+                        <p className="text-sm font-medium">{dep.muthawif.full_name}</p>
+                      </div>
                     </div>
                   )}
-                  {dep.departure_airport && (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <span className="w-4 text-center text-xs font-bold text-primary">↑</span>
-                      <span>{dep.departure_airport.name} ({dep.departure_airport.code})</span>
-                      {dep.departure_time && (
-                        <span className="ml-auto text-xs">{dep.departure_time}</span>
-                      )}
-                    </div>
-                  )}
-                  {dep.arrival_airport && (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <span className="w-4 text-center text-xs font-bold text-primary">↓</span>
-                      <span>{dep.arrival_airport.name} ({dep.arrival_airport.code})</span>
+                  {dep.team_leader && (
+                    <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30">
+                      <Users className="h-5 w-5 text-primary" />
+                      <div>
+                        <p className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider">Team Leader</p>
+                        <p className="text-sm font-medium">{dep.team_leader.full_name}</p>
+                      </div>
                     </div>
                   )}
                 </div>
               </Section>
             )}
 
-            {/* Staff */}
-            {(dep.muthawif || dep.team_leader) && (
-              <Section title="Tim Pembimbing">
-                <div className="space-y-2">
-                  {dep.muthawif?.full_name && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <UserCheck className="h-4 w-4 text-primary flex-shrink-0" />
-                      <span className="text-muted-foreground">Muthawif:</span>
-                      <span className="font-medium">{dep.muthawif.full_name}</span>
+            {/* Deadlines */}
+            {(dep.payment_deadline || dep.document_deadline || dep.visa_deadline) && (
+              <Section title="Batas Waktu Penting">
+                <div className="space-y-3">
+                  {dep.payment_deadline && (
+                    <div className="flex justify-between items-center text-sm border-b border-dashed pb-2">
+                      <span className="text-muted-foreground">Pelunasan Pembayaran</span>
+                      <span className="font-medium text-destructive">{formatDateId(dep.payment_deadline)}</span>
                     </div>
                   )}
-                  {dep.team_leader?.full_name && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <UserCheck className="h-4 w-4 text-primary flex-shrink-0" />
-                      <span className="text-muted-foreground">Team Leader:</span>
-                      <span className="font-medium">{dep.team_leader.full_name}</span>
+                  {dep.document_deadline && (
+                    <div className="flex justify-between items-center text-sm border-b border-dashed pb-2">
+                      <span className="text-muted-foreground">Penyerahan Dokumen</span>
+                      <span className="font-medium">{formatDateId(dep.document_deadline)}</span>
                     </div>
                   )}
+                  {dep.visa_deadline && (
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-muted-foreground">Proses Visa</span>
+                      <span className="font-medium">{formatDateId(dep.visa_deadline)}</span>
+                    </div>
+                  )}
+                </div>
+                <div className="mt-4 p-3 rounded-lg bg-amber-50 border border-amber-100 flex gap-2">
+                  <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                  <p className="text-xs text-amber-800 leading-relaxed">
+                    Mohon pastikan semua persyaratan terpenuhi sebelum batas waktu yang ditentukan untuk menjamin keberangkatan Anda.
+                  </p>
                 </div>
               </Section>
             )}
