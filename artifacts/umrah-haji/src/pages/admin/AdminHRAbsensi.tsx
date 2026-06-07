@@ -4,17 +4,21 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, parseISO } from "date-fns";
 import { id as localeId } from "date-fns/locale";
+import * as XLSX from "xlsx";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import {
   Users, CheckCircle2, AlertCircle, XCircle, Clock,
   LogIn, LogOut, RefreshCw, Search, ChevronLeft,
-  Loader2, CalendarDays, Timer
+  Loader2, CalendarDays, Timer, FileDown, FileSpreadsheet, FileText
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Database } from "@/integrations/supabase/types";
@@ -208,6 +212,60 @@ export default function AdminHRAbsensi() {
     setManualType(type);
   };
 
+  /* ── export helpers ── */
+  const buildExportRows = (source: EmployeeRow[]) =>
+    source.map((r, i) => ({
+      "No":             i + 1,
+      "Nama Karyawan":  r.employee.full_name,
+      "Kode Karyawan":  r.employee.employee_code,
+      "Departemen":     r.employee.department ?? "-",
+      "Jabatan":        r.employee.position   ?? "-",
+      "Status":         STATE_CFG[r.state].label,
+      "Jam Masuk":      formatTs(r.record?.check_in_time),
+      "Jam Keluar":     formatTs(r.record?.check_out_time),
+      "Durasi Kerja":   workDuration(r.record?.check_in_time, r.record?.check_out_time),
+    }));
+
+  const exportToExcel = (all: boolean) => {
+    const source = all ? rows : filtered;
+    const label  = all ? "Semua" : "Filter";
+    const data   = buildExportRows(source);
+    const ws     = XLSX.utils.json_to_sheet(data);
+    const wb     = XLSX.utils.book_new();
+
+    /* column widths */
+    ws["!cols"] = [
+      { wch: 4 }, { wch: 28 }, { wch: 14 }, { wch: 18 },
+      { wch: 20 }, { wch: 14 }, { wch: 10 }, { wch: 10 }, { wch: 12 },
+    ];
+
+    XLSX.utils.book_append_sheet(wb, ws, "Absensi");
+    const filename = `Absensi_${todayStr}_${label}.xlsx`;
+    XLSX.writeFile(wb, filename);
+    toast.success(`File "${filename}" berhasil diunduh`);
+  };
+
+  const exportToCSV = (all: boolean) => {
+    const source = all ? rows : filtered;
+    const label  = all ? "Semua" : "Filter";
+    const data   = buildExportRows(source);
+    const headers = Object.keys(data[0] ?? {});
+    const csvRows = [
+      headers.join(","),
+      ...data.map(row =>
+        headers.map(h => `"${String((row as Record<string, unknown>)[h] ?? "").replace(/"/g, '""')}"`).join(",")
+      ),
+    ];
+    const blob = new Blob(["\uFEFF" + csvRows.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href     = url;
+    a.download = `Absensi_${todayStr}_${label}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success(`File CSV berhasil diunduh`);
+  };
+
   const statCards = [
     { label: "Total Karyawan", value: stats.total,     icon: Users,        color: "text-slate-600 bg-slate-100" },
     { label: "Sudah Hadir",    value: stats.hadir,     icon: CheckCircle2, color: "text-emerald-600 bg-emerald-50" },
@@ -234,7 +292,7 @@ export default function AdminHRAbsensi() {
           </div>
         </div>
 
-        {/* Refresh indicator */}
+        {/* Refresh + Export */}
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1.5 text-xs text-slate-400">
             <Timer className="w-3.5 h-3.5" />
@@ -250,6 +308,41 @@ export default function AdminHRAbsensi() {
             <RefreshCw className={cn("w-3.5 h-3.5", isLoading && "animate-spin")} />
             Refresh
           </Button>
+
+          {/* Export dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" className="h-8 gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white">
+                <FileDown className="w-3.5 h-3.5" />
+                Export
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              <div className="px-2 py-1.5 text-[11px] font-semibold text-slate-400 uppercase tracking-wide">
+                Tampilan saat ini ({filtered.length} karyawan)
+              </div>
+              <DropdownMenuItem onClick={() => exportToExcel(false)} className="gap-2 cursor-pointer">
+                <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+                Download Excel (.xlsx)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportToCSV(false)} className="gap-2 cursor-pointer">
+                <FileText className="w-4 h-4 text-blue-500" />
+                Download CSV
+              </DropdownMenuItem>
+              <div className="my-1 border-t border-slate-100" />
+              <div className="px-2 py-1.5 text-[11px] font-semibold text-slate-400 uppercase tracking-wide">
+                Semua karyawan ({rows.length})
+              </div>
+              <DropdownMenuItem onClick={() => exportToExcel(true)} className="gap-2 cursor-pointer">
+                <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+                Download Excel (semua)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportToCSV(true)} className="gap-2 cursor-pointer">
+                <FileText className="w-4 h-4 text-blue-500" />
+                Download CSV (semua)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
