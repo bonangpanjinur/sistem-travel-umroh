@@ -595,6 +595,19 @@ export async function runMigrations(): Promise<void> {
       logger.info("runMigrations: 28_leave_requests — already applied, skipping");
     }
 
+    // ── Step 1z: employee_contracts + job_postings + job_applicants ────────
+    const sdmContractsRecruitmentApplied = await isApplied(client, "29_sdm_contracts_recruitment");
+    if (!sdmContractsRecruitmentApplied) {
+      await runSqlFile(
+        client,
+        sqlPath("29_sdm_contracts_recruitment.sql"),
+        "29_sdm_contracts_recruitment (employee_contracts + job_postings + job_applicants)",
+      );
+      await markApplied(client, "29_sdm_contracts_recruitment");
+    } else {
+      logger.info("runMigrations: 29_sdm_contracts_recruitment — already applied, skipping");
+    }
+
     // ── Step 2: payment sync trigger (always re-applied each boot) ────────
     // Wrapped in its own try/catch so a missing table on a broken DB state
     // doesn't crash the server — it just logs and continues.

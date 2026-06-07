@@ -73,6 +73,8 @@ const AdminHR = lazy(() => import("@/pages/admin/AdminHR"));
 const AdminHRAbsensi      = lazy(() => import("@/pages/admin/AdminHRAbsensi"));
 const AdminHRAbsensiRekap = lazy(() => import("@/pages/admin/AdminHRAbsensiRekap"));
 const AdminSP = lazy(() => import("@/pages/admin/AdminSP"));
+const AdminHRAnalytics = lazy(() => import("@/pages/admin/AdminHRAnalytics"));
+const AdminRecruitment = lazy(() => import("@/pages/admin/AdminRecruitment"));
 const AdminHajiManagement = lazy(() => import("@/pages/admin/AdminHajiManagement"));
 const AdminItineraryTemplates = lazy(() => import("@/pages/admin/AdminItineraryTemplates"));
 const AdminOfflineContent = lazy(() => import("@/pages/admin/AdminOfflineContent"));
@@ -314,7 +316,9 @@ export default function AdminRoutes() {
       <Route path="hr/absensi"       element={<P k={PERMISSIONS.HR}><LazyPage><AdminHRAbsensi /></LazyPage></P>} />
       <Route path="hr/absensi/rekap" element={<P k={PERMISSIONS.HR}><LazyPage><AdminHRAbsensiRekap /></LazyPage></P>} />
       <Route path="hr/payroll" element={<P k={PERMISSIONS.PAYROLL}><AdminPayroll /></P>} />
-      <Route path="hr/sp" element={<P k={PERMISSIONS.SURAT_PERINGATAN}><LazyPage><AdminSP /></LazyPage></P>} />
+      <Route path="hr/sp"          element={<P k={PERMISSIONS.SURAT_PERINGATAN}><LazyPage><AdminSP /></LazyPage></P>} />
+      <Route path="hr/analytics"   element={<P k={PERMISSIONS.HR}><LazyPage><AdminHRAnalytics /></LazyPage></P>} />
+      <Route path="hr/recruitment" element={<P k={PERMISSIONS.HR}><LazyPage><AdminRecruitment /></LazyPage></P>} />
 
       {/* Support & Komunikasi */}
       <Route path="support" element={<P k={PERMISSIONS.SUPPORT}><AdminSupportTickets /></P>} />

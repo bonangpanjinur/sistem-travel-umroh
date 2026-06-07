@@ -39,10 +39,16 @@ const CONTENT_TYPES = [
   { value: "mixed", label: "Campuran" },
 ];
 
+const TARGET_AUDIENCE_OPTIONS = [
+  { value: "all",       label: "Semua (Agen & Staf)" },
+  { value: "agent",     label: "Agen Saja" },
+  { value: "staff",     label: "Staf Internal Saja" },
+];
+
 const EMPTY_FORM = {
   title: "", description: "", category: "product_knowledge", content_type: "text",
   content_url: "", content_text: "", duration_minutes: "", is_mandatory: false,
-  order_index: "0", is_active: true,
+  order_index: "0", is_active: true, target_audience: "all",
 };
 
 const STATUS_BADGE: Record<string, { label: string; variant: "default"|"secondary"|"destructive"|"outline" }> = {
@@ -59,6 +65,7 @@ export default function AdminTraining() {
   const [editingId, setEditingId]     = useState<string | null>(null);
   const [form, setForm]               = useState({ ...EMPTY_FORM });
   const [tab, setTab]                 = useState("modules");
+  const [audienceFilter, setAudienceFilter] = useState("all");
 
   const [empProgressDialogOpen, setEmpProgressDialogOpen] = useState(false);
   const [empProgressForm, setEmpProgressForm] = useState({
@@ -167,7 +174,7 @@ export default function AdminTraining() {
         content_url: form.content_url || null, content_text: form.content_text || null,
         duration_minutes: form.duration_minutes ? parseInt(form.duration_minutes) : null,
         is_mandatory: form.is_mandatory, order_index: parseInt(form.order_index) || 0,
-        is_active: form.is_active,
+        is_active: form.is_active, target_audience: form.target_audience || "all",
       };
       if (editingId) {
         const { error } = await supabase.from("training_modules").update(payload).eq("id", editingId);
@@ -196,9 +203,14 @@ export default function AdminTraining() {
     },
   });
 
-  const filtered = modules.filter((m: any) =>
-    !search || m.title?.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = modules.filter((m: any) => {
+    if (search && !m.title?.toLowerCase().includes(search.toLowerCase())) return false;
+    if (audienceFilter !== "all") {
+      const aud = m.target_audience || "all";
+      if (aud !== "all" && aud !== audienceFilter) return false;
+    }
+    return true;
+  });
 
   const openEdit = (m: any) => {
     setEditingId(m.id);
@@ -207,6 +219,7 @@ export default function AdminTraining() {
       content_type: m.content_type, content_url: m.content_url || "",
       content_text: m.content_text || "", duration_minutes: m.duration_minutes?.toString() || "",
       is_mandatory: m.is_mandatory, order_index: m.order_index?.toString() || "0", is_active: m.is_active,
+      target_audience: m.target_audience || "all",
     });
     setDialogOpen(true);
   };
@@ -256,11 +269,22 @@ export default function AdminTraining() {
         </TabsList>
 
         <TabsContent value="modules" className="space-y-4 mt-4">
-          <div className="flex gap-3">
-            <div className="relative flex-1">
+          <div className="flex gap-3 flex-wrap">
+            <div className="relative flex-1 min-w-44">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input className="pl-9" placeholder="Cari modul..." value={search} onChange={e => setSearch(e.target.value)} />
             </div>
+            <Select value={audienceFilter} onValueChange={setAudienceFilter}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Filter audiens" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Audiens</SelectItem>
+                {TARGET_AUDIENCE_OPTIONS.map(o => (
+                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {isLoading ? (
@@ -278,9 +302,14 @@ export default function AdminTraining() {
                       <p className="font-semibold text-sm line-clamp-2">{m.title}</p>
                       <p className="text-xs text-muted-foreground mt-0.5">{CATEGORIES.find(c => c.value === m.category)?.label}</p>
                     </div>
-                    <div className="flex gap-1">
+                    <div className="flex gap-1 flex-wrap">
                       {m.is_mandatory && <Badge variant="destructive" className="text-[9px]">Wajib</Badge>}
                       {!m.is_active && <Badge variant="outline" className="text-[9px]">Nonaktif</Badge>}
+                      {m.target_audience && m.target_audience !== "all" && (
+                        <Badge variant="secondary" className="text-[9px]">
+                          {m.target_audience === "agent" ? "Agen" : "Staf"}
+                        </Badge>
+                      )}
                     </div>
                   </div>
                   {m.description && <p className="text-xs text-muted-foreground line-clamp-2 mb-3">{m.description}</p>}
@@ -517,6 +546,17 @@ export default function AdminTraining() {
                   <SelectContent>{CONTENT_TYPES.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
+            </div>
+            <div>
+              <Label>Target Audiens</Label>
+              <Select value={form.target_audience} onValueChange={v => setForm(f => ({ ...f, target_audience: v }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {TARGET_AUDIENCE_OPTIONS.map(o => (
+                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             {(form.content_type === "video" || form.content_type === "pdf") && (
               <div><Label>URL Konten</Label><Input value={form.content_url} onChange={e => setForm(f => ({ ...f, content_url: e.target.value }))} placeholder="https://youtube.com/... atau URL PDF" /></div>

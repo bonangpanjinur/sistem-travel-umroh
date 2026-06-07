@@ -15,7 +15,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Users, Clock, MapPin, Calendar, Plus, Search, UserCheck, UserX, Camera, Settings, Building2, Briefcase, Trash2, Save, Link2, ExternalLink, Copy, Smartphone, ShieldCheck, ShieldX, Phone, Mail, Edit, UserPlus, User, DollarSign, CalendarOff, Star, TrendingUp, CheckCircle2, XCircle, AlertCircle, ChevronDown, ChevronUp, Award, BarChart3, AlertTriangle, History, LayoutDashboard } from "lucide-react";
+import { Users, Clock, MapPin, Calendar, Plus, Search, UserCheck, UserX, Camera, Settings, Building2, Briefcase, Trash2, Save, Link2, ExternalLink, Copy, Smartphone, ShieldCheck, ShieldX, Phone, Mail, Edit, UserPlus, User, DollarSign, CalendarOff, Star, TrendingUp, CheckCircle2, XCircle, AlertCircle, ChevronDown, ChevronUp, Award, BarChart3, AlertTriangle, History, LayoutDashboard, FileText, RefreshCw } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Textarea } from "@/components/ui/textarea";
@@ -140,6 +140,15 @@ export default function AdminHR() {
     old_department: "", new_department: "", old_salary: "", new_salary: "", notes: "",
   });
 
+  // ── Kontrak Karyawan state ───────────────────────────────────────────────
+  const [isContractDialogOpen, setIsContractDialogOpen] = useState(false);
+  const [editingContractId, setEditingContractId] = useState<string | null>(null);
+  const [contractFilter, setContractFilter] = useState("all");
+  const [contractForm, setContractForm] = useState({
+    employee_id: "", contract_type: "pkwt", start_date: format(new Date(), "yyyy-MM-dd"),
+    end_date: "", probation_end: "", document_url: "", status: "active", notes: "",
+  });
+
   // === DATA QUERIES ===
 
   const { data: employees = [], isLoading: loadingEmployees } = useQuery({
@@ -251,6 +260,22 @@ export default function AdminHR() {
         .order("day_of_week");
       if (error) throw error;
       return data;
+    },
+  });
+
+  // ── Kontrak Karyawan queries ────────────────────────────────────────────
+  const { data: employeeContracts = [] } = useQuery({
+    queryKey: ["employee-contracts"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("employee_contracts")
+        .select("*, employee:employees(id, full_name, employee_code, position, department)")
+        .order("start_date", { ascending: false });
+      if (error) {
+        if (error.code === "42P01") return [];
+        throw error;
+      }
+      return data || [];
     },
   });
 
@@ -558,6 +583,49 @@ export default function AdminHR() {
     onError: (error: Error) => toast.error(error.message),
   });
 
+  // ── Kontrak Karyawan mutations ───────────────────────────────────────────
+  const saveContractMutation = useMutation({
+    mutationFn: async () => {
+      const payload: any = {
+        employee_id: contractForm.employee_id,
+        contract_type: contractForm.contract_type,
+        start_date: contractForm.start_date,
+        end_date: contractForm.end_date || null,
+        probation_end: contractForm.probation_end || null,
+        document_url: contractForm.document_url || null,
+        status: contractForm.status,
+        notes: contractForm.notes || null,
+      };
+      if (editingContractId) {
+        const { error } = await (supabase as any).from("employee_contracts").update(payload).eq("id", editingContractId);
+        if (error) throw error;
+      } else {
+        const { error } = await (supabase as any).from("employee_contracts").insert(payload);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["employee-contracts"] });
+      setIsContractDialogOpen(false);
+      setEditingContractId(null);
+      setContractForm({ employee_id: "", contract_type: "pkwt", start_date: format(new Date(), "yyyy-MM-dd"), end_date: "", probation_end: "", document_url: "", status: "active", notes: "" });
+      toast.success(editingContractId ? "Kontrak diperbarui" : "Kontrak baru ditambahkan");
+    },
+    onError: (e: any) => toast.error("Gagal: " + e.message),
+  });
+
+  const deleteContractMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await (supabase as any).from("employee_contracts").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["employee-contracts"] });
+      toast.success("Kontrak dihapus");
+    },
+    onError: (e: any) => toast.error("Gagal menghapus: " + e.message),
+  });
+
   const registerDeviceMutation = useMutation({
     mutationFn: async () => {
       if (!selectedEmployeeForDevice || !newDeviceName || !newDeviceFingerprint) {
@@ -782,6 +850,7 @@ export default function AdminHR() {
             <TabsTrigger value="performance" className="flex-1"><BarChart3 className="h-4 w-4 mr-1.5" /> Kinerja</TabsTrigger>
             <TabsTrigger value="disciplinary" className="flex-1"><AlertTriangle className="h-4 w-4 mr-1.5" /> Disiplin</TabsTrigger>
             <TabsTrigger value="career" className="flex-1"><History className="h-4 w-4 mr-1.5" /> Riwayat Karir</TabsTrigger>
+            <TabsTrigger value="contracts" className="flex-1"><FileText className="h-4 w-4 mr-1.5" /> Kontrak</TabsTrigger>
             <TabsTrigger value="departments" className="flex-1"><Building2 className="h-4 w-4 mr-1.5" /> Departemen</TabsTrigger>
             <TabsTrigger value="schedules" className="flex-1"><Calendar className="h-4 w-4 mr-1.5" /> Jadwal</TabsTrigger>
             <TabsTrigger value="devices" className="flex-1"><Smartphone className="h-4 w-4 mr-1.5" /> Perangkat</TabsTrigger>
@@ -1850,6 +1919,178 @@ export default function AdminHR() {
           </Card>
         </TabsContent>
 
+        {/* ─── Kontrak Karyawan Tab ─────────────────────────────────────────── */}
+        <TabsContent value="contracts" className="space-y-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-blue-500" />
+                  Manajemen Kontrak Karyawan
+                </CardTitle>
+                <CardDescription>Pantau status kontrak, tanggal berakhir, dan perpanjangan kontrak.</CardDescription>
+              </div>
+              <Button onClick={() => {
+                setEditingContractId(null);
+                setContractForm({ employee_id: "", contract_type: "pkwt", start_date: format(new Date(), "yyyy-MM-dd"), end_date: "", probation_end: "", document_url: "", status: "active", notes: "" });
+                setIsContractDialogOpen(true);
+              }}>
+                <Plus className="h-4 w-4 mr-2" />
+                Tambah Kontrak
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Filter & Stats */}
+              <div className="flex gap-2 flex-wrap">
+                <Select value={contractFilter} onValueChange={setContractFilter}>
+                  <SelectTrigger className="w-40">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Semua Status</SelectItem>
+                    <SelectItem value="active">Aktif</SelectItem>
+                    <SelectItem value="expired">Kadaluarsa</SelectItem>
+                    <SelectItem value="terminated">Diakhiri</SelectItem>
+                    <SelectItem value="renewed">Diperpanjang</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Summary Cards */}
+              {(() => {
+                const contracts = (employeeContracts as any[]);
+                const active = contracts.filter(c => c.status === "active").length;
+                const expiredCount = contracts.filter(c => c.status === "expired").length;
+                const now = new Date();
+                const expiringSoon = contracts.filter(c => {
+                  if (!c.end_date || c.status !== "active") return false;
+                  const diff = (new Date(c.end_date).getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
+                  return diff >= 0 && diff <= 30;
+                }).length;
+                return (
+                  <div className="grid grid-cols-3 gap-3">
+                    {[
+                      { label: "Aktif", value: active, color: "text-green-700 bg-green-50 dark:bg-green-950/30 dark:text-green-300" },
+                      { label: "Segera Berakhir (≤30hr)", value: expiringSoon, color: expiringSoon > 0 ? "text-amber-700 bg-amber-50 dark:bg-amber-950/30 dark:text-amber-300" : "text-muted-foreground bg-muted/40" },
+                      { label: "Kadaluarsa", value: expiredCount, color: expiredCount > 0 ? "text-red-700 bg-red-50 dark:bg-red-950/30 dark:text-red-300" : "text-muted-foreground bg-muted/40" },
+                    ].map(s => (
+                      <div key={s.label} className={`rounded-lg p-3 text-center ${s.color}`}>
+                        <p className="text-2xl font-bold">{s.value}</p>
+                        <p className="text-xs mt-0.5">{s.label}</p>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+
+              {/* Contracts Table */}
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Karyawan</TableHead>
+                    <TableHead>Tipe Kontrak</TableHead>
+                    <TableHead>Mulai</TableHead>
+                    <TableHead>Berakhir</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Aksi</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {(() => {
+                    const now = new Date();
+                    const filtered = (employeeContracts as any[]).filter(c =>
+                      contractFilter === "all" || c.status === contractFilter
+                    );
+                    if (!filtered.length) return (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
+                          <FileText className="h-10 w-10 mx-auto mb-2 opacity-20" />
+                          <p>Belum ada kontrak karyawan.</p>
+                          <p className="text-xs mt-1">Pastikan tabel <code>employee_contracts</code> sudah dibuat di Supabase.</p>
+                        </TableCell>
+                      </TableRow>
+                    );
+                    return filtered.map((c: any) => {
+                      const daysLeft = c.end_date
+                        ? Math.ceil((new Date(c.end_date).getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+                        : null;
+                      const isExpiringSoon = daysLeft !== null && daysLeft >= 0 && daysLeft <= 30 && c.status === "active";
+                      const isOverdue = daysLeft !== null && daysLeft < 0 && c.status === "active";
+                      const CONTRACT_TYPE_LABEL: Record<string, string> = {
+                        pkwtt: "PKWTT (Tetap)", pkwt: "PKWT (Kontrak)",
+                        probation: "Probasi", freelance: "Freelance",
+                      };
+                      const STATUS_COLORS: Record<string, string> = {
+                        active: "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300",
+                        expired: "bg-red-100 text-red-700 dark:bg-red-900/40",
+                        terminated: "bg-gray-100 text-gray-700 dark:bg-gray-800",
+                        renewed: "bg-blue-100 text-blue-800 dark:bg-blue-900/40",
+                      };
+                      return (
+                        <TableRow key={c.id} className={isOverdue ? "bg-red-50/40 dark:bg-red-950/10" : isExpiringSoon ? "bg-amber-50/40 dark:bg-amber-950/10" : ""}>
+                          <TableCell>
+                            <div className="font-medium text-sm">{c.employee?.full_name || "—"}</div>
+                            <div className="text-xs text-muted-foreground">{c.employee?.employee_code} · {c.employee?.department}</div>
+                          </TableCell>
+                          <TableCell className="text-sm">{CONTRACT_TYPE_LABEL[c.contract_type] || c.contract_type}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {c.start_date ? format(new Date(c.start_date), "dd MMM yyyy", { locale: idLocale }) : "—"}
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            {c.end_date ? (
+                              <span className={isExpiringSoon ? "text-amber-600 font-semibold" : isOverdue ? "text-red-600 font-semibold" : "text-muted-foreground"}>
+                                {format(new Date(c.end_date), "dd MMM yyyy", { locale: idLocale })}
+                                {daysLeft !== null && (
+                                  <span className="ml-1 text-xs">
+                                    ({daysLeft >= 0 ? `${daysLeft} hari lagi` : `${Math.abs(daysLeft)} hari lalu`})
+                                  </span>
+                                )}
+                              </span>
+                            ) : <span className="text-muted-foreground">—</span>}
+                          </TableCell>
+                          <TableCell>
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${STATUS_COLORS[c.status] || ""}`}>
+                              {c.status === "active" ? "Aktif" : c.status === "expired" ? "Kadaluarsa" : c.status === "terminated" ? "Diakhiri" : "Diperpanjang"}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex gap-1 justify-end">
+                              <Button size="sm" variant="ghost" className="h-7 w-7 p-0"
+                                onClick={() => {
+                                  setEditingContractId(c.id);
+                                  setContractForm({
+                                    employee_id: c.employee_id, contract_type: c.contract_type,
+                                    start_date: c.start_date || "", end_date: c.end_date || "",
+                                    probation_end: c.probation_end || "", document_url: c.document_url || "",
+                                    status: c.status, notes: c.notes || "",
+                                  });
+                                  setIsContractDialogOpen(true);
+                                }}>
+                                <Edit className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-red-500"
+                                onClick={() => { if (confirm("Hapus kontrak ini?")) deleteContractMutation.mutate(c.id); }}>
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                              {c.document_url && (
+                                <a href={c.document_url} target="_blank" rel="noopener noreferrer">
+                                  <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-blue-500">
+                                    <ExternalLink className="h-3.5 w-3.5" />
+                                  </Button>
+                                </a>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    });
+                  })()}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
       </Tabs>
 
       {/* ── Dialog Tambah Catatan Disiplin ──────────────────────────────────── */}
@@ -2709,6 +2950,99 @@ function ManualAttendanceSection({
             <Button variant="outline" onClick={() => setIsReviewDialogOpen(false)}>Batal</Button>
             <Button onClick={() => saveReviewMutation.mutate()} disabled={saveReviewMutation.isPending || !reviewEmployeeId}>
               {saveReviewMutation.isPending ? "Menyimpan..." : "Simpan Penilaian"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Dialog Kontrak Karyawan ─────────────────────────────────────────── */}
+      <Dialog open={isContractDialogOpen} onOpenChange={setIsContractDialogOpen}>
+        <DialogContent className="sm:max-w-[520px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-blue-500" />
+              {editingContractId ? "Edit Kontrak" : "Tambah Kontrak Karyawan"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-2">
+            <div className="space-y-1.5">
+              <Label>Karyawan *</Label>
+              <Select value={contractForm.employee_id} onValueChange={v => setContractForm(f => ({ ...f, employee_id: v }))}>
+                <SelectTrigger><SelectValue placeholder="Pilih karyawan..." /></SelectTrigger>
+                <SelectContent>
+                  {(employees as Employee[]).map(e => (
+                    <SelectItem key={e.id} value={e.id}>{e.full_name} ({e.employee_code})</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Tipe Kontrak *</Label>
+                <Select value={contractForm.contract_type} onValueChange={v => setContractForm(f => ({ ...f, contract_type: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pkwtt">PKWTT (Karyawan Tetap)</SelectItem>
+                    <SelectItem value="pkwt">PKWT (Kontrak)</SelectItem>
+                    <SelectItem value="probation">Probasi</SelectItem>
+                    <SelectItem value="freelance">Freelance</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Status</Label>
+                <Select value={contractForm.status} onValueChange={v => setContractForm(f => ({ ...f, status: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Aktif</SelectItem>
+                    <SelectItem value="expired">Kadaluarsa</SelectItem>
+                    <SelectItem value="terminated">Diakhiri</SelectItem>
+                    <SelectItem value="renewed">Diperpanjang</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Tanggal Mulai *</Label>
+                <Input type="date" value={contractForm.start_date} onChange={e => setContractForm(f => ({ ...f, start_date: e.target.value }))} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Tanggal Berakhir</Label>
+                <Input type="date" value={contractForm.end_date} onChange={e => setContractForm(f => ({ ...f, end_date: e.target.value }))} />
+              </div>
+            </div>
+            {contractForm.contract_type === "probation" && (
+              <div className="space-y-1.5">
+                <Label>Akhir Masa Probasi</Label>
+                <Input type="date" value={contractForm.probation_end} onChange={e => setContractForm(f => ({ ...f, probation_end: e.target.value }))} />
+              </div>
+            )}
+            <div className="space-y-1.5">
+              <Label>URL Dokumen Kontrak</Label>
+              <Input
+                value={contractForm.document_url}
+                onChange={e => setContractForm(f => ({ ...f, document_url: e.target.value }))}
+                placeholder="https://drive.google.com/... atau URL dokumen"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Catatan</Label>
+              <Textarea
+                rows={2}
+                value={contractForm.notes}
+                onChange={e => setContractForm(f => ({ ...f, notes: e.target.value }))}
+                placeholder="Catatan tambahan tentang kontrak ini..."
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsContractDialogOpen(false)}>Batal</Button>
+            <Button
+              onClick={() => saveContractMutation.mutate()}
+              disabled={saveContractMutation.isPending || !contractForm.employee_id || !contractForm.start_date}
+            >
+              {saveContractMutation.isPending ? "Menyimpan..." : editingContractId ? "Perbarui Kontrak" : "Simpan Kontrak"}
             </Button>
           </DialogFooter>
         </DialogContent>
