@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { trackPackageView } from '@/hooks/useRecentlyViewedPackages';
 import { supabase } from '@/integrations/supabase/client';
 import { DynamicPublicLayout } from '@/components/layout/DynamicPublicLayout';
+import { useWebsiteSettings } from '@/hooks/useWebsiteSettings';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -29,6 +30,7 @@ export default function PackageDetail() {
   const { idSlug } = useParams<{ idSlug: string }>();
   const navigate = useNavigate();
   const id = extractIdFromSlug(idSlug || '');
+  const { data: settings } = useWebsiteSettings();
 
   const { data: pkg, isLoading } = useQuery({
     queryKey: ['package', id],
@@ -189,11 +191,12 @@ export default function PackageDetail() {
   useEffect(() => {
     if (!pkg) return;
 
-    const siteTitle = "Vinstour Travel";
+    const siteTitle = settings?.company_name || "Vinstour Travel";
     const metaTitle = (pkg as any).meta_title || `${pkg.name} — ${siteTitle}`;
     const metaDesc = (pkg as any).meta_description || pkg.description || `Paket ${pkg.name} selama ${pkg.duration_days} hari bersama ${siteTitle}.`;
     const keywords: string[] = (pkg as any).keywords ?? [];
     const canonicalUrl = window.location.href.split('?')[0];
+    const ogImage = pkg.featured_image || (settings as any)?.og_image_url || null;
 
     document.title = metaTitle;
 
@@ -216,7 +219,7 @@ export default function PackageDetail() {
     setMeta("og:title", metaTitle, true);
     setMeta("og:description", metaDesc, true);
     setMeta("og:type", "product", true);
-    if (pkg.featured_image) setMeta("og:image", pkg.featured_image, true);
+    if (ogImage) setMeta("og:image", ogImage, true);
     setMeta("og:url", canonicalUrl, true);
     setMeta("og:locale", "id_ID", true);
     setMeta("og:site_name", siteTitle, true);
@@ -225,7 +228,7 @@ export default function PackageDetail() {
     setMeta("twitter:card", "summary_large_image");
     setMeta("twitter:title", metaTitle);
     setMeta("twitter:description", metaDesc);
-    if (pkg.featured_image) setMeta("twitter:image", pkg.featured_image);
+    if (ogImage) setMeta("twitter:image", ogImage);
 
     // Canonical link
     let canonical = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
@@ -236,17 +239,21 @@ export default function PackageDetail() {
     }
     canonical.setAttribute("href", canonicalUrl);
 
-    // JSON-LD structured data (Product schema for Google rich results)
+    // JSON-LD structured data
     const upcomingDeps = (pkg.departures || [])
       .filter((d: any) => d.status === 'open' && new Date(d.departure_date) > new Date())
       .sort((a: any, b: any) => new Date(a.departure_date).getTime() - new Date(b.departure_date).getTime());
 
-    const lowestPrice = upcomingDeps.length > 0
-      ? Math.min(...upcomingDeps.flatMap((d: any) => [d.price_quad, d.price_triple, d.price_double, d.price_single].filter(Boolean)))
+    const allPrices = upcomingDeps.flatMap((d: any) => [d.price_quad, d.price_triple, d.price_double, d.price_single].filter(Boolean));
+    const lowestPrice = allPrices.length > 0
+      ? Math.min(...allPrices)
       : (pkg.price_quad || pkg.price_triple || pkg.price_double || pkg.price_single || null);
+    const highestPrice = allPrices.length > 0
+      ? Math.max(...allPrices)
+      : lowestPrice;
 
-    const jsonLd: Record<string, any> = {
-      "@context": "https://schema.org",
+    // Product schema (for rich results)
+    const productSchema: Record<string, any> = {
       "@type": "Product",
       "name": pkg.name,
       "description": metaDesc,
@@ -254,25 +261,82 @@ export default function PackageDetail() {
       "brand": { "@type": "Brand", "name": siteTitle },
       "category": (pkg as any).package_type === 'haji' ? 'Paket Haji' : 'Paket Umroh',
     };
-    if (pkg.featured_image) jsonLd["image"] = pkg.featured_image;
+    if (ogImage) productSchema["image"] = ogImage;
     if (lowestPrice) {
-      jsonLd["offers"] = {
+      productSchema["offers"] = {
         "@type": "AggregateOffer",
         "priceCurrency": pkg.currency || "IDR",
         "lowPrice": lowestPrice,
+        "highPrice": highestPrice || lowestPrice,
+        "offerCount": upcomingDeps.length || 1,
         "availability": upcomingDeps.length > 0
           ? "https://schema.org/InStock"
           : "https://schema.org/OutOfStock",
         "url": canonicalUrl,
+        "seller": { "@type": "Organization", "name": siteTitle },
       };
     }
     if (pkg.duration_days) {
-      jsonLd["additionalProperty"] = {
+      productSchema["additionalProperty"] = {
         "@type": "PropertyValue",
         "name": "Durasi",
         "value": `${pkg.duration_days} hari`,
       };
     }
+
+    // TouristTrip schema (more relevant for Umroh/Haji packages)
+    const touristTripSchema: Record<string, any> = {
+      "@type": "TouristTrip",
+      "name": pkg.name,
+      "description": metaDesc,
+      "url": canonicalUrl,
+      "provider": {
+        "@type": "TravelAgency",
+        "name": siteTitle,
+      },
+      "touristType": (pkg as any).package_type === 'haji' ? 'Jamaah Haji' : 'Jamaah Umroh',
+      "availableLanguage": { "@type": "Language", "name": "Indonesian" },
+      "itinerary": {
+        "@type": "ItemList",
+        "name": "Destinasi",
+        "itemListElement": [
+          { "@type": "ListItem", "position": 1, "name": "Madinah" },
+          { "@type": "ListItem", "position": 2, "name": "Makkah" },
+        ],
+      },
+    };
+    if (ogImage) touristTripSchema["image"] = ogImage;
+    if (pkg.duration_days) touristTripSchema["duration"] = `P${pkg.duration_days}D`;
+
+    // BreadcrumbList schema
+    const breadcrumbSchema = {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "Beranda",
+          "item": `${window.location.origin}/`,
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Paket Umroh & Haji",
+          "item": `${window.location.origin}/packages`,
+        },
+        {
+          "@type": "ListItem",
+          "position": 3,
+          "name": pkg.name,
+          "item": canonicalUrl,
+        },
+      ],
+    };
+
+    const graphPayload = {
+      "@context": "https://schema.org",
+      "@graph": [productSchema, touristTripSchema, breadcrumbSchema],
+    };
 
     let ldScript = document.querySelector<HTMLScriptElement>('script[data-schema="package-detail"]');
     if (!ldScript) {
@@ -281,7 +345,7 @@ export default function PackageDetail() {
       ldScript.setAttribute("data-schema", "package-detail");
       document.head.appendChild(ldScript);
     }
-    ldScript.textContent = JSON.stringify(jsonLd);
+    ldScript.textContent = JSON.stringify(graphPayload);
 
     return () => {
       document.title = siteTitle;
@@ -290,7 +354,7 @@ export default function PackageDetail() {
       const canonicalEl = document.querySelector('link[rel="canonical"]');
       if (canonicalEl) canonicalEl.remove();
     };
-  }, [pkg]);
+  }, [pkg, settings]);
 
   if (isLoading) {
     return (

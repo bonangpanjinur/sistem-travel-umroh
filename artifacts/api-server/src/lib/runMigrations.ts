@@ -365,6 +365,19 @@ export async function runMigrations(): Promise<void> {
       logger.info("runMigrations: 13_seo_fields_packages — already applied, skipping");
     }
 
+    // ── Step 1m: SEO fields for departures (meta_title, meta_description, slug) ─
+    const departuresSeoApplied = await isApplied(client, "14_seo_fields_departures");
+    if (!departuresSeoApplied) {
+      await runSqlFile(
+        client,
+        sqlPath("14_seo_fields_departures.sql"),
+        "14_seo_fields_departures (meta_title + meta_description + slug for departures)",
+      );
+      await markApplied(client, "14_seo_fields_departures");
+    } else {
+      logger.info("runMigrations: 14_seo_fields_departures — already applied, skipping");
+    }
+
     // ── Step 2: payment sync trigger (always re-applied each boot) ────────
     // Wrapped in its own try/catch so a missing table on a broken DB state
     // doesn't crash the server — it just logs and continues.

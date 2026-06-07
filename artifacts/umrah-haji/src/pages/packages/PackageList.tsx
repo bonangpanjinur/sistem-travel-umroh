@@ -6,6 +6,7 @@ import { PackageSearch } from '@/components/packages/PackageSearch';
 import { PackageCard } from '@/components/packages/PackageCard';
 import { usePackages } from '@/hooks/usePackages';
 import { useWebsiteSettings } from '@/hooks/useWebsiteSettings';
+import { useSEO } from '@/hooks/useSEO';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Grid3X3, List, SlidersHorizontal, Scale } from 'lucide-react';
@@ -18,6 +19,36 @@ export default function PackageList() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { data: packages = [], isLoading } = usePackages();
   const { data: settings } = useWebsiteSettings();
+
+  const siteTitle = settings?.company_name || "Vinstour Travel";
+  const activePackages = packages.filter((p: any) => p.is_active !== false);
+
+  useSEO({
+    title: `Paket Umroh & Haji — ${siteTitle}`,
+    description: activePackages.length > 0
+      ? `Temukan ${activePackages.length} pilihan paket Umroh dan Haji terbaik dari ${siteTitle}. Tersedia berbagai pilihan paket reguler, plus, dan VIP dengan harga terjangkau.`
+      : `Temukan pilihan paket Umroh dan Haji terbaik dari ${siteTitle}. Berbagai pilihan paket dengan layanan terpercaya.`,
+    keywords: ['paket umroh', 'paket haji', 'umroh murah', 'haji plus', 'travel umroh', siteTitle.toLowerCase()],
+    canonicalPath: '/packages',
+    ogType: 'website',
+    siteName: siteTitle,
+    robots: 'index, follow',
+    jsonLd: activePackages.length > 0 ? {
+      "@context": "https://schema.org",
+      "@type": "ItemList",
+      "name": `Paket Umroh & Haji — ${siteTitle}`,
+      "description": `Daftar paket perjalanan ibadah Umroh dan Haji dari ${siteTitle}`,
+      "url": `${typeof window !== 'undefined' ? window.location.origin : ''}/packages`,
+      "numberOfItems": activePackages.length,
+      "itemListElement": activePackages.slice(0, 20).map((pkg: any, idx: number) => ({
+        "@type": "ListItem",
+        "position": idx + 1,
+        "name": pkg.name,
+        "url": `${typeof window !== 'undefined' ? window.location.origin : ''}/packages/${pkg.id}-${pkg.name?.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '')}`,
+      })),
+    } : undefined,
+    schemaId: 'package-list',
+  });
   
   const [sortBy, setSortBy] = useState('price_asc');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');

@@ -12,8 +12,12 @@ import { Link } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatCurrency } from "@/lib/format";
 import { slugify } from "@/lib/slug";
+import { useSEO } from "@/hooks/useSEO";
+import { useWebsiteSettings } from "@/hooks/useWebsiteSettings";
 
 export default function DeparturesPage() {
+  const { data: settings } = useWebsiteSettings();
+
   const { data: departures, isLoading } = useQuery({
     queryKey: ["public-departures"],
     queryFn: async () => {
@@ -34,6 +38,83 @@ export default function DeparturesPage() {
       // Filter out departures whose packages are inactive
       return (data || []).filter((dep: any) => dep.package?.is_active !== false);
     },
+  });
+
+  const siteTitle = settings?.company_name || "Vinstour Travel";
+  const depCount = departures?.length || 0;
+  const nearestDep = departures?.[0];
+  const nearestDate = nearestDep?.departure_date
+    ? format(new Date(nearestDep.departure_date), "MMMM yyyy", { locale: localeId })
+    : null;
+
+  const eventSchemas = (departures || []).slice(0, 10).map((dep: any) => {
+    const lowestPrice = Math.min(
+      dep.price_quad || Infinity,
+      dep.price_triple || Infinity,
+      dep.price_double || Infinity,
+      dep.price_single || Infinity,
+    );
+    const schema: Record<string, any> = {
+      "@type": "Event",
+      "name": `${dep.package?.name || "Paket Umroh"} — ${dep.departure_date ? format(new Date(dep.departure_date), "MMMM yyyy", { locale: localeId }) : ""}`,
+      "description": `Jadwal keberangkatan Umroh bersama ${siteTitle}${dep.airline?.name ? ` menggunakan ${dep.airline.name}` : ""}.`,
+      "eventStatus": "https://schema.org/EventScheduled",
+      "eventAttendanceMode": "https://schema.org/OfflineEventAttendanceMode",
+      "organizer": { "@type": "Organization", "name": siteTitle },
+    };
+    if (dep.departure_date) {
+      schema["startDate"] = dep.departure_date;
+      if (dep.return_date) schema["endDate"] = dep.return_date;
+    }
+    if (lowestPrice < Infinity) {
+      schema["offers"] = {
+        "@type": "Offer",
+        "price": lowestPrice,
+        "priceCurrency": "IDR",
+        "availability": "https://schema.org/InStock",
+      };
+    }
+    schema["location"] = {
+      "@type": "Place",
+      "name": "Makkah & Madinah",
+      "address": { "@type": "PostalAddress", "addressCountry": "SA" },
+    };
+    return schema;
+  });
+
+  useSEO({
+    title: `Jadwal Keberangkatan Umroh — ${siteTitle}`,
+    description: depCount > 0
+      ? `Tersedia ${depCount} jadwal keberangkatan Umroh${nearestDate ? `, terdekat ${nearestDate}` : ""}. Pilih jadwal yang sesuai dan daftar bersama ${siteTitle}.`
+      : `Jadwal keberangkatan Umroh bersama ${siteTitle}. Segera hubungi kami untuk informasi jadwal terbaru.`,
+    keywords: ['jadwal umroh', 'keberangkatan umroh', 'jadwal umroh ' + new Date().getFullYear(), 'travel umroh', siteTitle.toLowerCase()],
+    canonicalPath: '/departures',
+    ogType: 'website',
+    siteName: siteTitle,
+    robots: 'index, follow',
+    jsonLd: {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            { "@type": "ListItem", "position": 1, "name": "Beranda", "item": `${typeof window !== 'undefined' ? window.location.origin : ''}/` },
+            { "@type": "ListItem", "position": 2, "name": "Jadwal Keberangkatan", "item": `${typeof window !== 'undefined' ? window.location.origin : ''}/departures` },
+          ],
+        },
+        ...(eventSchemas.length > 0 ? [{
+          "@type": "ItemList",
+          "name": `Jadwal Keberangkatan Umroh — ${siteTitle}`,
+          "numberOfItems": depCount,
+          "itemListElement": eventSchemas.map((e: any, i: number) => ({
+            "@type": "ListItem",
+            "position": i + 1,
+            "item": e,
+          })),
+        }] : []),
+      ],
+    },
+    schemaId: 'departures-page',
   });
 
   return (

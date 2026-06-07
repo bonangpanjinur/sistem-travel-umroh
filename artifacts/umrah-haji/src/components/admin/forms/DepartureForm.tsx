@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -87,6 +88,10 @@ const departureSchema = z.object({
   // Phase 5: Break-even Indicator
   break_even_pax: z.coerce.number().min(0).default(0),
   operational_cost_per_pax: z.coerce.number().min(0).default(0),
+  // SEO fields
+  meta_title: z.string().max(70, "Meta title maksimal 70 karakter").optional().nullable(),
+  meta_description: z.string().max(160, "Meta description maksimal 160 karakter").optional().nullable(),
+  slug: z.string().regex(/^[a-z0-9-]*$/, "Slug hanya boleh huruf kecil, angka, dan tanda -").optional().nullable(),
 }).refine((data) => {
   // Either departure_date or month must be filled
   return (data.departure_date && data.return_date) || data.month;
@@ -241,6 +246,9 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
       visa_deadline: (departureData as any)?.visa_deadline || "",
       break_even_pax: (departureData as any)?.break_even_pax || 0,
       operational_cost_per_pax: (departureData as any)?.operational_cost_per_pax || 0,
+      meta_title: (departureData as any)?.meta_title || null,
+      meta_description: (departureData as any)?.meta_description || null,
+      slug: (departureData as any)?.slug || null,
     },
   });
 
@@ -276,6 +284,10 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
         visa_deadline: values.visa_deadline || null,
         break_even_pax: values.break_even_pax || 0,
         operational_cost_per_pax: values.operational_cost_per_pax || 0,
+        // SEO fields
+        meta_title: values.meta_title || null,
+        meta_description: values.meta_description || null,
+        slug: values.slug || null,
         // Ensure either date or month is sent, and the other is null
         departure_date: values.departure_date || null,
         return_date: values.return_date || null,
@@ -1129,6 +1141,77 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
               )}
             />
           </div>
+        </div>
+
+        {/* SEO (opsional) */}
+        <Separator />
+        <div className="space-y-4">
+          <div>
+            <h3 className="font-medium text-sm text-muted-foreground">SEO (opsional)</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Digunakan untuk mengoptimalkan tampilan di mesin pencari. Kosongkan untuk menggunakan teks otomatis.
+            </p>
+          </div>
+
+          <FormField
+            control={form.control}
+            name="meta_title"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-xs">Meta Title <span className="text-muted-foreground">(maks 70 karakter)</span></FormLabel>
+                <FormControl>
+                  <Input
+                    placeholder="Cth: Paket Umroh Reguler Januari 2025 — Vinstour Travel"
+                    {...field}
+                    value={field.value || ""}
+                    onChange={e => field.onChange(e.target.value || null)}
+                  />
+                </FormControl>
+                <p className="text-xs text-muted-foreground">{(field.value || "").length}/70 karakter</p>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="meta_description"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-xs">Meta Description <span className="text-muted-foreground">(maks 160 karakter)</span></FormLabel>
+                <FormControl>
+                  <Textarea
+                    rows={2}
+                    placeholder="Cth: Keberangkatan Umroh Januari 2025 bersama Vinstour Travel. Sisa 30 kursi tersedia. Daftar sekarang."
+                    {...field}
+                    value={field.value || ""}
+                    onChange={e => field.onChange(e.target.value || null)}
+                  />
+                </FormControl>
+                <p className="text-xs text-muted-foreground">{(field.value || "").length}/160 karakter</p>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="slug"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-xs">Slug URL <span className="text-muted-foreground">(huruf kecil, angka, tanda -)</span></FormLabel>
+                <FormControl>
+                  <Input
+                    placeholder="cth: umroh-reguler-januari-2025"
+                    {...field}
+                    value={field.value || ""}
+                    onChange={e => field.onChange(e.target.value || null)}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
         </div>
 
         <div className="flex justify-end gap-3 pt-4 border-t">

@@ -180,3 +180,90 @@
 | P3.3 | Duplikat + Copy HPP | ✅ DONE | Juni 2025 |
 | P3.4 | Analytics Terintegrasi | ✅ DONE | Juni 2025 |
 | P3.5 | Bulk Status Change | ✅ DONE | Juni 2025 |
+
+---
+
+---
+
+# Analisis & Rencana SEO — Keberangkatan & Paket (Tambahan Juni 2025)
+
+## Hasil Analisis SEO
+
+### Status Halaman Publik
+
+| Halaman | URL | Title | Meta Desc | OG | JSON-LD | Canonical | Nilai |
+|---|---|---|---|---|---|---|---|
+| PackageDetail | `/packages/:id` | ✅ | ✅ | ✅ | ✅ Product | ✅ | 🟡 Ada bug |
+| PackageList | `/packages` | ❌ | ❌ | ❌ | ❌ | ❌ | 🔴 NOL SEO |
+| DeparturesPage | `/departures` | ❌ | ❌ | ❌ | ❌ | ❌ | 🔴 NOL SEO |
+
+### Bug di PackageDetail
+- `siteTitle` hardcoded `"Vinstour Travel"` — seharusnya ambil dari `settings.company_name`
+- `og:image` tidak punya fallback — jika `pkg.featured_image` kosong, OG image hilang
+- JSON-LD `Product`: kurang `offerCount`, `highPrice`, `seller`, `brand.logo`
+- Tidak ada `BreadcrumbList` JSON-LD (tidak muncul di SERP Google)
+- Tidak ada schema `TouristTrip` (lebih relevan untuk perjalanan ibadah)
+
+### Kekurangan Database
+- Tabel `departures` tidak punya kolom SEO (`meta_title`, `meta_description`, `slug`)
+- Packages sudah punya SEO fields via migration 13 — departures belum
+
+### Kekurangan Teknis
+- Tidak ada `useSEO` hook — setiap halaman reimplementasi meta injection sendiri
+- `sitemap.xml` disebutkan di `robots.txt` tapi tidak ada endpoint generator
+- `index.html` title = `"Memuat..."` — buruk untuk crawler kunjungan pertama
+- DepartureForm admin tidak ada field SEO editor
+
+---
+
+## Gap SEO & Status Implementasi
+
+### 🔴 SEO-1 — `useSEO` Hook (utilitas bersama)
+**Masalah:** Setiap halaman reimplementasi setMeta() sendiri (duplikasi, rawan bug)  
+**Solusi:** `src/hooks/useSEO.ts` — satu hook untuk semua kebutuhan meta injection  
+**File:** `src/hooks/useSEO.ts`  
+**Status:** [x] DONE
+
+### 🔴 SEO-2 — SEO Halaman PackageList (`/packages`)
+**Masalah:** Zero SEO — tidak ada title, meta description, OG tags, JSON-LD sama sekali  
+**Solusi:** Inject title dinamis, meta desc (jumlah paket), OG tags, ItemList JSON-LD, canonical  
+**File:** `src/pages/packages/PackageList.tsx`  
+**Status:** [x] DONE
+
+### 🔴 SEO-3 — SEO Halaman DeparturesPage (`/departures`)
+**Masalah:** Zero SEO — tidak ada title, meta, OG, JSON-LD sama sekali  
+**Solusi:** Inject title, meta desc, OG, ItemList + Event schema per keberangkatan, canonical  
+**File:** `src/pages/public/DeparturesPage.tsx`  
+**Status:** [x] DONE
+
+### 🔴 SEO-4 — Fix Bug PackageDetail (siteTitle hardcoded + BreadcrumbList)
+**Masalah:** `siteTitle` hardcoded, no BreadcrumbList JSON-LD  
+**Solusi:** Ambil dari `settings.company_name`, tambah BreadcrumbList, og:image fallback chain  
+**File:** `src/pages/packages/PackageDetail.tsx`  
+**Status:** [x] DONE
+
+### 🔴 SEO-5 — Migrasi DB: SEO Fields untuk Departures
+**Masalah:** Tabel `departures` tidak punya kolom SEO  
+**Solusi:** Migration `14_seo_fields_departures.sql` — `meta_title`, `meta_description`, `slug`  
+**Status:** [x] DONE
+
+### 🟡 SEO-6 — TouristTrip + TravelAction Schema di PackageDetail
+**Masalah:** Schema `Product` kurang spesifik untuk perjalanan religi  
+**Solusi:** Tambah `TouristTrip` schema dan `TravelAgency` sebagai `provider`  
+**Status:** [x] DONE
+
+### 🟡 SEO-7 — Admin SEO Editor untuk Departures
+**Masalah:** Admin tidak bisa set meta_title/meta_description per keberangkatan  
+**Solusi:** Tab SEO di DepartureForm dengan field meta_title, meta_description, slug  
+**Status:** [x] DONE
+
+### 🟡 SEO-8 — Sitemap.xml Dinamis
+**Masalah:** robots.txt merujuk `/sitemap.xml` tapi tidak ada endpoint  
+**Solusi:** API endpoint `GET /api/sitemap.xml` — packages aktif + halaman statis + blog  
+**File:** `artifacts/api-server/src/routes/sitemap.ts`  
+**Status:** [x] DONE
+
+### 🟢 SEO-9 — og:image Fallback Chain
+**Masalah:** Jika `featured_image` kosong, og:image hilang  
+**Solusi:** Fallback: `pkg.featured_image` → `settings.og_image_url` → `/opengraph.jpg`  
+**Status:** [x] DONE

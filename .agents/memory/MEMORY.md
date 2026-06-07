@@ -1,2 +1,3 @@
 - [Passenger Type Pricing](passenger-type-pricing.md) — price_adult (baru), child/infant_price_percent di departures+packages; perhitungan room-based sudah fix untuk anak/balita.
 - [Migration Runner Pattern](migration-runner.md) — migrations di api-server/src/sql/ dengan step hardcoded di runMigrations.ts; file baru perlu step eksplisit.
+- [SEO Architecture](seo-architecture.md) — useSEO hook di hooks/useSEO.ts; PackageDetail pakai useEffect manual (bukan hook) karena punya cleanup logic; siteTitle harus dari settings.company_name bukan hardcoded.
