@@ -141,7 +141,7 @@ router.put('/tiers/config/:tier', requireAuth, async (req, res) => {
   }
   const { tier } = req.params;
   const { min_bookings, label, color, description } = req.body;
-  if (!['bronze', 'silver', 'gold', 'platinum'].includes(tier)) {
+  if (!['bronze', 'silver', 'gold', 'platinum'].includes(tier as string)) {
     res.status(400).json({ success: false, error: 'Tier tidak valid.' });
     return;
   }
