@@ -23,6 +23,7 @@ import AdminRoutes from "@/routes/AdminRoutes";
 import OperationalRoutes from "@/routes/OperationalRoutes";
 import AgentRoutes from "@/routes/AgentRoutes";
 import BranchRoutes from "@/routes/BranchRoutes";
+import ESSRoutes from "@/routes/ESSRoutes";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -60,6 +61,7 @@ const App = () => (
                   {OperationalRoutes()}
                   {AgentRoutes()}
                   {BranchRoutes()}
+                  {ESSRoutes()}
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </BrowserRouter>

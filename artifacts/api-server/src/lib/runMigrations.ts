@@ -569,6 +569,19 @@ export async function runMigrations(): Promise<void> {
       logger.info("runMigrations: 26_sdm_disciplinary_career — already applied, skipping");
     }
 
+    // ── Step 1x: ESS payroll_slips table ──────────────────────────────────
+    const payrollSlipsApplied = await isApplied(client, "27_payroll_slips_ess");
+    if (!payrollSlipsApplied) {
+      await runSqlFile(
+        client,
+        sqlPath("27_payroll_slips_ess.sql"),
+        "27_payroll_slips_ess (payroll_slips table for ESS portal)",
+      );
+      await markApplied(client, "27_payroll_slips_ess");
+    } else {
+      logger.info("runMigrations: 27_payroll_slips_ess — already applied, skipping");
+    }
+
     // ── Step 2: payment sync trigger (always re-applied each boot) ────────
     // Wrapped in its own try/catch so a missing table on a broken DB state
     // doesn't crash the server — it just logs and continues.
