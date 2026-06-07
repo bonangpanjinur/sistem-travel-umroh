@@ -1294,5 +1294,248 @@ router.delete('/bot-menu/:id', async (req, res) => {
   }
 });
 
+// =============================================================================
+// META WABA TEMPLATE BROADCAST
+// =============================================================================
+
+// ─── sendMetaTemplate: send one template message ─────────────────────────────
+async function sendMetaTemplate(
+  cfg: WAProviderConfig,
+  phone: string,
+  templateName: string,
+  languageCode: string,
+  bodyParams: string[],
+  headerParams?: string[],
+): Promise<SendResult> {
+  const token   = cfg.api_key || (cfg.provider_config['access_token'] as string);
+  const phoneId = cfg.provider_config['phone_number_id'] as string;
+  const version = (cfg.provider_config['api_version'] as string) || 'v19.0';
+  if (!token || !phoneId) return { success: false, error: 'Access Token atau Phone Number ID Meta belum dikonfigurasi' };
+
+  const components: any[] = [];
+  if (headerParams && headerParams.length > 0) {
+    components.push({
+      type: 'header',
+      parameters: headerParams.map(v => ({ type: 'text', text: v })),
+    });
+  }
+  if (bodyParams.length > 0) {
+    components.push({
+      type: 'body',
+      parameters: bodyParams.map(v => ({ type: 'text', text: v })),
+    });
+  }
+
+  try {
+    const resp = await fetch(`https://graph.facebook.com/${version}/${phoneId}/messages`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to: normalisePhone(phone),
+        type: 'template',
+        template: {
+          name: templateName,
+          language: { code: languageCode },
+          ...(components.length > 0 ? { components } : {}),
+        },
+      }),
+    });
+    const data = (await resp.json()) as any;
+    if (!resp.ok || data.error) return { success: false, error: data.error?.message || 'Meta template send error' };
+    return { success: true, messageId: data.messages?.[0]?.id };
+  } catch (e: any) {
+    return { success: false, error: e.message };
+  }
+}
+
+// ─── GET /api/v1/whatsapp/meta-templates ─────────────────────────────────────
+// Fetch approved templates from Meta Graph API
+router.get('/meta-templates', async (_req, res) => {
+  const cfg = await getActiveConfig();
+  if (!cfg) {
+    res.status(503).json({ error: 'Tidak ada provider WA yang aktif.' });
+    return;
+  }
+  if (cfg.provider !== 'meta') {
+    res.status(400).json({ error: 'Fitur ini hanya tersedia untuk provider Meta WABA Cloud API.', not_meta: true });
+    return;
+  }
+  const token   = cfg.api_key || (cfg.provider_config['access_token'] as string);
+  const wabaId  = cfg.provider_config['waba_id'] as string;
+  const version = (cfg.provider_config['api_version'] as string) || 'v19.0';
+
+  if (!token) {
+    res.status(400).json({ error: 'Access Token belum dikonfigurasi.' });
+    return;
+  }
+  if (!wabaId) {
+    res.status(400).json({ error: 'WABA ID belum dikonfigurasi. Tambahkan di Konfigurasi Provider WA → Meta → WABA ID.', missing_waba_id: true });
+    return;
+  }
+
+  try {
+    const url = `https://graph.facebook.com/${version}/${wabaId}/message_templates?` +
+      `status=APPROVED&fields=name,language,category,components,status&limit=100`;
+    const resp = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = (await resp.json()) as any;
+    if (!resp.ok || data.error) {
+      res.status(502).json({ error: data.error?.message || 'Gagal fetch template dari Meta', raw: data });
+      return;
+    }
+    res.json({ templates: data.data || [], paging: data.paging });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─── POST /api/v1/whatsapp/broadcast-template ────────────────────────────────
+// Send a template broadcast to a list of recipients
+router.post('/broadcast-template', async (req, res) => {
+  const cfg = await getActiveConfig();
+  if (!cfg) {
+    res.status(503).json({ error: 'Tidak ada provider WA yang aktif.' });
+    return;
+  }
+  if (cfg.provider !== 'meta') {
+    res.status(400).json({ error: 'Template broadcast hanya tersedia untuk provider Meta WABA.' });
+    return;
+  }
+
+  const {
+    broadcast_name = '',
+    template_name,
+    template_lang = 'id',
+    variable_map = {},  // { "1": "field_path", "2": "field_path" } e.g. {"1":"full_name","2":"package_name"}
+    recipients = [],    // [{ booking_id, phone, full_name, package_name, departure_date, booking_code, ... }]
+  } = req.body as {
+    broadcast_name?: string;
+    template_name: string;
+    template_lang?: string;
+    variable_map?: Record<string, string>;
+    recipients: Array<Record<string, string>>;
+  };
+
+  if (!template_name) {
+    res.status(400).json({ error: 'template_name wajib diisi' });
+    return;
+  }
+  if (!recipients.length) {
+    res.status(400).json({ error: 'Minimal satu penerima diperlukan' });
+    return;
+  }
+
+  // Create broadcast record
+  let broadcastId: string | null = null;
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO wa_template_broadcasts
+         (name, template_name, template_lang, variable_map, status, total_recipients, started_at)
+       VALUES ($1,$2,$3,$4,'sending',$5,NOW())
+       RETURNING id`,
+      [broadcast_name || `Template Broadcast ${new Date().toLocaleDateString('id-ID')}`,
+       template_name, template_lang, JSON.stringify(variable_map), recipients.length],
+    );
+    broadcastId = rows[0]?.id;
+  } catch { /* non-critical */ }
+
+  // Send to all recipients
+  let sentCount = 0;
+  let failedCount = 0;
+  const results: Array<{ phone: string; status: string; messageId?: string; error?: string }> = [];
+
+  // Resolve variable_map keys → values for a given recipient
+  function resolveVars(recipient: Record<string, string>): string[] {
+    const nums = Object.keys(variable_map)
+      .map(k => parseInt(k))
+      .filter(n => !isNaN(n))
+      .sort((a, b) => a - b);
+    return nums.map(n => recipient[variable_map[String(n)] || ''] || '');
+  }
+
+  for (let i = 0; i < recipients.length; i++) {
+    const r = recipients[i];
+    const phone = r.phone;
+    if (!phone) { failedCount++; continue; }
+
+    const bodyParams = resolveVars(r);
+    const sendResult = await sendMetaTemplate(cfg, phone, template_name, template_lang, bodyParams);
+
+    if (sendResult.success) { sentCount++; } else { failedCount++; }
+    results.push({ phone, status: sendResult.success ? 'sent' : 'failed', messageId: sendResult.messageId, error: sendResult.error });
+
+    // Log recipient
+    if (broadcastId) {
+      await pool.query(
+        `INSERT INTO wa_template_broadcast_recipients
+           (broadcast_id, booking_id, phone, full_name, resolved_vars, status, error_message, message_id, sent_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+        [
+          broadcastId,
+          r.booking_id || null,
+          normalisePhone(phone),
+          r.full_name || null,
+          JSON.stringify(bodyParams.reduce((acc, v, idx) => ({ ...acc, [idx + 1]: v }), {})),
+          sendResult.success ? 'sent' : 'failed',
+          sendResult.error || null,
+          sendResult.messageId || null,
+          sendResult.success ? new Date() : null,
+        ],
+      ).catch(() => {});
+    }
+
+    // Rate limit: 1 message / 1.2 seconds
+    if (i < recipients.length - 1) await new Promise(r => setTimeout(r, 1200));
+  }
+
+  // Update broadcast record
+  if (broadcastId) {
+    await pool.query(
+      `UPDATE wa_template_broadcasts
+       SET status = 'done', sent_count = $1, failed_count = $2, finished_at = NOW(), updated_at = NOW()
+       WHERE id = $3`,
+      [sentCount, failedCount, broadcastId],
+    ).catch(() => {});
+  }
+
+  res.json({ success: true, broadcast_id: broadcastId, sent: sentCount, failed: failedCount, results });
+});
+
+// ─── GET /api/v1/whatsapp/template-broadcasts ────────────────────────────────
+router.get('/template-broadcasts', async (_req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, name, template_name, template_lang, status,
+              total_recipients, sent_count, failed_count,
+              started_at, finished_at, created_at
+       FROM wa_template_broadcasts
+       ORDER BY created_at DESC
+       LIMIT 50`,
+    );
+    res.json({ broadcasts: rows });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─── GET /api/v1/whatsapp/template-broadcasts/:id/recipients ─────────────────
+router.get('/template-broadcasts/:id/recipients', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, phone, full_name, resolved_vars, status, error_message, message_id, sent_at
+       FROM wa_template_broadcast_recipients
+       WHERE broadcast_id = $1
+       ORDER BY created_at ASC`,
+      [req.params.id],
+    );
+    res.json({ recipients: rows });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 export default router;
 

@@ -443,6 +443,19 @@ export async function runMigrations(): Promise<void> {
       logger.info("runMigrations: 19_wa_bot_menu_interactive — already applied, skipping");
     }
 
+    // ── Step 1s: WA Template Broadcast logging tables ─────────────────────
+    const waTemplateBcastApplied = await isApplied(client, "20_wa_template_broadcast");
+    if (!waTemplateBcastApplied) {
+      await runSqlFile(
+        client,
+        sqlPath("20_wa_template_broadcast.sql"),
+        "20_wa_template_broadcast (Meta WABA template broadcast logging tables)",
+      );
+      await markApplied(client, "20_wa_template_broadcast");
+    } else {
+      logger.info("runMigrations: 20_wa_template_broadcast — already applied, skipping");
+    }
+
     // ── Step 2: payment sync trigger (always re-applied each boot) ────────
     // Wrapped in its own try/catch so a missing table on a broken DB state
     // doesn't crash the server — it just logs and continues.

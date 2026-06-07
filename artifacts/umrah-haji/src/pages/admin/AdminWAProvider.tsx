@@ -83,6 +83,7 @@ const PROVIDERS = [
     fields: [
       { key: "api_key", label: "Access Token", placeholder: "EAAx... (Meta access token)", secret: true, help: "Dari Meta Business → System User → Generate Token" },
       { key: "provider_config.phone_number_id", label: "Phone Number ID", placeholder: "1234567890", secret: false, help: "Phone Number ID dari Meta Business Manager" },
+      { key: "provider_config.waba_id", label: "WABA ID (Business Account ID)", placeholder: "123456789012345", secret: false, help: "WhatsApp Business Account ID — dibutuhkan untuk fetch template yang sudah disetujui" },
       { key: "provider_config.api_version", label: "API Version", placeholder: "v19.0", secret: false, help: "Versi Graph API (default: v19.0)" },
       { key: "sender_number", label: "Nomor WA Business", placeholder: "628xxx", secret: false, help: "Nomor resmi yang terverifikasi Meta" },
     ],
