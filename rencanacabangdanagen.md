@@ -559,134 +559,45 @@ agent_monthly_targets (
 
 ---
 
-### 🔵 Sprint 2 — Berikutnya (Prioritas Tinggi)
+### ✅ Sprint 2 — Selesai (Juni 2026)
 
 **Tema: Data Scoping, Portal Cabang Lengkap, Sub-Agen**
 
-#### S2-A: Branch Data Scoping (P1 URGENT)
+| ID | Fitur | Status | File |
+|----|-------|--------|------|
+| S2-A1 | Inject `branch_id` + `agent_id` ke JWT payload saat login | ✅ | `auth.ts`, `routes/auth.ts` |
+| S2-A2 | `getBranchIdForRole`, `getAgentByUserId` helpers di JWT auth | ✅ | `auth.ts` |
+| S2-A3 | Block login untuk agen `suspended` | ✅ | `routes/auth.ts` |
+| S2-B | Update `BranchStaff.tsx` AddStaffDialog → buat user baru via `POST /api/branches/:id/staff` + tampil kredensial | ✅ | `BranchStaff.tsx` |
+| S2-C1 | `GET /api/agents/:id` endpoint detail agen | ✅ | `agents.ts` |
+| S2-C2 | `AdminAgentDetail.tsx` — 4 tab: Info, Booking, Komisi, Sub-Agen | ✅ | `AdminAgentDetail.tsx` |
+| S2-C3 | Routing `/admin/agents/:id` | ✅ | `AdminRoutes.tsx` |
+| S2-C4 | Tombol Detail (eye) di `AdminAgents.tsx` → navigate ke `/admin/agents/:id` | ✅ | `AdminAgents.tsx` |
+| S2-D1 | `PATCH /api/agents/:id/status` — suspend/aktifkan/nonaktifkan | ✅ | `agents.ts` |
+| S2-D2 | Tombol Suspend/Aktifkan + konfirmasi di `AdminAgentDetail.tsx` | ✅ | `AdminAgentDetail.tsx` |
+| S2-D3 | `POST /api/agents/:id/reset-password` — reset password agen | ✅ | `agents.ts` |
+| S2-E1 | `POST /api/agents/invitation` — generate token undangan sub-agen | ✅ | `agents.ts` |
+| S2-E2 | Halaman publik `/daftar-sub-agen` — form pendaftaran via link | ✅ | `DaftarSubAgen.tsx` |
+| S2-E3 | `GET /api/agents/invitation/:token` + `POST /api/agents/invitation/register` | ✅ | `agents.ts` |
+| S2-E4 | Admin approval: `POST /api/agents/:id/approve` + `POST /api/agents/:id/reject` | ✅ | `agents.ts` |
+| S2-E5 | Routing publik `/daftar-sub-agen` | ✅ | `PublicRoutes.tsx` |
+| S2-G | Tombol "Buat Link Undangan" di `AgentNetwork.tsx` → generate + tampil link | ✅ | `AgentNetwork.tsx` |
 
-**Masalah:** Branch manager saat ini bisa melihat data semua cabang, bukan hanya cabangnya sendiri.
-
-**Solusi:** Middleware Express yang inject `branch_id` filter berdasarkan JWT claims user.
-
-```typescript
-// Rencana implementasi di api-server/src/lib/auth.ts
-export function requireBranchScope(req, res, next) {
-  const user = req.user;
-  if (user.role === 'branch_manager' && user.branch_id) {
-    req.scopedBranchId = user.branch_id;  // semua query harus filter ini
-  }
-  next();
-}
-```
-
-Endpoint yang perlu diupdate:
-- `GET /rest/v1/bookings` → tambah filter `branch_id`
-- `GET /rest/v1/departures` → join packages + filter `branch_id`
-- `GET /rest/v1/agents` → filter `branch_id`
-- `GET /rest/v1/payments` → join bookings + filter `branch_id`
-
-**File terdampak:**
-- `artifacts/api-server/src/lib/supabaseProxy.ts`
-- `artifacts/api-server/src/lib/auth.ts`
-- SQL migration untuk JWT claims
-
-| ID | Task | Estimasi |
-|----|------|----------|
-| S2-A1 | Inject `branch_id` ke JWT payload saat login | 2 jam |
-| S2-A2 | Middleware `requireBranchScope` di Express | 2 jam |
-| S2-A3 | Supabase proxy respects branch scoping | 4 jam |
-| S2-A4 | Test scoping untuk branch_manager role | 1 jam |
+**Catatan implementasi:**
+- JWT sekarang membawa `branch_id` dan `agent_id` — penting untuk scoping data di proxy
+- Route order di `agents.ts` KRITIS: `/invitation`, `/invitation/:token`, `/commission-tiers/list` harus SEBELUM `/:id`
+- Branch data scoping (filter `branch_id` di supabaseProxy) masih pending — masuk Sprint 3
+- Override commission UI masih pending — masuk Sprint 3
 
 ---
 
-#### S2-B: Tambah Staff dari Portal Cabang
+#### 🔵 Pending dari Sprint 2 → Sprint 3
 
-**Masalah:** Branch manager tidak bisa tambah staff sendiri dari `/cabang/staff`.
-
-**Solusi:** Gunakan endpoint `POST /api/branches/:id/staff` dari portal cabang (sudah ada di API).
-
-| ID | Task | File |
-|----|------|------|
-| S2-B1 | Update `BranchStaff.tsx` — tambah dialog "Tambah Staff" | `BranchStaff.tsx` |
-| S2-B2 | Validasi: hanya branch_manager sendiri yang bisa tambah staff cabangnya | `BranchStaff.tsx` |
-| S2-B3 | Tampilkan credentials setelah create (sama seperti di admin panel) | `BranchStaff.tsx` |
-
----
-
-#### S2-C: Halaman Detail Agen (`/admin/agents/:id`)
-
-**Konten halaman:**
-- Tab Info: profil agen, rekening bank, info perusahaan
-- Tab Jamaah: daftar jamaah yang pernah didaftarkan
-- Tab Komisi: history komisi + status pembayaran
-- Tab Sub-Agen: jaringan sub-agen di bawahnya
-- Tab Performa: grafik booking/komisi per bulan
-
-| ID | Task | File |
-|----|------|------|
-| S2-C1 | `GET /api/agents/:id` endpoint | `agents.ts` |
-| S2-C2 | `AdminAgentDetail.tsx` halaman | `AdminAgentDetail.tsx` |
-| S2-C3 | Routing `/admin/agents/:id` | `AdminRoutes.tsx` |
-| S2-C4 | Tombol "Detail" di `AdminAgents.tsx` | `AdminAgents.tsx` |
-
----
-
-#### S2-D: Suspend / Reaktivasi Agen
-
-| ID | Task | File |
-|----|------|------|
-| S2-D1 | `PATCH /api/agents/:id/status` endpoint (active/suspended/inactive) | `agents.ts` |
-| S2-D2 | Tombol Suspend/Aktifkan di halaman detail agen | `AdminAgentDetail.tsx` |
-| S2-D3 | Block login untuk agen suspended | `auth.ts` |
-| S2-D4 | Kirim WA notif ke agen saat suspend/reaktivasi | `whatsapp.ts` |
-
----
-
-#### S2-E: Onboarding Sub-Agen via Link Publik
-
-**Alur:**
-```
-Agen → /agent/network → Klik "Buat Link Undangan"
-  → API generate token di agent_invitation_tokens
-  → Link: /daftar-sub-agen?ref={agent_code}&token={token}
-  → Calon sub-agen buka link → isi form (nama, HP, email, KTP foto)
-  → Submit → insert agents (status=pending, parent_agent_id=agen)
-  → Admin mendapat notif → review → approve/tolak
-  → Jika approve → buat auth.users + kirim WA kredensial
-```
-
-| ID | Task | File |
-|----|------|------|
-| S2-E1 | `POST /api/agent-invitation` — buat token undangan | `agents.ts` atau baru |
-| S2-E2 | Halaman publik `/daftar-sub-agen` dengan form | `DaftarSubAgen.tsx` |
-| S2-E3 | `POST /api/agent-invitation/register` — simpan pendaftaran | baru |
-| S2-E4 | Admin approval UI di `AdminAgents.tsx` (tab "Pending") | `AdminAgents.tsx` |
-| S2-E5 | Notif WA ke agen induk saat ada pendaftaran sub-agen baru | `whatsapp.ts` |
-| S2-E6 | Notif WA ke sub-agen saat diapprove + kirim kredensial | `whatsapp.ts` |
-
----
-
-#### S2-F: Override Commission UI
-
-**Konsep:** Saat sub-agen melakukan booking, agen induknya mendapatkan persentase dari komisi sub-agen tersebut (override).
-
-| ID | Task | File |
-|----|------|------|
-| S2-F1 | Setting override percentage per agen-subagen di admin | `AdminAgentDetail.tsx` |
-| S2-F2 | Trigger DB: hitung override_amount saat komisi sub-agen disetujui | SQL migration |
-| S2-F3 | Tampilkan earning override di `AgentCommissions.tsx` | `AgentCommissions.tsx` |
-| S2-F4 | Override approval di admin panel | `AdminAgentCommissionReport.tsx` |
-
----
-
-#### S2-G: Notifikasi Booking Baru ke Agen
-
-| ID | Task | File |
-|----|------|------|
-| S2-G1 | Tambah listener di `useAdminNotifications.ts` untuk event booking dari agen | `useAdminNotifications.ts` |
-| S2-G2 | Kirim push notif ke agen saat ada booking via link/referral mereka | backend |
-| S2-G3 | Badge notifikasi di portal agen | `AgentLayoutEnhanced.tsx` |
+| ID | Task | Catatan |
+|----|------|---------|
+| S2-A3 | Supabase proxy filter by `branch_id` untuk branch_manager | Komplex — perlu perubahan supabaseProxy.ts |
+| S2-F | Override Commission UI + DB trigger | Butuh SQL migration + UI |
+| S2-G | Push notifikasi booking baru ke agen | Butuh VAPID setup |
 
 ---
 

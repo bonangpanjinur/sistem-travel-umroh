@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -81,6 +82,7 @@ interface Commission {
 }
 
 export default function AdminAgents() {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("agents");
@@ -510,7 +512,7 @@ export default function AdminAgents() {
                                     <UserPlus className="h-4 w-4" />
                                   </Button>
                                 )}
-                                <Button variant="outline" size="sm" onClick={() => { setSelectedAgent(a); setShowDetailDialog(true); }}>
+                                <Button variant="outline" size="sm" title="Detail Agen" onClick={() => navigate(`/admin/agents/${a.id}`)}>
                                   <Eye className="h-4 w-4" />
                                 </Button>
                                 <Button variant={a.is_active ? "destructive" : "default"} size="sm" onClick={() => setAgentToToggle(a)}>

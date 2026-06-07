@@ -2,6 +2,7 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import { pool } from "./db.js";
 import { logger } from "./logger.js";
+import type { Request, Response, NextFunction } from "express";
 
 const JWT_SECRET = process.env["APP_JWT_SECRET"] || process.env["JWT_SECRET"] || "vinstour-default-secret-change-me";
 const JWT_EXPIRES_IN = "7d";
@@ -11,8 +12,18 @@ export interface JWTPayload {
   sub: string;
   email: string;
   role: string;
+  branch_id?: string | null;
+  agent_id?: string | null;
   iat?: number;
   exp?: number;
+}
+
+declare global {
+  namespace Express {
+    interface Request {
+      user?: JWTPayload;
+    }
+  }
 }
 
 export function signToken(payload: Omit<JWTPayload, "iat" | "exp">): string {
@@ -81,6 +92,40 @@ export async function getUserRoles(userId: string): Promise<{ role: string; bran
   }
 }
 
+/**
+ * Get branch_id for a specific user+role combo.
+ * Used when building JWT claims.
+ */
+export async function getBranchIdForRole(userId: string, role: string): Promise<string | null> {
+  const client = await pool.connect();
+  try {
+    const { rows } = await client.query(
+      `SELECT branch_id FROM user_roles WHERE user_id = $1 AND role = $2 LIMIT 1`,
+      [userId, role]
+    );
+    return rows[0]?.branch_id ?? null;
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * Get agent record for a user_id.
+ * Returns agent id and status.
+ */
+export async function getAgentByUserId(userId: string): Promise<{ id: string; status: string } | null> {
+  const client = await pool.connect();
+  try {
+    const { rows } = await client.query(
+      `SELECT id, status FROM agents WHERE user_id = $1 LIMIT 1`,
+      [userId]
+    );
+    return rows[0] ?? null;
+  } finally {
+    client.release();
+  }
+}
+
 export async function createUser(
   email: string,
   password: string,
@@ -137,4 +182,32 @@ export async function verifyRequestToken(authHeader: string | undefined): Promis
   const token = extractBearerToken(authHeader);
   if (!token) return null;
   return verifyToken(token);
+}
+
+/**
+ * Express middleware: require valid JWT.
+ * Attaches decoded payload to req.user.
+ */
+export function requireAuth(req: Request, res: Response, next: NextFunction): void {
+  const payload = verifyToken(extractBearerToken(req.headers["authorization"]) ?? "");
+  if (!payload) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  req.user = payload;
+  next();
+}
+
+/**
+ * Express middleware: require role is one of the allowed set.
+ * Must be used after requireAuth.
+ */
+export function requireRole(...roles: string[]) {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    if (!req.user || !roles.includes(req.user.role)) {
+      res.status(403).json({ error: "Akses ditolak." });
+      return;
+    }
+    next();
+  };
 }

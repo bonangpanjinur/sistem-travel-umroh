@@ -167,11 +167,27 @@ function TreeNodeRow({ node, expanded, onToggle }: {
   );
 }
 
+async function createInvitation(token: string): Promise<{ token: string; agent_code: string; expires_at: string }> {
+  const res = await fetch("/api/agents/invitation", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Gagal membuat undangan");
+  return data;
+}
+
 export default function AgentNetwork() {
   const { user } = useAuth();
   const { data: agentData, isLoading: loadingAgent } = useAgentByUserId(user?.id);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [tab, setTab] = useState("tree");
+  const [inviteLink, setInviteLink] = useState<string | null>(null);
+  const [inviteExpiry, setInviteExpiry] = useState<string | null>(null);
+  const [generatingInvite, setGeneratingInvite] = useState(false);
 
   const { data: tree = [], isLoading: loadingTree } = useQuery({
     queryKey: ["agent-network-tree", agentData?.id],
@@ -223,6 +239,23 @@ export default function AgentNetwork() {
     navigator.clipboard.writeText(text).then(() => toast.success("Teks undangan disalin!"));
   };
 
+  const handleGenerateInvite = async () => {
+    const token = localStorage.getItem("sb-access-token") ||
+      (() => { try { return JSON.parse(localStorage.getItem("supabase.auth.token") || "{}").access_token; } catch { return null; } })();
+    if (!token) { toast.error("Sesi tidak valid, silakan login ulang."); return; }
+    setGeneratingInvite(true);
+    try {
+      const data = await createInvitation(token);
+      const link = `${window.location.origin}/daftar-sub-agen?ref=${data.agent_code}&token=${data.token}`;
+      setInviteLink(link);
+      setInviteExpiry(data.expires_at);
+    } catch (err: any) {
+      toast.error(err.message ?? "Gagal membuat link undangan");
+    } finally {
+      setGeneratingInvite(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -234,7 +267,7 @@ export default function AgentNetwork() {
           <p className="text-muted-foreground">Pantau seluruh jaringan dan performa semua level sub agen Anda</p>
         </div>
         {agentData && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <div className="text-sm bg-muted px-3 py-1.5 rounded-lg font-mono">
               Kode Anda: <span className="font-bold text-primary">{agentData.agent_code}</span>
             </div>
@@ -242,9 +275,40 @@ export default function AgentNetwork() {
               <Copy className="h-3.5 w-3.5" />
               Salin Undangan
             </Button>
+            <Button size="sm" className="gap-1.5 bg-emerald-600 hover:bg-emerald-700"
+              onClick={handleGenerateInvite} disabled={generatingInvite}>
+              <Users className="h-3.5 w-3.5" />
+              {generatingInvite ? "Membuat…" : "Buat Link Undangan"}
+            </Button>
           </div>
         )}
       </div>
+
+      {/* Invite Link Card */}
+      {inviteLink && (
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 space-y-2">
+          <p className="text-sm font-semibold text-emerald-800">🔗 Link Undangan Sub-Agen</p>
+          <div className="flex items-center gap-2">
+            <code className="flex-1 text-xs bg-white rounded px-2 py-1.5 border truncate font-mono">
+              {inviteLink}
+            </code>
+            <Button size="sm" variant="outline" onClick={() => {
+              navigator.clipboard.writeText(inviteLink);
+              toast.success("Link disalin!");
+            }}>
+              <Copy className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+          {inviteExpiry && (
+            <p className="text-xs text-muted-foreground">
+              Link berlaku hingga: {new Date(inviteExpiry).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}
+            </p>
+          )}
+          <p className="text-xs text-emerald-700">
+            Bagikan link ini ke calon sub-agen. Setelah mendaftar, admin akan meninjau dan mengaktifkan akun mereka.
+          </p>
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

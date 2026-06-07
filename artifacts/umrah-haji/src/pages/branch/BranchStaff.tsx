@@ -239,87 +239,142 @@ function AddStaffDialog({
   branchId: string;
   onAdded: () => void;
 }) {
-  const [email, setEmail] = useState("");
-  const [role, setRole] = useState<string>("operational");
+  const [form, setForm] = useState({ fullName: "", email: "", phone: "", jabatan: "operational" });
   const [submitting, setSubmitting] = useState(false);
+  const [credentials, setCredentials] = useState<{ email: string; tempPassword: string; waSent: boolean } | null>(null);
+
+  const reset = () => {
+    setForm({ fullName: "", email: "", phone: "", jabatan: "operational" });
+    setCredentials(null);
+  };
+
+  const close = () => {
+    onOpenChange(false);
+    reset();
+  };
 
   const submit = async () => {
-    if (!email.trim()) {
-      toast.error("Email wajib diisi");
+    if (!form.fullName.trim() || !form.email.trim()) {
+      toast.error("Nama dan email wajib diisi");
       return;
     }
     setSubmitting(true);
     try {
-      const { data: emails } = await supabase.rpc("list_users_with_emails");
-      const match = (emails ?? []).find(
-        (e: any) => e.email?.toLowerCase() === email.trim().toLowerCase(),
-      );
-      if (!match) {
-        toast.error("User dengan email ini belum terdaftar. Minta mereka mendaftar dulu.");
-        return;
-      }
-      const { error } = await supabase.from("user_roles").insert({
-        user_id: match.id,
-        role,
-        branch_id: branchId,
+      const token = localStorage.getItem("sb-access-token") ||
+        (() => { try { return JSON.parse(localStorage.getItem("supabase.auth.token") || "{}").access_token; } catch { return null; } })();
+
+      const res = await fetch(`/api/branches/${branchId}/staff`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          fullName: form.fullName,
+          email: form.email,
+          phone: form.phone || undefined,
+          jabatan: form.jabatan,
+        }),
       });
-      if (error) {
-        if (error.code === "23505") {
-          toast.error("User ini sudah punya role tersebut di cabang ini.");
-        } else {
-          throw error;
-        }
-        return;
-      }
-      toast.success("Staff berhasil ditambahkan");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Gagal membuat akun staff");
+
+      setCredentials({ email: data.email, tempPassword: data.tempPassword, waSent: data.waSent });
+      toast.success("Akun staff berhasil dibuat");
       onAdded();
-      onOpenChange(false);
-      setEmail("");
-      setRole("operational");
     } catch (e: any) {
-      toast.error(e.message ?? "Gagal menambahkan staff");
+      toast.error(e.message ?? "Gagal membuat akun staff");
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={close}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Tambah Staff Cabang</DialogTitle>
         </DialogHeader>
-        <div className="space-y-3">
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">Email user</label>
-            <Input
-              type="email"
-              placeholder="staff@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-            <p className="text-xs text-muted-foreground">
-              User harus sudah terdaftar di sistem. Mereka akan mendapat akses sesuai role.
-            </p>
+
+        {credentials ? (
+          <div className="space-y-4">
+            <div className="rounded-lg border bg-emerald-50 border-emerald-200 p-4 space-y-2 text-sm">
+              <p className="font-semibold text-emerald-800">✅ Akun berhasil dibuat!</p>
+              <div>
+                <span className="text-muted-foreground">Email: </span>
+                <span className="font-mono font-medium">{credentials.email}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Password sementara: </span>
+                <span className="font-mono font-bold">{credentials.tempPassword}</span>
+              </div>
+              {credentials.waSent ? (
+                <p className="text-xs text-emerald-700">✓ Kredensial dikirim via WhatsApp</p>
+              ) : (
+                <p className="text-xs text-amber-700">⚠ WhatsApp tidak terkirim — salin kredensial di atas</p>
+              )}
+            </div>
+            <Button
+              onClick={() => {
+                navigator.clipboard.writeText(`Email: ${credentials.email}\nPassword: ${credentials.tempPassword}`);
+                toast.success("Kredensial disalin!");
+              }}
+              variant="outline"
+              className="w-full"
+            >
+              Salin Kredensial
+            </Button>
+            <Button onClick={close} className="w-full">Selesai</Button>
           </div>
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">Role</label>
-            <Select value={role} onValueChange={setRole}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {STAFF_ROLES.map((r) => (
-                  <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        ) : (
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Nama Lengkap *</label>
+              <Input
+                placeholder="Nama staff"
+                value={form.fullName}
+                onChange={(e) => setForm(f => ({ ...f, fullName: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Email *</label>
+              <Input
+                type="email"
+                placeholder="staff@email.com"
+                value={form.email}
+                onChange={(e) => setForm(f => ({ ...f, email: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">No. HP / WhatsApp</label>
+              <Input
+                placeholder="08xxxxxxxxxx"
+                value={form.phone}
+                onChange={(e) => setForm(f => ({ ...f, phone: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Jabatan</label>
+              <Select value={form.jabatan} onValueChange={(v) => setForm(f => ({ ...f, jabatan: v }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {STAFF_ROLES.map((r) => (
+                    <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Batal</Button>
-          <Button onClick={submit} disabled={submitting}>
-            {submitting ? "Menyimpan…" : "Tambah"}
-          </Button>
-        </DialogFooter>
+        )}
+
+        {!credentials && (
+          <DialogFooter>
+            <Button variant="outline" onClick={close}>Batal</Button>
+            <Button onClick={submit} disabled={submitting}>
+              {submitting ? "Membuat akun…" : "Buat Akun & Tambah"}
+            </Button>
+          </DialogFooter>
+        )}
       </DialogContent>
     </Dialog>
   );

@@ -9,6 +9,8 @@ import {
   signToken,
   verifyRequestToken,
   hashPassword,
+  getBranchIdForRole,
+  getAgentByUserId,
 } from "../lib/auth.js";
 import { pool } from "../lib/db.js";
 
@@ -39,7 +41,37 @@ router.post("/login", async (req, res) => {
     const roles = await getUserRoles(user.id);
     const primaryRole = roles[0]?.role ?? "customer";
 
-    const token = signToken({ sub: user.id, email: user.email, role: primaryRole });
+    // Block suspended agents from logging in
+    if (primaryRole === "agent" || primaryRole === "sub_agent") {
+      const agentInfo = await getAgentByUserId(user.id);
+      if (agentInfo?.status === "suspended") {
+        res.status(403).json({
+          error: "Akun agen Anda telah ditangguhkan. Hubungi admin untuk informasi lebih lanjut.",
+        });
+        return;
+      }
+    }
+
+    // Inject branch_id into JWT for branch-scoped roles
+    let branchId: string | null = roles[0]?.branch_id ?? null;
+    if (!branchId && ["branch_manager", "operational", "sales", "finance", "marketing", "equipment"].includes(primaryRole)) {
+      branchId = await getBranchIdForRole(user.id, primaryRole);
+    }
+
+    // Inject agent_id for agents
+    let agentId: string | null = null;
+    if (primaryRole === "agent" || primaryRole === "sub_agent") {
+      const agentInfo = await getAgentByUserId(user.id);
+      agentId = agentInfo?.id ?? null;
+    }
+
+    const token = signToken({
+      sub: user.id,
+      email: user.email,
+      role: primaryRole,
+      branch_id: branchId,
+      agent_id: agentId,
+    });
 
     await pool.query(
       `UPDATE auth.users SET last_sign_in_at = NOW() WHERE id = $1`,

@@ -23,6 +23,7 @@ const AdminRoleManagement = lazy(() => import("@/pages/admin/AdminRoleManagement
 const AdminRBACTools = lazy(() => import("@/pages/admin/AdminRBACTools"));
 const AdminRBACStatus = lazy(() => import("@/pages/admin/AdminRBACStatus"));
 const AdminAgents = lazy(() => import("@/pages/admin/AdminAgents"));
+const AdminAgentDetail = lazy(() => import("@/pages/admin/AdminAgentDetail"));
 const AdminReports = lazy(() => import("@/pages/admin/AdminReports"));
 const AdminReportsCentral = lazy(() => import("@/pages/admin/AdminReportsCentral"));
 const AdminSettings = lazy(() => import("@/pages/admin/AdminSettings"));
@@ -291,6 +292,7 @@ export default function AdminRoutes() {
       <Route path="customers" element={<P k={PERMISSIONS.CUSTOMERS}><AdminCustomers /></P>} />
       <Route path="customers/:id" element={<P k={PERMISSIONS.CUSTOMERS}><AdminCustomerDetail /></P>} />
       <Route path="agents" element={<P k={PERMISSIONS.AGENTS}><AdminAgents /></P>} />
+      <Route path="agents/:id" element={<P k={PERMISSIONS.AGENTS}><AdminAgentDetail /></P>} />
       <Route path="branches" element={<P k={PERMISSIONS.BRANCHES}><AdminBranches /></P>} />
       <Route path="branches/:id" element={<P k={PERMISSIONS.BRANCHES}><AdminBranchDetail /></P>} />
       <Route path="branches/comparison" element={<P k={PERMISSIONS.BRANCHES}><AdminBranchComparison /></P>} />
