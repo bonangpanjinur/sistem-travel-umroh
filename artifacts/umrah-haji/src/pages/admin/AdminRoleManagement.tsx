@@ -8,7 +8,7 @@
  * - Tabs yang compact dan responsif
  */
 
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -23,9 +23,13 @@ import {
 import {
   ShieldCheck, Menu, BarChart3, AlertCircle, KeyRound,
   RefreshCw, Grid3X3, Users, Home, Settings, History, UserCog,
+  Search, ChevronRight, Crown, Shield,
 } from 'lucide-react';
 import { Navigate, Link, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { UserPermissionsManager } from '@/components/admin/UserPermissionsManager';
 import { RoleMenuMapper } from '@/components/admin/RoleMenuMapper';
 import { RolePermissionMatrix, MATRIX_ROLES } from '@/components/admin/RolePermissionMatrix';
 import { PermissionAuditLog } from '@/components/admin/PermissionAuditLog';
@@ -281,6 +285,235 @@ function SummaryTab() {
   );
 }
 
+// ── Konstanta role label & warna (reuse dari atas) ─────────────────────────
+const ALL_ROLE_LABELS: Record<string, string> = {
+  super_admin: 'Super Admin', owner: 'Owner', branch_manager: 'Branch Manager',
+  finance: 'Finance', operational: 'Operational', equipment: 'Equipment',
+  sales: 'Sales', marketing: 'Marketing', agent: 'Agent', sub_agent: 'Sub-Agen',
+};
+const ALL_ROLE_BADGE: Record<string, string> = {
+  super_admin:    'bg-rose-100 text-rose-800 border-rose-200',
+  owner:          'bg-purple-100 text-purple-800 border-purple-200',
+  branch_manager: 'bg-blue-100 text-blue-800 border-blue-200',
+  finance:        'bg-green-100 text-green-800 border-green-200',
+  operational:    'bg-orange-100 text-orange-800 border-orange-200',
+  sales:          'bg-cyan-100 text-cyan-800 border-cyan-200',
+  marketing:      'bg-pink-100 text-pink-800 border-pink-200',
+  agent:          'bg-indigo-100 text-indigo-800 border-indigo-200',
+  sub_agent:      'bg-slate-100 text-slate-800 border-slate-200',
+};
+
+function UserOverridePanel() {
+  const [search, setSearch]           = useState("");
+  const [selectedId, setSelectedId]   = useState<string | null>(null);
+  const [selectedName, setName]       = useState<string>("");
+  const [selectedIsSA, setIsSA]       = useState(false);
+
+  // Fetch all staff users (profiles joined with primary role)
+  const { data: users = [], isLoading: usersLoading } = useQuery({
+    queryKey: ["override-panel-users"],
+    queryFn: async () => {
+      // profiles with role
+      const { data: profiles } = await supabase
+        .from("profiles" as any)
+        .select("id, full_name, email, role")
+        .order("full_name", { ascending: true });
+      if (!profiles) return [];
+
+      // override counts
+      const { data: overrideCounts } = await supabase
+        .from("user_permissions" as any)
+        .select("user_id");
+
+      const countMap: Record<string, number> = {};
+      (overrideCounts ?? []).forEach((r: any) => {
+        countMap[r.user_id] = (countMap[r.user_id] ?? 0) + 1;
+      });
+
+      return (profiles as any[]).map((p) => ({
+        id: p.id,
+        name: p.full_name || p.email || p.id,
+        email: p.email || "",
+        role: p.role || "operational",
+        isSuperAdmin: p.role === "super_admin" || p.role === "owner",
+        overrideCount: countMap[p.id] ?? 0,
+      }));
+    },
+    staleTime: 30_000,
+  });
+
+  const filtered = useMemo(() => {
+    if (!search.trim()) return users;
+    const q = search.toLowerCase();
+    return users.filter(
+      (u) =>
+        u.name.toLowerCase().includes(q) ||
+        u.email.toLowerCase().includes(q) ||
+        (ALL_ROLE_LABELS[u.role] || u.role).toLowerCase().includes(q)
+    );
+  }, [users, search]);
+
+  // Stats
+  const totalWithOverride = users.filter((u) => u.overrideCount > 0).length;
+
+  return (
+    <div className="grid md:grid-cols-5 gap-4 min-h-[560px]">
+      {/* ── Left: User Picker ──────────────────────────────────────────────── */}
+      <div className="md:col-span-2 flex flex-col gap-3">
+        {/* Summary bar */}
+        <div className="flex gap-2">
+          <Card className="flex-1">
+            <CardContent className="p-3 flex items-center gap-2">
+              <Users className="h-4 w-4 text-muted-foreground" />
+              <div>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Total User</p>
+                <p className="font-bold text-sm">{users.length}</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="flex-1">
+            <CardContent className="p-3 flex items-center gap-2">
+              <Shield className="h-4 w-4 text-amber-600" />
+              <div>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Punya Override</p>
+                <p className="font-bold text-sm text-amber-700">{totalWithOverride}</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Search */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Cari nama, email, atau role…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+
+        {/* User list */}
+        <Card className="flex-1 overflow-hidden">
+          <ScrollArea className="h-[440px]">
+            {usersLoading ? (
+              <div className="p-3 space-y-2">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={i} className="h-14 bg-muted animate-pulse rounded-lg" />
+                ))}
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className="p-6 text-center text-sm text-muted-foreground">
+                <Users className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                Tidak ada user ditemukan.
+              </div>
+            ) : (
+              <div className="divide-y">
+                {filtered.map((u) => (
+                  <button
+                    key={u.id}
+                    onClick={() => {
+                      setSelectedId(u.id);
+                      setName(u.name);
+                      setIsSA(u.isSuperAdmin);
+                    }}
+                    className={cn(
+                      "w-full text-left px-4 py-3 flex items-center gap-3 transition-colors hover:bg-muted/50",
+                      selectedId === u.id && "bg-primary/5 border-l-2 border-primary"
+                    )}
+                  >
+                    {/* Avatar */}
+                    <div className={cn(
+                      "h-9 w-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0",
+                      u.isSuperAdmin
+                        ? "bg-gradient-to-br from-amber-400 to-orange-500 text-white"
+                        : "bg-gradient-to-br from-primary/20 to-primary/40 text-primary"
+                    )}>
+                      {u.isSuperAdmin
+                        ? <Crown className="h-4 w-4" />
+                        : u.name.charAt(0).toUpperCase()}
+                    </div>
+
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <p className="text-sm font-medium truncate">{u.name}</p>
+                        {u.overrideCount > 0 && (
+                          <Badge variant="outline" className="text-[10px] h-4 px-1.5 text-amber-700 border-amber-300">
+                            {u.overrideCount} override
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <Badge className={cn("text-[10px] h-4 px-1.5 border", ALL_ROLE_BADGE[u.role] || "bg-slate-100 text-slate-800")}>
+                          {ALL_ROLE_LABELS[u.role] || u.role}
+                        </Badge>
+                        {u.email && (
+                          <span className="text-[11px] text-muted-foreground truncate">{u.email}</span>
+                        )}
+                      </div>
+                    </div>
+
+                    <ChevronRight className={cn(
+                      "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
+                      selectedId === u.id && "rotate-90 text-primary"
+                    )} />
+                  </button>
+                ))}
+              </div>
+            )}
+          </ScrollArea>
+        </Card>
+      </div>
+
+      {/* ── Right: Permission Editor ────────────────────────────────────────── */}
+      <div className="md:col-span-3">
+        {!selectedId ? (
+          <Card className="h-full flex items-center justify-center">
+            <CardContent className="py-20 text-center text-muted-foreground">
+              <UserCog className="h-16 w-16 mx-auto mb-4 opacity-20" />
+              <p className="font-medium text-base">Pilih User di Sebelah Kiri</p>
+              <p className="text-sm mt-1 max-w-xs mx-auto">
+                Klik salah satu user untuk melihat dan mengelola override permission-nya secara individual.
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="h-full flex flex-col">
+            <CardHeader className="pb-3 flex-shrink-0">
+              <div className="flex items-center gap-3">
+                <div className={cn(
+                  "h-10 w-10 rounded-full flex items-center justify-center text-base font-bold shrink-0",
+                  selectedIsSA
+                    ? "bg-gradient-to-br from-amber-400 to-orange-500 text-white"
+                    : "bg-gradient-to-br from-primary/20 to-primary/40 text-primary"
+                )}>
+                  {selectedIsSA ? <Crown className="h-5 w-5" /> : selectedName.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <CardTitle className="text-base">{selectedName}</CardTitle>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {selectedIsSA
+                      ? "Super Admin — izin tidak dapat dibatasi"
+                      : "Kelola override permission secara granular"}
+                  </p>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="flex-1 flex flex-col min-h-0 pt-0">
+              <UserPermissionsManager
+                userId={selectedId}
+                userName={selectedName}
+                isSuperAdminTarget={selectedIsSA}
+              />
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function AdminRoleManagementEnhanced() {
   const { hasRole, isLoading: authLoading } = useAuth();
   const isSuperAdmin = hasRole('super_admin');
@@ -410,25 +643,15 @@ export default function AdminRoleManagementEnhanced() {
 
         {/* ── Override per User ────────────────────────────────────────── */}
         <TabsContent value="user-overrides" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <UserCog className="h-4 w-4" />
-                Override Permission per User
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm text-muted-foreground">
-              <p>
-                Pengaturan permission khusus per user (di luar role default) dikelola
-                dari halaman <strong>Manajemen User</strong>. Pilih user lalu buka tab
-                "Permission Override" untuk menambah/menghapus akses spesifik.
-              </p>
-              <p>
-                Override yang aktif akan otomatis ter-resolve oleh sistem efektif
-                permission (RPC v2) dan menimpa permission default role.
-              </p>
-            </CardContent>
-          </Card>
+          <div className="mb-4">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <UserCog className="h-5 w-5" /> Override Permission per User
+            </h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Atur akses granular per individu — override berlaku di luar role default dan bisa dicabut kapan saja.
+            </p>
+          </div>
+          <UserOverridePanel />
         </TabsContent>
 
         {/* ── Audit Log ─────────────────────────────────────────────────── */}
