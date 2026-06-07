@@ -91,7 +91,7 @@ const CATEGORIES: CategoryDef[] = [
     icon: Zap,
     color: 'text-orange-600',
     bg: 'bg-orange-50 dark:bg-orange-950/40',
-    link: '/admin/integration-settings',
+    link: '/admin/system-health',
   },
 ];
 

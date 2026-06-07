@@ -120,10 +120,10 @@ export function useAdminNotifications() {
             type: 'system_alert',
             title: `⚠️ ${alert.title}`,
             message: alert.message,
-            link: '/admin/integration-settings',
+            link: '/admin/system-health',
             data: alert,
           });
-          showBrowserNotification(`⚠️ ${alert.title}`, alert.message, '/admin/integration-settings');
+          showBrowserNotification(`⚠️ ${alert.title}`, alert.message, '/admin/system-health');
         }
       } catch {
         // silent — polling, non-critical
