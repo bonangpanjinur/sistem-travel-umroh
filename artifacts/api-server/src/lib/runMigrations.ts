@@ -504,6 +504,19 @@ export async function runMigrations(): Promise<void> {
       logger.info("runMigrations: 21_wa_scheduled_broadcasts — already applied, skipping");
     }
 
+    // ── Step 1s: agent status + invitation tokens + profile jabatan ──────
+    const agentStatusApplied = await isApplied(client, "22_agent_status_branch_staff");
+    if (!agentStatusApplied) {
+      await runSqlFile(
+        client,
+        sqlPath("062_agent_status_branch_staff.sql"),
+        "22_agent_status_branch_staff (agents.status + agent_invitation_tokens + profiles.jabatan)",
+      );
+      await markApplied(client, "22_agent_status_branch_staff");
+    } else {
+      logger.info("runMigrations: 22_agent_status_branch_staff — already applied, skipping");
+    }
+
     // ── Step 2: payment sync trigger (always re-applied each boot) ────────
     // Wrapped in its own try/catch so a missing table on a broken DB state
     // doesn't crash the server — it just logs and continues.

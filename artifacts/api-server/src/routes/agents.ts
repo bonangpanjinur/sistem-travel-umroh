@@ -4,6 +4,7 @@ import { sql } from 'drizzle-orm';
 import { createUser } from '../lib/auth.js';
 import { pool } from '../lib/db.js';
 import { logger } from '../lib/logger.js';
+import { sendWA, credentialMessage } from '../lib/whatsapp.js';
 
 const router = Router();
 
@@ -51,15 +52,13 @@ router.post('/create', async (req, res) => {
     // Step 3: Insert agent record
     const agentResult = await client.query(
       `INSERT INTO agents (
-        user_id, agent_code, full_name, email, phone, company_name, commission_rate,
-        bank_name, bank_account_number, bank_account_name, npwp,
+        user_id, agent_code, contact_name, email, phone, company_name, commission_rate,
         branch_id, parent_agent_id, is_active, created_at, updated_at
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,true,NOW(),NOW())
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,true,NOW(),NOW())
       RETURNING id`,
       [
-        userId, code, fullName, email, phone ?? null, companyName ?? null,
+        userId, code, fullName, email, phone ?? null, companyName ?? fullName,
         commissionRate ? parseFloat(commissionRate) : 5,
-        bankName ?? null, bankAccountNumber ?? null, bankAccountName ?? null, npwp ?? null,
         branchId ?? null, parentAgentId ?? null,
       ]
     );
@@ -78,12 +77,22 @@ router.post('/create', async (req, res) => {
 
     await client.query('COMMIT');
 
+    // Kirim kredensial via WA (non-blocking, tidak gagalkan request jika WA error)
+    if (phone) {
+      const role = parentAgentId ? 'Sub-Agen' : 'Agen';
+      const msg = credentialMessage({ recipientName: fullName, role, email, password: tempPassword });
+      sendWA(phone, msg).then(result => {
+        if (!result.success) logger.warn({ result, phone }, 'Gagal kirim WA kredensial agen');
+      }).catch(() => {});
+    }
+
     res.json({
       success: true,
       agentCode: code,
       email,
       userId,
       agentId: agentResult.rows[0]?.id,
+      tempPassword,
     });
   } catch (err: any) {
     await client.query('ROLLBACK');

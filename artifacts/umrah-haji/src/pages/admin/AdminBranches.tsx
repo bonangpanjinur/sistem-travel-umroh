@@ -9,21 +9,27 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { BranchForm } from "@/components/admin/forms/BranchForm";
-import { Search, Plus, Edit, Trash2, Building2, MapPin, Phone, Mail, Globe, Loader2 } from "lucide-react";
+import AddBranchDialog from "@/components/admin/AddBranchDialog";
+import ResetPasswordDialog from "@/components/admin/ResetPasswordDialog";
+import { Search, Plus, Edit, Trash2, Building2, MapPin, Phone, Mail, Globe, Loader2, KeyRound, UserCircle2 } from "lucide-react";
 import { toast } from "sonner";
 
 export default function AdminBranches() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingBranch, setEditingBranch] = useState<any>(null);
   const [websiteBranch, setWebsiteBranch] = useState<any>(null);
   const [deletingBranch, setDeletingBranch] = useState<any>(null);
+  const [resetPasswordBranch, setResetPasswordBranch] = useState<any>(null);
   const queryClient = useQueryClient();
 
   const { data: branches, isLoading } = useQuery({
     queryKey: ["admin-branches"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("branches").select("*").order("name");
+      const { data, error } = await supabase
+        .from("branches")
+        .select("*, profiles:manager_user_id(full_name, email, phone, id)")
+        .order("name");
       if (error) throw error;
       return data;
     },
@@ -49,20 +55,33 @@ export default function AdminBranches() {
     },
   });
 
-  const filtered = branches?.filter(b => 
+  const filtered = branches?.filter(b =>
     b.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     b.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
     b.city?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Cari cabang..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10" />
+          <Input
+            placeholder="Cari cabang..."
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
         </div>
-        <Button onClick={() => { setEditingBranch(null); setIsFormOpen(true); }}>
+        <Button onClick={() => setIsAddOpen(true)}>
           <Plus className="h-4 w-4 mr-2" />Tambah Cabang
         </Button>
       </div>
@@ -76,81 +95,135 @@ export default function AdminBranches() {
         </Card>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map(branch => (
-            <Card key={branch.id}>
-              <CardContent className="p-4">
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <p className="text-xs font-mono text-muted-foreground">{branch.code}</p>
-                    <h3 className="font-semibold">{branch.name}</h3>
+          {filtered.map(branch => {
+            const manager = (branch as any).profiles;
+            return (
+              <Card key={branch.id}>
+                <CardContent className="p-4">
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <p className="text-xs font-mono text-muted-foreground">{branch.code}</p>
+                      <h3 className="font-semibold">{branch.name}</h3>
+                    </div>
+                    <Badge variant={branch.is_active ? "default" : "secondary"}>
+                      {branch.is_active ? "Aktif" : "Nonaktif"}
+                    </Badge>
                   </div>
-                  <Badge variant={branch.is_active ? "default" : "secondary"}>
-                    {branch.is_active ? "Aktif" : "Nonaktif"}
-                  </Badge>
-                </div>
-                
-                <div className="space-y-1 text-sm text-muted-foreground">
-                  {branch.city && (
-                    <div className="flex items-center gap-2">
-                      <MapPin className="h-3 w-3" />
-                      <span>{branch.city}{branch.province ? `, ${branch.province}` : ""}</span>
-                    </div>
-                  )}
-                  {branch.phone && (
-                    <div className="flex items-center gap-2">
-                      <Phone className="h-3 w-3" />
-                      <span>{branch.phone}</span>
-                    </div>
-                  )}
-                  {branch.email && (
-                    <div className="flex items-center gap-2">
-                      <Mail className="h-3 w-3" />
-                      <span className="truncate">{branch.email}</span>
-                    </div>
-                  )}
-                  {branch.slug && (
-                    <div className="flex items-center gap-2">
-                      <Globe className="h-3 w-3" />
-                      <span className="font-mono text-xs text-primary">/b/{branch.slug}</span>
-                    </div>
-                  )}
-                </div>
 
-                <div className="flex gap-2 mt-4">
-                  <Button size="sm" variant="outline" className="flex-1" onClick={() => { setEditingBranch(branch); setIsFormOpen(true); }}>
-                    <Edit className="h-4 w-4 mr-1" />Edit
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => setWebsiteBranch(branch)} disabled={!branch.slug}>
-                    <Globe className="h-4 w-4" />
-                  </Button>
-                  <Button size="sm" variant="destructive" onClick={() => setDeletingBranch(branch)}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                  <div className="space-y-1 text-sm text-muted-foreground">
+                    {branch.city && (
+                      <div className="flex items-center gap-2">
+                        <MapPin className="h-3 w-3 flex-shrink-0" />
+                        <span>{branch.city}{branch.province ? `, ${branch.province}` : ""}</span>
+                      </div>
+                    )}
+                    {branch.phone && (
+                      <div className="flex items-center gap-2">
+                        <Phone className="h-3 w-3 flex-shrink-0" />
+                        <span>{branch.phone}</span>
+                      </div>
+                    )}
+                    {branch.email && (
+                      <div className="flex items-center gap-2">
+                        <Mail className="h-3 w-3 flex-shrink-0" />
+                        <span className="truncate">{branch.email}</span>
+                      </div>
+                    )}
+                    {branch.slug && (
+                      <div className="flex items-center gap-2">
+                        <Globe className="h-3 w-3 flex-shrink-0" />
+                        <span className="font-mono text-xs text-primary">/b/{branch.slug}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {manager ? (
+                    <div className="mt-3 pt-3 border-t flex items-center gap-2 text-xs text-muted-foreground">
+                      <UserCircle2 className="h-3.5 w-3.5 flex-shrink-0 text-primary" />
+                      <span className="truncate">
+                        <span className="text-foreground font-medium">{manager.full_name || "Manager"}</span>
+                        {manager.email && <span className="ml-1">· {manager.email}</span>}
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="mt-3 pt-3 border-t text-xs text-amber-600 flex items-center gap-1">
+                      <UserCircle2 className="h-3.5 w-3.5" />
+                      Belum ada manager
+                    </div>
+                  )}
+
+                  <div className="flex gap-2 mt-3">
+                    <Button size="sm" variant="outline" className="flex-1" onClick={() => { setEditingBranch(branch); }}>
+                      <Edit className="h-4 w-4 mr-1" />Edit
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setWebsiteBranch(branch)}
+                      disabled={!branch.slug}
+                      title="Pengaturan Website"
+                    >
+                      <Globe className="h-4 w-4" />
+                    </Button>
+                    {manager?.id && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setResetPasswordBranch({ ...branch, managerId: manager.id, managerEmail: manager.email })}
+                        title="Reset Password Manager"
+                      >
+                        <KeyRound className="h-4 w-4" />
+                      </Button>
+                    )}
+                    <Button size="sm" variant="destructive" onClick={() => setDeletingBranch(branch)}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
 
-      <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
+      {/* Dialog Tambah Cabang (dengan buat akun manager) */}
+      <AddBranchDialog open={isAddOpen} onOpenChange={setIsAddOpen} />
+
+      {/* Dialog Edit Cabang */}
+      <Dialog open={!!editingBranch} onOpenChange={open => !open && setEditingBranch(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{editingBranch ? "Edit" : "Tambah"} Cabang</DialogTitle>
+            <DialogTitle>Edit Cabang</DialogTitle>
           </DialogHeader>
-          <BranchForm branchData={editingBranch} onSuccess={() => setIsFormOpen(false)} onCancel={() => setIsFormOpen(false)} />
+          <BranchForm
+            branchData={editingBranch}
+            onSuccess={() => setEditingBranch(null)}
+            onCancel={() => setEditingBranch(null)}
+          />
         </DialogContent>
       </Dialog>
 
+      {/* Dialog Website */}
       {websiteBranch && (
         <BranchWebsiteDialog
           branch={websiteBranch}
           open={!!websiteBranch}
-          onOpenChange={(open) => !open && setWebsiteBranch(null)}
+          onOpenChange={open => !open && setWebsiteBranch(null)}
         />
       )}
 
-      <AlertDialog open={!!deletingBranch} onOpenChange={(open) => !open && setDeletingBranch(null)}>
+      {/* Dialog Reset Password Manager */}
+      {resetPasswordBranch && (
+        <ResetPasswordDialog
+          open={!!resetPasswordBranch}
+          onOpenChange={open => !open && setResetPasswordBranch(null)}
+          userId={resetPasswordBranch.managerId}
+          userLabel={`Manager ${resetPasswordBranch.name} (${resetPasswordBranch.managerEmail})`}
+        />
+      )}
+
+      {/* Konfirmasi Hapus */}
+      <AlertDialog open={!!deletingBranch} onOpenChange={open => !open && setDeletingBranch(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Hapus Cabang?</AlertDialogTitle>
@@ -178,22 +251,20 @@ export default function AdminBranches() {
 // === Branch Website Settings Dialog ===
 function BranchWebsiteDialog({ branch, open, onOpenChange }: { branch: any; open: boolean; onOpenChange: (v: boolean) => void }) {
   const queryClient = useQueryClient();
-  
+
   const { data: settings, isLoading } = useQuery({
     queryKey: ["branch-website-settings", branch.id],
     enabled: open,
     queryFn: async () => {
-      // Try to find existing settings
       const { data, error } = await supabase
         .from("website_settings")
         .select("*")
         .eq("branch_id", branch.id)
         .maybeSingle();
       if (error) throw error;
-      
+
       if (data) return data;
 
-      // Auto-create if not exists
       const { data: newData, error: insertError } = await supabase
         .from("website_settings")
         .insert({
@@ -210,7 +281,6 @@ function BranchWebsiteDialog({ branch, open, onOpenChange }: { branch: any; open
 
   const [formValues, setFormValues] = useState<Record<string, string>>({});
 
-  // Sync form when settings load
   const currentSettings = {
     company_name: formValues.company_name ?? settings?.company_name ?? "",
     tagline: formValues.tagline ?? settings?.tagline ?? "",
@@ -267,42 +337,25 @@ function BranchWebsiteDialog({ branch, open, onOpenChange }: { branch: any; open
                 <p className="text-sm text-muted-foreground">
                   URL: <span className="font-mono text-primary">{window.location.origin}/b/{branch.slug}</span>
                 </p>
-
                 <div className="space-y-2">
                   <Label>Nama Perusahaan / Cabang</Label>
-                  <Input
-                    value={currentSettings.company_name}
-                    onChange={e => updateField("company_name", e.target.value)}
-                  />
+                  <Input value={currentSettings.company_name} onChange={e => updateField("company_name", e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <Label>Tagline</Label>
-                  <Input
-                    value={currentSettings.tagline}
-                    onChange={e => updateField("tagline", e.target.value)}
-                  />
+                  <Input value={currentSettings.tagline} onChange={e => updateField("tagline", e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <Label>URL Logo</Label>
-                  <Input
-                    value={currentSettings.logo_url}
-                    onChange={e => updateField("logo_url", e.target.value)}
-                    placeholder="https://..."
-                  />
+                  <Input value={currentSettings.logo_url} onChange={e => updateField("logo_url", e.target.value)} placeholder="https://..." />
                 </div>
                 <div className="space-y-2">
                   <Label>Judul Hero</Label>
-                  <Input
-                    value={currentSettings.hero_title}
-                    onChange={e => updateField("hero_title", e.target.value)}
-                  />
+                  <Input value={currentSettings.hero_title} onChange={e => updateField("hero_title", e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <Label>Subtitle Hero</Label>
-                  <Input
-                    value={currentSettings.hero_subtitle}
-                    onChange={e => updateField("hero_subtitle", e.target.value)}
-                  />
+                  <Input value={currentSettings.hero_subtitle} onChange={e => updateField("hero_subtitle", e.target.value)} />
                 </div>
               </div>
 
