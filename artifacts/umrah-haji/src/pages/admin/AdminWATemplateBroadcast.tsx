@@ -150,7 +150,7 @@ export default function AdminWATemplateBroadcast() {
           departure:departures(departure_date)`)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return (data || []) as Booking[];
+      return (data || []) as unknown as Booking[];
     },
   });
 

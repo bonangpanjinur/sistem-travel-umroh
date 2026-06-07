@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -74,8 +74,11 @@ export default function AdminWABotMenu() {
   const { data: configData, refetch: refetchConfig } = useQuery<BotMenuConfig>({
     queryKey: ["wa-bot-menu-config"],
     queryFn: () => fetch(`${API}/bot-menu/config`).then(r => r.json()),
-    onSuccess: (d: BotMenuConfig) => setConfigForm({ ...DEFAULT_CONFIG, ...d }),
   });
+
+  useEffect(() => {
+    if (configData) setConfigForm({ ...DEFAULT_CONFIG, ...configData });
+  }, [configData]);
 
   const items = (itemsData?.items ?? []).slice().sort((a, b) => a.sort_order - b.sort_order || a.menu_number - b.menu_number);
   const config: BotMenuConfig = { ...DEFAULT_CONFIG, ...(configData ?? configForm) };

@@ -26,6 +26,7 @@ const SETTINGS_PATH_TO_CATEGORY: Record<string, SettingsCategoryKey> = {
   '/admin/rbac-status': 'access',
   '/admin/access-simulator': 'access',
   '/admin/api-connect': 'integration',
+  '/admin/integration-settings': 'integration',
   '/admin/webhooks': 'integration',
   '/admin/email-templates': 'integration',
   '/admin/push-notifications': 'integration',

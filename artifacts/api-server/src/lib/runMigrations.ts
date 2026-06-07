@@ -248,6 +248,32 @@ export async function runMigrations(): Promise<void> {
       logger.info("runMigrations: 03_bookings_columns — already applied, skipping");
     }
 
+    // ── Step 1e: integration API key settings ─────────────────────────────
+    const integrationSettingsApplied = await isApplied(client, "05_integration_settings");
+    if (!integrationSettingsApplied) {
+      await runSqlFile(
+        client,
+        sqlPath("05_integration_settings.sql"),
+        "05_integration_settings (integration API key rows in app_settings)",
+      );
+      await markApplied(client, "05_integration_settings");
+    } else {
+      logger.info("runMigrations: 05_integration_settings — already applied, skipping");
+    }
+
+    // ── Step 1f: fix app_settings schema + re-seed integration keys ───────
+    const appSettingsCompatApplied = await isApplied(client, "06_app_settings_compat");
+    if (!appSettingsCompatApplied) {
+      await runSqlFile(
+        client,
+        sqlPath("06_app_settings_compat.sql"),
+        "06_app_settings_compat (description/is_public columns + integration key rows)",
+      );
+      await markApplied(client, "06_app_settings_compat");
+    } else {
+      logger.info("runMigrations: 06_app_settings_compat — already applied, skipping");
+    }
+
     // ── Step 1d: add media_type column to media_gallery ──────────────────
     const galleryMediaTypeApplied = await isApplied(client, "04_gallery_media_type");
     if (!galleryMediaTypeApplied) {
