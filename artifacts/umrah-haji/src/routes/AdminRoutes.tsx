@@ -51,6 +51,7 @@ const AdminPostDepartureSurvey = lazy(() => import("@/pages/admin/AdminPostDepar
 const AdminBookingTransfers = lazy(() => import("@/pages/admin/AdminBookingTransfers"));
 const AdminExchangeRates = lazy(() => import("@/pages/admin/AdminExchangeRates"));
 const AdminBranches = lazy(() => import("@/pages/admin/AdminBranches"));
+const AdminBranchDetail = lazy(() => import("@/pages/admin/AdminBranchDetail"));
 const AdminBranchComparison = lazy(() => import("@/pages/admin/AdminBranchComparison"));
 const AdminFinancePL = lazy(() => import("@/pages/admin/AdminFinancePL"));
 const AdminFinanceCash = lazy(() => import("@/pages/admin/AdminFinanceCash"));
@@ -291,6 +292,7 @@ export default function AdminRoutes() {
       <Route path="customers/:id" element={<P k={PERMISSIONS.CUSTOMERS}><AdminCustomerDetail /></P>} />
       <Route path="agents" element={<P k={PERMISSIONS.AGENTS}><AdminAgents /></P>} />
       <Route path="branches" element={<P k={PERMISSIONS.BRANCHES}><AdminBranches /></P>} />
+      <Route path="branches/:id" element={<P k={PERMISSIONS.BRANCHES}><AdminBranchDetail /></P>} />
       <Route path="branches/comparison" element={<P k={PERMISSIONS.BRANCHES}><AdminBranchComparison /></P>} />
       <Route path="loyalty" element={<P k={PERMISSIONS.LOYALTY}><AdminLoyalty /></P>} />
       <Route path="loyalty/tier-benefits" element={<P k={PERMISSIONS.LOYALTY}><AdminTierBenefits /></P>} />

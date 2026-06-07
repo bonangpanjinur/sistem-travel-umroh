@@ -11,7 +11,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { BranchForm } from "@/components/admin/forms/BranchForm";
 import AddBranchDialog from "@/components/admin/AddBranchDialog";
 import ResetPasswordDialog from "@/components/admin/ResetPasswordDialog";
-import { Search, Plus, Edit, Trash2, Building2, MapPin, Phone, Mail, Globe, Loader2, KeyRound, UserCircle2 } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Search, Plus, Edit, Trash2, Building2, MapPin, Phone, Mail, Globe, Loader2, KeyRound, UserCircle2, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 
 export default function AdminBranches() {
@@ -153,8 +154,13 @@ export default function AdminBranches() {
                   )}
 
                   <div className="flex gap-2 mt-3">
-                    <Button size="sm" variant="outline" className="flex-1" onClick={() => { setEditingBranch(branch); }}>
-                      <Edit className="h-4 w-4 mr-1" />Edit
+                    <Button size="sm" variant="default" className="flex-1" asChild>
+                      <Link to={`/admin/branches/${branch.id}`}>
+                        <ExternalLink className="h-4 w-4 mr-1" />Detail
+                      </Link>
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => { setEditingBranch(branch); }} title="Edit Cabang">
+                      <Edit className="h-4 w-4" />
                     </Button>
                     <Button
                       size="sm"
@@ -175,7 +181,7 @@ export default function AdminBranches() {
                         <KeyRound className="h-4 w-4" />
                       </Button>
                     )}
-                    <Button size="sm" variant="destructive" onClick={() => setDeletingBranch(branch)}>
+                    <Button size="sm" variant="destructive" onClick={() => setDeletingBranch(branch)} title="Hapus">
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>

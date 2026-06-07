@@ -130,6 +130,105 @@ router.post('/create', async (req, res) => {
 });
 
 /**
+ * GET /api/branches/:id
+ * Detail cabang: info, manager, staff, agent, statistik keberangkatan.
+ */
+router.get('/:id', async (req, res) => {
+  const { id } = req.params;
+  const client = await pool.connect();
+  try {
+    // Branch + manager profile
+    const branchResult = await client.query(
+      `SELECT b.*,
+              p.full_name  AS manager_name,
+              p.email      AS manager_email,
+              p.phone      AS manager_phone
+       FROM branches b
+       LEFT JOIN profiles p ON p.id = b.manager_user_id
+       WHERE b.id = $1`,
+      [id],
+    );
+    if (!branchResult.rows.length) {
+      res.status(404).json({ success: false, error: 'Cabang tidak ditemukan.' });
+      return;
+    }
+    const branch = branchResult.rows[0];
+
+    // Staff list (semua role di cabang ini kecuali branch_manager)
+    const staffResult = await client.query(
+      `SELECT ur.id, ur.user_id, ur.role, ur.created_at,
+              p.full_name, p.email, p.phone, p.jabatan
+       FROM user_roles ur
+       JOIN profiles p ON p.id = ur.user_id
+       WHERE ur.branch_id = $1 AND ur.role NOT IN ('branch_manager','agent','sub_agent','customer','jamaah')
+       ORDER BY p.full_name`,
+      [id],
+    );
+
+    // Agents linked to this branch
+    const agentsResult = await client.query(
+      `SELECT a.id, a.agent_code, a.contact_name, a.email, a.phone,
+              a.company_name, a.commission_rate, a.is_active, a.status, a.created_at
+       FROM agents a
+       WHERE a.branch_id = $1
+       ORDER BY a.agent_code`,
+      [id],
+    );
+
+    // Departure stats via packages.branch_id
+    const deptStatsResult = await client.query(
+      `SELECT d.status,
+              COUNT(*)::int                                             AS count,
+              COALESCE(SUM(d.quota), 0)::int                           AS total_quota,
+              COALESCE(SUM(d.quota - COALESCE(d.available_seats, 0)), 0)::int AS filled_seats
+       FROM departures d
+       JOIN packages p ON p.id = d.package_id
+       WHERE p.branch_id = $1
+       GROUP BY d.status`,
+      [id],
+    );
+
+    // Recent 10 departures
+    const recentDepsResult = await client.query(
+      `SELECT d.id, d.departure_date, d.return_date, d.status,
+              d.quota, d.available_seats, p.name AS package_name, p.type AS package_type
+       FROM departures d
+       JOIN packages p ON p.id = d.package_id
+       WHERE p.branch_id = $1
+       ORDER BY d.departure_date DESC
+       LIMIT 10`,
+      [id],
+    );
+
+    // Booking stats for this branch's departures
+    const bookingStatsResult = await client.query(
+      `SELECT COUNT(*)::int AS total_bookings,
+              COALESCE(SUM(b.total_price), 0) AS total_revenue
+       FROM bookings b
+       JOIN departures d ON d.id = b.departure_id
+       JOIN packages p ON p.id = d.package_id
+       WHERE p.branch_id = $1 AND b.status NOT IN ('cancelled')`,
+      [id],
+    );
+
+    res.json({
+      success: true,
+      branch,
+      staff: staffResult.rows,
+      agents: agentsResult.rows,
+      departureStats: deptStatsResult.rows,
+      recentDepartures: recentDepsResult.rows,
+      bookingStats: bookingStatsResult.rows[0] ?? { total_bookings: 0, total_revenue: '0' },
+    });
+  } catch (err: any) {
+    logger.error({ err }, 'branches/:id GET error');
+    res.status(500).json({ success: false, error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+/**
  * POST /api/branches/:id/staff
  * Tambah anggota staff ke cabang dan buat akun user-nya.
  */
