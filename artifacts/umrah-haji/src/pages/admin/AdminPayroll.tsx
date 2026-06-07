@@ -495,12 +495,12 @@ export default function AdminPayroll() {
   });
 
   // Compute payroll data with PPH21 + BPJS
-  const payrollData: PayrollData[] = employees.map((emp) => {
-    const empAttendance = attendanceRecords.filter((a) => a.employee_id === emp.id);
+  const payrollData: PayrollData[] = (employees as any[]).map((emp: any) => {
+    const empAttendance = (attendanceRecords as any[]).filter((a: any) => a.employee_id === emp.id);
     const workDays = 22;
-    const attendanceDays = empAttendance.filter((a) => a.status === "present").length;
+    const attendanceDays = empAttendance.filter((a: any) => a.status === "present").length;
     const absentDays = workDays - attendanceDays;
-    const lateCount = empAttendance.filter((a) => (a as any).is_late).length;
+    const lateCount = empAttendance.filter((a: any) => a.is_late).length;
 
     const baseSalary = emp.salary || 0;
     const dailyRate = baseSalary / workDays;

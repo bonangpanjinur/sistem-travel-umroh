@@ -15,7 +15,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Users, Clock, MapPin, Calendar, Plus, Search, UserCheck, UserX, Camera, Settings, Building2, Briefcase, Trash2, Save, Link2, ExternalLink, Copy, Smartphone, ShieldCheck, ShieldX, Phone, Mail, Edit, UserPlus, User, DollarSign, CalendarOff, Star, TrendingUp, CheckCircle2, XCircle, AlertCircle, ChevronDown, ChevronUp, Award, BarChart3 } from "lucide-react";
+import { Users, Clock, MapPin, Calendar, Plus, Search, UserCheck, UserX, Camera, Settings, Building2, Briefcase, Trash2, Save, Link2, ExternalLink, Copy, Smartphone, ShieldCheck, ShieldX, Phone, Mail, Edit, UserPlus, User, DollarSign, CalendarOff, Star, TrendingUp, CheckCircle2, XCircle, AlertCircle, ChevronDown, ChevronUp, Award, BarChart3, AlertTriangle, History } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Textarea } from "@/components/ui/textarea";
 import { format } from "date-fns";
@@ -122,6 +122,22 @@ export default function AdminHR() {
   const [reviewStrengths, setReviewStrengths] = useState("");
   const [reviewImprovements, setReviewImprovements] = useState("");
   const [reviewGoals, setReviewGoals] = useState("");
+
+  // ── Disciplinary (SP) state ─────────────────────────────────────────────
+  const [isDisciplinaryDialogOpen, setIsDisciplinaryDialogOpen] = useState(false);
+  const [disciplinaryForm, setDisciplinaryForm] = useState({
+    employee_id: "", type: "sp1", violation_date: format(new Date(), "yyyy-MM-dd"),
+    description: "", action_taken: "", notes: "",
+  });
+  const [disciplinaryFilter, setDisciplinaryFilter] = useState("all");
+
+  // ── Career History state ────────────────────────────────────────────────
+  const [isCareerDialogOpen, setIsCareerDialogOpen] = useState(false);
+  const [careerForm, setCareerForm] = useState({
+    employee_id: "", effective_date: format(new Date(), "yyyy-MM-dd"),
+    change_type: "promotion", old_position: "", new_position: "",
+    old_department: "", new_department: "", old_salary: "", new_salary: "", notes: "",
+  });
 
   // === DATA QUERIES ===
 
@@ -608,6 +624,106 @@ export default function AdminHR() {
     onError: (error: Error) => toast.error(error.message),
   });
 
+  // ── Disciplinary Records queries & mutations ───────────────────────────
+  const { data: disciplinaryRecords = [], refetch: refetchDisciplinary } = useQuery({
+    queryKey: ["disciplinary-records"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("disciplinary_records")
+        .select("*, employee:employees(id, full_name, employee_code, position)")
+        .order("violation_date", { ascending: false });
+      if (error) {
+        if (error.code === "42P01") return [];
+        throw error;
+      }
+      return data || [];
+    },
+  });
+
+  const saveDisciplinaryMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await (supabase as any).from("disciplinary_records").insert({
+        employee_id: disciplinaryForm.employee_id,
+        type: disciplinaryForm.type,
+        violation_date: disciplinaryForm.violation_date,
+        description: disciplinaryForm.description,
+        action_taken: disciplinaryForm.action_taken || null,
+        notes: disciplinaryForm.notes || null,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["disciplinary-records"] });
+      setIsDisciplinaryDialogOpen(false);
+      setDisciplinaryForm({ employee_id: "", type: "sp1", violation_date: format(new Date(), "yyyy-MM-dd"), description: "", action_taken: "", notes: "" });
+      toast.success("Catatan disiplin berhasil disimpan");
+    },
+    onError: (e: any) => toast.error("Gagal: " + e.message),
+  });
+
+  const deleteDisciplinaryMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await (supabase as any).from("disciplinary_records").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["disciplinary-records"] });
+      toast.success("Data dihapus");
+    },
+  });
+
+  // ── Career History queries & mutations ─────────────────────────────────
+  const { data: careerHistory = [] } = useQuery({
+    queryKey: ["career-history"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("career_history")
+        .select("*, employee:employees(id, full_name, employee_code)")
+        .order("effective_date", { ascending: false });
+      if (error) {
+        if (error.code === "42P01") return [];
+        throw error;
+      }
+      return data || [];
+    },
+  });
+
+  const saveCareerMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await (supabase as any).from("career_history").insert({
+        employee_id: careerForm.employee_id,
+        effective_date: careerForm.effective_date,
+        change_type: careerForm.change_type,
+        old_position: careerForm.old_position || null,
+        new_position: careerForm.new_position || null,
+        old_department: careerForm.old_department || null,
+        new_department: careerForm.new_department || null,
+        old_salary: careerForm.old_salary ? parseFloat(careerForm.old_salary) : null,
+        new_salary: careerForm.new_salary ? parseFloat(careerForm.new_salary) : null,
+        notes: careerForm.notes || null,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["career-history"] });
+      setIsCareerDialogOpen(false);
+      setCareerForm({ employee_id: "", effective_date: format(new Date(), "yyyy-MM-dd"), change_type: "promotion", old_position: "", new_position: "", old_department: "", new_department: "", old_salary: "", new_salary: "", notes: "" });
+      toast.success("Riwayat karir disimpan");
+    },
+    onError: (e: any) => toast.error("Gagal: " + e.message),
+  });
+
+  const deleteCareerMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await (supabase as any).from("career_history").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["career-history"] });
+      toast.success("Data dihapus");
+    },
+  });
+
   // === HANDLERS ===
 
   const handleEditEmployee = (employee: Employee) => {
@@ -655,6 +771,8 @@ export default function AdminHR() {
             <TabsTrigger value="payroll" className="flex-1"><DollarSign className="h-4 w-4 mr-1.5" /> Penggajian</TabsTrigger>
             <TabsTrigger value="leaves" className="flex-1"><CalendarOff className="h-4 w-4 mr-1.5" /> Cuti & Izin</TabsTrigger>
             <TabsTrigger value="performance" className="flex-1"><BarChart3 className="h-4 w-4 mr-1.5" /> Kinerja</TabsTrigger>
+            <TabsTrigger value="disciplinary" className="flex-1"><AlertTriangle className="h-4 w-4 mr-1.5" /> Disiplin</TabsTrigger>
+            <TabsTrigger value="career" className="flex-1"><History className="h-4 w-4 mr-1.5" /> Riwayat Karir</TabsTrigger>
             <TabsTrigger value="departments" className="flex-1"><Building2 className="h-4 w-4 mr-1.5" /> Departemen</TabsTrigger>
             <TabsTrigger value="schedules" className="flex-1"><Calendar className="h-4 w-4 mr-1.5" /> Jadwal</TabsTrigger>
             <TabsTrigger value="devices" className="flex-1"><Smartphone className="h-4 w-4 mr-1.5" /> Perangkat</TabsTrigger>
@@ -1546,7 +1664,339 @@ export default function AdminHR() {
           </Card>
         </TabsContent>
 
+        {/* ═══ TAB DISIPLIN (SURAT PERINGATAN) ═══ */}
+        <TabsContent value="disciplinary" className="space-y-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5 text-orange-500" />
+                  Manajemen Disiplin & Surat Peringatan
+                </CardTitle>
+                <CardDescription>Catat pelanggaran dan sanksi formal karyawan.</CardDescription>
+              </div>
+              <div className="flex gap-2">
+                <Select value={disciplinaryFilter} onValueChange={setDisciplinaryFilter}>
+                  <SelectTrigger className="w-[150px]">
+                    <SelectValue placeholder="Semua Tipe" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Semua Tipe</SelectItem>
+                    <SelectItem value="sp1">SP 1</SelectItem>
+                    <SelectItem value="sp2">SP 2</SelectItem>
+                    <SelectItem value="sp3">SP 3</SelectItem>
+                    <SelectItem value="phk">PHK</SelectItem>
+                    <SelectItem value="warning">Teguran</SelectItem>
+                    <SelectItem value="memo">Memo</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button onClick={() => setIsDisciplinaryDialogOpen(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Tambah Catatan
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {(() => {
+                const SP_LABELS: Record<string, { label: string; color: string }> = {
+                  sp1:     { label: "SP 1",    color: "bg-yellow-100 text-yellow-800" },
+                  sp2:     { label: "SP 2",    color: "bg-orange-100 text-orange-800" },
+                  sp3:     { label: "SP 3",    color: "bg-red-100 text-red-800" },
+                  phk:     { label: "PHK",     color: "bg-red-200 text-red-900" },
+                  warning: { label: "Teguran", color: "bg-blue-100 text-blue-800" },
+                  memo:    { label: "Memo",    color: "bg-gray-100 text-gray-700" },
+                };
+                const filtered = disciplinaryFilter === "all"
+                  ? (disciplinaryRecords as any[])
+                  : (disciplinaryRecords as any[]).filter((r: any) => r.type === disciplinaryFilter);
+                if (filtered.length === 0) return (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <AlertTriangle className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                    <p>Belum ada catatan disiplin</p>
+                  </div>
+                );
+                return (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Karyawan</TableHead>
+                        <TableHead>Tipe</TableHead>
+                        <TableHead>Tgl Pelanggaran</TableHead>
+                        <TableHead>Keterangan</TableHead>
+                        <TableHead>Tindakan</TableHead>
+                        <TableHead className="text-right">Aksi</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filtered.map((rec: any) => (
+                        <TableRow key={rec.id}>
+                          <TableCell>
+                            <div className="font-medium">{rec.employee?.full_name || "-"}</div>
+                            <div className="text-xs text-muted-foreground">{rec.employee?.employee_code}</div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={`text-xs ${SP_LABELS[rec.type]?.color || "bg-gray-100"}`}>
+                              {SP_LABELS[rec.type]?.label || rec.type}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            {format(new Date(rec.violation_date), "dd MMM yyyy", { locale: idLocale })}
+                          </TableCell>
+                          <TableCell className="max-w-[200px] truncate text-sm">{rec.description}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{rec.action_taken || "-"}</TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              variant="ghost" size="icon"
+                              onClick={() => { if (confirm("Hapus catatan ini?")) deleteDisciplinaryMutation.mutate(rec.id); }}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                );
+              })()}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ═══ TAB RIWAYAT KARIR ═══ */}
+        <TabsContent value="career" className="space-y-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <History className="h-5 w-5 text-blue-500" />
+                  Riwayat Karir & Mutasi
+                </CardTitle>
+                <CardDescription>Timeline perubahan jabatan, departemen, dan gaji karyawan.</CardDescription>
+              </div>
+              <Button onClick={() => setIsCareerDialogOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Catat Perubahan
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {(() => {
+                const CHANGE_LABELS: Record<string, { label: string; color: string; icon: string }> = {
+                  hire:          { label: "Rekrutmen",       color: "bg-green-100 text-green-800",  icon: "🟢" },
+                  promotion:     { label: "Promosi",         color: "bg-blue-100 text-blue-800",    icon: "⬆️" },
+                  demotion:      { label: "Demosi",          color: "bg-orange-100 text-orange-800",icon: "⬇️" },
+                  transfer:      { label: "Mutasi",          color: "bg-violet-100 text-violet-800",icon: "↔️" },
+                  salary_change: { label: "Perubahan Gaji",  color: "bg-amber-100 text-amber-800",  icon: "💰" },
+                  resign:        { label: "Mengundurkan Diri",color: "bg-gray-100 text-gray-700",   icon: "🚪" },
+                  terminate:     { label: "PHK",             color: "bg-red-100 text-red-800",      icon: "❌" },
+                };
+                if ((careerHistory as any[]).length === 0) return (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <History className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                    <p>Belum ada riwayat karir yang dicatat</p>
+                  </div>
+                );
+                return (
+                  <div className="space-y-3">
+                    {(careerHistory as any[]).map((h: any) => {
+                      const info = CHANGE_LABELS[h.change_type] || { label: h.change_type, color: "bg-gray-100 text-gray-700", icon: "•" };
+                      return (
+                        <div key={h.id} className="flex gap-4 p-4 border rounded-lg hover:bg-muted/30 transition-colors">
+                          <div className="text-2xl">{info.icon}</div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-2 flex-wrap">
+                              <div className="flex items-center gap-2">
+                                <span className="font-semibold">{h.employee?.full_name || "-"}</span>
+                                <Badge className={`text-xs ${info.color}`}>{info.label}</Badge>
+                              </div>
+                              <span className="text-sm text-muted-foreground">
+                                {format(new Date(h.effective_date), "dd MMM yyyy", { locale: idLocale })}
+                              </span>
+                            </div>
+                            <div className="mt-1 text-sm text-muted-foreground space-y-0.5">
+                              {(h.old_position || h.new_position) && (
+                                <p>Jabatan: <span className="text-foreground">{h.old_position || "-"}</span> → <span className="font-medium text-foreground">{h.new_position || "-"}</span></p>
+                              )}
+                              {(h.old_department || h.new_department) && (
+                                <p>Departemen: <span className="text-foreground">{h.old_department || "-"}</span> → <span className="font-medium text-foreground">{h.new_department || "-"}</span></p>
+                              )}
+                              {(h.old_salary || h.new_salary) && (
+                                <p>Gaji: <span className="text-foreground">{h.old_salary ? formatCurrency(h.old_salary) : "-"}</span> → <span className="font-medium text-foreground">{h.new_salary ? formatCurrency(h.new_salary) : "-"}</span></p>
+                              )}
+                              {h.notes && <p className="italic">{h.notes}</p>}
+                            </div>
+                          </div>
+                          <Button
+                            variant="ghost" size="icon" className="shrink-0"
+                            onClick={() => { if (confirm("Hapus riwayat ini?")) deleteCareerMutation.mutate(h.id); }}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
       </Tabs>
+
+      {/* ── Dialog Tambah Catatan Disiplin ──────────────────────────────────── */}
+      <Dialog open={isDisciplinaryDialogOpen} onOpenChange={setIsDisciplinaryDialogOpen}>
+        <DialogContent className="sm:max-w-[520px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-orange-500" />
+              Tambah Catatan Disiplin
+            </DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-2">
+            <div className="space-y-1.5">
+              <Label>Karyawan *</Label>
+              <Select value={disciplinaryForm.employee_id} onValueChange={v => setDisciplinaryForm(f => ({ ...f, employee_id: v }))}>
+                <SelectTrigger><SelectValue placeholder="Pilih karyawan..." /></SelectTrigger>
+                <SelectContent>
+                  {(employees as Employee[]).map(e => (
+                    <SelectItem key={e.id} value={e.id}>{e.full_name} ({e.employee_code})</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Tipe Sanksi *</Label>
+                <Select value={disciplinaryForm.type} onValueChange={v => setDisciplinaryForm(f => ({ ...f, type: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="warning">Teguran Lisan</SelectItem>
+                    <SelectItem value="memo">Memo</SelectItem>
+                    <SelectItem value="sp1">Surat Peringatan 1</SelectItem>
+                    <SelectItem value="sp2">Surat Peringatan 2</SelectItem>
+                    <SelectItem value="sp3">Surat Peringatan 3</SelectItem>
+                    <SelectItem value="phk">PHK</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Tanggal Pelanggaran *</Label>
+                <Input type="date" value={disciplinaryForm.violation_date} onChange={e => setDisciplinaryForm(f => ({ ...f, violation_date: e.target.value }))} />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Deskripsi Pelanggaran *</Label>
+              <Textarea rows={3} placeholder="Jelaskan pelanggaran yang terjadi..." value={disciplinaryForm.description} onChange={e => setDisciplinaryForm(f => ({ ...f, description: e.target.value }))} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Tindakan yang Diambil</Label>
+              <Input placeholder="Contoh: Karyawan dipanggil + diberikan SP tertulis" value={disciplinaryForm.action_taken} onChange={e => setDisciplinaryForm(f => ({ ...f, action_taken: e.target.value }))} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Catatan Tambahan</Label>
+              <Textarea rows={2} placeholder="Catatan internal..." value={disciplinaryForm.notes} onChange={e => setDisciplinaryForm(f => ({ ...f, notes: e.target.value }))} />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setIsDisciplinaryDialogOpen(false)}>Batal</Button>
+            <Button
+              onClick={() => saveDisciplinaryMutation.mutate()}
+              disabled={!disciplinaryForm.employee_id || !disciplinaryForm.description || saveDisciplinaryMutation.isPending}
+            >
+              {saveDisciplinaryMutation.isPending ? "Menyimpan..." : "Simpan"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Dialog Tambah Riwayat Karir ─────────────────────────────────────── */}
+      <Dialog open={isCareerDialogOpen} onOpenChange={setIsCareerDialogOpen}>
+        <DialogContent className="sm:max-w-[560px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <History className="h-5 w-5 text-blue-500" />
+              Catat Perubahan Karir
+            </DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-2">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Karyawan *</Label>
+                <Select value={careerForm.employee_id} onValueChange={v => setCareerForm(f => ({ ...f, employee_id: v }))}>
+                  <SelectTrigger><SelectValue placeholder="Pilih karyawan..." /></SelectTrigger>
+                  <SelectContent>
+                    {(employees as Employee[]).map(e => (
+                      <SelectItem key={e.id} value={e.id}>{e.full_name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Jenis Perubahan *</Label>
+                <Select value={careerForm.change_type} onValueChange={v => setCareerForm(f => ({ ...f, change_type: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="hire">Rekrutmen / Bergabung</SelectItem>
+                    <SelectItem value="promotion">Promosi Jabatan</SelectItem>
+                    <SelectItem value="demotion">Demosi</SelectItem>
+                    <SelectItem value="transfer">Mutasi / Transfer</SelectItem>
+                    <SelectItem value="salary_change">Perubahan Gaji</SelectItem>
+                    <SelectItem value="resign">Mengundurkan Diri</SelectItem>
+                    <SelectItem value="terminate">PHK</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Tanggal Efektif *</Label>
+              <Input type="date" value={careerForm.effective_date} onChange={e => setCareerForm(f => ({ ...f, effective_date: e.target.value }))} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Jabatan Lama</Label>
+                <Input placeholder="Jabatan sebelumnya" value={careerForm.old_position} onChange={e => setCareerForm(f => ({ ...f, old_position: e.target.value }))} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Jabatan Baru</Label>
+                <Input placeholder="Jabatan setelah perubahan" value={careerForm.new_position} onChange={e => setCareerForm(f => ({ ...f, new_position: e.target.value }))} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Departemen Lama</Label>
+                <Input placeholder="Departemen sebelumnya" value={careerForm.old_department} onChange={e => setCareerForm(f => ({ ...f, old_department: e.target.value }))} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Departemen Baru</Label>
+                <Input placeholder="Departemen setelah" value={careerForm.new_department} onChange={e => setCareerForm(f => ({ ...f, new_department: e.target.value }))} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Gaji Lama (IDR)</Label>
+                <Input type="number" placeholder="0" value={careerForm.old_salary} onChange={e => setCareerForm(f => ({ ...f, old_salary: e.target.value }))} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Gaji Baru (IDR)</Label>
+                <Input type="number" placeholder="0" value={careerForm.new_salary} onChange={e => setCareerForm(f => ({ ...f, new_salary: e.target.value }))} />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Catatan</Label>
+              <Textarea rows={2} placeholder="Alasan perubahan, keputusan manajemen, dll..." value={careerForm.notes} onChange={e => setCareerForm(f => ({ ...f, notes: e.target.value }))} />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setIsCareerDialogOpen(false)}>Batal</Button>
+            <Button
+              onClick={() => saveCareerMutation.mutate()}
+              disabled={!careerForm.employee_id || saveCareerMutation.isPending}
+            >
+              {saveCareerMutation.isPending ? "Menyimpan..." : "Simpan Riwayat"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={isDeviceDialogOpen} onOpenChange={setIsDeviceDialogOpen}>
         <DialogContent>

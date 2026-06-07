@@ -556,6 +556,19 @@ export async function runMigrations(): Promise<void> {
       logger.info("runMigrations: 25_sdm_sprint1 — already applied, skipping");
     }
 
+    // ── Step 1w: SDM Sprint-1 disciplinary records + career history ───────
+    const sdmDisciplinaryApplied = await isApplied(client, "26_sdm_disciplinary_career");
+    if (!sdmDisciplinaryApplied) {
+      await runSqlFile(
+        client,
+        sqlPath("26_sdm_disciplinary_career.sql"),
+        "26_sdm_disciplinary_career (disciplinary_records + career_history tables)",
+      );
+      await markApplied(client, "26_sdm_disciplinary_career");
+    } else {
+      logger.info("runMigrations: 26_sdm_disciplinary_career — already applied, skipping");
+    }
+
     // ── Step 2: payment sync trigger (always re-applied each boot) ────────
     // Wrapped in its own try/catch so a missing table on a broken DB state
     // doesn't crash the server — it just logs and continues.
