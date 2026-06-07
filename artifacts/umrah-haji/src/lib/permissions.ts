@@ -148,6 +148,9 @@ export const PERMISSIONS = {
 
   // Fase 9 — Integrasi & Otomasi
   WA_OTOMATIS: 'wa-otomatis',
+  WA_CHATBOT: 'wa-chatbot',
+  WA_INBOX: 'wa-inbox',
+  WA_CONTACTS: 'wa-contacts',
   MIDTRANS: 'midtrans',
   CICILAN_REMINDER: 'cicilan-reminder',
   PEMBAYARAN_REMINDER: 'pembayaran-reminder',

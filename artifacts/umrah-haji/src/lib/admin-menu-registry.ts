@@ -101,6 +101,9 @@ export const RECOMMENDED_MENUS: AdminMenuItem[] = [
   { key: 'wa-broadcast',        label: 'Broadcast Tersegmentasi', path: '/admin/wa-broadcast',       icon: 'Megaphone',       group_name: 'Komunikasi',         sort_order: 314, required_permission: PERMISSIONS.WA_BROADCAST },
   { key: 'wa-provider',         label: 'Konfigurasi Provider WA', path: '/admin/wa-provider',        icon: 'Settings2',       group_name: 'Komunikasi',         sort_order: 316, required_permission: PERMISSIONS.WA_PROVIDER },
   { key: 'wa-roadmap',          label: 'Roadmap WA',            path: '/admin/wa-roadmap',           icon: 'Map',             group_name: 'Komunikasi',         sort_order: 317, required_permission: PERMISSIONS.WA_ROADMAP },
+  { key: 'wa-chatbot',          label: 'Chatbot Auto-Reply',    path: '/admin/wa-chatbot',           icon: 'Bot',             group_name: 'Komunikasi',         sort_order: 318, required_permission: PERMISSIONS.WA_CHATBOT },
+  { key: 'wa-inbox',            label: 'Inbox WA',              path: '/admin/wa-inbox',             icon: 'Inbox',           group_name: 'Komunikasi',         sort_order: 319, required_permission: PERMISSIONS.WA_INBOX },
+  { key: 'wa-contacts',         label: 'Kontak WA',             path: '/admin/wa-contacts',          icon: 'Users',           group_name: 'Komunikasi',         sort_order: 320, required_permission: PERMISSIONS.WA_CONTACTS },
   { key: 'email-templates',     label: 'Template Email',        path: '/admin/email-templates',      icon: 'Mail',            group_name: 'Komunikasi',         sort_order: 314, required_permission: PERMISSIONS.EMAIL_TEMPLATES },
   { key: 'push-notifications',  label: 'Push Notifikasi',       path: '/admin/push-notifications',   icon: 'Bell',            group_name: 'Komunikasi',         sort_order: 315, required_permission: PERMISSIONS.PUSH_NOTIFICATIONS },
 
@@ -215,6 +218,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
     'leads', 'chat-leads', 'packages', 'coupons',
     'blog', 'announcements', 'banners', 'landing-pages', 'marketing-materials',
     'whatsapp', 'email-templates', 'push-notifications', 'wa-otomatis',
+    'wa-broadcast', 'wa-chatbot', 'wa-inbox', 'wa-contacts',
     'faq-manager', 'customers', 'loyalty', 'referrals',
     'sentimen-feedback', 'rekomendasi-paket',
   ],

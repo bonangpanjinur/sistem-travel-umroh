@@ -167,8 +167,13 @@ const MuthawifDashboard = lazy(() => import("@/pages/muthawif/MuthawifDashboard"
 const AdminLaporanReminder = lazy(() => import("@/pages/admin/AdminLaporanReminder"));
 
 // Fase 31 — WA Multi-Provider
-const AdminWAProvider = lazy(() => import("@/pages/admin/AdminWAProvider"));
-const AdminWARoadmap  = lazy(() => import("@/pages/admin/AdminWARoadmap"));
+const AdminWAProvider  = lazy(() => import("@/pages/admin/AdminWAProvider"));
+const AdminWARoadmap   = lazy(() => import("@/pages/admin/AdminWARoadmap"));
+
+// Fase 33 — WA Bot, Inbox, Contacts
+const AdminWAChatbot   = lazy(() => import("@/pages/admin/AdminWAChatbot"));
+const AdminWAInbox     = lazy(() => import("@/pages/admin/AdminWAInbox"));
+const AdminWAContacts  = lazy(() => import("@/pages/admin/AdminWAContacts"));
 
 // Fase 32 — WA Broadcast Tersegmentasi
 const AdminWABroadcast = lazy(() => import("@/pages/admin/AdminWABroadcast"));
@@ -427,6 +432,11 @@ export default function AdminRoutes() {
 
       {/* Fase 32 — WA Broadcast Tersegmentasi */}
       <Route path="wa-broadcast"  element={<P k={PERMISSIONS.WA_BROADCAST}><LazyPage><AdminWABroadcast /></LazyPage></P>} />
+
+      {/* Fase 33 — WA Bot, Inbox, Kontak */}
+      <Route path="wa-chatbot"   element={<P k={PERMISSIONS.WA_CHATBOT}><LazyPage><AdminWAChatbot /></LazyPage></P>} />
+      <Route path="wa-inbox"     element={<P k={PERMISSIONS.WA_INBOX}><LazyPage><AdminWAInbox /></LazyPage></P>} />
+      <Route path="wa-contacts"  element={<P k={PERMISSIONS.WA_CONTACTS}><LazyPage><AdminWAContacts /></LazyPage></P>} />
 
       {/* Fase 9 — Integrasi & Otomasi */}
       <Route path="wa-otomatis" element={<P k={PERMISSIONS.WA_OTOMATIS}><AdminWAOtomatis /></P>} />

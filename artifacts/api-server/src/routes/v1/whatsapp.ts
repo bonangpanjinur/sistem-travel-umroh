@@ -581,4 +581,365 @@ router.get('/logs', async (req, res) => {
   }
 });
 
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  WEBHOOK — delivery receipts + incoming messages + chatbot auto-reply
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ─── POST /api/v1/whatsapp/webhook ───────────────────────────────────────────
+// Receives events from WA providers (Fonnte, Wablas, etc.)
+router.post('/webhook', async (req, res) => {
+  const body = req.body as any;
+  // ── Delivery receipt (status update) ──────────────────────────────────────
+  // Fonnte sends: { id, phone, status } where status = 'sent'|'delivered'|'read'
+  const msgId  = body.id || body.message_id || body.messageId;
+  const status = body.status || body.delivery_status;
+
+  if (msgId && status && ['delivered', 'read', 'sent', 'failed'].includes(status)) {
+    try {
+      await pool.query(
+        `UPDATE wa_send_logs SET status = $1, updated_at = NOW() WHERE message_id = $2`,
+        [status, msgId],
+      );
+    } catch { /* non-critical */ }
+    res.json({ ok: true, type: 'delivery_receipt' });
+    return;
+  }
+
+  // ── Incoming message ───────────────────────────────────────────────────────
+  // Fonnte incoming: { phone, message, name }
+  const fromPhone = body.phone || body.from || body.sender;
+  const message   = body.message || body.text || body.body;
+
+  if (fromPhone && message) {
+    const phone = normalisePhone(fromPhone);
+    const name  = body.name || body.pushname || body.contact_name || null;
+    const provider = body.provider || 'fonnte';
+
+    let matchedKeyword: { id: string; reply_message: string } | null = null;
+    const msgLower = message.toLowerCase().trim();
+
+    try {
+      // Match chatbot keywords
+      const { rows: keywords } = await pool.query(
+        `SELECT id, keyword, match_type, reply_message
+         FROM wa_chatbot_keywords
+         WHERE is_active = true
+         ORDER BY priority DESC`,
+      );
+
+      for (const kw of keywords) {
+        const k = (kw.keyword as string).toLowerCase();
+        const matched =
+          kw.match_type === 'exact'      ? msgLower === k :
+          kw.match_type === 'startswith' ? msgLower.startsWith(k) :
+          msgLower.includes(k);
+        if (matched) { matchedKeyword = kw; break; }
+      }
+    } catch { /* non-critical */ }
+
+    let incomingId: string | null = null;
+    try {
+      const { rows } = await pool.query(
+        `INSERT INTO wa_incoming_messages
+           (from_phone, from_name, message, message_id, provider, chatbot_matched, chatbot_keyword_id)
+         VALUES ($1,$2,$3,$4,$5,$6,$7)
+         RETURNING id`,
+        [phone, name, message, body.id || null, provider,
+          !!matchedKeyword, matchedKeyword?.id || null],
+      );
+      incomingId = rows[0]?.id;
+    } catch { /* non-critical */ }
+
+    // Upsert contact
+    try {
+      await pool.query(
+        `INSERT INTO wa_contacts (phone, name, last_reply_at, message_count)
+         VALUES ($1, $2, NOW(), 1)
+         ON CONFLICT (phone) DO UPDATE SET
+           name = COALESCE(EXCLUDED.name, wa_contacts.name),
+           last_reply_at = NOW(),
+           message_count = wa_contacts.message_count + 1,
+           updated_at = NOW()`,
+        [phone, name],
+      );
+    } catch { /* non-critical */ }
+
+    // Auto-reply if chatbot keyword matched
+    if (matchedKeyword) {
+      const cfg = await getActiveConfig().catch(() => null);
+      if (cfg) {
+        const reply = matchedKeyword.reply_message.replace(/\{portal_url\}/g, 'portal jamaah kami');
+        const sendResult = await dispatchSend(cfg, phone, reply);
+        if (sendResult.success && incomingId) {
+          try {
+            await pool.query(
+              `UPDATE wa_incoming_messages
+               SET is_replied = true, reply_message = $1, replied_at = NOW()
+               WHERE id = $2`,
+              [reply, incomingId],
+            );
+            await pool.query(
+              `UPDATE wa_chatbot_keywords SET trigger_count = trigger_count + 1 WHERE id = $1`,
+              [matchedKeyword.id],
+            );
+          } catch { /* non-critical */ }
+        }
+      }
+    }
+
+    res.json({ ok: true, type: 'incoming', matched_chatbot: !!matchedKeyword });
+    return;
+  }
+
+  res.json({ ok: true, type: 'unknown' });
+});
+
+// ─── GET /api/v1/whatsapp/webhook (Fonnte verification) ──────────────────────
+router.get('/webhook', (req, res) => {
+  res.send('OK');
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  CHATBOT KEYWORDS CRUD
+// ═══════════════════════════════════════════════════════════════════════════
+
+router.get('/chatbot', async (_req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, keyword, match_type, reply_message, is_active, priority, trigger_count, created_at, updated_at
+       FROM wa_chatbot_keywords ORDER BY priority DESC, created_at ASC`,
+    );
+    res.json({ keywords: rows });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/chatbot', async (req, res) => {
+  const { keyword, match_type = 'contains', reply_message, is_active = true, priority = 0 } = req.body as any;
+  if (!keyword || !reply_message) {
+    res.status(400).json({ error: 'keyword dan reply_message wajib diisi' });
+    return;
+  }
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO wa_chatbot_keywords (keyword, match_type, reply_message, is_active, priority)
+       VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+      [keyword.toLowerCase().trim(), match_type, reply_message, is_active, priority],
+    );
+    res.json({ success: true, keyword: rows[0] });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.put('/chatbot/:id', async (req, res) => {
+  const { keyword, match_type, reply_message, is_active, priority } = req.body as any;
+  const sets: string[] = ['updated_at = NOW()'];
+  const vals: any[] = [];
+  const push = (expr: string, v: any) => { vals.push(v); sets.push(`${expr} = $${vals.length}`); };
+  if (keyword     !== undefined) push('keyword',       keyword.toLowerCase().trim());
+  if (match_type  !== undefined) push('match_type',    match_type);
+  if (reply_message !== undefined) push('reply_message', reply_message);
+  if (is_active   !== undefined) push('is_active',     is_active);
+  if (priority    !== undefined) push('priority',      priority);
+  vals.push(req.params.id);
+  try {
+    await pool.query(`UPDATE wa_chatbot_keywords SET ${sets.join(', ')} WHERE id = $${vals.length}`, vals);
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.delete('/chatbot/:id', async (req, res) => {
+  try {
+    await pool.query(`DELETE FROM wa_chatbot_keywords WHERE id = $1`, [req.params.id]);
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  INBOX — incoming messages
+// ═══════════════════════════════════════════════════════════════════════════
+
+router.get('/inbox', async (req, res) => {
+  const page     = Math.max(0, parseInt(String(req.query.page || '0')));
+  const pageSize = Math.min(100, Math.max(1, parseInt(String(req.query.pageSize || '30'))));
+  const unread   = req.query.unread === 'true';
+  const search   = String(req.query.search || '').trim();
+
+  try {
+    const conditions: string[] = [];
+    const vals: any[] = [];
+    if (unread) { vals.push(false); conditions.push(`is_read = $${vals.length}`); }
+    if (search) {
+      vals.push('%' + search + '%');
+      conditions.push(`(from_phone ILIKE $${vals.length} OR from_name ILIKE $${vals.length} OR message ILIKE $${vals.length})`);
+    }
+    const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
+    const countRes = await pool.query(`SELECT COUNT(*)::int AS total FROM wa_incoming_messages ${where}`, vals);
+    vals.push(pageSize, page * pageSize);
+    const { rows } = await pool.query(
+      `SELECT * FROM wa_incoming_messages ${where}
+       ORDER BY received_at DESC LIMIT $${vals.length - 1} OFFSET $${vals.length}`,
+      vals,
+    );
+    res.json({ total: countRes.rows[0]?.total ?? 0, page, pageSize, messages: rows });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/inbox/:id/read', async (req, res) => {
+  try {
+    await pool.query(`UPDATE wa_incoming_messages SET is_read = true WHERE id = $1`, [req.params.id]);
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/inbox/read-all', async (_req, res) => {
+  try {
+    await pool.query(`UPDATE wa_incoming_messages SET is_read = true WHERE is_read = false`);
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/inbox/:id/reply', async (req, res) => {
+  const { message } = req.body as { message: string };
+  if (!message) { res.status(400).json({ error: 'message wajib diisi' }); return; }
+  try {
+    const { rows } = await pool.query(
+      `SELECT from_phone FROM wa_incoming_messages WHERE id = $1`, [req.params.id],
+    );
+    if (!rows[0]) { res.status(404).json({ error: 'Pesan tidak ditemukan' }); return; }
+    const cfg = await getActiveConfig();
+    if (!cfg) { res.status(503).json({ error: 'Tidak ada provider WA aktif' }); return; }
+    const result = await dispatchSend(cfg, rows[0].from_phone, message);
+    if (!result.success) { res.status(502).json({ error: result.error }); return; }
+    await pool.query(
+      `UPDATE wa_incoming_messages
+       SET is_replied = true, is_read = true, reply_message = $1, replied_at = NOW()
+       WHERE id = $2`,
+      [message, req.params.id],
+    );
+    res.json({ success: true, messageId: result.messageId });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.get('/inbox/unread-count', async (_req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT COUNT(*)::int AS count FROM wa_incoming_messages WHERE is_read = false`,
+    );
+    res.json({ count: rows[0]?.count ?? 0 });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  CONTACTS
+// ═══════════════════════════════════════════════════════════════════════════
+
+router.get('/contacts', async (req, res) => {
+  const page     = Math.max(0, parseInt(String(req.query.page || '0')));
+  const pageSize = Math.min(200, Math.max(1, parseInt(String(req.query.pageSize || '50'))));
+  const search   = String(req.query.search || '').trim();
+  const optOut   = req.query.opt_out;
+
+  try {
+    const conds: string[] = [];
+    const vals: any[] = [];
+    if (search) {
+      vals.push('%' + search + '%');
+      conds.push(`(phone ILIKE $${vals.length} OR name ILIKE $${vals.length})`);
+    }
+    if (optOut !== undefined) {
+      vals.push(optOut === 'true');
+      conds.push(`opt_out = $${vals.length}`);
+    }
+    const where = conds.length ? 'WHERE ' + conds.join(' AND ') : '';
+    const countRes = await pool.query(`SELECT COUNT(*)::int AS total FROM wa_contacts ${where}`, vals);
+    vals.push(pageSize, page * pageSize);
+    const { rows } = await pool.query(
+      `SELECT wc.*, c.full_name AS customer_name, c.email AS customer_email
+       FROM wa_contacts wc
+       LEFT JOIN customers c ON c.id = wc.customer_id
+       ${where}
+       ORDER BY wc.updated_at DESC
+       LIMIT $${vals.length - 1} OFFSET $${vals.length}`,
+      vals,
+    );
+    res.json({ total: countRes.rows[0]?.total ?? 0, page, pageSize, contacts: rows });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /contacts/sync — sync from customers table
+router.post('/contacts/sync', async (_req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, full_name, phone FROM customers WHERE phone IS NOT NULL AND phone != ''`,
+    );
+    let synced = 0;
+    let skipped = 0;
+    for (const c of rows) {
+      const phone = normalisePhone(c.phone);
+      if (!phone || phone.length < 10) { skipped++; continue; }
+      await pool.query(
+        `INSERT INTO wa_contacts (phone, name, customer_id)
+         VALUES ($1,$2,$3)
+         ON CONFLICT (phone) DO UPDATE SET
+           name = COALESCE(EXCLUDED.name, wa_contacts.name),
+           customer_id = COALESCE(EXCLUDED.customer_id, wa_contacts.customer_id),
+           updated_at = NOW()`,
+        [phone, c.full_name, c.id],
+      ).catch(() => skipped++);
+      synced++;
+    }
+    res.json({ success: true, synced, skipped, total: rows.length });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.patch('/contacts/:id', async (req, res) => {
+  const { name, tags, notes, opt_out } = req.body as any;
+  const sets: string[] = ['updated_at = NOW()'];
+  const vals: any[] = [];
+  const push = (col: string, v: any) => { vals.push(v); sets.push(`${col} = $${vals.length}`); };
+  if (name    !== undefined) push('name',    name);
+  if (tags    !== undefined) push('tags',    tags);
+  if (notes   !== undefined) push('notes',   notes);
+  if (opt_out !== undefined) push('opt_out', opt_out);
+  vals.push(req.params.id);
+  try {
+    await pool.query(`UPDATE wa_contacts SET ${sets.join(', ')} WHERE id = $${vals.length}`, vals);
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.delete('/contacts/:id', async (req, res) => {
+  try {
+    await pool.query(`DELETE FROM wa_contacts WHERE id = $1`, [req.params.id]);
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 export default router;
+

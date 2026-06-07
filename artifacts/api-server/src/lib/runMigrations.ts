@@ -404,6 +404,19 @@ export async function runMigrations(): Promise<void> {
       logger.info("runMigrations: 16_financial_tables_compat — already applied, skipping");
     }
 
+    // ── Step 1p: WA Chatbot keywords, Inbox, Contacts tables ─────────────
+    const waChatbotApplied = await isApplied(client, "17_wa_chatbot_inbox_contacts");
+    if (!waChatbotApplied) {
+      await runSqlFile(
+        client,
+        sqlPath("17_wa_chatbot_inbox_contacts.sql"),
+        "17_wa_chatbot_inbox_contacts (chatbot keywords + incoming messages + WA contacts)",
+      );
+      await markApplied(client, "17_wa_chatbot_inbox_contacts");
+    } else {
+      logger.info("runMigrations: 17_wa_chatbot_inbox_contacts — already applied, skipping");
+    }
+
     // ── Step 2: payment sync trigger (always re-applied each boot) ────────
     // Wrapped in its own try/catch so a missing table on a broken DB state
     // doesn't crash the server — it just logs and continues.
