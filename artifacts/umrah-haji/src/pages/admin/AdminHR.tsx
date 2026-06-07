@@ -140,6 +140,19 @@ export default function AdminHR() {
     old_department: "", new_department: "", old_salary: "", new_salary: "", notes: "",
   });
 
+  // ── Pelatihan Staf Internal state ────────────────────────────────────────
+  const [isTrainingDialogOpen, setIsTrainingDialogOpen] = useState(false);
+  const [editingTrainingId, setEditingTrainingId] = useState<string | null>(null);
+  const [trainingAttendanceSessionId, setTrainingAttendanceSessionId] = useState<string | null>(null);
+  const [trainingForm, setTrainingForm] = useState({
+    title: "", description: "", category: "general",
+    trainer_name: "", location: "",
+    start_datetime: format(new Date(), "yyyy-MM-dd") + "T08:00",
+    end_datetime: format(new Date(), "yyyy-MM-dd") + "T17:00",
+    max_participants: "", is_mandatory: false,
+    target_audience: [] as string[], status: "scheduled", notes: "",
+  });
+
   // ── Kontrak Karyawan state ───────────────────────────────────────────────
   const [isContractDialogOpen, setIsContractDialogOpen] = useState(false);
   const [editingContractId, setEditingContractId] = useState<string | null>(null);
@@ -802,6 +815,102 @@ export default function AdminHR() {
     },
   });
 
+  // ── Training Staf Internal queries ──────────────────────────────────────
+  const { data: trainingSessions = [], refetch: refetchTraining } = useQuery({
+    queryKey: ["staff-training-sessions"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("staff_training_sessions")
+        .select("*, attendance:staff_training_attendance(count)")
+        .order("start_datetime", { ascending: false });
+      if (error) {
+        if (error.code === "42P01") return [];
+        throw error;
+      }
+      return data || [];
+    },
+  });
+
+  const { data: trainingAttendance = [] } = useQuery({
+    queryKey: ["staff-training-attendance", trainingAttendanceSessionId],
+    enabled: !!trainingAttendanceSessionId,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("staff_training_attendance")
+        .select("*, employee:employees(full_name, employee_code, department)")
+        .eq("session_id", trainingAttendanceSessionId);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const saveTrainingMutation = useMutation({
+    mutationFn: async () => {
+      if (!trainingForm.title || !trainingForm.start_datetime) throw new Error("Judul dan waktu mulai wajib diisi");
+      const payload: any = {
+        title: trainingForm.title,
+        description: trainingForm.description || null,
+        category: trainingForm.category,
+        trainer_name: trainingForm.trainer_name || null,
+        location: trainingForm.location || null,
+        start_datetime: trainingForm.start_datetime,
+        end_datetime: trainingForm.end_datetime,
+        max_participants: trainingForm.max_participants ? parseInt(trainingForm.max_participants) : null,
+        is_mandatory: trainingForm.is_mandatory,
+        target_audience: trainingForm.target_audience,
+        status: trainingForm.status,
+        notes: trainingForm.notes || null,
+      };
+      if (editingTrainingId) {
+        const { error } = await (supabase as any).from("staff_training_sessions").update(payload).eq("id", editingTrainingId);
+        if (error) throw error;
+      } else {
+        const { error } = await (supabase as any).from("staff_training_sessions").insert(payload);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["staff-training-sessions"] });
+      setIsTrainingDialogOpen(false);
+      setEditingTrainingId(null);
+      setTrainingForm({ title: "", description: "", category: "general", trainer_name: "", location: "", start_datetime: format(new Date(), "yyyy-MM-dd") + "T08:00", end_datetime: format(new Date(), "yyyy-MM-dd") + "T17:00", max_participants: "", is_mandatory: false, target_audience: [], status: "scheduled", notes: "" });
+      toast.success(editingTrainingId ? "Sesi pelatihan diperbarui" : "Sesi pelatihan dibuat");
+    },
+    onError: (e: any) => toast.error("Gagal: " + e.message),
+  });
+
+  const deleteTrainingMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await (supabase as any).from("staff_training_sessions").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["staff-training-sessions"] });
+      toast.success("Sesi pelatihan dihapus");
+    },
+    onError: (e: any) => toast.error("Gagal: " + e.message),
+  });
+
+  const addAttendanceMutation = useMutation({
+    mutationFn: async ({ sessionId, employeeId }: { sessionId: string; employeeId: string }) => {
+      const { error } = await (supabase as any).from("staff_training_attendance").insert({
+        session_id: sessionId, employee_id: employeeId, status: "registered",
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["staff-training-attendance", trainingAttendanceSessionId] }),
+    onError: (e: any) => toast.error("Gagal: " + e.message),
+  });
+
+  const updateAttendanceStatusMutation = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      const { error } = await (supabase as any).from("staff_training_attendance").update({ status, attended_at: status === "attended" ? new Date().toISOString() : null }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["staff-training-attendance", trainingAttendanceSessionId] }),
+    onError: (e: any) => toast.error("Gagal: " + e.message),
+  });
+
   // === HANDLERS ===
 
   const handleEditEmployee = (employee: Employee) => {
@@ -860,6 +969,7 @@ export default function AdminHR() {
             <TabsTrigger value="disciplinary" className="flex-1"><AlertTriangle className="h-4 w-4 mr-1.5" /> Disiplin</TabsTrigger>
             <TabsTrigger value="career" className="flex-1"><History className="h-4 w-4 mr-1.5" /> Riwayat Karir</TabsTrigger>
             <TabsTrigger value="contracts" className="flex-1"><FileText className="h-4 w-4 mr-1.5" /> Kontrak</TabsTrigger>
+            <TabsTrigger value="training" className="flex-1"><Award className="h-4 w-4 mr-1.5" /> Pelatihan</TabsTrigger>
             <TabsTrigger value="departments" className="flex-1"><Building2 className="h-4 w-4 mr-1.5" /> Departemen</TabsTrigger>
             <TabsTrigger value="schedules" className="flex-1"><Calendar className="h-4 w-4 mr-1.5" /> Jadwal</TabsTrigger>
             <TabsTrigger value="devices" className="flex-1"><Smartphone className="h-4 w-4 mr-1.5" /> Perangkat</TabsTrigger>
@@ -2106,6 +2216,192 @@ export default function AdminHR() {
           </Card>
         </TabsContent>
 
+        {/* ── Tab: Pelatihan Staf Internal ────────────────────────────────── */}
+        <TabsContent value="training" className="space-y-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Award className="h-5 w-5 text-indigo-500" />
+                  Pelatihan Staf Internal
+                </CardTitle>
+                <CardDescription>Kelola sesi pelatihan, seminar, dan workshop internal untuk karyawan.</CardDescription>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={() => refetchTraining()}>
+                  <RefreshCw className="h-4 w-4 mr-1.5" /> Refresh
+                </Button>
+                <Button size="sm" onClick={() => {
+                  setEditingTrainingId(null);
+                  setTrainingForm({ title: "", description: "", category: "general", trainer_name: "", location: "", start_datetime: format(new Date(), "yyyy-MM-dd") + "T08:00", end_datetime: format(new Date(), "yyyy-MM-dd") + "T17:00", max_participants: "", is_mandatory: false, target_audience: [], status: "scheduled", notes: "" });
+                  setIsTrainingDialogOpen(true);
+                }}>
+                  <Plus className="h-4 w-4 mr-2" /> Buat Sesi Pelatihan
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Stats */}
+              {(() => {
+                const sessions = trainingSessions as any[];
+                const scheduled = sessions.filter(s => s.status === "scheduled").length;
+                const ongoing = sessions.filter(s => s.status === "ongoing").length;
+                const completed = sessions.filter(s => s.status === "completed").length;
+                const mandatory = sessions.filter(s => s.is_mandatory).length;
+                return (
+                  <div className="grid grid-cols-4 gap-3">
+                    {[
+                      { label: "Dijadwalkan", val: scheduled, color: "bg-blue-50 text-blue-700" },
+                      { label: "Berlangsung", val: ongoing, color: "bg-green-50 text-green-700" },
+                      { label: "Selesai", val: completed, color: "bg-gray-50 text-gray-700" },
+                      { label: "Wajib Diikuti", val: mandatory, color: "bg-orange-50 text-orange-700" },
+                    ].map(s => (
+                      <div key={s.label} className={`rounded-lg p-3 text-center ${s.color}`}>
+                        <p className="text-2xl font-bold">{s.val}</p>
+                        <p className="text-xs mt-0.5">{s.label}</p>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+
+              {/* Sessions List */}
+              {(trainingSessions as any[]).length === 0 ? (
+                <div className="py-16 text-center text-muted-foreground">
+                  <Award className="h-12 w-12 mx-auto mb-3 opacity-20" />
+                  <p className="font-medium">Belum ada sesi pelatihan</p>
+                  <p className="text-sm mt-1">Pastikan tabel <code>staff_training_sessions</code> sudah dibuat di Supabase (migration 071).</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {(trainingSessions as any[]).map((session: any) => {
+                    const STATUS_COLORS: Record<string, string> = {
+                      scheduled: "bg-blue-100 text-blue-800", ongoing: "bg-green-100 text-green-800",
+                      completed: "bg-gray-100 text-gray-700", cancelled: "bg-red-100 text-red-700",
+                    };
+                    const STATUS_LABELS: Record<string, string> = {
+                      scheduled: "Dijadwalkan", ongoing: "Berlangsung", completed: "Selesai", cancelled: "Dibatalkan",
+                    };
+                    const CAT_LABELS: Record<string, string> = {
+                      general: "Umum", technical: "Teknis", compliance: "Compliance",
+                      leadership: "Kepemimpinan", service: "Layanan", safety: "K3", lainnya: "Lainnya",
+                    };
+                    const start = new Date(session.start_datetime);
+                    const end = new Date(session.end_datetime);
+                    const attendCount = session.attendance?.[0]?.count ?? 0;
+                    return (
+                      <Card key={session.id} className="border">
+                        <CardContent className="p-4">
+                          <div className="flex items-start gap-4">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap mb-1">
+                                <h3 className="font-semibold text-sm">{session.title}</h3>
+                                {session.is_mandatory && <Badge className="bg-orange-100 text-orange-700 text-xs">Wajib</Badge>}
+                                <Badge className={`text-xs ${STATUS_COLORS[session.status] || ""}`}>
+                                  {STATUS_LABELS[session.status] || session.status}
+                                </Badge>
+                                <Badge variant="outline" className="text-xs">{CAT_LABELS[session.category] || session.category}</Badge>
+                              </div>
+                              {session.description && <p className="text-xs text-muted-foreground mb-2 line-clamp-2">{session.description}</p>}
+                              <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                                <span className="flex items-center gap-1">
+                                  <Calendar className="h-3 w-3" />
+                                  {format(start, "dd MMM yyyy HH:mm", { locale: idLocale })} – {format(end, "HH:mm")}
+                                </span>
+                                {session.trainer_name && <span className="flex items-center gap-1"><User className="h-3 w-3" />Trainer: {session.trainer_name}</span>}
+                                {session.location && <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{session.location}</span>}
+                                <span className="flex items-center gap-1">
+                                  <Users className="h-3 w-3" />
+                                  {attendCount} peserta{session.max_participants ? ` / ${session.max_participants} maks` : ""}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex gap-1 shrink-0">
+                              <Button size="sm" variant="outline" className="h-7 text-xs"
+                                onClick={() => setTrainingAttendanceSessionId(trainingAttendanceSessionId === session.id ? null : session.id)}>
+                                <Users className="h-3 w-3 mr-1" /> Absensi
+                              </Button>
+                              <Button size="icon" variant="ghost" className="h-7 w-7"
+                                onClick={() => {
+                                  setEditingTrainingId(session.id);
+                                  setTrainingForm({
+                                    title: session.title, description: session.description || "",
+                                    category: session.category, trainer_name: session.trainer_name || "",
+                                    location: session.location || "",
+                                    start_datetime: session.start_datetime?.slice(0, 16) || "",
+                                    end_datetime: session.end_datetime?.slice(0, 16) || "",
+                                    max_participants: session.max_participants?.toString() || "",
+                                    is_mandatory: session.is_mandatory,
+                                    target_audience: session.target_audience || [],
+                                    status: session.status, notes: session.notes || "",
+                                  });
+                                  setIsTrainingDialogOpen(true);
+                                }}>
+                                <Edit className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive"
+                                onClick={() => { if (confirm("Hapus sesi pelatihan ini?")) deleteTrainingMutation.mutate(session.id); }}>
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </div>
+
+                          {/* Attendance sub-panel */}
+                          {trainingAttendanceSessionId === session.id && (
+                            <div className="mt-4 pt-4 border-t">
+                              <div className="flex items-center justify-between mb-3">
+                                <span className="text-sm font-medium">Daftar Kehadiran Peserta</span>
+                                <Select onValueChange={(empId) => addAttendanceMutation.mutate({ sessionId: session.id, employeeId: empId })}>
+                                  <SelectTrigger className="w-[200px] h-7 text-xs">
+                                    <SelectValue placeholder="+ Tambah peserta..." />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {(employees as Employee[])
+                                      .filter(e => !(trainingAttendance as any[]).some((a: any) => a.employee_id === e.id))
+                                      .map(e => (
+                                        <SelectItem key={e.id} value={e.id}>{e.full_name} ({e.employee_code})</SelectItem>
+                                      ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              {(trainingAttendance as any[]).length === 0 ? (
+                                <p className="text-xs text-muted-foreground py-4 text-center">Belum ada peserta terdaftar</p>
+                              ) : (
+                                <div className="space-y-1.5">
+                                  {(trainingAttendance as any[]).map((att: any) => (
+                                    <div key={att.id} className="flex items-center gap-3 p-2 rounded-md bg-muted/30">
+                                      <div className="flex-1 min-w-0">
+                                        <span className="text-sm font-medium">{att.employee?.full_name}</span>
+                                        <span className="text-xs text-muted-foreground ml-2">{att.employee?.employee_code}</span>
+                                        {att.employee?.department && <Badge variant="outline" className="text-xs ml-2">{att.employee?.department}</Badge>}
+                                      </div>
+                                      <Select value={att.status} onValueChange={(status) => updateAttendanceStatusMutation.mutate({ id: att.id, status })}>
+                                        <SelectTrigger className="w-[120px] h-7 text-xs">
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="registered">Terdaftar</SelectItem>
+                                          <SelectItem value="attended">Hadir ✓</SelectItem>
+                                          <SelectItem value="absent">Tidak Hadir</SelectItem>
+                                          <SelectItem value="excused">Izin</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
       </Tabs>
 
       {/* ── Dialog Tambah Catatan Disiplin ──────────────────────────────────── */}
@@ -3070,6 +3366,149 @@ function ManualAttendanceSection({
               disabled={saveContractMutation.isPending || !contractForm.employee_id || !contractForm.start_date}
             >
               {saveContractMutation.isPending ? "Menyimpan..." : editingContractId ? "Perbarui Kontrak" : "Simpan Kontrak"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Dialog Buat/Edit Sesi Pelatihan ─────────────────────────────────── */}
+      <Dialog open={isTrainingDialogOpen} onOpenChange={setIsTrainingDialogOpen}>
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Award className="h-5 w-5 text-indigo-500" />
+              {editingTrainingId ? "Edit Sesi Pelatihan" : "Buat Sesi Pelatihan Baru"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-2">
+            <div className="space-y-1.5">
+              <Label>Judul Pelatihan *</Label>
+              <Input
+                value={trainingForm.title}
+                onChange={e => setTrainingForm(f => ({ ...f, title: e.target.value }))}
+                placeholder="Contoh: Workshop Manajemen Jamaah..."
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Kategori</Label>
+                <Select value={trainingForm.category} onValueChange={v => setTrainingForm(f => ({ ...f, category: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="general">Umum</SelectItem>
+                    <SelectItem value="technical">Teknis</SelectItem>
+                    <SelectItem value="compliance">Compliance</SelectItem>
+                    <SelectItem value="leadership">Kepemimpinan</SelectItem>
+                    <SelectItem value="service">Layanan Pelanggan</SelectItem>
+                    <SelectItem value="safety">K3 / Safety</SelectItem>
+                    <SelectItem value="lainnya">Lainnya</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Status</Label>
+                <Select value={trainingForm.status} onValueChange={v => setTrainingForm(f => ({ ...f, status: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="scheduled">Dijadwalkan</SelectItem>
+                    <SelectItem value="ongoing">Berlangsung</SelectItem>
+                    <SelectItem value="completed">Selesai</SelectItem>
+                    <SelectItem value="cancelled">Dibatalkan</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Waktu Mulai *</Label>
+                <Input
+                  type="datetime-local"
+                  value={trainingForm.start_datetime}
+                  onChange={e => setTrainingForm(f => ({ ...f, start_datetime: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Waktu Selesai</Label>
+                <Input
+                  type="datetime-local"
+                  value={trainingForm.end_datetime}
+                  onChange={e => setTrainingForm(f => ({ ...f, end_datetime: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Trainer / Narasumber</Label>
+                <Input
+                  value={trainingForm.trainer_name}
+                  onChange={e => setTrainingForm(f => ({ ...f, trainer_name: e.target.value }))}
+                  placeholder="Nama trainer..."
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Lokasi</Label>
+                <Input
+                  value={trainingForm.location}
+                  onChange={e => setTrainingForm(f => ({ ...f, location: e.target.value }))}
+                  placeholder="Ruang meeting / online..."
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Maks Peserta</Label>
+                <Input
+                  type="number"
+                  value={trainingForm.max_participants}
+                  onChange={e => setTrainingForm(f => ({ ...f, max_participants: e.target.value }))}
+                  placeholder="Kosongkan jika tidak terbatas"
+                />
+              </div>
+              <div className="space-y-1.5 flex flex-col justify-end">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={trainingForm.is_mandatory}
+                    onChange={e => setTrainingForm(f => ({ ...f, is_mandatory: e.target.checked }))}
+                    className="h-4 w-4 rounded border-gray-300"
+                  />
+                  <span className="text-sm font-medium">Pelatihan Wajib Diikuti</span>
+                </label>
+                <p className="text-xs text-muted-foreground">Tandai jika semua karyawan harus mengikuti</p>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Deskripsi</Label>
+              <Textarea
+                rows={3}
+                value={trainingForm.description}
+                onChange={e => setTrainingForm(f => ({ ...f, description: e.target.value }))}
+                placeholder="Deskripsi singkat tentang materi dan tujuan pelatihan..."
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Catatan Internal</Label>
+              <Textarea
+                rows={2}
+                value={trainingForm.notes}
+                onChange={e => setTrainingForm(f => ({ ...f, notes: e.target.value }))}
+                placeholder="Catatan tambahan untuk tim HR..."
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsTrainingDialogOpen(false)}>Batal</Button>
+            <Button
+              onClick={() => saveTrainingMutation.mutate()}
+              disabled={saveTrainingMutation.isPending || !trainingForm.title || !trainingForm.start_datetime}
+            >
+              {saveTrainingMutation.isPending ? "Menyimpan..." : editingTrainingId ? "Perbarui Sesi" : "Buat Sesi Pelatihan"}
             </Button>
           </DialogFooter>
         </DialogContent>
