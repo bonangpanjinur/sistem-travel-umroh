@@ -145,6 +145,101 @@ async function sendMetaCloud(cfg: WAProviderConfig, phone: string, message: stri
   }
 }
 
+// ─── Meta WABA Interactive List Message (up to 10 items) ─────────────────────
+interface MetaMenuRow { id: string; title: string; description?: string }
+async function sendMetaInteractiveList(
+  cfg: WAProviderConfig,
+  phone: string,
+  opts: {
+    bodyText: string;
+    footerText?: string;
+    buttonText: string;
+    sectionTitle: string;
+    rows: MetaMenuRow[];
+  },
+): Promise<SendResult> {
+  const token   = cfg.api_key || (cfg.provider_config['access_token'] as string);
+  const phoneId = cfg.provider_config['phone_number_id'] as string;
+  const version = (cfg.provider_config['api_version'] as string) || 'v19.0';
+  if (!token || !phoneId) return { success: false, error: 'Access Token atau Phone Number ID Meta belum dikonfigurasi' };
+  const payload: Record<string, any> = {
+    messaging_product: 'whatsapp',
+    recipient_type: 'individual',
+    to: normalisePhone(phone),
+    type: 'interactive',
+    interactive: {
+      type: 'list',
+      body: { text: opts.bodyText.slice(0, 1024) },
+      action: {
+        button: opts.buttonText.slice(0, 20),
+        sections: [{
+          title: opts.sectionTitle.slice(0, 24),
+          rows: opts.rows.slice(0, 10).map(r => ({
+            id: r.id.slice(0, 200),
+            title: r.title.slice(0, 24),
+            ...(r.description ? { description: r.description.slice(0, 72) } : {}),
+          })),
+        }],
+      },
+    },
+  };
+  if (opts.footerText) {
+    payload['interactive']['footer'] = { text: opts.footerText.slice(0, 60) };
+  }
+  try {
+    const resp = await fetch(`https://graph.facebook.com/${version}/${phoneId}/messages`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = (await resp.json()) as any;
+    if (!resp.ok || data.error) return { success: false, error: data.error?.message || 'Meta interactive list error' };
+    return { success: true, messageId: data.messages?.[0]?.id };
+  } catch (e: any) {
+    return { success: false, error: e.message };
+  }
+}
+
+// ─── Meta WABA Interactive Button Message (up to 3 buttons) ──────────────────
+async function sendMetaInteractiveButtons(
+  cfg: WAProviderConfig,
+  phone: string,
+  bodyText: string,
+  buttons: Array<{ id: string; title: string }>,
+): Promise<SendResult> {
+  const token   = cfg.api_key || (cfg.provider_config['access_token'] as string);
+  const phoneId = cfg.provider_config['phone_number_id'] as string;
+  const version = (cfg.provider_config['api_version'] as string) || 'v19.0';
+  if (!token || !phoneId) return { success: false, error: 'Access Token atau Phone Number ID Meta belum dikonfigurasi' };
+  try {
+    const resp = await fetch(`https://graph.facebook.com/${version}/${phoneId}/messages`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to: normalisePhone(phone),
+        type: 'interactive',
+        interactive: {
+          type: 'button',
+          body: { text: bodyText.slice(0, 1024) },
+          action: {
+            buttons: buttons.slice(0, 3).map(b => ({
+              type: 'reply',
+              reply: { id: b.id.slice(0, 256), title: b.title.slice(0, 20) },
+            })),
+          },
+        },
+      }),
+    });
+    const data = (await resp.json()) as any;
+    if (!resp.ok || data.error) return { success: false, error: data.error?.message || 'Meta interactive buttons error' };
+    return { success: true, messageId: data.messages?.[0]?.id };
+  } catch (e: any) {
+    return { success: false, error: e.message };
+  }
+}
+
 async function sendCustom(cfg: WAProviderConfig, phone: string, message: string): Promise<SendResult> {
   const endpoint   = cfg.provider_config['endpoint_url'] as string;
   const authHeader = cfg.api_key || (cfg.provider_config['auth_header'] as string);
@@ -606,6 +701,42 @@ router.post('/webhook', async (req, res) => {
     return;
   }
 
+  // ── Normalize Meta WABA Cloud API webhook format ──────────────────────────
+  // Meta sends: { object: 'whatsapp_business_account', entry: [{ changes: [{ value: {...} }] }] }
+  if (body.object === 'whatsapp_business_account' || body.entry?.[0]?.changes) {
+    try {
+      const changeVal = body.entry?.[0]?.changes?.[0]?.value;
+      // Delivery/status update from Meta
+      const metaStatus = changeVal?.statuses?.[0];
+      if (metaStatus && !changeVal?.messages?.[0]) {
+        const statusMap: Record<string, string> = { sent: 'sent', delivered: 'delivered', read: 'read', failed: 'failed' };
+        body.id = metaStatus.id;
+        body.status = statusMap[metaStatus.status] ?? metaStatus.status;
+      }
+      // Incoming message from Meta
+      const msg = changeVal?.messages?.[0];
+      if (msg) {
+        body.phone    = body.phone || msg.from;
+        body.name     = body.name  || changeVal.contacts?.[0]?.profile?.name;
+        body.id       = body.id    || msg.id;
+        body.provider = 'meta';
+        if (msg.type === 'text') {
+          body.message = body.message || msg.text?.body;
+        } else if (msg.type === 'interactive') {
+          const ir = msg.interactive as any;
+          // list_reply / button_reply: id format = "menu_1" → extract digit
+          if (ir.type === 'list_reply') {
+            const extracted = (ir.list_reply?.id as string)?.replace(/^menu_/, '');
+            body.message = /^\d+$/.test(extracted || '') ? extracted : ir.list_reply?.title;
+          } else if (ir.type === 'button_reply') {
+            const extracted = (ir.button_reply?.id as string)?.replace(/^menu_/, '');
+            body.message = /^\d+$/.test(extracted || '') ? extracted : ir.button_reply?.title;
+          }
+        }
+      }
+    } catch { /* non-critical */ }
+  }
+
   // ── Incoming message ───────────────────────────────────────────────────────
   // Fonnte incoming: { phone, message, name }
   const fromPhone = body.phone || body.from || body.sender;
@@ -614,39 +745,66 @@ router.post('/webhook', async (req, res) => {
   if (fromPhone && message) {
     const phone = normalisePhone(fromPhone);
     const name  = body.name || body.pushname || body.contact_name || null;
-    const provider = body.provider || 'fonnte';
+    const provider: string = body.provider || 'fonnte';
 
     let matchedKeyword: { id: string; reply_message: string } | null = null;
     const msgLower = message.toLowerCase().trim();
     let botMenuReply: string | null = null;
+    // Interactive list payload for Meta WABA (set when trigger matches + interactive mode on)
+    let interactiveListPayload: {
+      bodyText: string; footerText?: string; buttonText: string;
+      sectionTitle: string; rows: MetaMenuRow[];
+    } | null = null;
 
     try {
-      // ── Check bot menu: show menu list if trigger keyword matched ──────────
+      // ── Check bot menu ─────────────────────────────────────────────────────
       const { rows: menuConfig } = await pool.query(
         `SELECT key, value FROM app_settings
-         WHERE key IN ('wa_bot_menu_enabled','wa_bot_menu_trigger','wa_bot_menu_header','wa_bot_menu_footer')`,
+         WHERE key IN (
+           'wa_bot_menu_enabled','wa_bot_menu_trigger','wa_bot_menu_header','wa_bot_menu_footer',
+           'wa_bot_menu_interactive','wa_bot_menu_button_text','wa_bot_menu_section_title'
+         )`,
       );
       const mCfg: Record<string, string> = {};
       for (const r of menuConfig) mCfg[r.key] = r.value;
-      const menuEnabled = mCfg['wa_bot_menu_enabled'] !== 'false';
-      const menuTrigger = (mCfg['wa_bot_menu_trigger'] || 'menu').toLowerCase().trim();
-      const menuHeader  = mCfg['wa_bot_menu_header']  || "Assalamu'alaikum! 👋 Selamat datang.\n\nSilakan pilih menu:";
-      const menuFooter  = mCfg['wa_bot_menu_footer']  || '';
+      const menuEnabled     = mCfg['wa_bot_menu_enabled'] !== 'false';
+      const menuTrigger     = (mCfg['wa_bot_menu_trigger'] || 'menu').toLowerCase().trim();
+      const menuHeader      = mCfg['wa_bot_menu_header']  || "Assalamu'alaikum! 👋 Selamat datang.\n\nSilakan pilih menu:";
+      const menuFooter      = mCfg['wa_bot_menu_footer']  || '';
+      const useInteractive  = mCfg['wa_bot_menu_interactive'] === 'true' && provider === 'meta';
+      const buttonText      = mCfg['wa_bot_menu_button_text']   || 'Pilih Menu';
+      const sectionTitle    = mCfg['wa_bot_menu_section_title'] || 'Layanan Kami';
 
       if (menuEnabled) {
         // 1. User sent the trigger word (e.g. "menu") → show the menu list
         if (msgLower === menuTrigger || msgLower.includes(menuTrigger)) {
           const { rows: menuItems } = await pool.query(
-            `SELECT menu_number, label FROM wa_bot_menu_items WHERE is_active = true ORDER BY sort_order ASC, menu_number ASC`,
+            `SELECT menu_number, label, description FROM wa_bot_menu_items WHERE is_active = true ORDER BY sort_order ASC, menu_number ASC`,
           );
           if (menuItems.length > 0) {
-            const lines = menuItems.map((m: any) => `${m.menu_number}. ${m.label}`).join('\n');
-            botMenuReply = `${menuHeader}\n\n${lines}${menuFooter}`;
+            if (useInteractive) {
+              // Build Meta WABA interactive list message
+              interactiveListPayload = {
+                bodyText: menuHeader,
+                footerText: menuFooter || undefined,
+                buttonText,
+                sectionTitle,
+                rows: menuItems.map((m: any) => ({
+                  id: `menu_${m.menu_number}`,
+                  title: `${m.menu_number}. ${m.label}`.slice(0, 24),
+                  description: (m.description as string) || undefined,
+                })),
+              };
+            } else {
+              // Plain text fallback
+              const lines = menuItems.map((m: any) => `${m.menu_number}. ${m.label}`).join('\n');
+              botMenuReply = `${menuHeader}\n\n${lines}${menuFooter}`;
+            }
           }
         }
-        // 2. User sent a number → find matching menu item
+        // 2. User sent a number → find matching menu item and reply
         else {
-          const numMatch = msgLower.match(/^(\d)$/);
+          const numMatch = msgLower.match(/^(\d+)$/);
           if (numMatch) {
             const num = parseInt(numMatch[1]);
             const { rows: menuItems } = await pool.query(
@@ -655,7 +813,6 @@ router.post('/webhook', async (req, res) => {
             );
             if (menuItems[0]) {
               botMenuReply = menuItems[0].reply_message.replace(/\{portal_url\}/g, 'portal jamaah kami');
-              // Increment trigger count
               await pool.query(
                 `UPDATE wa_bot_menu_items SET trigger_count = trigger_count + 1 WHERE id = $1`,
                 [menuItems[0].id],
@@ -668,7 +825,7 @@ router.post('/webhook', async (req, res) => {
 
     try {
       // ── Match chatbot keywords (only if no bot menu match) ────────────────
-      if (!botMenuReply) {
+      if (!botMenuReply && !interactiveListPayload) {
         const { rows: keywords } = await pool.query(
           `SELECT id, keyword, match_type, reply_message
            FROM wa_chatbot_keywords
@@ -688,6 +845,7 @@ router.post('/webhook', async (req, res) => {
     } catch { /* non-critical */ }
 
     const autoReply = botMenuReply ?? (matchedKeyword?.reply_message.replace(/\{portal_url\}/g, 'portal jamaah kami') ?? null);
+    const hasMatch = !!(interactiveListPayload || botMenuReply || matchedKeyword);
 
     let incomingId: string | null = null;
     try {
@@ -697,7 +855,7 @@ router.post('/webhook', async (req, res) => {
          VALUES ($1,$2,$3,$4,$5,$6,$7)
          RETURNING id`,
         [phone, name, message, body.id || null, provider,
-          !!(botMenuReply || matchedKeyword), matchedKeyword?.id || null],
+          hasMatch, matchedKeyword?.id || null],
       );
       incomingId = rows[0]?.id;
     } catch { /* non-critical */ }
@@ -716,8 +874,21 @@ router.post('/webhook', async (req, res) => {
       );
     } catch { /* non-critical */ }
 
-    // Auto-reply: bot menu or chatbot keyword
-    if (autoReply) {
+    // Auto-reply: Meta WABA interactive list, plain bot menu, or chatbot keyword
+    if (interactiveListPayload) {
+      // Use Meta WABA interactive list message for menu display
+      const cfg = await getActiveConfig().catch(() => null);
+      if (cfg && cfg.provider === 'meta') {
+        const sendResult = await sendMetaInteractiveList(cfg, phone, interactiveListPayload);
+        if (sendResult.success && incomingId) {
+          const listSummary = `[Menu Interaktif: ${interactiveListPayload.rows.length} pilihan]`;
+          await pool.query(
+            `UPDATE wa_incoming_messages SET is_replied = true, reply_message = $1, replied_at = NOW() WHERE id = $2`,
+            [listSummary, incomingId],
+          ).catch(() => {});
+        }
+      }
+    } else if (autoReply) {
       const cfg = await getActiveConfig().catch(() => null);
       if (cfg) {
         const sendResult = await dispatchSend(cfg, phone, autoReply);
@@ -740,7 +911,12 @@ router.post('/webhook', async (req, res) => {
       }
     }
 
-    res.json({ ok: true, type: 'incoming', matched_chatbot: !!(botMenuReply || matchedKeyword), matched_bot_menu: !!botMenuReply });
+    res.json({
+      ok: true, type: 'incoming',
+      matched_chatbot: hasMatch,
+      matched_bot_menu: !!(interactiveListPayload || botMenuReply),
+      interactive_list_sent: !!interactiveListPayload,
+    });
     return;
   }
 
@@ -1015,15 +1191,21 @@ router.get('/bot-menu/config', async (_req, res) => {
   try {
     const { rows } = await pool.query(
       `SELECT key, value FROM app_settings
-       WHERE key IN ('wa_bot_menu_enabled','wa_bot_menu_trigger','wa_bot_menu_header','wa_bot_menu_footer')`,
+       WHERE key IN (
+         'wa_bot_menu_enabled','wa_bot_menu_trigger','wa_bot_menu_header','wa_bot_menu_footer',
+         'wa_bot_menu_interactive','wa_bot_menu_button_text','wa_bot_menu_section_title'
+       )`,
     );
     const cfg: Record<string, string> = {};
     for (const r of rows) cfg[r.key] = r.value;
     res.json({
-      enabled: cfg['wa_bot_menu_enabled'] !== 'false',
-      trigger: cfg['wa_bot_menu_trigger'] || 'menu',
-      header:  cfg['wa_bot_menu_header']  || "Assalamu'alaikum! 👋 Selamat datang di *Vinstour Travel*.\n\nSilakan pilih menu berikut dengan mengetik nomornya:",
-      footer:  cfg['wa_bot_menu_footer']  || '\n_Atau ketik pesan langsung dan CS kami akan segera membalas. Barakallahu fiikum 🕌_',
+      enabled:       cfg['wa_bot_menu_enabled'] !== 'false',
+      trigger:       cfg['wa_bot_menu_trigger']       || 'menu',
+      header:        cfg['wa_bot_menu_header']        || "Assalamu'alaikum! 👋 Selamat datang.\n\nSilakan pilih menu:",
+      footer:        cfg['wa_bot_menu_footer']        || '',
+      interactive:   cfg['wa_bot_menu_interactive']   === 'true',
+      button_text:   cfg['wa_bot_menu_button_text']   || 'Pilih Menu',
+      section_title: cfg['wa_bot_menu_section_title'] || 'Layanan Kami',
     });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
@@ -1032,15 +1214,19 @@ router.get('/bot-menu/config', async (_req, res) => {
 
 // ─── POST /api/v1/whatsapp/bot-menu/config ────────────────────────────────
 router.post('/bot-menu/config', async (req, res) => {
-  const { enabled, trigger, header, footer } = req.body as {
+  const { enabled, trigger, header, footer, interactive, button_text, section_title } = req.body as {
     enabled?: boolean; trigger?: string; header?: string; footer?: string;
+    interactive?: boolean; button_text?: string; section_title?: string;
   };
   try {
     const entries: [string, string][] = [
-      ['wa_bot_menu_enabled', String(enabled ?? true)],
-      ['wa_bot_menu_trigger', (trigger || 'menu').toLowerCase().trim()],
-      ['wa_bot_menu_header',  header || ''],
-      ['wa_bot_menu_footer',  footer || ''],
+      ['wa_bot_menu_enabled',       String(enabled ?? true)],
+      ['wa_bot_menu_trigger',       (trigger || 'menu').toLowerCase().trim()],
+      ['wa_bot_menu_header',        header || ''],
+      ['wa_bot_menu_footer',        footer || ''],
+      ['wa_bot_menu_interactive',   String(interactive ?? false)],
+      ['wa_bot_menu_button_text',   (button_text || 'Pilih Menu').slice(0, 20)],
+      ['wa_bot_menu_section_title', (section_title || 'Layanan Kami').slice(0, 24)],
     ];
     for (const [key, value] of entries) {
       await pool.query(
@@ -1057,8 +1243,9 @@ router.post('/bot-menu/config', async (req, res) => {
 
 // ─── POST /api/v1/whatsapp/bot-menu ───────────────────────────────────────
 router.post('/bot-menu', async (req, res) => {
-  const { menu_number, label, reply_message, is_active = true, sort_order = 0 } = req.body as {
-    menu_number: number; label: string; reply_message: string; is_active?: boolean; sort_order?: number;
+  const { menu_number, label, description, reply_message, is_active = true, sort_order = 0 } = req.body as {
+    menu_number: number; label: string; description?: string; reply_message: string;
+    is_active?: boolean; sort_order?: number;
   };
   if (!menu_number || !label || !reply_message) {
     res.status(400).json({ error: 'menu_number, label, reply_message wajib diisi' });
@@ -1066,9 +1253,9 @@ router.post('/bot-menu', async (req, res) => {
   }
   try {
     const { rows } = await pool.query(
-      `INSERT INTO wa_bot_menu_items (menu_number, label, reply_message, is_active, sort_order)
-       VALUES ($1,$2,$3,$4,$5) RETURNING *`,
-      [menu_number, label.trim(), reply_message.trim(), is_active, sort_order],
+      `INSERT INTO wa_bot_menu_items (menu_number, label, description, reply_message, is_active, sort_order)
+       VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+      [menu_number, label.trim(), (description || '').trim(), reply_message.trim(), is_active, sort_order],
     );
     res.json({ success: true, item: rows[0] });
   } catch (e: any) {
@@ -1078,12 +1265,13 @@ router.post('/bot-menu', async (req, res) => {
 
 // ─── PUT /api/v1/whatsapp/bot-menu/:id ───────────────────────────────────
 router.put('/bot-menu/:id', async (req, res) => {
-  const { menu_number, label, reply_message, is_active, sort_order } = req.body as any;
+  const { menu_number, label, description, reply_message, is_active, sort_order } = req.body as any;
   const sets: string[] = ['updated_at = NOW()'];
   const vals: any[] = [];
   const push = (col: string, v: any) => { vals.push(v); sets.push(`${col} = $${vals.length}`); };
   if (menu_number   !== undefined) push('menu_number',   menu_number);
   if (label         !== undefined) push('label',         label.trim());
+  if (description   !== undefined) push('description',   description.trim());
   if (reply_message !== undefined) push('reply_message', reply_message.trim());
   if (is_active     !== undefined) push('is_active',     is_active);
   if (sort_order    !== undefined) push('sort_order',    sort_order);

@@ -430,6 +430,19 @@ export async function runMigrations(): Promise<void> {
       logger.info("runMigrations: 18_wa_bot_menu — already applied, skipping");
     }
 
+    // ── Step 1r: WA Bot Menu Interactive (Meta WABA list/button messages) ──
+    const waBotMenuInteractiveApplied = await isApplied(client, "19_wa_bot_menu_interactive");
+    if (!waBotMenuInteractiveApplied) {
+      await runSqlFile(
+        client,
+        sqlPath("19_wa_bot_menu_interactive.sql"),
+        "19_wa_bot_menu_interactive (Meta WABA interactive list + button config)",
+      );
+      await markApplied(client, "19_wa_bot_menu_interactive");
+    } else {
+      logger.info("runMigrations: 19_wa_bot_menu_interactive — already applied, skipping");
+    }
+
     // ── Step 2: payment sync trigger (always re-applied each boot) ────────
     // Wrapped in its own try/catch so a missing table on a broken DB state
     // doesn't crash the server — it just logs and continues.
