@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import * as XLSX from 'xlsx';
 import { db, pool } from '../../lib/db.js';
 import { waTemplates, waSendLogs, appSettings } from '@workspace/db/schema';
 import { eq, sql, and, or, desc } from 'drizzle-orm';
@@ -1268,6 +1269,145 @@ router.delete('/contacts/:id', async (req, res) => {
   try {
     await pool.query(`DELETE FROM wa_contacts WHERE id = $1`, [req.params.id]);
     res.json({ success: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─── GET /contacts/export — download CSV atau XLSX ───────────────────────
+router.get('/contacts/export', async (req, res) => {
+  const format   = String(req.query.format || 'csv').toLowerCase();            // 'csv' | 'xlsx'
+  const optOutQ  = String(req.query.opt_out || 'all');                         // 'all' | 'active' | 'optout'
+  const tagsQ    = String(req.query.tags || '').trim();                        // 'tag1,tag2,...'
+  const searchQ  = String(req.query.search || '').trim();
+
+  try {
+    const conds: string[] = [];
+    const vals: any[] = [];
+
+    if (optOutQ === 'active')  { vals.push(false); conds.push(`wc.opt_out = $${vals.length}`); }
+    if (optOutQ === 'optout')  { vals.push(true);  conds.push(`wc.opt_out = $${vals.length}`); }
+    if (searchQ) {
+      vals.push('%' + searchQ + '%');
+      conds.push(`(wc.phone ILIKE $${vals.length} OR wc.name ILIKE $${vals.length})`);
+    }
+    if (tagsQ) {
+      const tagArr = tagsQ.split(',').map(t => t.trim()).filter(Boolean);
+      if (tagArr.length) {
+        vals.push(tagArr);
+        conds.push(`wc.tags && $${vals.length}::text[]`);
+      }
+    }
+    const where = conds.length ? 'WHERE ' + conds.join(' AND ') : '';
+
+    const { rows } = await pool.query(
+      `SELECT
+         wc.phone,
+         wc.name,
+         wc.opt_out,
+         wc.tags,
+         wc.notes,
+         wc.message_count,
+         wc.last_sent_at,
+         wc.last_reply_at,
+         wc.created_at,
+         c.full_name  AS customer_name,
+         c.email      AS customer_email,
+         -- incoming messages count
+         (SELECT COUNT(*)::int FROM wa_incoming_messages im WHERE im.from_phone = wc.phone)
+           AS incoming_count,
+         -- chatbot-matched incoming count
+         (SELECT COUNT(*)::int FROM wa_incoming_messages im WHERE im.from_phone = wc.phone AND im.chatbot_matched = true)
+           AS chatbot_count,
+         -- outgoing (sent) count
+         (SELECT COUNT(*)::int FROM wa_send_logs sl WHERE sl.recipient_phone = wc.phone)
+           AS outgoing_count
+       FROM wa_contacts wc
+       LEFT JOIN customers c ON c.id = wc.customer_id
+       ${where}
+       ORDER BY wc.updated_at DESC`,
+      vals,
+    );
+
+    // ── Format rows for export ──
+    const now = new Date();
+    const dateStr = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
+
+    const exportRows = rows.map(r => ({
+      'Nomor WA':          `+${r.phone}`,
+      'Nama Kontak':       r.name || '',
+      'Nama Jamaah':       r.customer_name || '',
+      'Email Jamaah':      r.customer_email || '',
+      'Tags':              (r.tags as string[] || []).join('; '),
+      'Catatan':           r.notes || '',
+      'Opt-Out':           r.opt_out ? 'Ya' : 'Tidak',
+      'Total Pesan Masuk': r.incoming_count ?? 0,
+      'Total Pesan Keluar':r.outgoing_count ?? 0,
+      'Dibalas Chatbot':   r.chatbot_count ?? 0,
+      'Total Interaksi':   r.message_count ?? 0,
+      'Terakhir Kirim':    r.last_sent_at  ? new Date(r.last_sent_at).toLocaleString('id-ID')  : '',
+      'Terakhir Balas':    r.last_reply_at ? new Date(r.last_reply_at).toLocaleString('id-ID') : '',
+      'Terdaftar Sejak':   r.created_at    ? new Date(r.created_at).toLocaleString('id-ID')    : '',
+    }));
+
+    if (format === 'xlsx') {
+      const wb  = XLSX.utils.book_new();
+      const ws  = XLSX.utils.json_to_sheet(exportRows);
+
+      // Column widths
+      ws['!cols'] = [
+        { wch: 16 }, { wch: 22 }, { wch: 22 }, { wch: 26 },
+        { wch: 18 }, { wch: 24 }, { wch: 8  },
+        { wch: 16 }, { wch: 16 }, { wch: 14 }, { wch: 14 },
+        { wch: 20 }, { wch: 20 }, { wch: 20 },
+      ];
+
+      XLSX.utils.book_append_sheet(wb, ws, 'Kontak WA');
+
+      // Summary sheet
+      const summaryData = [
+        ['Laporan Kontak WA — Vinstour Travel'],
+        ['Tanggal Ekspor', new Date().toLocaleString('id-ID')],
+        ['Total Kontak', rows.length],
+        ['Filter Opt-Out', optOutQ === 'all' ? 'Semua' : optOutQ === 'active' ? 'Aktif (opt-in)' : 'Opt-out'],
+        ['Filter Tags', tagsQ || 'Semua tag'],
+        [],
+        ['Opt-in', rows.filter(r => !r.opt_out).length],
+        ['Opt-out', rows.filter(r => r.opt_out).length],
+        ['Total Pesan Masuk', rows.reduce((s, r) => s + (r.incoming_count ?? 0), 0)],
+        ['Total Pesan Keluar', rows.reduce((s, r) => s + (r.outgoing_count ?? 0), 0)],
+        ['Total Dibalas Chatbot', rows.reduce((s, r) => s + (r.chatbot_count ?? 0), 0)],
+      ];
+      const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
+      wsSummary['!cols'] = [{ wch: 22 }, { wch: 30 }];
+      XLSX.utils.book_append_sheet(wb, wsSummary, 'Ringkasan');
+
+      const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename="kontak-wa-${dateStr}.xlsx"`);
+      res.send(buf);
+      return;
+    }
+
+    // ── CSV ──
+    const headers = Object.keys(exportRows[0] ?? {
+      'Nomor WA': '', 'Nama Kontak': '', 'Nama Jamaah': '', 'Email Jamaah': '',
+      'Tags': '', 'Catatan': '', 'Opt-Out': '',
+      'Total Pesan Masuk': '', 'Total Pesan Keluar': '', 'Dibalas Chatbot': '', 'Total Interaksi': '',
+      'Terakhir Kirim': '', 'Terakhir Balas': '', 'Terdaftar Sejak': '',
+    });
+    const esc = (v: any) => {
+      const s = v == null ? '' : String(v);
+      return (s.includes(',') || s.includes('"') || s.includes('\n'))
+        ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const csvLines = [
+      headers.join(','),
+      ...exportRows.map(row => headers.map(h => esc((row as any)[h])).join(',')),
+    ];
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="kontak-wa-${dateStr}.csv"`);
+    res.send('\uFEFF' + csvLines.join('\r\n'));   // BOM for Excel UTF-8 auto-detect
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
@@ -20,6 +22,7 @@ import {
   Pencil, Trash2, RotateCcw, MessageSquarePlus,
   Bot, ArrowUpLeft, ArrowUpRight, Send, Loader2,
   MessageSquare, BarChart3, Clock, CheckCheck,
+  Download, FileSpreadsheet, FileText, Filter,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -68,6 +71,13 @@ export default function AdminWAContacts() {
   const [detailContact, setDetailContact] = useState<WAContact | null>(null);
   const [replyText, setReplyText] = useState("");
   const [isSending, setIsSending] = useState(false);
+
+  // Export state
+  const [showExport, setShowExport] = useState(false);
+  const [exportFormat, setExportFormat] = useState<"csv" | "xlsx">("xlsx");
+  const [exportOptOut, setExportOptOut] = useState<"all" | "active" | "optout">("all");
+  const [exportTags, setExportTags] = useState<string[]>([]);
+  const [isExporting, setIsExporting] = useState(false);
 
   const { data, isLoading, refetch } = useQuery<{ total: number; contacts: WAContact[] }>({
     queryKey: ["wa-contacts", search, page],
@@ -169,6 +179,42 @@ export default function AdminWAContacts() {
   const stats = historyData?.stats;
   const messages = historyData?.messages ?? [];
 
+  // Collect all unique tags from loaded contacts
+  const allTags = useMemo(() => {
+    const set = new Set<string>();
+    contacts.forEach(c => (c.tags || []).forEach(t => set.add(t)));
+    return Array.from(set).sort();
+  }, [contacts]);
+
+  async function handleExport() {
+    setIsExporting(true);
+    try {
+      const p = new URLSearchParams({ format: exportFormat, opt_out: exportOptOut });
+      if (search) p.set("search", search);
+      if (exportTags.length) p.set("tags", exportTags.join(","));
+      const resp = await fetch(`${API}/contacts/export?${p}`);
+      if (!resp.ok) throw new Error("Gagal mengekspor kontak");
+      const blob = await resp.blob();
+      const ext = exportFormat === "xlsx" ? "xlsx" : "csv";
+      const now = new Date();
+      const dateStr = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `kontak-wa-${dateStr}.${ext}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast.success(`File ${ext.toUpperCase()} berhasil diunduh`);
+      setShowExport(false);
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setIsExporting(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -180,9 +226,17 @@ export default function AdminWAContacts() {
           </h1>
           <p className="text-muted-foreground mt-1">Kelola daftar kontak, lihat riwayat percakapan per kontak</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Button variant="outline" size="sm" onClick={() => refetch()}>
             <RefreshCw className="h-4 w-4 mr-1" /> Refresh
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowExport(true)}
+            className="border-emerald-600 text-emerald-700 hover:bg-emerald-50"
+          >
+            <Download className="h-4 w-4 mr-1" /> Ekspor
           </Button>
           <Button
             size="sm"
@@ -551,6 +605,147 @@ export default function AdminWAContacts() {
           )}
         </SheetContent>
       </Sheet>
+
+      {/* ── Export Dialog ─────────────────────────────────────────────────────── */}
+      <Dialog open={showExport} onOpenChange={setShowExport}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Download className="h-5 w-5 text-emerald-600" />
+              Ekspor Kontak WA
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-5 py-2">
+            {/* Format */}
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold flex items-center gap-1">
+                <FileSpreadsheet className="h-4 w-4" /> Format File
+              </Label>
+              <RadioGroup
+                value={exportFormat}
+                onValueChange={v => setExportFormat(v as "csv" | "xlsx")}
+                className="flex gap-4"
+              >
+                <div className="flex items-center gap-2 border rounded-lg px-4 py-2 cursor-pointer hover:bg-muted/50 flex-1"
+                  onClick={() => setExportFormat("xlsx")}>
+                  <RadioGroupItem value="xlsx" id="fmt-xlsx" />
+                  <Label htmlFor="fmt-xlsx" className="cursor-pointer flex items-center gap-2">
+                    <FileSpreadsheet className="h-4 w-4 text-green-600" />
+                    <div>
+                      <div className="font-medium">Excel (.xlsx)</div>
+                      <div className="text-xs text-muted-foreground">Dengan lembar Ringkasan</div>
+                    </div>
+                  </Label>
+                </div>
+                <div className="flex items-center gap-2 border rounded-lg px-4 py-2 cursor-pointer hover:bg-muted/50 flex-1"
+                  onClick={() => setExportFormat("csv")}>
+                  <RadioGroupItem value="csv" id="fmt-csv" />
+                  <Label htmlFor="fmt-csv" className="cursor-pointer flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-blue-600" />
+                    <div>
+                      <div className="font-medium">CSV (.csv)</div>
+                      <div className="text-xs text-muted-foreground">Kompatibel semua aplikasi</div>
+                    </div>
+                  </Label>
+                </div>
+              </RadioGroup>
+            </div>
+
+            <Separator />
+
+            {/* Opt-out filter */}
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold flex items-center gap-1">
+                <Filter className="h-4 w-4" /> Filter Status Opt-Out
+              </Label>
+              <RadioGroup
+                value={exportOptOut}
+                onValueChange={v => setExportOptOut(v as "all" | "active" | "optout")}
+                className="space-y-1"
+              >
+                {[
+                  { value: "all",    label: "Semua kontak" },
+                  { value: "active", label: "Hanya aktif (opt-in)" },
+                  { value: "optout", label: "Hanya yang opt-out" },
+                ].map(opt => (
+                  <div key={opt.value} className="flex items-center gap-2">
+                    <RadioGroupItem value={opt.value} id={`optout-${opt.value}`} />
+                    <Label htmlFor={`optout-${opt.value}`} className="cursor-pointer font-normal">
+                      {opt.label}
+                    </Label>
+                  </div>
+                ))}
+              </RadioGroup>
+            </div>
+
+            {/* Tag filter */}
+            {allTags.length > 0 && (
+              <>
+                <Separator />
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold flex items-center gap-1">
+                    <Filter className="h-4 w-4" /> Filter Tags
+                    <span className="text-xs text-muted-foreground font-normal">(kosongkan = semua tag)</span>
+                  </Label>
+                  <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-1">
+                    {allTags.map(tag => (
+                      <div key={tag} className="flex items-center gap-1.5">
+                        <Checkbox
+                          id={`tag-${tag}`}
+                          checked={exportTags.includes(tag)}
+                          onCheckedChange={checked => {
+                            setExportTags(prev =>
+                              checked ? [...prev, tag] : prev.filter(t => t !== tag)
+                            );
+                          }}
+                        />
+                        <Label htmlFor={`tag-${tag}`} className="cursor-pointer text-xs">
+                          <Badge variant="outline" className="text-xs">{tag}</Badge>
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                  {exportTags.length > 0 && (
+                    <Button variant="ghost" size="sm" className="h-6 text-xs text-muted-foreground"
+                      onClick={() => setExportTags([])}>
+                      Hapus filter tag
+                    </Button>
+                  )}
+                </div>
+              </>
+            )}
+
+            {/* Info row */}
+            <div className="rounded-lg bg-emerald-50 border border-emerald-100 px-4 py-3 text-sm text-emerald-800 space-y-1">
+              <p className="font-medium">Kolom yang diekspor:</p>
+              <p className="text-xs text-emerald-700 leading-relaxed">
+                Nomor WA · Nama · Jamaah · Email · Tags · Catatan · Opt-Out ·
+                Pesan Masuk · Pesan Keluar · Chatbot · Total Interaksi · Terakhir Kirim · Terakhir Balas · Terdaftar Sejak
+              </p>
+              {search && (
+                <p className="text-xs font-medium text-amber-700 mt-1">
+                  ⚠ Filter pencarian aktif: "{search}" akan diterapkan ke ekspor
+                </p>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setShowExport(false)}>Batal</Button>
+            <Button
+              onClick={handleExport}
+              disabled={isExporting}
+              className="bg-emerald-600 hover:bg-emerald-700"
+            >
+              {isExporting
+                ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Mengekspor...</>
+                : <><Download className="h-4 w-4 mr-1" /> Unduh {exportFormat.toUpperCase()}</>
+              }
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Edit Dialog ──────────────────────────────────────────────────────── */}
       <Dialog open={!!editContact} onOpenChange={v => { if (!v) setEditContact(null); }}>
