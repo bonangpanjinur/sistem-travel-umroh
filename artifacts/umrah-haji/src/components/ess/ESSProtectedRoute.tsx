@@ -8,7 +8,7 @@ interface ESSProtectedRouteProps {
 }
 
 export function ESSProtectedRoute({ children }: ESSProtectedRouteProps) {
-  const { user, loading } = useAuth();
+  const { user, isLoading: loading } = useAuth();
   const [employeeId, setEmployeeId] = useState<string | null | undefined>(undefined);
   const [checking, setChecking] = useState(true);
 
