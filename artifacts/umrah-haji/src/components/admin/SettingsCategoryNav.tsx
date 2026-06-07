@@ -4,7 +4,7 @@ import {
   Settings, Building2, FileText, Bell, AlertTriangle,
   Palette, Layout, Smartphone,
   Users2, ShieldCheck, LayoutGrid, ShieldAlert, ShieldQuestion, UserCog,
-  Plug, Webhook, Mail, Bell as BellIcon,
+  Plug, Webhook, Mail, Bell as BellIcon, Activity,
   Shield, KeyRound, ScanSearch, ClipboardList,
   Database, BookOpen,
 } from "lucide-react";
@@ -44,6 +44,7 @@ const CATEGORIES: Record<string, { title: string; items: Item[] }> = {
     title: "Integrasi & API",
     items: [
       { label: "API Connect", path: "/admin/api-connect", icon: Plug },
+      { label: "System Health", path: "/admin/system-health", icon: Activity },
       { label: "Webhooks Outgoing", path: "/admin/webhooks", icon: Webhook },
       { label: "Template Email", path: "/admin/email-templates", icon: Mail },
       { label: "Push Notifikasi", path: "/admin/push-notifications", icon: BellIcon },

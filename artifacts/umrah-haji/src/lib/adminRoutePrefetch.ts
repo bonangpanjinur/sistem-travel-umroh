@@ -111,6 +111,7 @@ const map: Record<string, () => Promise<unknown>> = {
   "/admin/bus-providers": () => import("@/pages/admin/AdminBusProviders"),
   "/admin/announcements": () => import("@/pages/admin/AdminAnnouncements"),
   "/admin/api-connect": () => import("@/pages/admin/AdminApiConnect"),
+  "/admin/system-health": () => import("@/pages/admin/AdminSystemHealth"),
   "/admin/supabase-setup": () => import("@/pages/admin/AdminSupabaseSetup"),
   "/admin/email-templates": () => import("@/pages/admin/AdminEmailTemplates"),
   "/admin/push-notifications": () => import("@/pages/admin/AdminPushNotifications"),
