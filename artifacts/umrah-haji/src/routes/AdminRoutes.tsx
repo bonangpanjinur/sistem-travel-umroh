@@ -202,6 +202,7 @@ const AdminSmartNotif = lazy(() => import("@/pages/admin/AdminSmartNotif"));
 const AdminRekomendasiPaket = lazy(() => import("@/pages/admin/AdminRekomendasiPaket"));
 const AdminPackageProfitabilityComparison = lazy(() => import("@/pages/admin/AdminPackageProfitabilityComparison"));
 const AdminIntegrationSettings = lazy(() => import("@/pages/admin/AdminIntegrationSettings"));
+const AdminSystemHealth = lazy(() => import("@/pages/admin/AdminSystemHealth"));
 
 const ALL_STAFF_ROLES = ['super_admin', 'owner', 'branch_manager', 'finance', 'sales', 'marketing', 'operational', 'equipment', 'agent'] as const;
 
@@ -359,6 +360,7 @@ export default function AdminRoutes() {
       <Route path="api-connect" element={<P k={PERMISSIONS.API_CONNECT}><AdminApiConnect /></P>} />
       <Route path="supabase-setup" element={<P k={PERMISSIONS.SUPABASE_SETUP}><AdminSupabaseSetup /></P>} />
       <Route path="integration-settings" element={<P k={PERMISSIONS.API_CONNECT}><LazyPage><AdminIntegrationSettings /></LazyPage></P>} />
+      <Route path="system-health" element={<P k={PERMISSIONS.API_CONNECT}><LazyPage><AdminSystemHealth /></LazyPage></P>} />
 
       {/* Fase 1 — Keanggotaan & Komisi Cabang */}
       <Route path="memberships" element={<P k={PERMISSIONS.MEMBERSHIPS}><AdminMemberships /></P>} />

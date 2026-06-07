@@ -27,6 +27,7 @@ const SETTINGS_PATH_TO_CATEGORY: Record<string, SettingsCategoryKey> = {
   '/admin/access-simulator': 'access',
   '/admin/api-connect': 'integration',
   '/admin/integration-settings': 'integration',
+  '/admin/system-health': 'integration',
   '/admin/webhooks': 'integration',
   '/admin/email-templates': 'integration',
   '/admin/push-notifications': 'integration',

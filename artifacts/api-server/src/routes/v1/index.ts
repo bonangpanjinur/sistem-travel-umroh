@@ -8,6 +8,7 @@ import kursRouter from './kurs.js';
 import chatbotRouter from './chatbot.js';
 import whatsappRouter from './whatsapp.js';
 import integrationsRouter from './integrations.js';
+import systemRouter from './system.js';
 
 const v1Router = Router();
 
@@ -20,5 +21,6 @@ v1Router.use('/kurs', kursRouter);
 v1Router.use('/chatbot', chatbotRouter);
 v1Router.use('/whatsapp', whatsappRouter);
 v1Router.use('/settings/integrations', integrationsRouter);
+v1Router.use('/system', systemRouter);
 
 export default v1Router;
