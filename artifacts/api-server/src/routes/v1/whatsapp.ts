@@ -414,30 +414,16 @@ router.delete('/provider/:id', async (req, res) => {
   }
 });
 
-// ─── POST /api/v1/whatsapp/provider/test ────────────────────────────────
-// Test connection with given credentials (not saved)
-router.post('/provider/test', async (req, res) => {
-  const { provider, api_key, sender_number, provider_config = {} } = req.body as {
-    provider: string;
-    api_key?: string;
-    sender_number?: string;
-    provider_config?: Record<string, any>;
-  };
-  const testPhone = sender_number || '6281234567890';
-  const testMsg   = '[Test] Koneksi WA berhasil dari Vinstour Travel Portal 🚀';
-  const cfg: WAProviderConfig = {
-    provider,
-    api_key: api_key || null,
-    sender_number: sender_number || null,
-    is_active: true,
-    provider_config,
-    display_name: null,
-  };
+// ─── Non-destructive provider test ───────────────────────────────────────
+type TestResult = { success: boolean; message?: string; error?: string; device?: any };
 
+async function testProvider(cfg: WAProviderConfig): Promise<TestResult> {
+  const { provider } = cfg;
+
+  // ── Fonnte: check device status (no message sent) ──
   if (provider === 'fonnte') {
-    // Test via device endpoint (no message sent)
-    const token = api_key || process.env['FONNTE_TOKEN'];
-    if (!token) { res.json({ success: false, error: 'Token belum diisi' }); return; }
+    const token = cfg.api_key || process.env['FONNTE_TOKEN'];
+    if (!token) return { success: false, error: 'Token Fonnte belum dikonfigurasi' };
     try {
       const resp = await fetch('https://api.fonnte.com/device', {
         method: 'POST',
@@ -445,20 +431,138 @@ router.post('/provider/test', async (req, res) => {
         body: new FormData(),
       });
       const data = (await resp.json()) as any;
-      res.json({
-        success: data.status === 'connect',
+      const ok = data.status === 'connect';
+      return {
+        success: ok,
         device: data,
-        error: data.status !== 'connect' ? (data.reason || 'Device tidak terhubung') : undefined,
-      });
-    } catch (e: any) {
-      res.json({ success: false, error: e.message });
-    }
-    return;
+        message: ok ? `Terhubung — ${data.name || data.device || 'OK'}` : undefined,
+        error:   !ok ? (data.reason || data.message || 'Device tidak terhubung') : undefined,
+      };
+    } catch (e: any) { return { success: false, error: e.message }; }
   }
 
-  // For other providers, send test message to sender_number
-  const result = await dispatchSend(cfg, testPhone, testMsg);
+  // ── Meta: validate token via Graph API (no message sent) ──
+  if (provider === 'meta') {
+    const token   = cfg.api_key;
+    const phoneId = cfg.provider_config['phone_number_id'] as string;
+    const version = (cfg.provider_config['api_version'] as string) || 'v19.0';
+    if (!token)   return { success: false, error: 'Access Token Meta belum dikonfigurasi' };
+    if (!phoneId) return { success: false, error: 'Phone Number ID Meta belum dikonfigurasi' };
+    try {
+      const resp = await fetch(
+        `https://graph.facebook.com/${version}/${phoneId}?fields=display_phone_number,verified_name,quality_rating&access_token=${token}`,
+      );
+      const data = (await resp.json()) as any;
+      if (data.error) return { success: false, error: data.error.message || 'Token Meta tidak valid' };
+      const label = [data.display_phone_number, data.verified_name].filter(Boolean).join(' · ');
+      return { success: true, message: `Terhubung — ${label || phoneId}`, device: data };
+    } catch (e: any) { return { success: false, error: e.message }; }
+  }
+
+  // ── UltraMsg: check instance status (no message sent) ──
+  if (provider === 'ultramsg') {
+    const token      = cfg.api_key;
+    const instanceId = cfg.provider_config['instance_id'] as string;
+    if (!token || !instanceId) return { success: false, error: 'Instance ID atau Token UltraMsg belum dikonfigurasi' };
+    try {
+      const resp = await fetch(`https://api.ultramsg.com/${instanceId}/instance/status?token=${token}`);
+      const data = (await resp.json()) as any;
+      if (data.error) return { success: false, error: data.error };
+      const connected = data.status?.accountStatus?.status === 'authenticated';
+      return {
+        success: connected,
+        device: data,
+        message: connected ? `Terhubung — ${data.status?.accountInfo?.pushname || 'OK'}` : undefined,
+        error:   !connected ? (data.status?.accountStatus?.substatus || 'Instance tidak terhubung') : undefined,
+      };
+    } catch (e: any) { return { success: false, error: e.message }; }
+  }
+
+  // ── Wablas: check device info (no message sent) ──
+  if (provider === 'wablas') {
+    const token  = cfg.api_key;
+    const domain = (cfg.provider_config['domain'] as string) || 'solo.wablas.com';
+    if (!token) return { success: false, error: 'Token Wablas belum dikonfigurasi' };
+    try {
+      const resp = await fetch(`https://${domain}/api/device/info`, { headers: { Authorization: token } });
+      const data = (await resp.json()) as any;
+      if (!resp.ok || data.status === false) return { success: false, error: data.message || 'Koneksi Wablas gagal' };
+      return { success: true, message: `Terhubung — ${data.data?.name || data.data?.device || 'OK'}`, device: data.data };
+    } catch (e: any) { return { success: false, error: e.message }; }
+  }
+
+  // ── Custom: check endpoint reachability (no message sent) ──
+  if (provider === 'custom') {
+    const endpoint = cfg.provider_config['endpoint_url'] as string;
+    if (!endpoint) return { success: false, error: 'Endpoint URL Custom belum dikonfigurasi' };
+    try {
+      const controller = new AbortController();
+      const t = setTimeout(() => controller.abort(), 6000);
+      const resp = await fetch(endpoint, { method: 'HEAD', signal: controller.signal }).catch(() =>
+        fetch(endpoint, { method: 'OPTIONS', signal: controller.signal }),
+      );
+      clearTimeout(t);
+      const ok = resp.status < 500;
+      return { success: ok, message: ok ? `Endpoint terjangkau (HTTP ${resp.status})` : undefined, error: !ok ? `HTTP ${resp.status}` : undefined };
+    } catch (e: any) { return { success: false, error: `Endpoint tidak dapat dijangkau: ${e.message}` }; }
+  }
+
+  // ── Watzap / other: send actual test message (no status API available) ──
+  const result = await dispatchSend(cfg, cfg.sender_number || '6281234567890', '[Test] Koneksi WA dari Vinstour Travel 🚀');
+  return { success: result.success, error: result.error };
+}
+
+// ─── POST /api/v1/whatsapp/provider/test ────────────────────────────────
+// Test connection with provided credentials (not saved to DB)
+router.post('/provider/test', async (req, res) => {
+  const { provider, api_key, sender_number, provider_config = {} } = req.body as {
+    provider: string;
+    api_key?: string;
+    sender_number?: string;
+    provider_config?: Record<string, any>;
+  };
+  if (!provider) { res.status(400).json({ success: false, error: 'provider wajib diisi' }); return; }
+  const cfg: WAProviderConfig = {
+    provider,
+    api_key: (api_key && !api_key.startsWith('••')) ? api_key : null,
+    sender_number: sender_number || null,
+    is_active: true,
+    provider_config,
+    display_name: null,
+  };
+  // For Fonnte with env fallback
+  if (provider === 'fonnte' && !cfg.api_key) cfg.api_key = process.env['FONNTE_TOKEN'] || null;
+  const result = await testProvider(cfg);
   res.json(result);
+});
+
+// ─── POST /api/v1/whatsapp/provider/:id/test ─────────────────────────────
+// Test a saved provider config (loads api_key from DB, updates last_test result)
+router.post('/provider/:id/test', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const { rows } = await pool.query(
+      `SELECT provider, api_key, sender_number, is_active, provider_config, display_name
+       FROM whatsapp_config WHERE id = $1`,
+      [id],
+    );
+    if (!rows[0]) { res.status(404).json({ success: false, error: 'Konfigurasi tidak ditemukan' }); return; }
+    const cfg = rows[0] as WAProviderConfig;
+    // Fonnte env fallback
+    if (cfg.provider === 'fonnte' && !cfg.api_key) cfg.api_key = process.env['FONNTE_TOKEN'] || null;
+
+    const result = await testProvider(cfg);
+
+    // Persist test result
+    await pool.query(
+      `UPDATE whatsapp_config SET last_tested_at = NOW(), last_test_ok = $1 WHERE id = $2`,
+      [result.success, id],
+    );
+
+    res.json(result);
+  } catch (e: any) {
+    res.status(500).json({ success: false, error: e.message });
+  }
 });
 
 // ─── GET /api/v1/whatsapp/settings ────────────────────────────────────────

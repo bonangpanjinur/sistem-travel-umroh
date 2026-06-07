@@ -151,6 +151,8 @@ export default function AdminWAProvider() {
   const [isSaving, setIsSaving] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  // Per-card test state for saved configs
+  const [cardTest, setCardTest] = useState<Record<string, { loading: boolean; result: { success: boolean; message: string } | null }>>({});
 
   // ── Fetch configs from DB via Supabase RPC ──
   const { data: configs = [], isLoading, refetch } = useQuery<WAConfig[]>({
@@ -305,6 +307,28 @@ export default function AdminWAProvider() {
     qc.invalidateQueries({ queryKey: ["wa-provider-configs"] });
   }
 
+  async function handleTestSaved(id: string) {
+    setCardTest(prev => ({ ...prev, [id]: { loading: true, result: null } }));
+    try {
+      const resp = await fetch(`/api/v1/whatsapp/provider/${id}/test`, { method: "POST" });
+      const data = await resp.json();
+      const msg = data.success
+        ? (data.message || "Koneksi berhasil ✅")
+        : (data.error || "Test gagal");
+      setCardTest(prev => ({ ...prev, [id]: { loading: false, result: { success: data.success, message: msg } } }));
+      if (data.success) {
+        toast.success(`✅ ${msg}`);
+        qc.invalidateQueries({ queryKey: ["wa-provider-configs"] });
+      } else {
+        toast.error(`❌ ${msg}`);
+      }
+    } catch {
+      const msg = "API server tidak aktif. Jalankan backend untuk test koneksi.";
+      setCardTest(prev => ({ ...prev, [id]: { loading: false, result: { success: false, message: msg } } }));
+      toast.error(msg);
+    }
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -332,30 +356,52 @@ export default function AdminWAProvider() {
             {configs.map(cfg => {
               const prov = PROVIDERS.find(p => p.id === cfg.provider);
               const colKey = prov?.color ?? "gray";
+              const ct = cardTest[cfg.id!];
+              const cardResult = ct?.result ?? null;
               return (
                 <Card key={cfg.id} className={cn("border-2 transition-all", cfg.is_active ? "border-green-400 shadow-sm" : "border-border")}>
-                  <CardContent className="pt-4 pb-3">
+                  <CardContent className="pt-4 pb-3 space-y-2">
                     <div className="flex items-start gap-3">
-                      <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center text-xl border-2", colorMap[colKey])}>
+                      <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center text-xl border-2 shrink-0", colorMap[colKey])}>
                         {prov?.logo ?? "📱"}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-semibold text-sm">{cfg.display_name || prov?.name || cfg.provider}</span>
                           {cfg.is_active && <Badge className="bg-green-100 text-green-700 border-green-200 text-xs">Aktif</Badge>}
-                          {cfg.last_test_ok === true && <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 text-xs gap-1"><CheckCircle2 className="h-3 w-3" />Terkoneksi</Badge>}
-                          {cfg.last_test_ok === false && <Badge className="bg-red-100 text-red-700 border-red-200 text-xs gap-1"><XCircle className="h-3 w-3" />Gagal</Badge>}
+                          {cfg.last_test_ok === true && !cardResult && (
+                            <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 text-xs gap-1">
+                              <CheckCircle2 className="h-3 w-3" />Terkoneksi
+                            </Badge>
+                          )}
+                          {cfg.last_test_ok === false && !cardResult && (
+                            <Badge className="bg-red-100 text-red-700 border-red-200 text-xs gap-1">
+                              <XCircle className="h-3 w-3" />Gagal
+                            </Badge>
+                          )}
                         </div>
                         <p className="text-xs text-muted-foreground mt-0.5">
                           {cfg.sender_number || "—"} · {cfg.api_key_hint ? `Key: ${cfg.api_key_hint}` : "Key belum diset"}
                         </p>
-                        {cfg.last_tested_at && (
+                        {cfg.last_tested_at && !cardResult && (
                           <p className="text-[11px] text-muted-foreground">
-                            Terakhir test: {format(new Date(cfg.last_tested_at), "d MMM yyyy HH:mm", { locale: idLocale })}
+                            Test terakhir: {format(new Date(cfg.last_tested_at), "d MMM yyyy HH:mm", { locale: idLocale })}
                           </p>
                         )}
                       </div>
-                      <div className="flex gap-1 shrink-0">
+                      <div className="flex flex-wrap gap-1 shrink-0 justify-end">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs gap-1 text-blue-700 border-blue-200 hover:bg-blue-50"
+                          disabled={ct?.loading}
+                          onClick={() => handleTestSaved(cfg.id!)}
+                        >
+                          {ct?.loading
+                            ? <Loader2 className="h-3 w-3 animate-spin" />
+                            : <TestTube2 className="h-3 w-3" />}
+                          Test
+                        </Button>
                         {!cfg.is_active && (
                           <Button size="sm" variant="outline" className="h-7 text-xs gap-1 text-green-700 border-green-200 hover:bg-green-50"
                             onClick={() => handleSetActive(cfg.id!)}>
@@ -371,6 +417,21 @@ export default function AdminWAProvider() {
                         </Button>
                       </div>
                     </div>
+
+                    {/* Inline test result */}
+                    {cardResult && (
+                      <div className={cn(
+                        "flex items-start gap-2 rounded-md px-3 py-2 text-xs",
+                        cardResult.success
+                          ? "bg-emerald-50 border border-emerald-200 text-emerald-800"
+                          : "bg-red-50 border border-red-200 text-red-800",
+                      )}>
+                        {cardResult.success
+                          ? <CheckCircle2 className="h-3.5 w-3.5 shrink-0 mt-0.5 text-emerald-600" />
+                          : <XCircle className="h-3.5 w-3.5 shrink-0 mt-0.5 text-red-600" />}
+                        <span>{cardResult.message}</span>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               );
