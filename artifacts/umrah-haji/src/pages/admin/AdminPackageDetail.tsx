@@ -41,6 +41,7 @@ import { PackagePriceTrendCard } from "@/components/admin/PackagePriceTrendCard"
 import { PackagePriceAuditCard } from "@/components/admin/PackagePriceAuditCard";
 import { DeparturePriceComparisonCard } from "@/components/admin/DeparturePriceComparisonCard";
 import { PackageFinancialSection } from "@/components/admin/financial/PackageFinancialSection";
+import { PackageFinancialSummaryCard } from "@/components/admin/financial/PackageFinancialSummaryCard";
 import { toast } from "sonner";
 
 const MONTHS = [
@@ -1004,6 +1005,17 @@ export default function AdminPackageDetail() {
 
         {/* ═══ TAB: KEUANGAN ════════════════════════════════════ */}
         <TabsContent value="keuangan" className="space-y-6">
+          {/* Dashboard summary card — aggregates all departures */}
+          <PackageFinancialSummaryCard
+            departures={(departures || []).map((d: any) => ({
+              id: d.id,
+              departure_date: d.departure_date ?? null,
+              return_date: d.return_date ?? null,
+              status: d.status ?? "open",
+            }))}
+            packageName={packageData?.name}
+          />
+
           <Card>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
