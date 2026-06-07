@@ -130,8 +130,8 @@ export default function DepartureDetail() {
         hotel_madinah:hotels!departures_hotel_madinah_id_fkey(id, name, star_rating, city),
         departure_airport:airports!departures_departure_airport_id_fkey(id, name, code, city),
         arrival_airport:airports!departures_arrival_airport_id_fkey(id, name, code, city),
-        muthawif:employees!departures_muthawif_id_fkey(id, full_name),
-        team_leader:employees!departures_team_leader_id_fkey(id, full_name)
+        muthawif:muthawifs!departures_muthawif_id_fkey(id, name),
+        team_leader:customers!departures_team_leader_id_fkey(id, full_name)
       `;
 
       // 1. Try by custom slug field
@@ -467,7 +467,7 @@ export default function DepartureDetail() {
                       <UserCheck className="h-5 w-5 text-primary" />
                       <div>
                         <p className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider">Muthawif</p>
-                        <p className="text-sm font-medium">{dep.muthawif.full_name}</p>
+                        <p className="text-sm font-medium">{dep.muthawif.name}</p>
                       </div>
                     </div>
                   )}
