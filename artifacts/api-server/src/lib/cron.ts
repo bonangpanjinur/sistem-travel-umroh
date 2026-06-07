@@ -1,5 +1,7 @@
 import cron from "node-cron";
 import { logger } from "./logger.js";
+import { pool } from "./db.js";
+import { runIntegrationHealthCheck } from "./integrationHealthCheck.js";
 
 const API_BASE = `http://localhost:${process.env["PORT"] || "8080"}`;
 
@@ -31,6 +33,14 @@ async function triggerDepartureReminder(days: 7 | 1) {
   }
 }
 
+async function runHealthCheck() {
+  try {
+    await runIntegrationHealthCheck(pool);
+  } catch (err: any) {
+    logger.error({ err }, "Cron integration health check failed");
+  }
+}
+
 export function startCronJobs() {
   // Setiap hari jam 08:00 WIB (01:00 UTC) — cicilan + payment deadlines
   cron.schedule("0 1 * * *", () => {
@@ -51,5 +61,13 @@ export function startCronJobs() {
     triggerDepartureReminder(1);
   }, { timezone: "UTC" });
 
-  logger.info("Cron jobs registered: cicilan+payment @08:00 WIB, H-7 @07:00 WIB, H-1 @06:00 WIB");
+  // Setiap jam — integration health check (cek Gemini, Midtrans, dll)
+  cron.schedule("0 * * * *", () => {
+    logger.info("Cron: running integration health check");
+    runHealthCheck();
+  }, { timezone: "UTC" });
+
+  logger.info(
+    "Cron jobs registered: cicilan+payment @08:00 WIB, H-7 @07:00 WIB, H-1 @06:00 WIB, integration-health @every hour",
+  );
 }

@@ -7,7 +7,7 @@ import { useNavigate } from "react-router-dom";
 
 export interface AdminNotification {
   id: string;
-  type: 'booking' | 'payment' | 'device_registration' | 'chat_lead' | 'sos_alert' | 'visa_update' | 'approval_request' | 'lead' | 'document' | 'savings_converted';
+  type: 'booking' | 'payment' | 'device_registration' | 'chat_lead' | 'sos_alert' | 'visa_update' | 'approval_request' | 'lead' | 'document' | 'savings_converted' | 'system_alert';
   title: string;
   message: string;
   createdAt: Date;
@@ -91,6 +91,49 @@ export function useAdminNotifications() {
     setNotifications([]);
     setUnreadCount(0);
   }, []);
+
+  // ── Poll integration health alerts every 2 minutes ──────────────────────────
+  useEffect(() => {
+    const seenAlertIds = new Set<string>();
+
+    async function fetchAlerts() {
+      try {
+        const res = await fetch('/api/v1/settings/integrations/alerts');
+        if (!res.ok) return;
+        const data: { alerts: { id: string; service: string; title: string; message: string; ts: string }[] } =
+          await res.json();
+        if (!Array.isArray(data.alerts) || data.alerts.length === 0) return;
+
+        const newAlerts = data.alerts.filter(a => !seenAlertIds.has(a.id));
+        if (newAlerts.length === 0) return;
+
+        // Acknowledge first so they don't re-appear after component remount
+        await fetch('/api/v1/settings/integrations/alerts/ack', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids: newAlerts.map(a => a.id) }),
+        }).catch(() => {});
+
+        for (const alert of newAlerts) {
+          seenAlertIds.add(alert.id);
+          addNotification({
+            type: 'system_alert',
+            title: `⚠️ ${alert.title}`,
+            message: alert.message,
+            link: '/admin/integration-settings',
+            data: alert,
+          });
+          showBrowserNotification(`⚠️ ${alert.title}`, alert.message, '/admin/integration-settings');
+        }
+      } catch {
+        // silent — polling, non-critical
+      }
+    }
+
+    fetchAlerts();
+    const timer = setInterval(fetchAlerts, 2 * 60 * 1000);
+    return () => clearInterval(timer);
+  }, [addNotification]);
 
   useEffect(() => {
     if (adminChannelInstance && isSubscribedRef.current) {

@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { pool } from '../../lib/db.js';
+import { getAlerts, ackAlerts } from '../../lib/integrationHealthCheck.js';
 
 const router = Router();
 
@@ -266,6 +267,29 @@ router.post('/test/:service', async (req: any, res: any) => {
     return res.status(500).json({ ok: false, error: e.message });
   } finally {
     client.release();
+  }
+});
+
+// ── GET /api/v1/settings/integrations/alerts ──────────────────────────────────
+// Returns pending integration health-check alerts (unread degradation events).
+router.get('/alerts', async (_req: any, res: any) => {
+  try {
+    const alerts = await getAlerts(pool);
+    return res.json({ alerts });
+  } catch (e: any) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// ── POST /api/v1/settings/integrations/alerts/ack ─────────────────────────────
+// Acknowledge (dismiss) alerts. Body: { ids: string[] } — empty array = ack all.
+router.post('/alerts/ack', async (req: any, res: any) => {
+  try {
+    const ids: string[] = Array.isArray(req.body?.ids) ? req.body.ids : [];
+    await ackAlerts(pool, ids);
+    return res.json({ ok: true });
+  } catch (e: any) {
+    return res.status(500).json({ error: e.message });
   }
 });
 

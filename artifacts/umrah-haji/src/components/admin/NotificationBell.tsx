@@ -1,7 +1,7 @@
 import {
   Bell, Check, Trash2, Calendar, CreditCard, MessageCircle,
   AlertTriangle, ShieldCheck, ClipboardCheck, UserPlus, FileSearch,
-  Smartphone, X, PiggyBank,
+  Smartphone, X, PiggyBank, Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -85,6 +85,14 @@ const CATEGORIES: CategoryDef[] = [
     bg: 'bg-red-50 dark:bg-red-950/40',
     link: '/admin/sos-alerts',
   },
+  {
+    label: 'Sistem',
+    types: ['system_alert'],
+    icon: Zap,
+    color: 'text-orange-600',
+    bg: 'bg-orange-50 dark:bg-orange-950/40',
+    link: '/admin/integration-settings',
+  },
 ];
 
 // ── Per-type icon + colour ────────────────────────────────────────────────────
@@ -107,6 +115,8 @@ function getTypeStyle(type: AdminNotification['type']) {
       return { icon: Smartphone, iconClass: 'text-slate-600', bgClass: 'bg-slate-100 dark:bg-slate-900/30' };
     case 'savings_converted':
       return { icon: PiggyBank, iconClass: 'text-teal-600', bgClass: 'bg-teal-100 dark:bg-teal-900/30' };
+    case 'system_alert':
+      return { icon: Zap, iconClass: 'text-orange-600', bgClass: 'bg-orange-100 dark:bg-orange-900/30' };
     default:
       return { icon: Bell, iconClass: 'text-muted-foreground', bgClass: 'bg-muted' };
   }
