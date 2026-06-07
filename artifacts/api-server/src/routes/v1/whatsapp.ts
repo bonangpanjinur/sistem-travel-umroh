@@ -1273,6 +1273,61 @@ router.delete('/contacts/:id', async (req, res) => {
   }
 });
 
+// ─── GET /contacts/:id/messages — riwayat percakapan per kontak ───────────
+router.get('/contacts/:id/messages', async (req, res) => {
+  try {
+    const { rows: contactRows } = await pool.query(
+      `SELECT phone, name FROM wa_contacts WHERE id = $1`, [req.params.id],
+    );
+    if (!contactRows[0]) { res.status(404).json({ error: 'Kontak tidak ditemukan' }); return; }
+    const phone = contactRows[0].phone as string;
+
+    // Incoming messages (from contact → us)
+    const { rows: incoming } = await pool.query(
+      `SELECT
+         id, message AS text, received_at AS ts,
+         chatbot_matched, reply_message, is_replied, replied_at,
+         'incoming' AS direction
+       FROM wa_incoming_messages
+       WHERE from_phone = $1
+       ORDER BY received_at DESC LIMIT 100`,
+      [phone],
+    );
+
+    // Outgoing messages (us → contact)
+    const { rows: outgoing } = await pool.query(
+      `SELECT
+         id::text AS id, message_content AS text, created_at AS ts,
+         template_code, status,
+         'outgoing' AS direction
+       FROM wa_send_logs
+       WHERE recipient_phone = $1
+       ORDER BY created_at DESC LIMIT 100`,
+      [phone],
+    );
+
+    // Merge + sort descending
+    const all = [...incoming, ...outgoing].sort(
+      (a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime(),
+    );
+
+    // Stats
+    const chatbotCount = incoming.filter((m: any) => m.chatbot_matched).length;
+
+    res.json({
+      contact: { id: req.params.id, phone, name: contactRows[0].name },
+      messages: all,
+      stats: {
+        incoming_count: incoming.length,
+        outgoing_count: outgoing.length,
+        chatbot_count: chatbotCount,
+      },
+    });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ═══════════════════════════════════════════════════════════════════════════
 //  BOT MENU — interactive numbered menu
 // ═══════════════════════════════════════════════════════════════════════════

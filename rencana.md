@@ -331,6 +331,20 @@ RBAC (15 role):
 | ✅ | Pengumuman admin | `AdminAnnouncements.tsx` |
 | ✅ | Smart notif, follow-up reminder | `AdminSmartNotif.tsx`, `AdminFollowUpReminder.tsx` |
 
+### Fase 4 — WhatsApp Bot & Inbox (Multi-Provider)
+
+| Status | Fitur | Lokasi |
+|--------|-------|--------|
+| ✅ | Multi-provider WA (Fonnte, Meta, Wablas, UltraMsg, Watzap, Custom) | `AdminWAProvider.tsx`, `whatsapp_config` |
+| ✅ | Test koneksi non-destructive per provider | `POST /api/v1/whatsapp/provider/test`, `POST /api/v1/whatsapp/provider/:id/test` |
+| ✅ | Broadcast tersegmentasi + template broadcast | `AdminWABroadcast.tsx`, `AdminWATemplateBroadcast.tsx` |
+| ✅ | Chatbot auto-reply berbasis kata kunci | `AdminWAChatbot.tsx`, `wa_chatbot_keywords` |
+| ✅ | Bot menu interaktif (nomor 1,2,3…) + Meta WABA interactive list | `AdminWABotMenu.tsx`, `wa_bot_menu_items` |
+| ✅ | Inbox WA — lihat & balas pesan masuk dari admin panel | `AdminWAInbox.tsx`, `wa_incoming_messages` |
+| ✅ | Kontak WA — daftar, opt-out, tags, sync dari data jamaah | `AdminWAContacts.tsx`, `wa_contacts` |
+| ✅ | Riwayat percakapan per kontak (incoming + outgoing) | `AdminWAContacts.tsx` — panel riwayat, `GET /contacts/:id/messages` |
+| ✅ | Webhook handler — incoming messages, delivery receipt, auto-reply | `POST /api/v1/whatsapp/webhook` |
+
 ---
 
 ## MODUL 14 — TOKO ONLINE (E-COMMERCE)
