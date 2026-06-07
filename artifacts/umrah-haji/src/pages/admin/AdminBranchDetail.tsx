@@ -1,6 +1,11 @@
 import { useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+} from "recharts";
+import { subMonths, startOfMonth, endOfMonth } from "date-fns";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +23,7 @@ import {
   ArrowLeft, Building2, MapPin, Phone, Mail, Globe, UserCircle2,
   Users, Network, BarChart3, Loader2, Plus, KeyRound, CheckCircle2,
   Copy, MessageCircle, TrendingUp, Plane, CalendarDays, Star,
+  DollarSign, Receipt, Download,
 } from "lucide-react";
 
 interface BranchDetailData {
@@ -121,6 +127,46 @@ export default function AdminBranchDetail() {
     enabled: !!id,
   });
 
+  const { data: branchCommissions = [] } = useQuery({
+    queryKey: ["branch-commissions-detail", id],
+    enabled: !!id,
+    queryFn: async () => {
+      const { data: d } = await (supabase as any)
+        .from("branch_commissions")
+        .select("id, commission_amount, commission_rate, status, created_at, paid_at, payment_reference, notes")
+        .eq("branch_id", id)
+        .order("created_at", { ascending: false });
+      return d ?? [];
+    },
+  });
+
+  const { data: monthlyRevenue = [] } = useQuery({
+    queryKey: ["branch-monthly-revenue-detail", id],
+    enabled: !!id,
+    queryFn: async () => {
+      const result = [];
+      for (let i = 5; i >= 0; i--) {
+        const d = subMonths(new Date(), i);
+        const s = startOfMonth(d).toISOString();
+        const e = endOfMonth(d).toISOString();
+        const [bkRes, pendRes] = await Promise.all([
+          (supabase as any).from("bookings").select("total_price")
+            .eq("branch_id", id).gte("created_at", s).lte("created_at", e)
+            .in("status", ["confirmed", "processing", "completed"]),
+          (supabase as any).from("bookings").select("id", { count: "exact", head: true })
+            .eq("branch_id", id).gte("created_at", s).lte("created_at", e),
+        ]);
+        const revenue = (bkRes.data ?? []).reduce((sum: number, b: any) => sum + Number(b.total_price || 0), 0);
+        result.push({
+          bulan: format(d, "MMM yy", { locale: localeId }),
+          revenue,
+          booking: pendRes.count ?? 0,
+        });
+      }
+      return result;
+    },
+  });
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-24">
@@ -194,18 +240,21 @@ export default function AdminBranchDetail() {
 
       {/* Tabs */}
       <Tabs defaultValue="info">
-        <TabsList className="grid grid-cols-4 w-full max-w-lg">
+        <TabsList className="grid grid-cols-5 w-full max-w-2xl">
           <TabsTrigger value="info">
-            <Building2 className="h-4 w-4 mr-1.5 hidden sm:inline" />Info
+            <Building2 className="h-4 w-4 mr-1 hidden sm:inline" />Info
           </TabsTrigger>
           <TabsTrigger value="staff">
-            <Users className="h-4 w-4 mr-1.5 hidden sm:inline" />Staff <span className="ml-1 text-xs opacity-70">({staff.length})</span>
+            <Users className="h-4 w-4 mr-1 hidden sm:inline" />Staff <span className="ml-1 text-xs opacity-70">({staff.length})</span>
           </TabsTrigger>
           <TabsTrigger value="agents">
-            <Network className="h-4 w-4 mr-1.5 hidden sm:inline" />Agent <span className="ml-1 text-xs opacity-70">({agents.length})</span>
+            <Network className="h-4 w-4 mr-1 hidden sm:inline" />Agent <span className="ml-1 text-xs opacity-70">({agents.length})</span>
           </TabsTrigger>
           <TabsTrigger value="stats">
-            <BarChart3 className="h-4 w-4 mr-1.5 hidden sm:inline" />Statistik
+            <BarChart3 className="h-4 w-4 mr-1 hidden sm:inline" />Statistik
+          </TabsTrigger>
+          <TabsTrigger value="keuangan">
+            <DollarSign className="h-4 w-4 mr-1 hidden sm:inline" />Keuangan
           </TabsTrigger>
         </TabsList>
 
@@ -446,6 +495,168 @@ export default function AdminBranchDetail() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* === TAB KEUANGAN === */}
+        <TabsContent value="keuangan" className="space-y-5 mt-4">
+          {/* KPI Cards */}
+          {(() => {
+            const komisiPending   = branchCommissions.filter((c: any) => c.status === "pending").reduce((s: number, c: any) => s + Number(c.commission_amount || 0), 0);
+            const komisiApproved  = branchCommissions.filter((c: any) => c.status === "approved").reduce((s: number, c: any) => s + Number(c.commission_amount || 0), 0);
+            const komisiPaid      = branchCommissions.filter((c: any) => c.status === "paid").reduce((s: number, c: any) => s + Number(c.commission_amount || 0), 0);
+            const totalRevenue    = Number(bookingStats.total_revenue || 0);
+            const totalBookings   = bookingStats.total_bookings;
+
+            function exportCommCSV() {
+              if (!branchCommissions.length) return;
+              const rows = branchCommissions.map((c: any, i: number) => ({
+                No: i + 1,
+                Tanggal: format(new Date(c.created_at), "dd/MM/yyyy"),
+                Nominal: Number(c.commission_amount || 0),
+                Rate: c.commission_rate ?? "-",
+                Status: c.status,
+                "Tgl Dibayar": c.paid_at ? format(new Date(c.paid_at), "dd/MM/yyyy") : "-",
+                Referensi: c.payment_reference || "-",
+                Catatan: c.notes || "-",
+              }));
+              const header = Object.keys(rows[0]).join(",");
+              const body = rows.map((r: any) => Object.values(r).map((v: any) => JSON.stringify(v ?? "")).join(",")).join("\n");
+              const blob = new Blob(["\uFEFF" + header + "\n" + body], { type: "text/csv;charset=utf-8;" });
+              const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
+              a.download = `Komisi_${branch.code}_${format(new Date(), "yyyyMMdd")}.csv`; a.click();
+            }
+
+            const STATUS_KOMISI: Record<string, { label: string; cls: string }> = {
+              pending:  { label: "Pending",    cls: "bg-amber-100 text-amber-800" },
+              approved: { label: "Disetujui",  cls: "bg-blue-100 text-blue-800" },
+              paid:     { label: "Dibayar",    cls: "bg-emerald-100 text-emerald-800" },
+              rejected: { label: "Ditolak",    cls: "bg-red-100 text-red-800" },
+            };
+
+            return (
+              <>
+                {/* Summary cards */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-2 mb-1">
+                        <DollarSign className="h-4 w-4 text-emerald-600" />
+                        <span className="text-xs text-muted-foreground">Total Revenue</span>
+                      </div>
+                      <p className="font-bold text-lg text-emerald-700">{formatCurrency(totalRevenue)}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{totalBookings} booking</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Receipt className="h-4 w-4 text-amber-600" />
+                        <span className="text-xs text-muted-foreground">Komisi Pending</span>
+                      </div>
+                      <p className="font-bold text-lg text-amber-700">{formatCurrency(komisiPending)}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{branchCommissions.filter((c: any) => c.status === "pending").length} transaksi</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-2 mb-1">
+                        <TrendingUp className="h-4 w-4 text-blue-600" />
+                        <span className="text-xs text-muted-foreground">Komisi Disetujui</span>
+                      </div>
+                      <p className="font-bold text-lg text-blue-700">{formatCurrency(komisiApproved)}</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-2 mb-1">
+                        <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                        <span className="text-xs text-muted-foreground">Komisi Dibayar</span>
+                      </div>
+                      <p className="font-bold text-lg text-emerald-700">{formatCurrency(komisiPaid)}</p>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Monthly revenue chart */}
+                <Card>
+                  <CardHeader className="pb-3 flex flex-row items-center justify-between">
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                      <BarChart3 className="h-4 w-4" />Tren Revenue 6 Bulan Terakhir
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {monthlyRevenue.every((m: any) => m.revenue === 0) ? (
+                      <p className="text-sm text-muted-foreground text-center py-8">Belum ada data revenue</p>
+                    ) : (
+                      <ResponsiveContainer width="100%" height={220}>
+                        <BarChart data={monthlyRevenue} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                          <XAxis dataKey="bulan" tick={{ fontSize: 11 }} />
+                          <YAxis tick={{ fontSize: 10 }} tickFormatter={(v: number) => v >= 1_000_000 ? `${(v / 1_000_000).toFixed(0)}jt` : `${(v / 1_000).toFixed(0)}rb`} />
+                          <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                          <Legend wrapperStyle={{ fontSize: 11 }} />
+                          <Bar dataKey="revenue" name="Revenue (Rp)" fill="#10b981" radius={[3, 3, 0, 0]} />
+                          <Bar dataKey="booking" name="Booking" fill="#6366f1" radius={[3, 3, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Commission history */}
+                <Card>
+                  <CardHeader className="pb-3 flex flex-row items-center justify-between">
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                      <Receipt className="h-4 w-4" />Riwayat Komisi Cabang
+                    </CardTitle>
+                    <Button size="sm" variant="outline" onClick={exportCommCSV} disabled={!branchCommissions.length}>
+                      <Download className="h-3.5 w-3.5 mr-1" />Export CSV
+                    </Button>
+                  </CardHeader>
+                  <CardContent>
+                    {branchCommissions.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-8">Belum ada data komisi cabang</p>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b">
+                              <th className="text-left py-2 px-3 text-xs font-medium text-muted-foreground">Tanggal</th>
+                              <th className="text-right py-2 px-3 text-xs font-medium text-muted-foreground">Nominal</th>
+                              <th className="text-center py-2 px-3 text-xs font-medium text-muted-foreground">Rate</th>
+                              <th className="text-center py-2 px-3 text-xs font-medium text-muted-foreground">Status</th>
+                              <th className="text-left py-2 px-3 text-xs font-medium text-muted-foreground">Referensi</th>
+                              <th className="text-left py-2 px-3 text-xs font-medium text-muted-foreground">Tgl Dibayar</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {branchCommissions.slice(0, 20).map((c: any) => {
+                              const st = STATUS_KOMISI[c.status] ?? { label: c.status, cls: "bg-gray-100 text-gray-700" };
+                              return (
+                                <tr key={c.id} className="border-b last:border-0 hover:bg-muted/30">
+                                  <td className="py-2 px-3 text-xs">{format(new Date(c.created_at), "dd MMM yyyy", { locale: localeId })}</td>
+                                  <td className="py-2 px-3 text-right font-semibold text-emerald-700">{formatCurrency(c.commission_amount)}</td>
+                                  <td className="py-2 px-3 text-center text-xs">{c.commission_rate != null ? `${c.commission_rate}%` : "—"}</td>
+                                  <td className="py-2 px-3 text-center">
+                                    <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${st.cls}`}>{st.label}</span>
+                                  </td>
+                                  <td className="py-2 px-3 text-xs font-mono">{c.payment_reference || "—"}</td>
+                                  <td className="py-2 px-3 text-xs">{c.paid_at ? format(new Date(c.paid_at), "dd MMM yyyy", { locale: localeId }) : "—"}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                        {branchCommissions.length > 20 && (
+                          <p className="text-xs text-muted-foreground text-center mt-2">Menampilkan 20 dari {branchCommissions.length} data</p>
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </>
+            );
+          })()}
         </TabsContent>
       </Tabs>
 

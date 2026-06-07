@@ -27,7 +27,7 @@ import {
   TableHeader, TableRow
 } from "@/components/ui/table";
 import { formatCurrency } from "@/lib/format";
-import { DollarSign, TrendingUp, Clock, CheckCircle, FileDown, FileSpreadsheet } from "lucide-react";
+import { DollarSign, TrendingUp, Clock, CheckCircle, FileDown, FileSpreadsheet, Percent, GitMerge } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
@@ -80,6 +80,29 @@ export default function AgentCommissions() {
     pending: commissions?.filter(c => c.status === 'pending').reduce((sum, c) => sum + Number(c.commission_amount), 0) || 0,
     approved: commissions?.filter(c => c.status === 'approved').reduce((sum, c) => sum + Number(c.commission_amount), 0) || 0,
     paid: commissions?.filter(c => c.status === 'paid').reduce((sum, c) => sum + Number(c.commission_amount), 0) || 0,
+  };
+
+  const { data: overrideCommissions = [] } = useQuery({
+    queryKey: ['agent-override-mine', agentData?.id],
+    enabled: !!agentData?.id,
+    queryFn: async () => {
+      const { data: d } = await (supabase as any)
+        .from('agent_override_commissions')
+        .select(`
+          id, override_percentage, override_amount, status, created_at, paid_at, notes,
+          sub_agent:agents!sub_agent_id(id, company_name, contact_name, agent_code),
+          booking:bookings!booking_id(booking_code, total_price)
+        `)
+        .eq('agent_id', agentData!.id)
+        .order('created_at', { ascending: false });
+      return d ?? [];
+    },
+  });
+
+  const overrideStats = {
+    total: overrideCommissions.reduce((s: number, c: any) => s + Number(c.override_amount || 0), 0),
+    pending: overrideCommissions.filter((c: any) => c.status === 'pending').reduce((s: number, c: any) => s + Number(c.override_amount || 0), 0),
+    paid: overrideCommissions.filter((c: any) => c.status === 'paid').reduce((s: number, c: any) => s + Number(c.override_amount || 0), 0),
   };
 
   const getStatusBadge = (status: string) => {
@@ -304,6 +327,113 @@ export default function AgentCommissions() {
           )}
         </CardContent>
       </Card>
+      {/* Override Komisi dari Sub-Agen */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <GitMerge className="h-5 w-5 text-violet-600" />
+          <h2 className="text-lg font-semibold">Override Komisi dari Sub-Agen</h2>
+          <span className="text-xs text-muted-foreground">(pendapatan override sebagai agen induk)</span>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Card>
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Total Override</p>
+                  <p className="text-xl font-bold text-violet-700">{formatCurrency(overrideStats.total)}</p>
+                </div>
+                <div className="p-3 rounded-full bg-violet-100">
+                  <Percent className="h-5 w-5 text-violet-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Pending</p>
+                  <p className="text-xl font-bold text-amber-600">{formatCurrency(overrideStats.pending)}</p>
+                </div>
+                <div className="p-3 rounded-full bg-amber-100">
+                  <Clock className="h-5 w-5 text-amber-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Sudah Dibayar</p>
+                  <p className="text-xl font-bold text-green-600">{formatCurrency(overrideStats.paid)}</p>
+                </div>
+                <div className="p-3 rounded-full bg-green-100">
+                  <CheckCircle className="h-5 w-5 text-green-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Riwayat Override</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {overrideCommissions.length === 0 ? (
+              <p className="text-muted-foreground text-center py-8 text-sm">
+                Belum ada override komisi dari sub-agen Anda
+              </p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Tanggal</TableHead>
+                    <TableHead>Sub-Agen</TableHead>
+                    <TableHead>Kode Booking</TableHead>
+                    <TableHead>Override %</TableHead>
+                    <TableHead>Jumlah Override</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Tgl Dibayar</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {overrideCommissions.map((oc: any) => (
+                    <TableRow key={oc.id}>
+                      <TableCell className="text-sm">
+                        {format(new Date(oc.created_at), "dd MMM yyyy", { locale: localeId })}
+                      </TableCell>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium text-sm">{oc.sub_agent?.company_name || oc.sub_agent?.contact_name || '—'}</p>
+                          <p className="text-xs text-muted-foreground font-mono">{oc.sub_agent?.agent_code || ''}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell className="font-mono text-sm">
+                        {oc.booking?.booking_code || '—'}
+                      </TableCell>
+                      <TableCell className="font-semibold text-violet-700">
+                        {oc.override_percentage}%
+                      </TableCell>
+                      <TableCell className="font-semibold text-violet-700">
+                        {formatCurrency(oc.override_amount || 0)}
+                      </TableCell>
+                      <TableCell>
+                        {getStatusBadge(oc.status)}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {oc.paid_at ? format(new Date(oc.paid_at), "dd MMM yyyy", { locale: localeId }) : '—'}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

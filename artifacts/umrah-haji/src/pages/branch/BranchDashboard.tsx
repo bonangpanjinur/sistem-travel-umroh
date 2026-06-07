@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,21 +11,25 @@ import { Label } from "@/components/ui/label";
 import { formatCurrency } from "@/lib/format";
 import {
   Users, DollarSign, Package, TrendingUp, Building2,
-  ArrowRight, CheckCircle2, Clock, AlertCircle, BarChart3, CalendarRange
+  ArrowRight, CheckCircle2, Clock, AlertCircle, BarChart3, CalendarRange, Bell,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from "recharts";
 import { format, subMonths, startOfMonth, endOfMonth } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 export default function BranchDashboard() {
   const { user, branchId } = useAuth();
+  const navigate = useNavigate();
   const today = new Date();
   const [dateFrom, setDateFrom] = useState<string>(format(startOfMonth(today), "yyyy-MM-dd"));
   const [dateTo, setDateTo] = useState<string>(format(endOfMonth(today), "yyyy-MM-dd"));
+  const [newBookingCount, setNewBookingCount] = useState(0);
+  const lastSeenRef = useRef<string | null>(null);
 
   const { data: branchData } = useQuery({
     queryKey: ["branch-data", user?.id],
@@ -41,6 +45,47 @@ export default function BranchDashboard() {
   });
 
   const bId = branchData?.id || branchId;
+
+  const { data: newBookingsCheck } = useQuery({
+    queryKey: ["branch-new-bookings-poll", bId],
+    enabled: !!bId,
+    refetchInterval: 30_000,
+    queryFn: async () => {
+      const storageKey = `branch_last_booking_${bId}`;
+      const after = lastSeenRef.current
+        || localStorage.getItem(storageKey)
+        || new Date(Date.now() - 86_400_000).toISOString();
+      const { data } = await supabase
+        .from("bookings")
+        .select("id, booking_code, created_at, customer:customers(full_name)")
+        .eq("branch_id", bId)
+        .gt("created_at", after)
+        .order("created_at", { ascending: false })
+        .limit(10);
+      return { items: data || [], after };
+    },
+  });
+
+  useEffect(() => {
+    if (!newBookingsCheck?.items?.length || !bId) return;
+    const newest = newBookingsCheck.items[0].created_at;
+    const storageKey = `branch_last_booking_${bId}`;
+    const lastSeen = lastSeenRef.current || localStorage.getItem(storageKey);
+
+    if (lastSeen && newest > lastSeen) {
+      const fresh = newBookingsCheck.items.filter((b: any) => b.created_at > lastSeen);
+      if (fresh.length > 0) {
+        setNewBookingCount(c => c + fresh.length);
+        const names = fresh.slice(0, 2).map((b: any) => b.booking_code || "—").join(", ");
+        toast.info(
+          `${fresh.length} booking baru masuk: ${names}${fresh.length > 2 ? " ..." : ""}`,
+          { action: { label: "Lihat", onClick: () => navigate("/cabang/bookings") }, duration: 6000 }
+        );
+      }
+    }
+    lastSeenRef.current = newest;
+    localStorage.setItem(storageKey, newest);
+  }, [newBookingsCheck, bId, navigate]);
 
   const { data: stats, isLoading } = useQuery({
     queryKey: ["branch-stats", bId, dateFrom, dateTo],
@@ -137,7 +182,7 @@ export default function BranchDashboard() {
   return (
     <div className="p-4 lg:p-6 space-y-5">
       {/* Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between gap-2 flex-wrap">
         <div>
           <h1 className="text-xl font-bold flex items-center gap-2">
             <Building2 className="h-5 w-5 text-primary" />
@@ -145,14 +190,26 @@ export default function BranchDashboard() {
           </h1>
           <p className="text-sm text-muted-foreground">{branchData?.city}, {branchData?.province}</p>
         </div>
-        {(stats?.pendingDiskon ?? 0) > 0 && (
-          <Link to="/cabang/diskon">
-            <Badge className="bg-red-100 text-red-700 border-red-200 cursor-pointer hover:bg-red-200 gap-1">
-              <AlertCircle className="h-3 w-3" />
-              {stats?.pendingDiskon} diskon pending
-            </Badge>
-          </Link>
-        )}
+        <div className="flex items-center gap-2 flex-wrap">
+          {newBookingCount > 0 && (
+            <button
+              onClick={() => { setNewBookingCount(0); navigate("/cabang/bookings"); }}
+              className="relative inline-flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-full bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors"
+            >
+              <Bell className="h-4 w-4" />
+              {newBookingCount} booking baru
+              <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-blue-500 animate-ping" />
+            </button>
+          )}
+          {(stats?.pendingDiskon ?? 0) > 0 && (
+            <Link to="/cabang/diskon">
+              <Badge className="bg-red-100 text-red-700 border-red-200 cursor-pointer hover:bg-red-200 gap-1">
+                <AlertCircle className="h-3 w-3" />
+                {stats?.pendingDiskon} diskon pending
+              </Badge>
+            </Link>
+          )}
+        </div>
       </div>
 
       {/* Date Range Filter */}

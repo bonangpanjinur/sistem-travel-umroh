@@ -269,9 +269,9 @@ agent_monthly_targets (
 | ✅ | Tab Agent: daftar agen terhubung ke cabang | `AdminBranchDetail.tsx` | Sprint 1 done |
 | ✅ | Tab Statistik: keberangkatan + booking + revenue per cabang | `AdminBranchDetail.tsx` | Sprint 1 done |
 | ✅ | Pengaturan website cabang | `BranchWebsiteDialog` in `AdminBranches.tsx` | |
-| 🔧 | Branch data scoping di API | API masih return data semua cabang | Sprint 2 |
-| ❌ | Laporan keuangan konsolidasi per cabang | Placeholder ada, data kosong | Sprint 3 |
-| ❌ | Bandingkan kinerja 2+ cabang | `AdminBranchComparison.tsx` minimal | Sprint 3 |
+| ✅ | Branch data scoping di API | `supabaseProxy.ts` filter `branch_id` untuk branch_manager | Sprint 3 ✅ |
+| ✅ | Laporan keuangan konsolidasi per cabang | Tab "Keuangan" di `AdminBranchDetail.tsx`: KPI, chart revenue 6 bulan, riwayat komisi + export CSV | Sprint 3 ✅ |
+| ✅ | Bandingkan kinerja 2+ cabang | `AdminBranchComparison.tsx`: pilih 2+ cabang, bar chart perbandingan booking/revenue/agen, export CSV | Sprint 3 ✅ |
 
 #### Manajemen Agen (`/admin/agents`)
 
@@ -286,10 +286,10 @@ agent_monthly_targets (
 | ✅ | Tier komisi berdasarkan volume | `agent_commission_tiers` table | |
 | ✅ | Detail agen (`/admin/agents/:id`) | 5 tab: Info, Booking, Komisi, Sub-Agen, Performa | Sprint 2 ✅ |
 | ✅ | Suspend / reaktivasi agen | `PATCH /api/agents/:id/status` + konfirmasi dialog | Sprint 2 ✅ |
-| ❌ | Override commission UI | Tabel ada, UI belum | Sprint 3 |
+| ✅ | Override commission UI | Tab "Override Komisi" di `AdminAgentDetail.tsx` (admin set %) + `AgentCommissions.tsx` (agen induk lihat earnings) | Sprint 3 ✅ |
 | ✅ | Performance analitik per agen | Tab Performa: bar chart booking + area chart revenue/komisi | Sprint 3 ✅ |
 | ✅ | Export data agen CSV | Tombol Export di header `/admin/agents` | Sprint 3 ✅ |
-| ❌ | Master laporan komisi (agen+cabang+sub) | Belum ada | Sprint 3 |
+| ✅ | Master laporan komisi (agen+cabang+sub) | `AdminMasterKomisi.tsx` — 3 tab: agen, cabang, sub-agen; filter periode/status; export CSV | Sprint 3 ✅ |
 
 ### 3.2 Portal Cabang (`/cabang/*`)
 
@@ -307,7 +307,7 @@ agent_monthly_targets (
 | ✅ | KPI progress real-time | 6 KPI card: booking, revenue, agen aktif, jamaah, komisi pending/dibayar | Sprint 3 ✅ |
 | ✅ | Buat akun user staff dari portal cabang | `AddStaffDialog` baru: form + buat akun via API + tampil kredensial | Sprint 2 ✅ |
 | ✅ | Komisi cabang real-time di dashboard | Query `branch_commissions` — KPI "Komisi Pending" + "Komisi Dibayar" | Sprint 3 ✅ |
-| ❌ | Notifikasi booking baru ke branch manager | Butuh push notif / realtime listener | Sprint 3 |
+| ✅ | Notifikasi booking baru ke branch manager | Polling 30 detik di `BranchDashboard.tsx`: deteksi booking baru via timestamp localStorage, tampil toast + badge "X booking baru" dengan animasi | Sprint 3 ✅ |
 | ✅ | Data scoping (branch_id filter di API) | `supabaseProxy.ts`: branch_manager auto-disaring by JWT branch_id | Sprint 3 ✅ |
 
 ### 3.3 Portal Agen (`/agent/*`)
@@ -335,10 +335,10 @@ agent_monthly_targets (
 | ✅ | Settings profil agen | `AgentSettings.tsx` | |
 | ✅ | Website agen (landing page kustom) | `AgentWebsiteSettings.tsx` | |
 | ✅ | Laporan pribadi | `AgentLaporan.tsx` | |
-| 🔧 | Override commission tampil ke agen induk | Tabel ada, UI belum | Sprint 3 |
+| ✅ | Override commission tampil ke agen induk | `AgentCommissions.tsx`: section "Override Komisi dari Sub-Agen" — stat cards + tabel detail per sub-agen & booking | Sprint 3 ✅ |
 | ✅ | Undang sub-agen via form publik + approval | `/daftar-sub-agen?ref=KODE` + tombol "Buat Link" di AgentNetwork | Sprint 2 ✅ |
-| ❌ | Notifikasi booking masuk dari link agen | Butuh push notif / VAPID | Sprint 3 |
-| ❌ | Sub-agen: batasan menu kustom | Masih sama dengan menu agen utama | Sprint 3 |
+| ✅ | Notifikasi booking masuk dari link agen | In-app polling di portal agen (sama seperti branch manager) — dikerjakan bersama S3-12 | Sprint 3 ✅ |
+| ✅ | Sub-agen: batasan menu kustom | `AgentLayoutEnhanced.tsx`: `isSubAgent` flag batasi menu (komisi/wallet/network tersembunyi untuk sub_agent) | Sprint 3 ✅ |
 
 ### 3.4 API Endpoints
 
@@ -909,7 +909,7 @@ JWT sekarang menyertakan `branch_id` (untuk branch_manager) dan `agent_id` (untu
 | **Sprint 1** | Buat akun, kirim WA, reset password, detail cabang | ✅ **Selesai** |
 | **Sprint 2** | JWT scoping, detail agen, suspend/aktifkan, sub-agen onboarding via link | ✅ **Selesai** |
 | **Sprint 3 (batch 1)** | Branch data scoping, Performa agen, Export CSV, KPI cabang, Komisi cabang | ✅ **Selesai** |
-| **Sprint 3 (batch 2)** | Override commission UI, sub-agen menu, master laporan komisi | 🔵 Berikutnya |
+| **Sprint 3 (batch 2)** | Override commission UI (admin + agen), sub-agen menu kustom, master laporan komisi, tab Keuangan cabang, notifikasi booking in-app | ✅ **Selesai** |
 
 ---
 
