@@ -382,6 +382,92 @@ export function useWhatsAppNotifierSecure() {
     [send]
   );
 
+  /**
+   * Send store order confirmed notification
+   */
+  const sendStoreOrderConfirmed = useCallback(
+    async (
+      phone: string,
+      vars: {
+        nama: string;
+        no_pesanan: string;
+        total: string;
+        jumlah_item: number | string;
+        nomor_cs?: string;
+      }
+    ) => {
+      const message =
+        `Assalamu'alaikum *${vars.nama}* 🤲\n\n` +
+        `✅ *Pesanan Dikonfirmasi!*\n\n` +
+        `Terima kasih, pembayaran untuk pesanan Anda telah kami terima.\n\n` +
+        `📋 No. Pesanan: *${vars.no_pesanan}*\n` +
+        `💰 Total: ${vars.total}\n` +
+        `📦 Jumlah Item: ${vars.jumlah_item}\n\n` +
+        `Pesanan Anda sedang kami siapkan untuk dikirim. Mohon tunggu update selanjutnya. 🙏\n\n` +
+        `Info: ${vars.nomor_cs || "—"}`;
+
+      return send(phone, message);
+    },
+    [send]
+  );
+
+  /**
+   * Send store order shipped notification
+   */
+  const sendStoreOrderShipped = useCallback(
+    async (
+      phone: string,
+      vars: {
+        nama: string;
+        no_pesanan: string;
+        kurir: string;
+        layanan: string;
+        no_resi: string;
+        estimasi_tiba: string;
+        nomor_cs?: string;
+      }
+    ) => {
+      const message =
+        `Assalamu'alaikum *${vars.nama}* 🤲\n\n` +
+        `🚚 *Pesanan Dalam Pengiriman!*\n\n` +
+        `Kabar baik! Pesanan Anda telah diserahkan ke kurir.\n\n` +
+        `📋 No. Pesanan: *${vars.no_pesanan}*\n` +
+        `📦 Kurir: ${vars.kurir} (${vars.layanan})\n` +
+        `🎫 No. Resi: *${vars.no_resi}*\n` +
+        `📅 Estimasi Tiba: ${vars.estimasi_tiba}\n\n` +
+        `Silakan pantau posisi paket Anda menggunakan nomor resi di atas. 🙏\n\n` +
+        `Info: ${vars.nomor_cs || "—"}`;
+
+      return send(phone, message);
+    },
+    [send]
+  );
+
+  /**
+   * Send store order delivered notification
+   */
+  const sendStoreOrderDelivered = useCallback(
+    async (
+      phone: string,
+      vars: {
+        nama: string;
+        no_pesanan: string;
+        nomor_cs?: string;
+      }
+    ) => {
+      const message =
+        `Assalamu'alaikum *${vars.nama}* 🤲\n\n` +
+        `🎉 *Pesanan Telah Diterima!*\n\n` +
+        `Berdasarkan laporan kurir, pesanan Anda dengan nomor *${vars.no_pesanan}* telah sampai di tujuan.\n\n` +
+        `Semoga produk kami bermanfaat. Jangan lupa berikan ulasan terbaik Anda! ⭐⭐⭐⭐⭐\n\n` +
+        `Terima kasih telah berbelanja di Vins Tour & Travel. 🙏\n\n` +
+        `Info: ${vars.nomor_cs || "—"}`;
+
+      return send(phone, message);
+    },
+    [send]
+  );
+
   return {
     isReady,
     send,
@@ -396,5 +482,8 @@ export function useWhatsAppNotifierSecure() {
     sendSavingsCicilanDitolak,
     sendSavingsReminder,
     sendSavingsLunas,
+    sendStoreOrderConfirmed,
+    sendStoreOrderShipped,
+    sendStoreOrderDelivered,
   };
 }
