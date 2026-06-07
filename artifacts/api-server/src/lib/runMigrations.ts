@@ -582,6 +582,19 @@ export async function runMigrations(): Promise<void> {
       logger.info("runMigrations: 27_payroll_slips_ess — already applied, skipping");
     }
 
+    // ── Step 1y: ESS leave_requests + leave_quotas tables ─────────────────
+    const leaveRequestsApplied = await isApplied(client, "28_leave_requests");
+    if (!leaveRequestsApplied) {
+      await runSqlFile(
+        client,
+        sqlPath("28_leave_requests.sql"),
+        "28_leave_requests (leave_requests + leave_quotas + triggers for ESS Cuti/Izin)",
+      );
+      await markApplied(client, "28_leave_requests");
+    } else {
+      logger.info("runMigrations: 28_leave_requests — already applied, skipping");
+    }
+
     // ── Step 2: payment sync trigger (always re-applied each boot) ────────
     // Wrapped in its own try/catch so a missing table on a broken DB state
     // doesn't crash the server — it just logs and continues.
