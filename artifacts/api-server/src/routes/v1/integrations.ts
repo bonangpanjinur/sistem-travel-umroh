@@ -23,6 +23,10 @@ const SENSITIVE_KEYS = new Set([
   'integration_smtp_pass',
 ]);
 
+// Services that can be tested
+const TESTABLE_SERVICES = ['gemini', 'midtrans'] as const;
+type TestableService = (typeof TESTABLE_SERVICES)[number];
+
 function maskValue(key: string, value: string): string {
   if (!value) return '';
   if (SENSITIVE_KEYS.has(key)) {
@@ -32,8 +36,34 @@ function maskValue(key: string, value: string): string {
   return value;
 }
 
+async function saveHealthStatus(
+  client: any,
+  service: TestableService,
+  status: 'ok' | 'error' | 'unconfigured',
+  message: string,
+) {
+  const ts = new Date().toISOString();
+  await client.query(
+    `INSERT INTO app_settings (key, value, updated_at)
+     VALUES ($1, $2, NOW())
+     ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = NOW()`,
+    [`integration_${service}_health_status`, status],
+  );
+  await client.query(
+    `INSERT INTO app_settings (key, value, updated_at)
+     VALUES ($1, $2, NOW())
+     ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = NOW()`,
+    [`integration_${service}_health_ts`, ts],
+  );
+  await client.query(
+    `INSERT INTO app_settings (key, value, updated_at)
+     VALUES ($1, $2, NOW())
+     ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = NOW()`,
+    [`integration_${service}_health_msg`, message],
+  );
+}
+
 // ── GET /api/v1/settings/integrations ─────────────────────────────────────────
-// Returns all integration settings. Sensitive values are masked.
 router.get('/', async (_req: any, res: any) => {
   try {
     const client = await pool.connect();
@@ -50,7 +80,6 @@ router.get('/', async (_req: any, res: any) => {
         settings[key] = maskValue(key, raw);
       }
 
-      // Also read env vars as fallback status
       const envStatus: Record<string, boolean> = {
         integration_gemini_api_key: !!process.env['GEMINI_API_KEY'],
         integration_openai_api_key: !!process.env['OPENAI_API_KEY'],
@@ -61,7 +90,6 @@ router.get('/', async (_req: any, res: any) => {
         integration_smtp_pass: !!process.env['SMTP_PASS'],
       };
 
-      // Is-set: true if DB has a non-empty value OR env var is set
       const isSet: Record<string, boolean> = {};
       for (const key of INTEGRATION_KEYS) {
         const row = rows.find(r => r.key === key);
@@ -77,8 +105,74 @@ router.get('/', async (_req: any, res: any) => {
   }
 });
 
+// ── GET /api/v1/settings/integrations/health ──────────────────────────────────
+// Returns persisted health status for each testable service.
+router.get('/health', async (_req: any, res: any) => {
+  const client = await pool.connect();
+  try {
+    const healthKeys: string[] = [];
+    for (const svc of TESTABLE_SERVICES) {
+      healthKeys.push(
+        `integration_${svc}_health_status`,
+        `integration_${svc}_health_ts`,
+        `integration_${svc}_health_msg`,
+      );
+    }
+
+    const { rows } = await client.query<{ key: string; value: string }>(
+      `SELECT key, value FROM app_settings WHERE key = ANY($1)`,
+      [healthKeys],
+    );
+
+    const byKey = Object.fromEntries(rows.map(r => [r.key, r.value]));
+
+    // Also check if each service is configured at all (DB or env)
+    const configKeys = [
+      'integration_gemini_api_key',
+      'integration_midtrans_server_key',
+    ];
+    const { rows: configRows } = await client.query<{ key: string; value: string }>(
+      `SELECT key, value FROM app_settings WHERE key = ANY($1)`,
+      [configKeys],
+    );
+    const configByKey = Object.fromEntries(configRows.map(r => [r.key, r.value]));
+
+    const services: Record<string, {
+      status: 'ok' | 'error' | 'unconfigured' | 'unknown';
+      lastTested: string | null;
+      message: string;
+      configured: boolean;
+    }> = {};
+
+    for (const svc of TESTABLE_SERVICES) {
+      const rawStatus = byKey[`integration_${svc}_health_status`] ?? '';
+      const ts = byKey[`integration_${svc}_health_ts`] ?? null;
+      const msg = byKey[`integration_${svc}_health_msg`] ?? '';
+
+      // Determine if configured (DB or env var)
+      let configured = false;
+      if (svc === 'gemini') {
+        configured = !!(configByKey['integration_gemini_api_key'] || process.env['GEMINI_API_KEY']);
+      } else if (svc === 'midtrans') {
+        configured = !!(configByKey['integration_midtrans_server_key'] || process.env['MIDTRANS_SERVER_KEY']);
+      }
+
+      const status = (['ok', 'error', 'unconfigured'].includes(rawStatus)
+        ? rawStatus
+        : 'unknown') as 'ok' | 'error' | 'unconfigured' | 'unknown';
+
+      services[svc] = { status, lastTested: ts, message: msg, configured };
+    }
+
+    return res.json({ services });
+  } catch (e: any) {
+    return res.status(500).json({ error: e.message });
+  } finally {
+    client.release();
+  }
+});
+
 // ── POST /api/v1/settings/integrations ────────────────────────────────────────
-// Save one or more integration settings. Skip masked/unchanged values.
 router.post('/', async (req: any, res: any) => {
   try {
     const body: Record<string, string> = req.body ?? {};
@@ -88,7 +182,6 @@ router.post('/', async (req: any, res: any) => {
       for (const key of INTEGRATION_KEYS) {
         if (!(key in body)) continue;
         const val: string = body[key] ?? '';
-        // Skip if the submitted value still looks masked (user didn't change it)
         if (val.includes('••')) continue;
         await client.query(
           `INSERT INTO app_settings (key, value, updated_at)
@@ -107,8 +200,7 @@ router.post('/', async (req: any, res: any) => {
   }
 });
 
-// ── GET /api/v1/settings/integrations/status ──────────────────────────────────
-// Test connectivity for a specific integration (gemini, midtrans, smtp)
+// ── POST /api/v1/settings/integrations/test/:service ──────────────────────────
 router.post('/test/:service', async (req: any, res: any) => {
   const { service } = req.params;
   const client = await pool.connect();
@@ -122,7 +214,10 @@ router.post('/test/:service', async (req: any, res: any) => {
     if (service === 'gemini') {
       const dbKey = await getKey('integration_gemini_api_key');
       const key = dbKey || process.env['GEMINI_API_KEY'] || '';
-      if (!key) return res.status(400).json({ ok: false, error: 'API key belum dikonfigurasi' });
+      if (!key) {
+        await saveHealthStatus(client, 'gemini', 'unconfigured', 'API key belum dikonfigurasi');
+        return res.status(400).json({ ok: false, error: 'API key belum dikonfigurasi' });
+      }
       const r = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`,
         {
@@ -133,8 +228,11 @@ router.post('/test/:service', async (req: any, res: any) => {
       );
       if (!r.ok) {
         const d: any = await r.json().catch(() => ({}));
-        return res.status(400).json({ ok: false, error: d?.error?.message || `HTTP ${r.status}` });
+        const msg = d?.error?.message || `HTTP ${r.status}`;
+        await saveHealthStatus(client, 'gemini', 'error', msg);
+        return res.status(400).json({ ok: false, error: msg });
       }
+      await saveHealthStatus(client, 'gemini', 'ok', 'Gemini AI terhubung');
       return res.json({ ok: true, message: 'Gemini AI terhubung' });
     }
 
@@ -142,7 +240,10 @@ router.post('/test/:service', async (req: any, res: any) => {
       const serverKey = await getKey('integration_midtrans_server_key') || process.env['MIDTRANS_SERVER_KEY'] || '';
       const modeRow = await getKey('integration_midtrans_mode');
       const mode = modeRow || 'sandbox';
-      if (!serverKey) return res.status(400).json({ ok: false, error: 'Server key belum dikonfigurasi' });
+      if (!serverKey) {
+        await saveHealthStatus(client, 'midtrans', 'unconfigured', 'Server key belum dikonfigurasi');
+        return res.status(400).json({ ok: false, error: 'Server key belum dikonfigurasi' });
+      }
       const baseUrl = mode === 'production'
         ? 'https://api.midtrans.com/v2/charge'
         : 'https://api.sandbox.midtrans.com/v2/charge';
@@ -150,11 +251,18 @@ router.post('/test/:service', async (req: any, res: any) => {
         method: 'OPTIONS',
         headers: { Authorization: `Basic ${Buffer.from(serverKey + ':').toString('base64')}` },
       });
-      return res.json({ ok: r.status < 500, message: `Midtrans ${mode} terhubung (status ${r.status})` });
+      const ok = r.status < 500;
+      const msg = `Midtrans ${mode} ${ok ? 'terhubung' : 'error'} (HTTP ${r.status})`;
+      await saveHealthStatus(client, 'midtrans', ok ? 'ok' : 'error', msg);
+      return res.json({ ok, message: msg });
     }
 
     return res.status(400).json({ ok: false, error: 'Service tidak dikenal: ' + service });
   } catch (e: any) {
+    // Try to save error state
+    if (TESTABLE_SERVICES.includes(service as TestableService)) {
+      await saveHealthStatus(client, service as TestableService, 'error', e.message).catch(() => {});
+    }
     return res.status(500).json({ ok: false, error: e.message });
   } finally {
     client.release();
