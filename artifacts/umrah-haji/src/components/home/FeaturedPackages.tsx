@@ -10,6 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { WebsiteSettings } from '@/hooks/useWebsiteSettings';
 import { useMemo } from 'react';
 import { Package } from '@/types/database';
+import { useTenant } from '@/contexts/TenantContext';
 
 interface FeaturedPackagesProps {
   settings?: WebsiteSettings;
@@ -33,6 +34,7 @@ function getPackageMinPrice(pkg: any): number {
 
 export function FeaturedPackages({ settings }: FeaturedPackagesProps) {
   const { data: packages = [], isLoading } = usePackages();
+  const { tenant } = useTenant();
   const { isDark } = useTheme(settings); const isRoyal = isDark;
   const layout = settings?.package_card_layout || 'modern';
   const imageRatio = settings?.package_card_image_ratio || '16/10';
@@ -191,7 +193,11 @@ export function FeaturedPackages({ settings }: FeaturedPackagesProps) {
         {/* View All */}
         <div className="text-center">
           <Button asChild variant="outline" size="lg" className={`gap-2 ${isRoyal ? 'border-amber-500/30 text-amber-500 hover:bg-amber-500/10 rounded-full px-8' : ''}`}>
-            <Link to="/packages">
+            <Link to={
+              tenant.type === 'agent'  && tenant.id ? `/packages?agent_id=${tenant.id}&pic_source=agen` :
+              tenant.type === 'branch' && tenant.id ? `/packages?branch_id=${tenant.id}&pic_source=cabang` :
+              '/packages'
+            }>
               Lihat Semua Paket
               <ArrowRight className="h-4 w-4" />
             </Link>

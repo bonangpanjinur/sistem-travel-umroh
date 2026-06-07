@@ -1,4 +1,5 @@
-import React, { createContext, useContext, ReactNode } from 'react';
+import React, { createContext, useContext, ReactNode, useEffect } from 'react';
+import { getAgentRef } from '@/hooks/useAgentRef';
 
 export interface TenantInfo {
   type: 'branch' | 'agent' | null;
@@ -21,6 +22,22 @@ export function TenantProvider({ children }: { children: ReactNode }) {
     slug: null,
     name: null,
   });
+
+  // Restore tenant from localStorage on mount — survives page refresh.
+  // Only restores if not already set by an explicit website visit.
+  useEffect(() => {
+    setTenant(prev => {
+      if (prev.type !== null) return prev;
+      const ref = getAgentRef();
+      if (ref.agentId) {
+        return { type: 'agent', id: ref.agentId, slug: ref.agentSlug || null, name: null };
+      }
+      if (ref.branchId) {
+        return { type: 'branch', id: ref.branchId, slug: ref.branchSlug || null, name: null };
+      }
+      return prev;
+    });
+  }, []);
 
   return (
     <TenantContext.Provider value={{ tenant, setTenant }}>

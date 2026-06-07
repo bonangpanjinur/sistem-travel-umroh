@@ -30,6 +30,7 @@ import {
 import { useSeatHold, formatHoldRemaining } from "@/hooks/useSeatHold";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
+import { getAgentRef } from "@/hooks/useAgentRef";
 import {
   buildDraftKey,
   buildAutoSubmitKey,
@@ -84,13 +85,30 @@ export function BookingWizard() {
     single: parseInt(searchParams.get('single') || '0', 10),
   };
 
-  // Read PIC data from URL params
+  // Read PIC data from URL params, with localStorage fallback for cross-session attribution
+  // (e.g. user visited /a/dewi earlier this month — attribution preserved for 30 days)
+  const storedRef = getAgentRef();
+  const urlAgentId   = searchParams.get('agent_id')   || undefined;
+  const urlBranchId  = searchParams.get('branch_id')  || undefined;
+  const resolvedAgentId  = urlAgentId  || storedRef.agentId  || undefined;
+  const resolvedBranchId = urlBranchId || storedRef.branchId || undefined;
+  const resolvedPicSource =
+    searchParams.get('pic_source') ||
+    (urlAgentId  ? 'agen'   : '') ||
+    (urlBranchId ? 'cabang' : '') ||
+    (storedRef.agentId  ? 'agen'   : '') ||
+    (storedRef.branchId ? 'cabang' : '') ||
+    'pusat';
+
   const picData: PICData = {
-    picSource: searchParams.get('pic_source') || 'pusat',
-    branchId: searchParams.get('branch_id') || undefined,
-    agentId: searchParams.get('agent_id') || undefined,
+    picSource: resolvedPicSource,
+    branchId: resolvedBranchId,
+    agentId: resolvedAgentId,
     referralCode: searchParams.get('referral_code') || undefined,
   };
+
+  // When agent/branch is pre-set (from URL or stored ref), skip the PIC selection step.
+  const hasPresetPIC = !!(resolvedAgentId || resolvedBranchId);
   
   const { data: packageInfo } = useQuery({
     queryKey: ['package-info', packageId],
@@ -205,7 +223,9 @@ export function BookingWizard() {
   const bookingMode = (packageInfo as any)?.booking_mode || earlyBookingMode;
   // isHaji dari hook (early) atau dari packageInfo setelah loaded
   const isHaji = bookingMode === 'haji' || isHajiFromHook;
-  const STEPS = isHaji ? STEPS_HAJI : STEPS_DEFAULT;
+  const STEPS_RAW = isHaji ? STEPS_HAJI : STEPS_DEFAULT;
+  // Skip PIC step when attribution is already pre-set via agent/branch website
+  const STEPS = hasPresetPIC ? STEPS_RAW.filter(s => s.id !== 'pic') : STEPS_RAW;
 
   // Seat hold (BOOK-FIX3) — 15 menit lock kursi selama wizard
   const requestedPax = Math.max(initialPax || 1, 1);
@@ -438,6 +458,17 @@ export function BookingWizard() {
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
             Waktu kunci kursi telah habis. Refresh halaman untuk mengunci ulang sebelum melanjutkan.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Attribution banner — shown when booking from agent/branch website */}
+      {hasPresetPIC && picLabel && (
+        <Alert className="border-emerald-200 bg-emerald-50">
+          <Building2 className="h-4 w-4 text-emerald-600" />
+          <AlertDescription className="text-emerald-800 text-sm">
+            Pendaftaran Anda akan diproses melalui <strong>{picLabel}</strong>.
+            Anda tidak perlu memilih sumber pendaftaran secara manual.
           </AlertDescription>
         </Alert>
       )}
