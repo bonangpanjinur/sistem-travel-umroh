@@ -13,24 +13,32 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 
-const navItems = [
-  { label: "Dashboard", href: "/agent", icon: Home },
-  { label: "Keanggotaan", href: "/agent/membership", icon: Crown },
-  { label: "Target Bulanan", href: "/agent/targets", icon: Target },
-  { label: "Leaderboard", href: "/agent/leaderboard", icon: Trophy },
-  { label: "CRM Pipeline Lead", href: "/agent/leads", icon: Users },
-  { label: "Daftarkan Jamaah", href: "/agent/register", icon: UserCog },
-  { label: "Data Jamaah", href: "/agent/jamaah", icon: UserCog },
-  { label: "Komisi", href: "/agent/commissions", icon: DollarSign },
-  { label: "Dompet", href: "/agent/wallet", icon: Wallet },
-  { label: "Laporan Bulanan", href: "/agent/laporan", icon: Target },
-  { label: "Broadcast WA", href: "/agent/broadcast", icon: Zap },
-  { label: "Link Pendaftaran", href: "/agent/unique-link", icon: Link2 },
-  { label: "Jaringan Sub Agen", href: "/agent/network", icon: Network },
-  { label: "Paket Tersedia", href: "/agent/packages", icon: Package },
-  { label: "Digital Kit", href: "/agent/digital-kit", icon: Zap },
-  { label: "Website Saya", href: "/agent/website", icon: Globe },
-  { label: "Referral & Booking", href: "/agent/referrals", icon: Link2 },
+interface NavItem {
+  label: string;
+  href: string;
+  icon: React.ElementType;
+  agentOnly?: boolean;
+}
+
+const navItems: NavItem[] = [
+  { label: "Dashboard",          href: "/agent",              icon: Home },
+  { label: "Keanggotaan",        href: "/agent/membership",   icon: Crown },
+  { label: "Daftarkan Jamaah",   href: "/agent/register",     icon: UserCog },
+  { label: "Data Jamaah",        href: "/agent/jamaah",       icon: UserCog },
+  { label: "Paket Tersedia",     href: "/agent/packages",     icon: Package },
+  { label: "Digital Kit",        href: "/agent/digital-kit",  icon: Zap },
+  { label: "Referral & Booking", href: "/agent/referrals",    icon: Link2 },
+  // Hanya agen utama (bukan sub_agent)
+  { label: "Target Bulanan",     href: "/agent/targets",      icon: Target,   agentOnly: true },
+  { label: "Leaderboard",        href: "/agent/leaderboard",  icon: Trophy,   agentOnly: true },
+  { label: "CRM Pipeline Lead",  href: "/agent/leads",        icon: Users,    agentOnly: true },
+  { label: "Komisi",             href: "/agent/commissions",  icon: DollarSign, agentOnly: true },
+  { label: "Dompet",             href: "/agent/wallet",       icon: Wallet,   agentOnly: true },
+  { label: "Laporan Bulanan",    href: "/agent/laporan",      icon: Target,   agentOnly: true },
+  { label: "Broadcast WA",       href: "/agent/broadcast",    icon: Zap,      agentOnly: true },
+  { label: "Link Pendaftaran",   href: "/agent/unique-link",  icon: Link2,    agentOnly: true },
+  { label: "Jaringan Sub Agen",  href: "/agent/network",      icon: Network,  agentOnly: true },
+  { label: "Website Saya",       href: "/agent/website",      icon: Globe,    agentOnly: true },
 ];
 
 export default function AgentLayoutEnhanced() {
@@ -67,9 +75,15 @@ export default function AgentLayoutEnhanced() {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
   }
 
-  if (!user || !hasRole('agent')) {
+  const isSubAgent = hasRole('sub_agent') && !hasRole('agent');
+
+  if (!user || (!hasRole('agent') && !hasRole('sub_agent'))) {
     return <Navigate to="/auth/login" replace />;
   }
+
+  const visibleNavItems = isSubAgent
+    ? navItems.filter((item) => !item.agentOnly)
+    : navItems;
 
   return (
     <div className="min-h-screen bg-background">
@@ -114,7 +128,12 @@ export default function AgentLayoutEnhanced() {
         </div>
 
         <nav className="p-4 space-y-2">
-          {navItems.map((item) => (
+          {isSubAgent && (
+            <p className="text-xs text-muted-foreground px-3 pb-1 font-medium uppercase tracking-wide">
+              Sub-Agen Portal
+            </p>
+          )}
+          {visibleNavItems.map((item) => (
             <Link
               key={item.href}
               to={item.href}

@@ -28,7 +28,9 @@ import {
   ArrowLeft, User, Building2, Phone, Mail, MapPin, CreditCard,
   TrendingUp, Users, DollarSign, BookOpen, ShieldOff, ShieldCheck,
   KeyRound, RefreshCw, Network, CheckCircle2, XCircle, Clock, BarChart3,
+  Pencil, Save, X as XIcon, Percent,
 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 const API_BASE = "/api";
 
@@ -79,6 +81,10 @@ export default function AdminAgentDetail() {
   const [approveConfirm, setApproveConfirm] = useState<string | null>(null);
   const [rejectConfirm, setRejectConfirm] = useState<string | null>(null);
 
+  // Override commission state
+  const [editingOverride, setEditingOverride] = useState<string | null>(null);
+  const [overridePct, setOverridePct] = useState<string>("");
+
   const { data, isLoading, error } = useQuery({
     queryKey: ["admin-agent-detail", id],
     queryFn: () => apiFetch(`/agents/${id}`),
@@ -90,6 +96,69 @@ export default function AdminAgentDetail() {
   const bookings: any[] = data?.bookings ?? [];
   const commissions: any[] = data?.commissions ?? [];
   const stats = data?.stats;
+
+  // Override commissions query
+  const { data: overrideRows, refetch: refetchOverrides } = useQuery({
+    queryKey: ["agent-override-commissions", id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("agent_override_commissions" as any)
+        .select("*")
+        .eq("parent_agent_id", id as string);
+      if (error) throw error;
+      return (data as any[]) ?? [];
+    },
+    enabled: !!id,
+  });
+
+  const overrideMap = useMemo(() => {
+    const m: Record<string, number> = {};
+    (overrideRows ?? []).forEach((r: any) => {
+      m[r.sub_agent_id] = r.override_percentage ?? 0;
+    });
+    return m;
+  }, [overrideRows]);
+
+  const saveOverrideMutation = useMutation({
+    mutationFn: async ({ subAgentId, pct }: { subAgentId: string; pct: number }) => {
+      const existing = (overrideRows ?? []).find((r: any) => r.sub_agent_id === subAgentId);
+      if (existing) {
+        const { error } = await supabase
+          .from("agent_override_commissions" as any)
+          .update({ override_percentage: pct, updated_at: new Date().toISOString() })
+          .eq("id", existing.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("agent_override_commissions" as any)
+          .insert({ parent_agent_id: id, sub_agent_id: subAgentId, override_percentage: pct });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      toast.success("Override komisi berhasil disimpan");
+      setEditingOverride(null);
+      refetchOverrides();
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const deleteOverrideMutation = useMutation({
+    mutationFn: async (subAgentId: string) => {
+      const existing = (overrideRows ?? []).find((r: any) => r.sub_agent_id === subAgentId);
+      if (!existing) return;
+      const { error } = await supabase
+        .from("agent_override_commissions" as any)
+        .delete()
+        .eq("id", existing.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Override dihapus");
+      refetchOverrides();
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
 
   const perfData = useMemo(() => {
     const months: { key: string; bulan: string; booking: number; revenue: number; komisi: number }[] = [];
@@ -251,13 +320,18 @@ export default function AdminAgentDetail() {
 
       {/* Tabs */}
       <Tabs defaultValue="info">
-        <TabsList>
+        <TabsList className="flex-wrap h-auto">
           <TabsTrigger value="info">Info</TabsTrigger>
           <TabsTrigger value="bookings">Booking</TabsTrigger>
           <TabsTrigger value="commissions">Komisi</TabsTrigger>
           <TabsTrigger value="sub_agents">
             Sub-Agen {subAgents.length > 0 && `(${subAgents.length})`}
           </TabsTrigger>
+          {subAgents.filter((sa) => sa.status === "active").length > 0 && (
+            <TabsTrigger value="override">
+              <Percent className="h-3.5 w-3.5 mr-1" />Override Komisi
+            </TabsTrigger>
+          )}
           <TabsTrigger value="performa">
             <BarChart3 className="h-3.5 w-3.5 mr-1" />Performa
           </TabsTrigger>
@@ -459,6 +533,124 @@ export default function AdminAgentDetail() {
                         </TableCell>
                       </TableRow>
                     ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Tab Override Komisi */}
+        <TabsContent value="override">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Percent className="h-4 w-4" /> Override Komisi Sub-Agen
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Persentase komisi yang dipotong dari sub-agen dan diteruskan ke agen induk.
+              </p>
+            </CardHeader>
+            <CardContent>
+              {subAgents.filter((sa) => sa.status === "active").length === 0 ? (
+                <p className="text-center py-8 text-muted-foreground">Tidak ada sub-agen aktif.</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Sub-Agen</TableHead>
+                      <TableHead>Kode</TableHead>
+                      <TableHead>Rate Komisi Sub-Agen</TableHead>
+                      <TableHead>Override %</TableHead>
+                      <TableHead>Aksi</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {subAgents.filter((sa) => sa.status === "active").map((sa) => {
+                      const currentPct = overrideMap[sa.id] ?? 0;
+                      const isEditing = editingOverride === sa.id;
+                      return (
+                        <TableRow key={sa.id}>
+                          <TableCell className="font-medium">
+                            {sa.company_name || sa.contact_name || sa.full_name}
+                          </TableCell>
+                          <TableCell className="font-mono text-xs">{sa.agent_code}</TableCell>
+                          <TableCell>{sa.commission_rate ?? 0}%</TableCell>
+                          <TableCell>
+                            {isEditing ? (
+                              <div className="flex items-center gap-2">
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  max={100}
+                                  step={0.5}
+                                  value={overridePct}
+                                  onChange={(e) => setOverridePct(e.target.value)}
+                                  className="w-20 h-7 text-sm"
+                                />
+                                <span className="text-sm">%</span>
+                              </div>
+                            ) : (
+                              <span className={currentPct > 0 ? "font-medium text-purple-700" : "text-muted-foreground"}>
+                                {currentPct > 0 ? `${currentPct}%` : "—"}
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {isEditing ? (
+                              <div className="flex gap-1">
+                                <Button
+                                  size="sm"
+                                  className="h-7 text-xs"
+                                  disabled={saveOverrideMutation.isPending}
+                                  onClick={() => {
+                                    const pct = parseFloat(overridePct);
+                                    if (isNaN(pct) || pct < 0 || pct > 100) {
+                                      toast.error("Persentase harus antara 0–100");
+                                      return;
+                                    }
+                                    saveOverrideMutation.mutate({ subAgentId: sa.id, pct });
+                                  }}
+                                >
+                                  <Save className="h-3 w-3 mr-1" />
+                                  {saveOverrideMutation.isPending ? "Menyimpan…" : "Simpan"}
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-7 text-xs"
+                                  onClick={() => { setEditingOverride(null); setOverridePct(""); }}
+                                >
+                                  <XIcon className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            ) : (
+                              <div className="flex gap-1">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 text-xs"
+                                  onClick={() => { setEditingOverride(sa.id); setOverridePct(currentPct.toString()); }}
+                                >
+                                  <Pencil className="h-3 w-3 mr-1" /> Edit
+                                </Button>
+                                {currentPct > 0 && (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-7 text-xs text-destructive"
+                                    disabled={deleteOverrideMutation.isPending}
+                                    onClick={() => deleteOverrideMutation.mutate(sa.id)}
+                                  >
+                                    <XIcon className="h-3 w-3" />
+                                  </Button>
+                                )}
+                              </div>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               )}

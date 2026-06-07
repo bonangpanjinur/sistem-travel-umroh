@@ -616,17 +616,17 @@ agent_monthly_targets (
 
 | ID | Fitur | Deskripsi | File | Status |
 |----|-------|-----------|------|--------|
-| S3-01 | Master Laporan Komisi | Satu halaman gabung: agen + cabang + sub-agen, export CSV/Excel | `AdminMasterKomisi.tsx` | ❌ |
+| S3-01 | Master Laporan Komisi | Satu halaman gabung: agen + cabang + sub-agen, export CSV/Excel | `AdminMasterKomisi.tsx` | ✅ |
 | S3-02 | Analitik Performa Agen | Grafik booking/komisi per bulan di tab Performa | `AdminAgentDetail.tsx` | ✅ |
-| S3-03 | Branch Comparison Report | Bandingkan 2+ cabang: booking, revenue, agen aktif, KPI | `AdminBranchComparison.tsx` | ❌ |
+| S3-03 | Branch Comparison Report | Bandingkan 2+ cabang: booking, revenue, agen aktif, KPI | `AdminBranchComparison.tsx` | ✅ |
 | S3-04 | KPI Real-Time Dashboard Cabang | 6 KPI card real-time: booking, revenue, agen, jamaah, komisi | `BranchDashboard.tsx` | ✅ |
 | S3-05 | Per-User Permission Override | Super admin override izin untuk user spesifik | `AdminRoleManagement.tsx` | ❌ |
 | S3-06 | Komisi Cabang di Dashboard | KPI "Komisi Pending" + "Komisi Dibayar" dari `branch_commissions` | `BranchDashboard.tsx` | ✅ |
 | S3-07 | Export Data Agen | Export CSV daftar agen + stats, BOM UTF-8, tombol di header | `AdminAgents.tsx` | ✅ |
 | S3-08 | Membership Tier Otomatis | Otomatis upgrade tier agen berdasarkan volume booking | DB trigger | ❌ |
 | S3-09 | Branch Data Scoping | `supabaseProxy.ts` inject `branch_id` filter untuk `branch_manager` | `supabaseProxy.ts` | ✅ |
-| S3-10 | Override Commission UI | Tabel `agent_override_commissions` sudah ada, UI admin + agen perlu dibuat | `AdminAgentDetail.tsx` | ❌ |
-| S3-11 | Sub-Agen Menu Kustom | Batasi menu sub_agent vs agen utama di sidebar portal agen | `AgentLayoutEnhanced.tsx` | ❌ |
+| S3-10 | Override Commission UI | Tabel `agent_override_commissions` sudah ada, UI admin + agen perlu dibuat | `AdminAgentDetail.tsx` | ✅ |
+| S3-11 | Sub-Agen Menu Kustom | Batasi menu sub_agent vs agen utama di sidebar portal agen | `AgentLayoutEnhanced.tsx` | ✅ |
 | S3-12 | Notifikasi Booking ke Branch Manager | Push notif saat booking baru di cabang | VAPID setup | ❌ |
 
 ---

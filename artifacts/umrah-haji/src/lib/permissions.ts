@@ -230,6 +230,10 @@ export const PERMISSIONS = {
   // WhatsApp Multi-Provider & Roadmap (Fase 31)
   WA_PROVIDER: 'wa-provider',
   WA_ROADMAP:  'wa-roadmap',
+
+  // Sprint 3 (batch 2) — Master Komisi & Perbandingan Cabang
+  MASTER_KOMISI:    'master-komisi',
+  BRANCH_COMPARISON: 'branch-comparison',
 } as const;
 
 export type PermissionKey = typeof PERMISSIONS[keyof typeof PERMISSIONS];

@@ -1,222 +1,319 @@
-import { useMemo, useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { supabase as supabaseRaw } from "@/integrations/supabase/client";
-const supabase: any = supabaseRaw;
+import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from "@/components/ui/table";
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, Legend,
 } from "recharts";
+import { Building2, Download } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
-import { Building2, TrendingUp, Users, Package, Trophy } from "lucide-react";
-import { format, subMonths, startOfMonth, endOfMonth } from "date-fns";
-import { id as localeId } from "date-fns/locale";
+import { format } from "date-fns";
 
-const MONTHS = Array.from({ length: 12 }, (_, i) => {
-  const d = subMonths(new Date(), i);
-  return { value: format(d, "yyyy-MM"), label: format(d, "MMMM yyyy", { locale: localeId }) };
-});
+const CHART_COLORS = [
+  "#6366f1", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#14b8a6",
+];
 
-/**
- * CAB-ADD3 — Dashboard perbandingan semua cabang dalam satu view.
- * Per cabang: total booking, revenue, jumlah agen aktif, jumlah jamaah.
- * Plus chart bar perbandingan + leaderboard ranking.
- */
+function exportToCSV(rows: any[], filename: string) {
+  if (rows.length === 0) return;
+  const keys = Object.keys(rows[0]);
+  const csv = [
+    keys.join(","),
+    ...rows.map((r) => keys.map((k) => JSON.stringify(r[k] ?? "")).join(",")),
+  ].join("\n");
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+}
+
 export default function AdminBranchComparison() {
-  const [period, setPeriod] = useState(MONTHS[0].value);
-  const [year, month] = period.split("-").map(Number);
-  const startDate = startOfMonth(new Date(year, month - 1)).toISOString();
-  const endDate = endOfMonth(new Date(year, month - 1)).toISOString();
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  const { data: rows = [], isLoading } = useQuery({
-    queryKey: ["branch-comparison", period],
+  const { data: branches = [] } = useQuery({
+    queryKey: ["branch-comparison-list"],
     queryFn: async () => {
-      const { data: branches } = await supabase
+      const { data } = await (supabase as any)
         .from("branches")
-        .select("id, name, city, is_active")
+        .select("id, name, code, city, province, is_active")
         .order("name");
-      if (!branches?.length) return [];
-
-      const results = await Promise.all(branches.map(async (b: any) => {
-        const { data: bookings } = await supabase
-          .from("bookings")
-          .select("id, total_price, paid_amount, booking_status, customer_id")
-          .eq("branch_id", b.id)
-          .gte("created_at", startDate)
-          .lte("created_at", endDate);
-        const list = (bookings ?? []) as any[];
-        const active = list.filter((x) => !["cancelled", "refunded"].includes(x.booking_status));
-        const revenue = active.reduce((s, x) => s + Number(x.paid_amount ?? 0), 0);
-        const target  = active.reduce((s, x) => s + Number(x.total_price ?? 0), 0);
-        const customers = new Set(active.map((x) => x.customer_id)).size;
-
-        const { count: agentCount } = await supabase
-          .from("agents")
-          .select("id", { count: "exact", head: true })
-          .eq("branch_id", b.id)
-          .eq("status", "active");
-
-        return {
-          id: b.id,
-          name: b.name,
-          city: b.city,
-          isActive: b.is_active,
-          bookingCount: active.length,
-          cancelledCount: list.length - active.length,
-          revenue,
-          target,
-          customers,
-          agents: agentCount ?? 0,
-          conversion: target > 0 ? (revenue / target) * 100 : 0,
-        };
-      }));
-      return results;
+      return data ?? [];
     },
   });
 
-  const totals = useMemo(() => rows.reduce(
-    (acc, r) => ({
-      revenue: acc.revenue + r.revenue,
-      bookings: acc.bookings + r.bookingCount,
-      customers: acc.customers + r.customers,
-      agents: acc.agents + r.agents,
-    }),
-    { revenue: 0, bookings: 0, customers: 0, agents: 0 },
-  ), [rows]);
+  const { data: statsMap = {}, isLoading: statsLoading } = useQuery({
+    queryKey: ["branch-comparison-stats", [...selectedIds].sort().join(",")],
+    queryFn: async () => {
+      if (selectedIds.size === 0) return {};
+      const ids = [...selectedIds];
+      const result: Record<string, any> = {};
 
-  const ranked = useMemo(
-    () => [...rows].sort((a, b) => b.revenue - a.revenue),
-    [rows],
+      await Promise.all(ids.map(async (branchId) => {
+        const [bookingsRes, agentRes, commRes] = await Promise.all([
+          (supabase as any)
+            .from("bookings")
+            .select("id, total_price, booking_status")
+            .eq("branch_id", branchId),
+          (supabase as any)
+            .from("agents")
+            .select("id", { count: "exact", head: true })
+            .eq("branch_id", branchId)
+            .eq("status", "active"),
+          (supabase as any)
+            .from("branch_commissions")
+            .select("commission_amount, status")
+            .eq("branch_id", branchId),
+        ]);
+
+        const bk = bookingsRes.data ?? [];
+        const confirmed = bk.filter((b: any) =>
+          b.booking_status === "confirmed" || b.booking_status === "completed"
+        );
+        const revenue = confirmed.reduce((s: number, b: any) => s + Number(b.total_price ?? 0), 0);
+        const cd = commRes.data ?? [];
+        const commTotal = cd.reduce((s: number, c: any) => s + Number(c.commission_amount ?? 0), 0);
+        const commPaid = cd.filter((c: any) => c.status === "paid")
+          .reduce((s: number, c: any) => s + Number(c.commission_amount ?? 0), 0);
+
+        result[branchId] = {
+          totalBooking: bk.length,
+          confirmedBooking: confirmed.length,
+          revenue,
+          agentAktif: agentRes.count ?? 0,
+          komisiTotal: commTotal,
+          komisiDibayar: commPaid,
+        };
+      }));
+
+      return result;
+    },
+    enabled: selectedIds.size > 0,
+  });
+
+  function toggleBranch(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  const selectedBranches = useMemo(
+    () => branches.filter((b: any) => selectedIds.has(b.id)),
+    [branches, selectedIds]
   );
-  const chartData = ranked.map((r) => ({
-    name: r.name,
-    Revenue: r.revenue,
-    Booking: r.bookingCount,
-  }));
+
+  const chartData = useMemo(() => {
+    if (selectedBranches.length < 2) return [];
+    return [
+      {
+        metric: "Total Booking",
+        ...Object.fromEntries(selectedBranches.map((b: any) => [b.name, statsMap[b.id]?.totalBooking ?? 0])),
+      },
+      {
+        metric: "Booking Confirmed",
+        ...Object.fromEntries(selectedBranches.map((b: any) => [b.name, statsMap[b.id]?.confirmedBooking ?? 0])),
+      },
+      {
+        metric: "Agen Aktif",
+        ...Object.fromEntries(selectedBranches.map((b: any) => [b.name, statsMap[b.id]?.agentAktif ?? 0])),
+      },
+    ];
+  }, [selectedBranches, statsMap]);
+
+  const kpiRows = [
+    { label: "Total Booking",       key: "totalBooking",     fmt: (v: number) => v.toString() },
+    { label: "Booking Confirmed",   key: "confirmedBooking", fmt: (v: number) => v.toString() },
+    { label: "Revenue Confirmed",   key: "revenue",          fmt: formatCurrency },
+    { label: "Agen Aktif",          key: "agentAktif",       fmt: (v: number) => v.toString() },
+    { label: "Total Komisi",        key: "komisiTotal",      fmt: formatCurrency },
+    { label: "Komisi Dibayar",      key: "komisiDibayar",    fmt: formatCurrency },
+  ];
+
+  function exportComparison() {
+    const rows = kpiRows.map((kpi) => ({
+      KPI: kpi.label,
+      ...Object.fromEntries(selectedBranches.map((b: any) => [b.name, statsMap[b.id]?.[kpi.key] ?? 0])),
+    }));
+    exportToCSV(rows, `perbandingan-cabang-${format(new Date(), "yyyyMMdd")}.csv`);
+  }
 
   return (
-    <div className="space-y-5 p-4 md:p-6">
+    <div className="space-y-4 p-4 md:p-6">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">Perbandingan Cabang</h1>
           <p className="text-sm text-muted-foreground">
-            Bandingkan performa semua cabang dalam satu tampilan
+            Bandingkan KPI 2 atau lebih cabang secara berdampingan
           </p>
         </div>
-        <Select value={period} onValueChange={setPeriod}>
-          <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {MONTHS.map((m) => (<SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>))}
-          </SelectContent>
-        </Select>
+        {selectedBranches.length >= 2 && (
+          <Button variant="outline" size="sm" onClick={exportComparison}>
+            <Download className="h-4 w-4 mr-2" /> Export CSV
+          </Button>
+        )}
       </div>
 
-      {/* Summary KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <KpiCard icon={TrendingUp} label="Total Revenue" value={formatCurrency(totals.revenue)} color="text-emerald-600" />
-        <KpiCard icon={Package}    label="Total Booking" value={totals.bookings.toString()}      color="text-blue-600" />
-        <KpiCard icon={Users}      label="Total Jamaah"  value={totals.customers.toString()}     color="text-purple-600" />
-        <KpiCard icon={Building2}  label="Total Agen"    value={totals.agents.toString()}        color="text-amber-600" />
-      </div>
-
-      {/* Bar chart */}
-      <Card>
-        <CardHeader><CardTitle className="text-base">Revenue per Cabang</CardTitle></CardHeader>
-        <CardContent className="h-72">
-          {isLoading ? <Skeleton className="h-full w-full" /> : chartData.length === 0 ? (
-            <div className="h-full flex items-center justify-center text-sm text-muted-foreground">Belum ada data.</div>
-          ) : (
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${(v/1_000_000).toFixed(0)}jt`} />
-                <Tooltip formatter={(v: any, k: any) => k === "Revenue" ? formatCurrency(Number(v)) : v} />
-                <Legend />
-                <Bar dataKey="Revenue" fill="hsl(var(--primary))" radius={[6,6,0,0]} />
-                <Bar dataKey="Booking" fill="hsl(var(--accent))"  radius={[6,6,0,0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Leaderboard */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Trophy className="h-4 w-4 text-amber-500" /> Ranking Cabang
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="text-xs text-muted-foreground border-b">
-              <tr>
-                <th className="text-left py-2 px-2">#</th>
-                <th className="text-left py-2 px-2">Cabang</th>
-                <th className="text-right py-2 px-2">Booking</th>
-                <th className="text-right py-2 px-2">Jamaah</th>
-                <th className="text-right py-2 px-2">Agen</th>
-                <th className="text-right py-2 px-2">Revenue</th>
-                <th className="text-right py-2 px-2">Konversi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
-                <tr><td colSpan={7} className="py-8 text-center text-muted-foreground">Memuat…</td></tr>
-              ) : ranked.length === 0 ? (
-                <tr><td colSpan={7} className="py-8 text-center text-muted-foreground">Tidak ada data.</td></tr>
-              ) : ranked.map((r, idx) => (
-                <tr key={r.id} className="border-b last:border-0 hover:bg-muted/40">
-                  <td className="py-2 px-2">
-                    {idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : idx + 1}
-                  </td>
-                  <td className="py-2 px-2">
-                    <div className="font-medium">{r.name}</div>
-                    <div className="text-xs text-muted-foreground">{r.city}</div>
-                  </td>
-                  <td className="py-2 px-2 text-right">
-                    {r.bookingCount}
-                    {r.cancelledCount > 0 && (
-                      <Badge variant="outline" className="ml-1 h-4 text-[10px]">
-                        −{r.cancelledCount}
-                      </Badge>
+      <div className="grid md:grid-cols-3 gap-4">
+        {/* Branch Selector */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Building2 className="h-4 w-4" /> Pilih Cabang
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">Pilih minimal 2 cabang</p>
+          </CardHeader>
+          <CardContent className="space-y-2 max-h-[420px] overflow-y-auto">
+            {branches.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">Belum ada cabang.</p>
+            ) : (
+              branches.map((b: any, i: number) => (
+                <div key={b.id} className="flex items-center gap-2 py-1">
+                  <Checkbox
+                    id={`b-${b.id}`}
+                    checked={selectedIds.has(b.id)}
+                    onCheckedChange={() => toggleBranch(b.id)}
+                  />
+                  <Label htmlFor={`b-${b.id}`} className="flex-1 cursor-pointer">
+                    <span
+                      className="font-medium text-sm"
+                      style={{ color: selectedIds.has(b.id) ? CHART_COLORS[[...selectedIds].indexOf(b.id) % CHART_COLORS.length] : undefined }}
+                    >
+                      {b.name}
+                    </span>
+                    {b.city && (
+                      <span className="text-xs text-muted-foreground ml-1">· {b.city}</span>
                     )}
-                  </td>
-                  <td className="py-2 px-2 text-right">{r.customers}</td>
-                  <td className="py-2 px-2 text-right">{r.agents}</td>
-                  <td className="py-2 px-2 text-right font-semibold">{formatCurrency(r.revenue)}</td>
-                  <td className="py-2 px-2 text-right">
-                    <Badge variant={r.conversion >= 80 ? "default" : "outline"}>
-                      {r.conversion.toFixed(0)}%
-                    </Badge>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
+                  </Label>
+                  {!b.is_active && (
+                    <Badge variant="outline" className="text-xs">Nonaktif</Badge>
+                  )}
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
 
-function KpiCard({ icon: Icon, label, value, color }: any) {
-  return (
-    <Card>
-      <CardContent className="pt-4 pb-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs text-muted-foreground">{label}</p>
-            <p className="text-lg font-bold mt-0.5">{value}</p>
-          </div>
-          <Icon className={`h-7 w-7 ${color}`} />
+        {/* Comparison Area */}
+        <div className="md:col-span-2 space-y-4">
+          {selectedBranches.length < 2 ? (
+            <Card>
+              <CardContent className="py-20 text-center text-muted-foreground">
+                <Building2 className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                <p className="font-medium">Pilih minimal 2 cabang</p>
+                <p className="text-sm">Centang cabang di sebelah kiri untuk membandingkan KPI</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <>
+              {/* KPI Table */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">Tabel KPI</CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-[180px]">Metrik</TableHead>
+                          {selectedBranches.map((b: any, i: number) => (
+                            <TableHead
+                              key={b.id}
+                              style={{ color: CHART_COLORS[i % CHART_COLORS.length] }}
+                            >
+                              {b.name}
+                            </TableHead>
+                          ))}
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {statsLoading ? (
+                          <TableRow>
+                            <TableCell
+                              colSpan={selectedBranches.length + 1}
+                              className="text-center py-8 text-muted-foreground"
+                            >
+                              Memuat data…
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          kpiRows.map((kpi) => {
+                            const values = selectedBranches.map(
+                              (b: any) => statsMap[b.id]?.[kpi.key] ?? 0
+                            );
+                            const max = Math.max(...values);
+                            return (
+                              <TableRow key={kpi.key}>
+                                <TableCell className="font-medium text-sm">{kpi.label}</TableCell>
+                                {selectedBranches.map((b: any) => {
+                                  const v = statsMap[b.id]?.[kpi.key] ?? 0;
+                                  const isMax = v > 0 && v === max;
+                                  return (
+                                    <TableCell
+                                      key={b.id}
+                                      className={isMax ? "font-bold text-emerald-700" : ""}
+                                    >
+                                      {kpi.fmt(v)}
+                                      {isMax && selectedBranches.length > 1 && (
+                                        <span className="ml-1">🏆</span>
+                                      )}
+                                    </TableCell>
+                                  );
+                                })}
+                              </TableRow>
+                            );
+                          })
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Bar Chart */}
+              {chartData.length > 0 && !statsLoading && (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base">Grafik Perbandingan</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ResponsiveContainer width="100%" height={240}>
+                      <BarChart
+                        data={chartData}
+                        margin={{ top: 4, right: 4, left: -8, bottom: 0 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="metric" tick={{ fontSize: 10 }} />
+                        <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
+                        <Tooltip />
+                        <Legend />
+                        {selectedBranches.map((b: any, i: number) => (
+                          <Bar
+                            key={b.id}
+                            dataKey={b.name}
+                            fill={CHART_COLORS[i % CHART_COLORS.length]}
+                            radius={[4, 4, 0, 0]}
+                          />
+                        ))}
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+              )}
+            </>
+          )}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

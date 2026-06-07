@@ -61,6 +61,8 @@ export const RECOMMENDED_MENUS: AdminMenuItem[] = [
   { key: 'visa',                label: 'Visa',                  path: '/admin/visa',                 icon: 'FileCheck',       group_name: 'Jamaah & Agen',      sort_order: 607, required_permission: PERMISSIONS.VISA },
   { key: 'branch-commissions',      label: 'Komisi Cabang',       path: '/admin/branch-commissions',       icon: 'DollarSign',  group_name: 'Jamaah & Agen',      sort_order: 608, required_permission: PERMISSIONS.BRANCH_COMMISSIONS },
   { key: 'agent-commission-report', label: 'Laporan Komisi Agen', path: '/admin/agent-commission-report',  icon: 'BarChart3',   group_name: 'Jamaah & Agen',      sort_order: 609, required_permission: PERMISSIONS.AGENT_COMMISSION_REPORT },
+  { key: 'master-komisi',       label: 'Master Laporan Komisi', path: '/admin/master-komisi',        icon: 'FileSpreadsheet', group_name: 'Jamaah & Agen',  sort_order: 610, required_permission: PERMISSIONS.MASTER_KOMISI },
+  { key: 'branch-comparison',   label: 'Perbandingan Cabang',   path: '/admin/branch-comparison',    icon: 'GitCompare',  group_name: 'Jamaah & Agen',      sort_order: 611, required_permission: PERMISSIONS.BRANCH_COMPARISON },
 
   // ── Keuangan (500s) ───────────────────────────────────────────────────────
   { key: 'finance-terpadu',     label: 'Dashboard Keuangan',    path: '/admin/finance-terpadu',      icon: 'Layers',          group_name: 'Keuangan',           sort_order: 501, required_permission: PERMISSIONS.FINANCE_TERPADU },

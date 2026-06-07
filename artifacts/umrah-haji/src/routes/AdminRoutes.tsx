@@ -136,6 +136,7 @@ const AdminMemberships = lazy(() => import("@/pages/admin/AdminMemberships"));
 const AdminBranchCommissions = lazy(() => import("@/pages/admin/AdminBranchCommissions"));
 
 const AdminAgentCommissionReport = lazy(() => import("@/pages/admin/AdminAgentCommissionReport"));
+const AdminMasterKomisi = lazy(() => import("@/pages/admin/AdminMasterKomisi"));
 const AdminEmailTemplates = lazy(() => import("@/pages/admin/AdminEmailTemplates"));
 const AdminPushNotifications = lazy(() => import("@/pages/admin/AdminPushNotifications"));
 const AdminPushOutbox = lazy(() => import("@/pages/admin/AdminPushOutbox"));
@@ -373,6 +374,8 @@ export default function AdminRoutes() {
 
       {/* Fase 4 — Analytics & Reporting */}
       <Route path="agent-commission-report" element={<P k={PERMISSIONS.AGENT_COMMISSION_REPORT}><AdminAgentCommissionReport /></P>} />
+      <Route path="master-komisi" element={<P k={PERMISSIONS.MASTER_KOMISI}><AdminMasterKomisi /></P>} />
+      <Route path="branch-comparison" element={<P k={PERMISSIONS.BRANCH_COMPARISON}><AdminBranchComparison /></P>} />
 
       {/* Fase 5 — Notifikasi & Komunikasi */}
       <Route path="email-templates" element={<P k={PERMISSIONS.EMAIL_TEMPLATES}><AdminEmailTemplates /></P>} />
