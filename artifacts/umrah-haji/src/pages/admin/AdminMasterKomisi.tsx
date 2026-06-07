@@ -156,10 +156,10 @@ export default function AdminMasterKomisi() {
     );
   }
 
-  const totalAll    = allRows.reduce((s, r) => s + r.nominal, 0);
-  const totalAgen   = agentComm.reduce((s, r) => s + r.nominal, 0);
-  const totalOverride = overrideComm.reduce((s, r) => s + r.nominal, 0);
-  const totalCabang = branchComm.reduce((s, r) => s + r.nominal, 0);
+  const totalAll      = allRows.reduce((s: number, r: { nominal: number }) => s + r.nominal, 0);
+  const totalAgen     = agentComm.reduce((s: number, r: { nominal: number }) => s + r.nominal, 0);
+  const totalOverride = overrideComm.reduce((s: number, r: { nominal: number }) => s + r.nominal, 0);
+  const totalCabang   = branchComm.reduce((s: number, r: { nominal: number }) => s + r.nominal, 0);
 
   function KomisiTable({ rows }: { rows: typeof allRows }) {
     const f = filtered(rows);

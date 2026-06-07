@@ -68,11 +68,11 @@ export default function BranchDashboard() {
 
   useEffect(() => {
     if (!newBookingsCheck?.items?.length || !bId) return;
-    const newest = newBookingsCheck.items[0].created_at;
+    const newest: string | null = newBookingsCheck.items[0].created_at ?? null;
     const storageKey = `branch_last_booking_${bId}`;
     const lastSeen = lastSeenRef.current || localStorage.getItem(storageKey);
 
-    if (lastSeen && newest > lastSeen) {
+    if (lastSeen && newest && newest > lastSeen) {
       const fresh = newBookingsCheck.items.filter((b: any) => b.created_at > lastSeen);
       if (fresh.length > 0) {
         setNewBookingCount(c => c + fresh.length);
@@ -83,8 +83,10 @@ export default function BranchDashboard() {
         );
       }
     }
-    lastSeenRef.current = newest;
-    localStorage.setItem(storageKey, newest);
+    if (newest) {
+      lastSeenRef.current = newest;
+      localStorage.setItem(storageKey, newest);
+    }
   }, [newBookingsCheck, bId, navigate]);
 
   const { data: stats, isLoading } = useQuery({
