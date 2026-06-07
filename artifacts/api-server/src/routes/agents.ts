@@ -99,6 +99,97 @@ router.post('/create', async (req, res) => {
   }
 });
 
+// ── POST /api/agents/tiers/refresh — batch recalculate semua membership tier ─
+router.post('/tiers/refresh', requireAuth, async (req, res) => {
+  const user = req.user!;
+  if (!['super_admin', 'owner', 'admin'].includes(user.role)) {
+    res.status(403).json({ success: false, error: 'Akses ditolak.' });
+    return;
+  }
+  try {
+    const result = await pool.query(`SELECT * FROM refresh_agent_membership_tiers()`);
+    const changes = result.rows.filter((r: any) => r.old_tier !== r.new_tier);
+    logger.info({ total: result.rowCount, changed: changes.length }, 'Manual agent tier refresh triggered');
+    res.json({
+      success: true,
+      total_processed: result.rowCount ?? 0,
+      total_changed: changes.length,
+      changes,
+    });
+  } catch (err: any) {
+    logger.error({ err }, 'Agent tier refresh failed');
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ── GET /api/agents/tiers/config — baca konfigurasi threshold tier ───────────
+router.get('/tiers/config', requireAuth, async (_req, res) => {
+  try {
+    const result = await pool.query(`SELECT * FROM agent_tier_config ORDER BY min_bookings ASC`);
+    res.json({ success: true, config: result.rows });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ── PUT /api/agents/tiers/config/:tier — update threshold tier ───────────────
+router.put('/tiers/config/:tier', requireAuth, async (req, res) => {
+  const user = req.user!;
+  if (!['super_admin', 'owner'].includes(user.role)) {
+    res.status(403).json({ success: false, error: 'Akses ditolak.' });
+    return;
+  }
+  const { tier } = req.params;
+  const { min_bookings, label, color, description } = req.body;
+  if (!['bronze', 'silver', 'gold', 'platinum'].includes(tier)) {
+    res.status(400).json({ success: false, error: 'Tier tidak valid.' });
+    return;
+  }
+  try {
+    const result = await pool.query(
+      `UPDATE agent_tier_config
+       SET min_bookings = COALESCE($1, min_bookings),
+           label        = COALESCE($2, label),
+           color        = COALESCE($3, color),
+           description  = COALESCE($4, description),
+           updated_at   = NOW()
+       WHERE tier = $5
+       RETURNING *`,
+      [min_bookings ?? null, label ?? null, color ?? null, description ?? null, tier]
+    );
+    res.json({ success: true, config: result.rows[0] });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ── GET /api/agents/tiers/stats — ringkasan distribusi tier ─────────────────
+router.get('/tiers/stats', requireAuth, async (_req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT
+        a.membership_tier AS tier,
+        COUNT(*)          AS count,
+        AVG(a.total_confirmed_bookings) AS avg_bookings,
+        MAX(a.total_confirmed_bookings) AS max_bookings,
+        MAX(a.membership_tier_updated_at) AS last_updated
+      FROM agents a
+      WHERE a.status = 'active'
+      GROUP BY a.membership_tier
+      ORDER BY
+        CASE a.membership_tier
+          WHEN 'platinum' THEN 1
+          WHEN 'gold'     THEN 2
+          WHEN 'silver'   THEN 3
+          ELSE 4
+        END
+    `);
+    res.json({ success: true, stats: result.rows });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // ── GET /api/agents/commission-tiers/list ─────────────────────────────────
 router.get('/commission-tiers/list', async (_req, res) => {
   try {

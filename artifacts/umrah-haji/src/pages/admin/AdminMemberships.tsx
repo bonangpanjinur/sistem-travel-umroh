@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAllAgentMemberships, useAllBranchMemberships, useApproveMembership, useRejectMembership } from "@/hooks/useMemberships";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,11 +9,30 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { CheckCircle2, XCircle, Eye, Building2, UserSquare2, Clock, Search, RefreshCw } from "lucide-react";
+import { CheckCircle2, XCircle, Eye, Building2, UserSquare2, Clock, Search, RefreshCw, Trophy, Crown, Star, Medal } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 import { formatDate } from "@/lib/format";
 import { toast } from "sonner";
 
+// ─── Tier helpers ─────────────────────────────────────────────────────────────
+const TIER_META: Record<string, { label: string; color: string; bg: string; border: string; icon: any }> = {
+  platinum: { label: "Platinum", color: "text-purple-700", bg: "bg-purple-50", border: "border-purple-300", icon: Crown },
+  gold:     { label: "Gold",     color: "text-amber-700",  bg: "bg-amber-50",  border: "border-amber-300",  icon: Trophy },
+  silver:   { label: "Silver",   color: "text-slate-600",  bg: "bg-slate-50",  border: "border-slate-300",  icon: Star },
+  bronze:   { label: "Bronze",   color: "text-orange-700", bg: "bg-orange-50", border: "border-orange-200", icon: Medal },
+};
+
+function TierBadge({ tier }: { tier: string }) {
+  const m = TIER_META[tier] ?? TIER_META.bronze;
+  const Icon = m.icon;
+  return (
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border ${m.bg} ${m.color} ${m.border}`}>
+      <Icon className="h-3 w-3" />{m.label}
+    </span>
+  );
+}
+
+// ─── Membership status helpers ────────────────────────────────────────────────
 const STATUS_BADGE: Record<string, { label: string; variant: any; icon: any }> = {
   pending:  { label: "Menunggu",  variant: "secondary", icon: Clock },
   active:   { label: "Aktif",     variant: "default",   icon: CheckCircle2 },
@@ -71,6 +91,7 @@ function RejectDialog({ open, onClose, onConfirm, loading }: { open: boolean; on
   );
 }
 
+// ─── Agent Memberships Tab ────────────────────────────────────────────────────
 function AgentMembershipsTab() {
   const { data = [], isLoading, refetch } = useAllAgentMemberships();
   const approve = useApproveMembership();
@@ -159,6 +180,7 @@ function AgentMembershipsTab() {
   );
 }
 
+// ─── Branch Memberships Tab ───────────────────────────────────────────────────
 function BranchMembershipsTab() {
   const { data = [], isLoading, refetch } = useAllBranchMemberships();
   const approve = useApproveMembership();
@@ -248,6 +270,235 @@ function BranchMembershipsTab() {
   );
 }
 
+// ─── Agent Tier Tab ───────────────────────────────────────────────────────────
+const TIER_ORDER = ['platinum', 'gold', 'silver', 'bronze'];
+
+function AgentTierTab() {
+  const qc = useQueryClient();
+
+  const { data: statsData, isLoading: statsLoading, refetch: refetchStats } = useQuery({
+    queryKey: ['agent-tier-stats'],
+    queryFn: async () => {
+      const res = await fetch('/api/v1/agents/tiers/stats');
+      if (!res.ok) throw new Error('Failed to fetch tier stats');
+      const data = await res.json();
+      return data.stats as Array<{
+        tier: string;
+        count: string;
+        avg_bookings: string;
+        max_bookings: string;
+        last_updated: string | null;
+      }>;
+    },
+    staleTime: 60_000,
+  });
+
+  const { data: configData, isLoading: configLoading, refetch: refetchConfig } = useQuery({
+    queryKey: ['agent-tier-config'],
+    queryFn: async () => {
+      const res = await fetch('/api/v1/agents/tiers/config');
+      if (!res.ok) throw new Error('Failed to fetch tier config');
+      const data = await res.json();
+      return data.config as Array<{
+        tier: string;
+        min_bookings: number;
+        label: string;
+        color: string;
+        description: string;
+        updated_at: string;
+      }>;
+    },
+    staleTime: 60_000,
+  });
+
+  const refreshMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch('/api/v1/agents/tiers/refresh', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+      if (!res.ok) { const e = await res.json(); throw e; }
+      return res.json();
+    },
+    onSuccess: (data) => {
+      toast.success(`Refresh selesai: ${data.total_processed} agen diproses, ${data.total_changed} tier berubah`);
+      refetchStats();
+      refetchConfig();
+      qc.invalidateQueries({ queryKey: ['agent-tier-stats'] });
+    },
+    onError: (err: any) => {
+      toast.error(err?.error || "Gagal refresh tier agen");
+    },
+  });
+
+  const [editTier, setEditTier] = useState<string | null>(null);
+  const [editMinBookings, setEditMinBookings] = useState<number>(0);
+
+  const updateConfigMutation = useMutation({
+    mutationFn: async ({ tier, min_bookings }: { tier: string; min_bookings: number }) => {
+      const res = await fetch(`/api/v1/agents/tiers/config/${tier}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ min_bookings }),
+      });
+      if (!res.ok) { const e = await res.json(); throw e; }
+      return res.json();
+    },
+    onSuccess: () => {
+      toast.success("Konfigurasi threshold tier diperbarui");
+      setEditTier(null);
+      refetchConfig();
+    },
+    onError: (err: any) => {
+      toast.error(err?.error || "Gagal update konfigurasi tier");
+    },
+  });
+
+  const statsByTier = Object.fromEntries((statsData ?? []).map(s => [s.tier, s]));
+  const configByTier = Object.fromEntries((configData ?? []).map(c => [c.tier, c]));
+
+  const totalAgents = (statsData ?? []).reduce((sum, s) => sum + Number(s.count), 0);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="font-semibold text-base">Membership Tier Otomatis</h3>
+          <p className="text-sm text-muted-foreground">
+            Tier naik otomatis berdasarkan jumlah booking confirmed/completed.
+            Refresh berjalan setiap malam pukul 02:00 WIB.
+          </p>
+        </div>
+        <Button onClick={() => refreshMutation.mutate()} disabled={refreshMutation.isPending} variant="outline" className="gap-2">
+          <RefreshCw className={`h-4 w-4 ${refreshMutation.isPending ? 'animate-spin' : ''}`} />
+          {refreshMutation.isPending ? "Memproses..." : "Refresh Sekarang"}
+        </Button>
+      </div>
+
+      {/* Distribusi Tier */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {TIER_ORDER.map(tier => {
+          const m = TIER_META[tier];
+          const Icon = m.icon;
+          const stat = statsByTier[tier];
+          const cfg = configByTier[tier];
+          const count = stat ? Number(stat.count) : 0;
+          const pct = totalAgents > 0 ? Math.round((count / totalAgents) * 100) : 0;
+          return (
+            <Card key={tier} className={`border-2 ${m.border}`}>
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <Icon className={`h-4 w-4 ${m.color}`} />
+                      <span className={`text-sm font-semibold ${m.color}`}>{m.label}</span>
+                    </div>
+                    <p className="text-2xl font-bold">{count}</p>
+                    <p className="text-xs text-muted-foreground">agen ({pct}%)</p>
+                  </div>
+                  <div className="text-right text-xs text-muted-foreground">
+                    <p>Min. booking</p>
+                    <p className="font-semibold text-sm">{cfg?.min_bookings ?? '—'}</p>
+                  </div>
+                </div>
+                {stat && (
+                  <div className="mt-2 pt-2 border-t text-xs text-muted-foreground">
+                    Rata-rata: {Math.round(Number(stat.avg_bookings ?? 0))} booking
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+
+      {/* Konfigurasi Threshold */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-semibold">Konfigurasi Threshold Tier</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {configLoading || statsLoading ? (
+            <div className="py-6 text-center text-muted-foreground text-sm">Memuat konfigurasi...</div>
+          ) : (
+            <div className="space-y-2">
+              {TIER_ORDER.map(tier => {
+                const cfg = configByTier[tier];
+                const m = TIER_META[tier];
+                const Icon = m.icon;
+                if (!cfg) return null;
+                const isEditing = editTier === tier;
+                return (
+                  <div key={tier} className={`flex items-center gap-4 p-3 rounded-lg border ${m.bg} ${m.border}`}>
+                    <Icon className={`h-5 w-5 flex-shrink-0 ${m.color}`} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className={`font-semibold text-sm ${m.color}`}>{cfg.label}</span>
+                        <TierBadge tier={tier} />
+                      </div>
+                      <p className="text-xs text-muted-foreground truncate">{cfg.description}</p>
+                    </div>
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                      {isEditing ? (
+                        <>
+                          <div className="flex items-center gap-1">
+                            <span className="text-xs text-muted-foreground">Min booking:</span>
+                            <Input
+                              type="number"
+                              min={0}
+                              value={editMinBookings}
+                              onChange={e => setEditMinBookings(Number(e.target.value))}
+                              className="w-20 h-7 text-sm"
+                            />
+                          </div>
+                          <Button
+                            size="sm"
+                            className="h-7 text-xs"
+                            disabled={updateConfigMutation.isPending}
+                            onClick={() => updateConfigMutation.mutate({ tier, min_bookings: editMinBookings })}
+                          >
+                            Simpan
+                          </Button>
+                          <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setEditTier(null)}>
+                            Batal
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <span className="text-sm font-semibold tabular-nums">≥ {cfg.min_bookings} booking</span>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs"
+                            onClick={() => { setEditTier(tier); setEditMinBookings(cfg.min_bookings); }}
+                          >
+                            Edit
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Keterangan */}
+      <Card className="bg-blue-50 border-blue-200">
+        <CardContent className="p-4 text-sm text-blue-800 space-y-1">
+          <p className="font-semibold">Cara kerja sistem tier otomatis:</p>
+          <ul className="list-disc list-inside space-y-0.5 text-blue-700">
+            <li>Tier naik/turun otomatis saat booking berstatus <strong>confirmed</strong> atau <strong>completed</strong></li>
+            <li>Trigger database aktif real-time setiap ada perubahan booking</li>
+            <li>Batch refresh dijalankan setiap malam pukul 02:00 WIB via cron job</li>
+            <li>Gunakan tombol <strong>"Refresh Sekarang"</strong> untuk recalculate manual</li>
+          </ul>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
 export default function AdminMemberships() {
   const { data: agentData = [] } = useAllAgentMemberships();
   const { data: branchData = [] } = useAllBranchMemberships();
@@ -261,7 +512,7 @@ export default function AdminMemberships() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Manajemen Keanggotaan</h1>
-        <p className="text-muted-foreground">Kelola pendaftaran dan persetujuan keanggotaan agen dan cabang</p>
+        <p className="text-muted-foreground">Kelola pendaftaran, persetujuan keanggotaan, dan tier otomatis agen</p>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -297,9 +548,14 @@ export default function AdminMemberships() {
             Keanggotaan Cabang
             {branchPending > 0 && <Badge variant="destructive" className="h-5 min-w-5 text-xs">{branchPending}</Badge>}
           </TabsTrigger>
+          <TabsTrigger value="tiers" className="gap-2">
+            <Trophy className="h-4 w-4" />
+            Tier Agen
+          </TabsTrigger>
         </TabsList>
-        <TabsContent value="agents" className="mt-4"><AgentMembershipsTab /></TabsContent>
+        <TabsContent value="agents"   className="mt-4"><AgentMembershipsTab /></TabsContent>
         <TabsContent value="branches" className="mt-4"><BranchMembershipsTab /></TabsContent>
+        <TabsContent value="tiers"    className="mt-4"><AgentTierTab /></TabsContent>
       </Tabs>
     </div>
   );

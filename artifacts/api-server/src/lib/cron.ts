@@ -83,7 +83,22 @@ export function startCronJobs() {
     }
   }, { timezone: "UTC" });
 
+  // Setiap malam jam 02:00 WIB (19:00 UTC) — refresh membership tier agen
+  cron.schedule("0 19 * * *", async () => {
+    logger.info("Cron: running nightly agent membership tier refresh");
+    try {
+      const result = await pool.query(`SELECT * FROM refresh_agent_membership_tiers()`);
+      const upgrades = result.rows.filter((r: any) => r.old_tier !== r.new_tier);
+      logger.info(
+        { total: result.rowCount, upgraded: upgrades.length, changes: upgrades },
+        "Cron: agent tier refresh complete",
+      );
+    } catch (err: any) {
+      logger.error({ err }, "Cron: agent tier refresh failed");
+    }
+  }, { timezone: "UTC" });
+
   logger.info(
-    "Cron jobs registered: cicilan+payment @08:00 WIB, H-7 @07:00 WIB, H-1 @06:00 WIB, integration-health @every hour, wa-scheduled @every 5min",
+    "Cron jobs registered: cicilan+payment @08:00 WIB, H-7 @07:00 WIB, H-1 @06:00 WIB, integration-health @every hour, wa-scheduled @every 5min, agent-tier-refresh @02:00 WIB",
   );
 }

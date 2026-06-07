@@ -222,9 +222,13 @@ export type Database = {
           created_at: string | null
           id: string
           is_active: boolean | null
+          membership_tier: 'bronze' | 'silver' | 'gold' | 'platinum'
+          membership_tier_updated_at: string | null
+          total_confirmed_bookings: number
           npwp: string | null
           parent_agent_id: string | null
           slug: string | null
+          status: 'pending' | 'active' | 'suspended' | 'inactive'
           updated_at: string | null
           user_id: string
         }
@@ -239,9 +243,13 @@ export type Database = {
           created_at?: string | null
           id?: string
           is_active?: boolean | null
+          membership_tier?: 'bronze' | 'silver' | 'gold' | 'platinum'
+          membership_tier_updated_at?: string | null
+          total_confirmed_bookings?: number
           npwp?: string | null
           parent_agent_id?: string | null
           slug?: string | null
+          status?: 'pending' | 'active' | 'suspended' | 'inactive'
           updated_at?: string | null
           user_id: string
         }
@@ -256,9 +264,13 @@ export type Database = {
           created_at?: string | null
           id?: string
           is_active?: boolean | null
+          membership_tier?: 'bronze' | 'silver' | 'gold' | 'platinum'
+          membership_tier_updated_at?: string | null
+          total_confirmed_bookings?: number
           npwp?: string | null
           parent_agent_id?: string | null
           slug?: string | null
+          status?: 'pending' | 'active' | 'suspended' | 'inactive'
           updated_at?: string | null
           user_id?: string
         }

@@ -517,6 +517,32 @@ export async function runMigrations(): Promise<void> {
       logger.info("runMigrations: 22_agent_status_branch_staff — already applied, skipping");
     }
 
+    // ── Step 1t: agent membership tiers (Bronze/Silver/Gold/Platinum) ─────
+    const agentTiersApplied = await isApplied(client, "23_agent_membership_tiers");
+    if (!agentTiersApplied) {
+      await runSqlFile(
+        client,
+        sqlPath("23_agent_membership_tiers.sql"),
+        "23_agent_membership_tiers (membership_tier column + agent_tier_config + trigger + batch refresh)",
+      );
+      await markApplied(client, "23_agent_membership_tiers");
+    } else {
+      logger.info("runMigrations: 23_agent_membership_tiers — already applied, skipping");
+    }
+
+    // ── Step 1u: fix agent tier trigger (no column-level restriction) ─────
+    const agentTierTriggerFixApplied = await isApplied(client, "24_agent_tier_trigger_fix");
+    if (!agentTierTriggerFixApplied) {
+      await runSqlFile(
+        client,
+        sqlPath("24_agent_tier_trigger_fix.sql"),
+        "24_agent_tier_trigger_fix (re-create agent tier trigger without column restriction)",
+      );
+      await markApplied(client, "24_agent_tier_trigger_fix");
+    } else {
+      logger.info("runMigrations: 24_agent_tier_trigger_fix — already applied, skipping");
+    }
+
     // ── Step 2: payment sync trigger (always re-applied each boot) ────────
     // Wrapped in its own try/catch so a missing table on a broken DB state
     // doesn't crash the server — it just logs and continues.
