@@ -117,35 +117,36 @@
 
 ### 🟡 PRIORITAS 2 — Minggu Depan (Dampak Sedang, Effort Sedang)
 
-#### P2.1 Filter Tahun di Daftar Jadwal
+#### P2.1 ✅ Filter Tahun di Daftar Jadwal
 **Lokasi:** `AdminDepartures.tsx`  
 **Logika:** Tambah select filter tahun di samping filter bulan
 
-#### P2.2 Tombol "Tambah Booking" dari Detail Jadwal
-**Lokasi:** `AdminDepartureDetail.tsx` — header atau tab Jemaah  
-**Logika:** Link ke `/admin/bookings/create?departure_id=xxx`
+#### P2.2 ✅ Tombol "Tambah Booking" dari Detail Jadwal
+**Lokasi:** `AdminDepartureDetail.tsx` — header  
+**Logika:** Link ke `/admin/bookings/create?departure_id=xxx`, AdminBookingCreate baca param dan auto-fill paket + jadwal
 
-#### P2.3 Tab Operasional Fungsional
+#### P2.3 ✅ Tab Operasional Fungsional
 **Lokasi:** `AdminDepartureDetail.tsx` — tab Operasional  
-**Logika:** Ganti text statis dengan card shortcut yang bisa diklik (Manifest, Kamar, Perlengkapan, Check-in QR)
+**Logika:** Card shortcut: Manifest PDF, Penugasan Kamar, Perlengkapan, Check-in QR, Email Manifest, Daftar Jamaah, Keuangan P&L, Pre-Departure Checklist
 
-#### P2.4 Rekonsiliasi Kuota dari Detail Jadwal
-**Lokasi:** `AdminDepartureDetail.tsx` — header atau tab Info  
-**Logika:** Tambah tombol "Sinkronkan Kuota" yang memanggil recalculate_departure_booked_count
+#### P2.4 ✅ Rekonsiliasi Kuota dari Detail Jadwal
+**Lokasi:** `AdminDepartureDetail.tsx` — header + tab Operasional  
+**Logika:** Tombol "Sinkronkan Kuota" memanggil recalculate_departure_booked_count
 
-#### P2.5 Harga Anak/Bayi di Card Paket
+#### P2.5 ✅ Harga Anak/Bayi di Card Paket
 **Lokasi:** `AdminPackages.tsx` — card paket  
-**Logika:** Tampilkan persentase harga anak/bayi jika diisi
+**Logika:** Tampilkan persentase harga anak/bayi (child_price_percent / infant_price_percent) jika diisi
 
 ### 🟢 PRIORITAS 3 — Bulan Depan (Enhancement)
 
-#### P3.1 SEO Fields per Paket
-- meta_title, meta_description, keywords di form paket
-- Digunakan di halaman publik `/packages/:slug`
+#### P3.1 ✅ SEO Fields per Paket & Jadwal
+- meta_title, meta_description di PackageForm dan DepartureForm (SEO editor sudah ada)
+- Digunakan di halaman publik
 
-#### P3.2 Pengelompokan Paket (Package Groups)
+#### P3.2 ❌ Pengelompokan Paket (Package Groups) — BELUM DIKERJAKAN
 - Tabel `package_groups` (Ramadhan, Regular, Premium, Haji, Wisata)
 - Filter + grouping di list paket
+- Belum ada di codebase sama sekali
 
 #### P3.3 Duplikat Jadwal + Copy HPP
 - Saat duplikat jadwal, tawarkan pilihan: salin HPP template juga
@@ -175,11 +176,11 @@
 | P2.3 | Tab Operasional Fungsional | ✅ DONE | Juni 2025 |
 | P2.4 | Rekonsiliasi Kuota dari Detail | ✅ DONE | Juni 2025 |
 | P2.5 | Harga Anak/Bayi di Card | ✅ DONE | Juni 2025 |
-| P3.1 | SEO Fields | ✅ DONE | Juni 2025 |
-| P3.2 | Package Groups | ✅ DONE | Juni 2025 |
-| P3.3 | Duplikat + Copy HPP | ✅ DONE | Juni 2025 |
-| P3.4 | Analytics Terintegrasi | ✅ DONE | Juni 2025 |
-| P3.5 | Bulk Status Change | ✅ DONE | Juni 2025 |
+| P3.1 | SEO Fields Paket & Jadwal (PackageForm, DepartureForm) | ✅ DONE | Juni 2025 |
+| P3.2 | Package Groups | ❌ BELUM | - |
+| P3.3 | Duplikat + Copy HPP | ❓ Perlu verifikasi | - |
+| P3.4 | Analytics Terintegrasi | ❓ Perlu verifikasi | - |
+| P3.5 | Bulk Status Change | ❓ Perlu verifikasi | - |
 
 ---
 
@@ -191,79 +192,58 @@
 
 ### Status Halaman Publik
 
-| Halaman | URL | Title | Meta Desc | OG | JSON-LD | Canonical | Nilai |
-|---|---|---|---|---|---|---|---|
-| PackageDetail | `/packages/:id` | ✅ | ✅ | ✅ | ✅ Product | ✅ | 🟡 Ada bug |
-| PackageList | `/packages` | ❌ | ❌ | ❌ | ❌ | ❌ | 🔴 NOL SEO |
-| DeparturesPage | `/departures` | ❌ | ❌ | ❌ | ❌ | ❌ | 🔴 NOL SEO |
-
-### Bug di PackageDetail
-- `siteTitle` hardcoded `"Vinstour Travel"` — seharusnya ambil dari `settings.company_name`
-- `og:image` tidak punya fallback — jika `pkg.featured_image` kosong, OG image hilang
-- JSON-LD `Product`: kurang `offerCount`, `highPrice`, `seller`, `brand.logo`
-- Tidak ada `BreadcrumbList` JSON-LD (tidak muncul di SERP Google)
-- Tidak ada schema `TouristTrip` (lebih relevan untuk perjalanan ibadah)
-
-### Kekurangan Database
-- Tabel `departures` tidak punya kolom SEO (`meta_title`, `meta_description`, `slug`)
-- Packages sudah punya SEO fields via migration 13 — departures belum
-
-### Kekurangan Teknis
-- Tidak ada `useSEO` hook — setiap halaman reimplementasi meta injection sendiri
-- `sitemap.xml` disebutkan di `robots.txt` tapi tidak ada endpoint generator
-- `index.html` title = `"Memuat..."` — buruk untuk crawler kunjungan pertama
-- DepartureForm admin tidak ada field SEO editor
+| Halaman | URL | useSEO | Status |
+|---|---|---|---|
+| PackageDetail | `/packages/:id` | ✅ | ✅ DONE |
+| PackageList | `/packages` | ❓ Perlu verifikasi | ❓ |
+| DeparturesPage | `/departures` | ✅ (import ditemukan di file) | ✅ DONE |
 
 ---
 
 ## Gap SEO & Status Implementasi
 
-### 🔴 SEO-1 — `useSEO` Hook (utilitas bersama)
-**Masalah:** Setiap halaman reimplementasi setMeta() sendiri (duplikasi, rawan bug)  
-**Solusi:** `src/hooks/useSEO.ts` — satu hook untuk semua kebutuhan meta injection  
-**File:** `src/hooks/useSEO.ts`  
-**Status:** [x] DONE
+### ✅ SEO-1 — `useSEO` Hook (utilitas bersama)
+**File:** `src/hooks/useSEO.ts` — VERIFIED EXISTS  
+**Status:** ✅ DONE
 
-### 🔴 SEO-2 — SEO Halaman PackageList (`/packages`)
-**Masalah:** Zero SEO — tidak ada title, meta description, OG tags, JSON-LD sama sekali  
-**Solusi:** Inject title dinamis, meta desc (jumlah paket), OG tags, ItemList JSON-LD, canonical  
-**File:** `src/pages/packages/PackageList.tsx`  
-**Status:** [x] DONE
+### ❓ SEO-2 — SEO Halaman PackageList (`/packages`)
+**Status:** Perlu verifikasi langsung ke file PackageList.tsx
 
-### 🔴 SEO-3 — SEO Halaman DeparturesPage (`/departures`)
-**Masalah:** Zero SEO — tidak ada title, meta, OG, JSON-LD sama sekali  
-**Solusi:** Inject title, meta desc, OG, ItemList + Event schema per keberangkatan, canonical  
-**File:** `src/pages/public/DeparturesPage.tsx`  
-**Status:** [x] DONE
+### ✅ SEO-3 — SEO Halaman DeparturesPage (`/departures`)
+**Status:** ✅ DONE — DeparturesPage.tsx import dan gunakan `useSEO`
 
-### 🔴 SEO-4 — Fix Bug PackageDetail (siteTitle hardcoded + BreadcrumbList)
-**Masalah:** `siteTitle` hardcoded, no BreadcrumbList JSON-LD  
-**Solusi:** Ambil dari `settings.company_name`, tambah BreadcrumbList, og:image fallback chain  
-**File:** `src/pages/packages/PackageDetail.tsx`  
-**Status:** [x] DONE
+### ❓ SEO-4 — Fix Bug PackageDetail
+**Status:** Perlu verifikasi
 
-### 🔴 SEO-5 — Migrasi DB: SEO Fields untuk Departures
-**Masalah:** Tabel `departures` tidak punya kolom SEO  
-**Solusi:** Migration `14_seo_fields_departures.sql` — `meta_title`, `meta_description`, `slug`  
-**Status:** [x] DONE
+### ❓ SEO-5 — Migrasi DB: SEO Fields untuk Departures
+**Status:** DepartureForm sudah punya `meta_title`/`meta_description` fields → kemungkinan DONE
 
-### 🟡 SEO-6 — TouristTrip + TravelAction Schema di PackageDetail
-**Masalah:** Schema `Product` kurang spesifik untuk perjalanan religi  
-**Solusi:** Tambah `TouristTrip` schema dan `TravelAgency` sebagai `provider`  
-**Status:** [x] DONE
+### ❓ SEO-6 — TouristTrip Schema di PackageDetail
+**Status:** Perlu verifikasi
 
-### 🟡 SEO-7 — Admin SEO Editor untuk Departures
-**Masalah:** Admin tidak bisa set meta_title/meta_description per keberangkatan  
-**Solusi:** Tab SEO di DepartureForm dengan field meta_title, meta_description, slug  
-**Status:** [x] DONE
+### ✅ SEO-7 — Admin SEO Editor untuk Departures
+**File:** `src/components/admin/forms/DepartureForm.tsx` — punya meta_title/meta_description  
+**Status:** ✅ DONE
 
-### 🟡 SEO-8 — Sitemap.xml Dinamis
-**Masalah:** robots.txt merujuk `/sitemap.xml` tapi tidak ada endpoint  
-**Solusi:** API endpoint `GET /api/sitemap.xml` — packages aktif + halaman statis + blog  
-**File:** `artifacts/api-server/src/routes/sitemap.ts`  
-**Status:** [x] DONE
+### ❓ SEO-8 — Sitemap.xml Dinamis
+**File:** `artifacts/api-server/src/routes/sitemap.ts` — file EXISTS  
+**Status:** ✅ DONE (file sitemap.ts ditemukan di API server)
 
-### 🟢 SEO-9 — og:image Fallback Chain
-**Masalah:** Jika `featured_image` kosong, og:image hilang  
-**Solusi:** Fallback: `pkg.featured_image` → `settings.og_image_url` → `/opengraph.jpg`  
-**Status:** [x] DONE
+### ❓ SEO-9 — og:image Fallback Chain
+**Status:** Perlu verifikasi di PackageDetail.tsx
+
+---
+
+## Fitur Publik Tambahan
+
+| ID | Fitur | Status | Catatan |
+|----|-------|--------|---------|
+| PUB-1 | Halaman Cek Booking (`/cek-booking`) | ✅ DONE | Sudah ada + diperbarui Juni 2025 |
+
+### PUB-1 ✅ Public Booking Status Tracker (`/cek-booking`)
+- Jamaah masukkan kode booking → lihat status tanpa login
+- Data via `GET /api/public/booking-status?code=xxx` (API server, bukan Supabase langsung)
+- Keamanan: nama jamaah disamarkan server, tidak expose NIK/HP/email
+- Fitur: journey timeline, progress pembayaran + riwayat, checklist dokumen, pengingat pelunasan WA, tombol bantuan WA/Telepon
+- URL bookmarkable: `/cek-booking?code=BOOK-xxx`
+- Style: `DynamicPublicLayout` + global tokens (`section-padded`, `container-page`, `heading-1`)

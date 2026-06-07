@@ -20,6 +20,7 @@ import reportsRouter from "./reports.js";
 import migrationsRouter from "./migrations.js";
 import cancellationRulesRouter from "./cancellationRules.js";
 import publicPaymentsRouter from "./publicPayments.js";
+import publicBookingStatusRouter from "./publicBookingStatus.js";
 
 const router: IRouter = Router();
 
@@ -44,5 +45,6 @@ router.use("/reports", reportsRouter);
 router.use("/admin/migrations", migrationsRouter);
 router.use("/cancellation-rules", cancellationRulesRouter);
 router.use("/public/payments", publicPaymentsRouter);
+router.use("/public/booking-status", publicBookingStatusRouter);
 
 export default router;
