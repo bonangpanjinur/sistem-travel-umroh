@@ -280,27 +280,45 @@ RBAC (15 role):
 
 ## MODUL 10 — AGEN
 
+> Detail lengkap: lihat bagian **RENCANA MATANG: SISTEM AGEN, CABANG & SUB-AGEN** di bawah
+
 | Status | Fitur | Lokasi |
 |--------|-------|--------|
-| ✅ | Dashboard, paket, jamaah, komisi | `pages/agent/` |
-| ✅ | CRM leads, jaringan sub-agen | `pages/agent/` |
-| ✅ | Membership, target, leaderboard | `pages/agent/` |
-| ✅ | Training module + quiz | `training_modules`, `training_quizzes` |
-| ✅ | Kit digital, broadcast WA, link unik | `pages/agent/` |
-| ✅ | Wallet, referral, website agen | `pages/agent/` |
-| ✅ | Withdrawal otomatis wallet agen | `AdminWithdrawalManagement.tsx` |
+| ✅ | Dashboard, paket, jamaah, komisi | `pages/agent/` (22 halaman) |
+| ✅ | CRM leads, jaringan sub-agen | `AgentLeads.tsx`, `AgentNetwork.tsx` |
+| ✅ | Membership, target, leaderboard | `AgentMembership.tsx`, `AgentTargets.tsx`, `AgentLeaderboard.tsx` |
+| ✅ | Training module + quiz | `AgentTraining.tsx`, `training_modules` table |
+| ✅ | Kit digital, broadcast WA, link unik | `AgentDigitalKit.tsx`, `AgentBroadcast.tsx`, `AgentUniqueLink.tsx` |
+| ✅ | Wallet, referral, website agen | `AgentWallet.tsx`, `AgentMyReferrals.tsx`, `AgentWebsiteSettings.tsx` |
+| ✅ | Withdrawal management admin | `AdminWithdrawalManagement.tsx` |
+| ✅ | API create agent (user+record+role) | `POST /api/agents/create` |
+| ✅ | Tier komisi (Bronze→Platinum) | `agent_commission_tiers` table |
+| ✅ | Override komisi (parent←sub) | `agent_override_commissions` table (schema only) |
+| 🔧 | Kirim kredensial via WA saat buat akun | Logic belum ada |
+| 🔧 | Override commission UI | Tabel ada, UI belum menampilkan data |
+| ❌ | Form pendaftaran sub-agen publik | `/daftar-sub-agen?ref=KODE` belum ada |
+| ❌ | Notif booking baru ke agen | Push notif belum terintegrasi |
+| ❌ | Admin reset password agen | UI belum ada |
 
 ---
 
 ## MODUL 11 — CABANG (BRANCH)
 
+> Detail lengkap: lihat bagian **RENCANA MATANG: SISTEM AGEN, CABANG & SUB-AGEN** di bawah
+
 | Status | Fitur | Lokasi |
 |--------|-------|--------|
-| ✅ | Dashboard, booking, agen, staff | `pages/branch/` |
-| ✅ | Laporan, KPI targets, perbandingan | `pages/branch/` |
-| ✅ | branch_monthly_targets table | |
-| ✅ | Website cabang + settings | `pages/branch/BranchWebsiteSettings.tsx` |
-| ✅ | Persetujuan, diskon per cabang | `pages/branch/` |
+| ✅ | Dashboard, booking, agen, staff | `pages/branch/` (9 halaman) |
+| ✅ | Laporan, KPI targets | `BranchLaporan.tsx`, `BranchKPITargets.tsx` |
+| ✅ | branch_monthly_targets table | SQL migration |
+| ✅ | Website cabang + settings | `BranchWebsiteSettings.tsx` |
+| ✅ | Persetujuan, diskon per cabang | `BranchApprovals.tsx`, `BranchDiskon.tsx` |
+| ✅ | Komisi cabang per booking | `branch_commissions` table + triggers |
+| 🔧 | Real-time KPI progress chart | Tabel ada, data fetch minimal |
+| 🔧 | Branch comparison report | `AdminBranchComparison.tsx` ada, data fetch minimal |
+| ❌ | Buat akun user saat tambah cabang | API baru support create agent, belum branch |
+| ❌ | Branch data scoping di API | Branch manager masih bisa lihat data semua cabang |
+| ❌ | Branch manager tambah staff dari portal | `BranchStaff.tsx` ada, create-user belum |
 
 ---
 
@@ -630,6 +648,415 @@ Fitur belum ada:            ~2% (❌)
 
 ---
 
-*Terakhir diperbarui: Juni 2026 — Analisis mendalam modul paket, keberangkatan, perlengkapan, HPP, keuangan, dan HR*  
+## RENCANA MATANG: SISTEM AGEN, CABANG & SUB-AGEN
+
+> **Diperbarui:** Juni 2026  
+> **Tujuan:** Peta lengkap arsitektur, gap analisis, dan sprint plan fitur Agen-Cabang-Sub-Agen
+
+---
+
+### A. ARSITEKTUR AKUN & HIERARKI
+
+Setiap agen dan cabang **memiliki akun user sendiri** (email + password) yang terhubung ke tabel `auth.users`. Menu yang bisa diakses dikontrol oleh `role_permissions` — yang bisa diubah oleh `super_admin`, `owner`, atau role berotorisasi.
+
+```
+HIRARKI SISTEM
+══════════════════════════════════════════════════════════
+Pusat (Kantor Pusat)
+│  Role: super_admin / owner / IT / operational / finance / sales / HR
+│  Akses: SEMUA modul
+│
+├── Cabang Kota A  (branch_id = uuid-A)
+│   │  Role: branch_manager  →  user_roles.branch_id = uuid-A
+│   │  Portal: /cabang/*
+│   │  Akses: booking, agen, staff, KPI, laporan — HANYA scope cabang
+│   │
+│   ├── Staff Operasional A  (role: operational, branch_id = uuid-A)
+│   │      Akses: jadwal, equipment, keberangkatan — HANYA cabang A
+│   │
+│   ├── Staff Sales A  (role: sales, branch_id = uuid-A)
+│   │      Akses: leads, booking baru — HANYA cabang A
+│   │
+│   ├── Agen A1  (agents.user_id, agents.branch_id = uuid-A)
+│   │   │  Role: agent  →  Portal: /agent/*
+│   │   │  Akses: paket, jamaah sendiri, komisi, wallet, CRM
+│   │   │
+│   │   ├── Sub-Agen A1.1  (agents.parent_agent_id = A1)
+│   │   │      Role: sub_agent  →  Portal: /agent/*  (akses terbatas)
+│   │   │      Akses: paket, jamaah sendiri, link unik — NO komisi/wallet
+│   │   │
+│   │   └── Sub-Agen A1.2
+│   │
+│   └── Agen A2  (independen di cabang A)
+│
+├── Cabang Kota B  (branch_id = uuid-B)
+│   └── ...
+│
+└── Agen Independen  (agents.branch_id = NULL)
+       Langsung di bawah kantor pusat
+══════════════════════════════════════════════════════════
+```
+
+**Mapping Tabel Database:**
+| Entitas | Tabel Akun | FK Hierarki | Role di user_roles |
+|---------|-----------|-------------|-------------------|
+| Branch Manager | `auth.users` | `branches.manager_user_id` | `branch_manager` + `branch_id` |
+| Branch Staff | `auth.users` | `user_roles.branch_id` | `operational`/`sales`/`finance` + `branch_id` |
+| Agen | `auth.users` | `agents.user_id` | `agent` |
+| Sub-Agen | `auth.users` | `agents.parent_agent_id` | `sub_agent` |
+
+---
+
+### B. RBAC & MENU ACCESS CONTROL (Kunci Sistem)
+
+**Cara kerja saat ini:**
+- Tabel `menu_items` → daftar semua item menu dengan `required_permission`
+- Tabel `role_permissions` → mapping `(role, permission_key)`
+- Hook `useCanAccess(permissionKey)` di frontend → cek apakah user role punya akses
+- Super admin sudah bisa kelola via `AdminRoleManagement.tsx`
+
+**Yang masih kurang:**
+| Gap | Deskripsi | Prioritas |
+|-----|-----------|-----------|
+| 🔧 Per-branch scoping di API | Branch manager masih bisa lihat data cabang lain | P1 URGENT |
+| ❌ Per-user permission override | Override izin untuk user spesifik (bukan hanya per role) | P2 |
+| ❌ Sub-agent menu kustom | Super admin bisa define menu mana yang tampil ke sub_agent | P2 |
+| ❌ Agen dapat lihat status persetujuan akun | Saat akun dibuat, agen perlu notif bahwa akun aktif | P2 |
+| ❌ Self-service password reset admin | Admin bisa reset password agen/cabang | P2 |
+
+**Alur yang diinginkan (sudah ada schema, perlu UI):**
+```
+Super Admin / Owner / IT
+  → Buka menu "Manajemen Role & Izin"
+  → Pilih role: agent | sub_agent | branch_manager
+  → Toggle on/off setiap menu item
+  → Simpan → role_permissions terupdate
+  → Semua user dengan role tersebut langsung terdampak
+```
+
+---
+
+### C. ANALISIS STATUS FITUR LENGKAP
+
+#### C1. MANAJEMEN CABANG (Admin → /admin/branches)
+
+| Status | Fitur | Lokasi |
+|--------|-------|--------|
+| ✅ | CRUD cabang (nama, kode, kota, provinsi, alamat) | `AdminBranches.tsx` |
+| ✅ | Assign branch manager (set manager_user_id) | `AdminBranches.tsx` |
+| ✅ | Website cabang (hero, tagline, logo, galeri) | `BranchWebsiteSettings.tsx` |
+| ✅ | Perbandingan antar cabang (basic) | `AdminBranchComparison.tsx` |
+| ✅ | Komisi per cabang di booking | `branch_commissions` table |
+| 🔧 | **Buat akun user otomatis saat buat cabang** | `POST /api/agents/create` ada, belum untuk branch |
+| 🔧 | **Kirim kredensial ke branch manager via WA/email** | Logic belum ada |
+| ❌ | **Branch data scoping di API** | API masih return data semua cabang |
+| ❌ | **Tambah staff ke cabang dari admin panel** | UI ada (`BranchStaff.tsx`) tapi tidak ada create-user |
+| ❌ | **Laporan keuangan konsolidasi per cabang** | Placeholder ada, data kosong |
+
+#### C2. PORTAL CABANG (/cabang/*)
+
+| Status | Fitur | Lokasi |
+|--------|-------|--------|
+| ✅ | Dashboard cabang (stats dasar) | `BranchDashboard.tsx` |
+| ✅ | Daftar booking scope cabang | `BranchBookings.tsx` |
+| ✅ | Manajemen agen di cabang | `BranchAgen.tsx` |
+| ✅ | Manajemen staff cabang | `BranchStaff.tsx` |
+| ✅ | KPI Targets bulanan | `BranchKPITargets.tsx` |
+| ✅ | Persetujuan (approval) booking | `BranchApprovals.tsx` |
+| ✅ | Diskon cabang | `BranchDiskon.tsx` |
+| ✅ | Laporan cabang | `BranchLaporan.tsx` |
+| 🔧 | **Real-time KPI progress** | Tabel ada, data fetch minimal |
+| ❌ | **Buat akun user staff dari portal cabang** | Branch manager tidak bisa tambah staff sendiri |
+| ❌ | **Komisi cabang real-time** | Dashboard tidak tampilkan angka komisi terkini |
+| ❌ | **Notifikasi booking baru ke branch manager** | Belum ada event listener |
+
+#### C3. MANAJEMEN AGEN (Admin → /admin/agents)
+
+| Status | Fitur | Lokasi |
+|--------|-------|--------|
+| ✅ | Daftar agen + hierarki sub-agen (expandable) | `AdminAgents.tsx` |
+| ✅ | Tambah agen → buat user + set role + buat record agent | `POST /api/agents/create` |
+| ✅ | Edit komisi rate agen | `AdminAgents.tsx` |
+| ✅ | Approval komisi agen | `AdminAgentCommissionReport.tsx` |
+| ✅ | Laporan komisi agen | `AdminLaporanAgen.tsx` |
+| ✅ | Tier komisi (berdasarkan volume booking) | `agent_commission_tiers` table |
+| 🔧 | **Kirim kredensial ke agen via WA/email** | API buat user sudah ada, notif belum |
+| 🔧 | **Override commission UI** | Tabel `agent_override_commissions` ada, UI belum |
+| ❌ | **Performance analitik per agen** | Hanya stats dasar (total booking, total komisi) |
+| ❌ | **Laporan master komisi** | Gabungan agen+cabang+sub-agen untuk CFO/Finance |
+| ❌ | **Suspend/reaktivasi agen** | Hanya soft-delete, tidak ada flow suspend dengan notif |
+
+#### C4. PORTAL AGEN (/agent/*)
+
+| Status | Fitur | Lokasi |
+|--------|-------|--------|
+| ✅ | Dashboard (stats bookings, komisi, leads) | `AgentDashboard.tsx` |
+| ✅ | Daftar & cari paket | `AgentPackages.tsx` |
+| ✅ | Daftarkan jamaah (booking baru) | `AgentRegister.tsx`, `AgentRegisterGroup.tsx` |
+| ✅ | Daftar jamaah sendiri | `AgentJamaahEnhanced.tsx` |
+| ✅ | Komisi & history pencairan | `AgentCommissions.tsx` |
+| ✅ | Wallet & withdrawal request | `AgentWallet.tsx` |
+| ✅ | Jaringan sub-agen | `AgentNetwork.tsx` |
+| ✅ | Jamaah dari sub-agen | `AgentSubAgentJamaah.tsx` |
+| ✅ | CRM leads pipeline | `AgentLeads.tsx` |
+| ✅ | Broadcast WA massal | `AgentBroadcast.tsx` |
+| ✅ | Link unik + landing page | `AgentUniqueLink.tsx` |
+| ✅ | Kit digital (materi promosi) | `AgentDigitalKit.tsx` |
+| ✅ | Training modul + quiz | `AgentTraining.tsx` |
+| ✅ | Membership tier (Silver/Gold/Platinum) | `AgentMembership.tsx` |
+| ✅ | Referral & tracking | `AgentMyReferrals.tsx` |
+| ✅ | Leaderboard & gamifikasi | `AgentLeaderboard.tsx` |
+| ✅ | Target bulanan | `AgentTargets.tsx` |
+| ✅ | Settings profil agen | `AgentSettings.tsx` |
+| ✅ | Website agen (landing page kustom) | `AgentWebsiteSettings.tsx` |
+| ✅ | Laporan pribadi | `AgentLaporan.tsx` |
+| 🔧 | **Override commission tampil ke agen** | Tabel ada, UI belum tampilkan earning dari sub-agen |
+| ❌ | **Undang sub-agen via form publik** | Link unik ada, tapi form pendaftaran sub-agen belum terintegrasi |
+| ❌ | **Notif booking baru dari link agen** | Agen tidak ternotif saat ada booking masuk dari linknya |
+
+#### C5. PORTAL SUB-AGEN (subset /agent/*)
+
+| Status | Fitur | Akses |
+|--------|-------|-------|
+| ✅ | Dashboard (terbatas) | role: sub_agent |
+| ✅ | Lihat paket | sub_agent |
+| ✅ | Daftarkan jamaah | sub_agent |
+| ✅ | Link unik sendiri | sub_agent |
+| ❌ | **Komisi untuk sub-agen** | sub_agent tidak dapat komisi langsung (perlu kebijakan bisnis) |
+| ❌ | **Onboarding publik sub-agen** | Form pendaftaran melalui link agen belum ada |
+| ❌ | **Batasan menu sub-agen** | Masih menggunakan menu yang sama dengan agen utama |
+
+---
+
+### D. FITUR YANG PERLU DIBANGUN (Prioritas)
+
+#### 🔴 P1 — CRITICAL (Blokir operasional)
+
+| ID | Fitur | Deskripsi | Sprint |
+|----|-------|-----------|--------|
+| P1-A | **Branch Data Scoping** | API filter semua query berdasarkan `branch_id` untuk `branch_manager` | Sprint 1 |
+| P1-B | **Create Branch User Account** | Saat admin buat cabang baru, otomatis buat akun user untuk manager | Sprint 1 |
+| P1-C | **Kirim Kredensial via WA** | Setelah akun agen/cabang dibuat, kirim username+temp-password via WA | Sprint 1 |
+| P1-D | **Admin Reset Password Agen** | Admin bisa reset password agen/branch dari halaman user management | Sprint 1 |
+
+#### 🟡 P2 — HIGH (Segera setelah P1)
+
+| ID | Fitur | Deskripsi | Sprint |
+|----|-------|-----------|--------|
+| P2-A | **Override Commission UI** | UI untuk lihat & approve komisi override parent-agen dari sub-agen | Sprint 2 |
+| P2-B | **Sub-Agent Onboarding Form** | Form pendaftaran sub-agen via link unik agen, approval oleh admin | Sprint 2 |
+| P2-C | **Branch Staff Create User** | Branch manager bisa tambah staff (operational/sales) + buat akun user | Sprint 2 |
+| P2-D | **Notif Booking Baru ke Agen** | Push notif ke agen saat ada booking masuk via link/referral mereka | Sprint 2 |
+| P2-E | **KPI Real-Time Dashboard** | Branch manager lihat progress KPI bulan ini vs target (chart) | Sprint 2 |
+
+#### 🟢 P3 — MEDIUM (Nilai tambah)
+
+| ID | Fitur | Deskripsi | Sprint |
+|----|-------|-----------|--------|
+| P3-A | **Master Laporan Komisi** | Satu halaman gabungan: komisi agen + branch + sub-agen untuk CFO | Sprint 3 |
+| P3-B | **Analitik Performa Agen** | Per-agen: grafik booking/komisi per bulan, trending, konversi lead | Sprint 3 |
+| P3-C | **Per-User Permission Override** | Izin spesifik per user (override role default) via admin panel | Sprint 3 |
+| P3-D | **Branch Comparison Report** | Bandingkan kinerja 2+ cabang (booking, revenue, agen aktif) | Sprint 3 |
+| P3-E | **Suspend/Reaktivasi Agen** | Admin suspend agen (block login) dengan notif WA otomatis | Sprint 3 |
+
+---
+
+### E. ALUR ONBOARDING AGEN & CABANG
+
+#### E1. Admin Buat Cabang Baru
+```
+Admin → /admin/branches → Tambah Cabang
+  → Isi: nama, kode, kota, alamat
+  → Isi: email manager + no. HP manager
+  → [Backend] Buat auth.users (email, temp password)
+  → [Backend] Buat record branches (manager_user_id = user baru)
+  → [Backend] Set user_roles: role=branch_manager, branch_id=cabang baru
+  → [Backend] Buat profil (profiles table)
+  → [Backend] Kirim WA ke manager: "Akun Anda telah dibuat. Login: {email} Password: {tempPass}"
+  → Manager login → wajib ganti password → mulai kelola cabang
+```
+
+#### E2. Admin Buat Agen Baru
+```
+Admin → /admin/agents → Tambah Agen
+  → Isi: nama perusahaan agen, kode agen, no. HP, email
+  → Pilih: cabang (opsional, untuk agen independen: kosongkan)
+  → Isi: tarif komisi (%)
+  → [Backend] Buat auth.users (email, temp password)
+  → [Backend] Buat record agents (user_id = user baru, parent_agent_id = NULL)
+  → [Backend] Set user_roles: role=agent
+  → [Backend] Kirim WA: "Akun agen Anda aktif. Login: {email} Pass: {tempPass}"
+  → Agen login → akses /agent/* → mulai promosi
+```
+
+#### E3. Agen Undang Sub-Agen
+```
+Agen → /agent/network → Salin Link Undang Sub-Agen
+  → Link: /daftar-sub-agen?ref={agent_code}
+  → Calon sub-agen buka link → isi form (nama, HP, email, KTP)
+  → [Backend] Buat record pending di agents (status=pending, parent_agent_id=agen)
+  → Admin mendapat notif → review → approve/tolak
+  → Jika approve:
+    → [Backend] Buat auth.users + set role=sub_agent
+    → [Backend] Update agents.status = active, user_id = user baru
+    → Notif WA ke sub-agen: "Pendaftaran disetujui. Login: {email} Pass: {tempPass}"
+    → Notif WA ke parent agen: "Sub-agen {nama} telah disetujui"
+```
+
+#### E4. Branch Manager Tambah Staff
+```
+Branch Manager → /cabang/staff → Tambah Anggota Tim
+  → Isi: nama, jabatan (operational/sales/finance), email, HP
+  → [Backend] Buat auth.users (email, temp password)
+  → [Backend] Set user_roles: role={jabatan}, branch_id={cabang manager}
+  → [Backend] Buat profil
+  → [Backend] Kirim WA ke staff: "Selamat bergabung. Login: {email} Pass: {tempPass}"
+  → Staff login → akses menu sesuai jabatan, hanya scope cabang sendiri
+```
+
+---
+
+### F. SISTEM KOMISI
+
+#### F1. Jenis Komisi
+| Jenis | Dari Siapa | Ke Siapa | Tabel |
+|-------|-----------|----------|-------|
+| Komisi Agen | Booking via agen | Agen | `agent_commissions` |
+| Komisi Cabang | Booking di cabang | Cabang | `branch_commissions` |
+| Override Agen | Booking sub-agen | Parent agen | `agent_override_commissions` |
+| Fee Referral | Booking via kode referral | Referrer | `referral_usages` |
+| Bonus Tier | Bulanan, capai target tier | Agen | `agent_commission_tiers` |
+
+#### F2. Alur Approval Komisi
+```
+Booking LUNAS
+  → Trigger: sync_booking_payment_totals()
+  → Jika booking.agent_id ada:
+      INSERT agent_commissions (status=pending, amount=harga×rate)
+  → Jika agents.parent_agent_id ada:
+      INSERT agent_override_commissions (status=pending, amount=komisi×override_rate)
+  → Admin Finance → /admin/commissions → Review → Approve
+  → Status → 'approved' → Siap dicairkan
+  → Agen request withdrawal → Admin proses transfer → status 'paid'
+```
+
+#### F3. Tier Komisi (Sudah Ada Schema)
+| Tier | Min Booking | Rate | Bonus |
+|------|------------|------|-------|
+| Bronze | 0 | 3% | 0 |
+| Silver | 5 | 4% | Rp 500rb |
+| Gold | 15 | 5% | Rp 1.5jt |
+| Platinum | 30 | 6% | Rp 3jt |
+
+*(Rate dan threshold bisa diubah oleh admin di `agent_commission_tiers`)*
+
+---
+
+### G. MENU ACCESS CONTROL — DESAIN LENGKAP
+
+**Tabel yang digunakan:**
+- `menu_items` — daftar semua menu dengan `required_permission` & `group_name`
+- `role_permissions` — `(role, permission_key)` — admin bisa edit via UI
+
+**Flow menu visibility:**
+```
+User login (role=agent)
+  → useCanAccess("dashboard") → cek role_permissions → return true/false
+  → Sidebar: tampilkan hanya menu yang user punya akses
+  → PermissionRoute: block halaman jika tidak punya izin
+
+Super Admin / Owner / IT
+  → /admin/role-management → pilih role
+  → Toggle on/off setiap permission_key
+  → Simpan → langsung berlaku (no cache invalidation needed)
+```
+
+**Menu yang bisa di-toggle per role:**
+
+| Grup Menu | Agent | Sub-Agen | Branch Mgr | Default |
+|-----------|-------|----------|-----------|---------|
+| Dashboard | ✅ wajib | ✅ wajib | ✅ wajib | ON |
+| Daftar Paket | ✅ | ✅ | ✅ | ON |
+| Daftar Jamaah | ✅ | ✅ | ✅ | ON |
+| Komisi & Wallet | ✅ | ❌ OFF | ❌ OFF | agent=ON |
+| Jaringan Sub-Agen | ✅ | ❌ OFF | ❌ OFF | agent=ON |
+| CRM Leads | ✅ | ❌ OFF | ✅ | agent=ON |
+| Broadcast WA | ✅ | ❌ OFF | ❌ OFF | agent=ON |
+| Link Unik | ✅ | ✅ | ❌ OFF | ON |
+| Training | ✅ | ✅ | ✅ | ON |
+| Leaderboard | ✅ | ✅ | ❌ OFF | agent=ON |
+| Target KPI | ✅ | ❌ OFF | ✅ | ON |
+| Website Agen | ✅ | ❌ OFF | ✅ | ON |
+| Laporan | ✅ | ❌ OFF | ✅ | ON |
+| Kit Digital | ✅ | ✅ | ❌ OFF | ON |
+| Approval | ❌ | ❌ | ✅ | branch=ON |
+| Staff Cabang | ❌ | ❌ | ✅ | branch=ON |
+
+*Admin/owner bisa toggle setiap baris ini via UI → `role_permissions` diupdate*
+
+---
+
+### H. SCHEMA TAMBAHAN YANG DIBUTUHKAN
+
+File SQL baru yang perlu dibuat:
+
+```sql
+-- 062_agent_status_field.sql
+-- Tambah kolom status ke tabel agents untuk support pending/suspended
+ALTER TABLE agents ADD COLUMN IF NOT EXISTS
+  status TEXT NOT NULL DEFAULT 'active'
+  CHECK (status IN ('pending', 'active', 'suspended', 'inactive'));
+
+-- 063_branch_staff_management.sql
+-- Tabel untuk tracking staff di cabang (sudah ada user_roles.branch_id)
+-- tapi perlu kolom tambahan: jabatan, tanggal bergabung, dll
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS jabatan TEXT;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS joined_at DATE;
+
+-- 064_agent_invitation_tokens.sql
+-- Token undangan untuk sub-agen mendaftar via link
+CREATE TABLE IF NOT EXISTS agent_invitation_tokens (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  agent_id        UUID NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+  token           TEXT NOT NULL UNIQUE,
+  used_at         TIMESTAMPTZ,
+  used_by_agent_id UUID REFERENCES agents(id),
+  expires_at      TIMESTAMPTZ NOT NULL DEFAULT NOW() + INTERVAL '7 days',
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+```
+
+---
+
+### I. SPRINT PLAN IMPLEMENTASI
+
+#### Sprint 1 — Fondasi Akun (1–2 minggu)
+1. **P1-B**: Update `POST /api/agents/create` → support buat branch+user sekaligus
+2. **P1-A**: Branch data scoping di supabaseProxy — filter `branch_id` untuk `branch_manager`
+3. **P1-C**: Integrasi WA Fonnte untuk kirim kredensial saat akun dibuat
+4. **P1-D**: Halaman admin "Reset Password User" (`AdminUsers.tsx`)
+5. **SQL**: Migration `062_agent_status_field.sql`
+
+#### Sprint 2 — Onboarding & Kolaborasi (1–2 minggu)
+1. **P2-B**: Form pendaftaran sub-agen publik (`/daftar-sub-agen?ref=KODE`)
+2. **P2-C**: `BranchStaff.tsx` → tambah fungsi create user + assign ke cabang
+3. **P2-D**: Push notif ke agen saat booking baru masuk
+4. **P2-E**: KPI real-time chart di `BranchDashboard.tsx`
+5. **SQL**: Migration `064_agent_invitation_tokens.sql`
+
+#### Sprint 3 — Laporan & Analitik (1–2 minggu)
+1. **P2-A**: Override commission UI di portal agen + admin approval
+2. **P3-A**: Halaman "Master Laporan Komisi" untuk Finance/CFO
+3. **P3-B**: Chart analitik per-agen (konversi, trend, top packages)
+4. **P3-D**: Branch comparison report yang penuh data
+5. **P3-E**: Suspend/reaktivasi agen + notif WA otomatis
+
+---
+
+*Rencana ini mencakup seluruh sistem Agen-Cabang-Sub-Agen. Implementasi mulai dari Sprint 1.*
+
+---
+
+*Terakhir diperbarui: Juni 2026 — Analisis mendalam modul paket, keberangkatan, perlengkapan, HPP, keuangan, dan HR + Rencana Agen-Cabang-Sub-Agen*  
 *SQL kanonikal: `sql/migrations/` (001–061) + `sql/MASTER_FRESH_INSTALL.sql`*  
 *Supabase migrations: `supabase/migrations/`*
