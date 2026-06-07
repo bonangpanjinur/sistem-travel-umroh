@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase as supabaseRaw } from "@/integrations/supabase/client";
 const supabase: any = supabaseRaw;
 import { useAuth } from "@/hooks/useAuth";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -38,7 +38,11 @@ import { motion } from "framer-motion";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell,
+  LineChart, Line, Legend, ReferenceLine,
 } from "recharts";
+import {
+  Tabs, TabsList, TabsTrigger,
+} from "@/components/ui/tabs";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -133,6 +137,117 @@ function KpiCard({
   );
 }
 
+// ─── KPI Comparison Chart ─────────────────────────────────────────────────────
+
+function KpiComparisonChart({
+  data, actualKey, targetKey, label, formatter, color, note,
+}: {
+  data: any[];
+  actualKey: string;
+  targetKey: string;
+  label: string;
+  formatter: (v: number) => string;
+  color: string;
+  note?: string;
+}) {
+  const hasTarget = data.some(d => d[targetKey] != null);
+
+  const CustomTooltip = ({ active, payload, label: lbl }: any) => {
+    if (!active || !payload?.length) return null;
+    return (
+      <div className="bg-white border border-border/50 shadow-lg rounded-xl p-3 text-xs space-y-1.5 min-w-[140px]">
+        <p className="font-semibold text-slate-700 mb-1">{lbl}</p>
+        {payload.map((p: any) => (
+          <div key={p.dataKey} className="flex items-center justify-between gap-3">
+            <span className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full inline-block" style={{ background: p.color }} />
+              {p.name}
+            </span>
+            <span className="font-bold">{formatter(p.value ?? 0)}</span>
+          </div>
+        ))}
+        {payload.length === 2 && payload[0].value != null && payload[1].value != null && (
+          <div className="pt-1.5 border-t border-border/30 flex justify-between">
+            <span className="text-muted-foreground">Capaian</span>
+            <span className={cn("font-bold",
+              (payload.find((p:any) => p.dataKey === actualKey)?.value ?? 0) >=
+              (payload.find((p:any) => p.dataKey === targetKey)?.value ?? Infinity)
+                ? "text-emerald-600" : "text-amber-500"
+            )}>
+              {(() => {
+                const act = payload.find((p:any) => p.dataKey === actualKey)?.value ?? 0;
+                const tgt = payload.find((p:any) => p.dataKey === targetKey)?.value ?? 0;
+                return tgt > 0 ? `${Math.round((act / tgt) * 100)}%` : "—";
+              })()}
+            </span>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div className="space-y-2">
+      {note && (
+        <div className="flex items-center gap-2 text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+          <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+          {note}
+        </div>
+      )}
+      <ResponsiveContainer width="100%" height={220}>
+        <LineChart data={data} margin={{ top: 8, right: 12, left: 4, bottom: 4 }}>
+          <CartesianGrid strokeDasharray="4 4" vertical={false} className="opacity-20" />
+          <XAxis
+            dataKey="month"
+            tick={{ fontSize: 11, fill: "#94a3b8" }}
+            axisLine={false}
+            tickLine={false}
+          />
+          <YAxis
+            tick={{ fontSize: 11, fill: "#94a3b8" }}
+            axisLine={false}
+            tickLine={false}
+            tickFormatter={(v) => {
+              if (v >= 1_000_000_000) return `${(v / 1_000_000_000).toFixed(1)}M`;
+              if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(0)}jt`;
+              if (v >= 1_000) return `${(v / 1_000).toFixed(0)}k`;
+              return String(v);
+            }}
+            width={45}
+          />
+          <Tooltip content={<CustomTooltip />} />
+          <Legend
+            iconType="circle"
+            iconSize={8}
+            wrapperStyle={{ fontSize: 11, paddingTop: 8 }}
+          />
+          {hasTarget && (
+            <Line
+              type="monotone"
+              dataKey={targetKey}
+              name="Target"
+              stroke="#94a3b8"
+              strokeWidth={2}
+              strokeDasharray="6 4"
+              dot={{ r: 3, fill: "#94a3b8" }}
+              connectNulls={false}
+            />
+          )}
+          <Line
+            type="monotone"
+            dataKey={actualKey}
+            name="Aktual"
+            stroke={color}
+            strokeWidth={2.5}
+            dot={{ r: 4, fill: color, strokeWidth: 2, stroke: "#fff" }}
+            activeDot={{ r: 6, stroke: "#fff", strokeWidth: 2 }}
+          />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
 // ─── Set Target Dialog ────────────────────────────────────────────────────────
 
 function TargetDialog({
@@ -220,6 +335,7 @@ export default function BranchKPITargets() {
   const queryClient = useQueryClient();
   const [selectedMonth, setSelectedMonth] = useState(THIS_MONTH);
   const [showDialog, setShowDialog] = useState(false);
+  const [kpiTab, setKpiTab] = useState<"booking" | "revenue" | "agents">("booking");
 
   const monthLabel = format(
     new Date(selectedMonth + "-01"),
@@ -363,7 +479,70 @@ export default function BranchKPITargets() {
     },
   });
 
-  // 6. Save targets
+  // 6. Comparison: last 6 months target vs actual (booking, revenue, agents)
+  const { data: comparison = [] } = useQuery({
+    queryKey: ["branch-kpi-comparison", bId],
+    enabled: !!bId,
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const months6 = Array.from({ length: 6 }, (_, i) => {
+        const m = subMonths(new Date(), 5 - i);
+        return {
+          key: format(m, "yyyy-MM"),
+          label: format(m, "MMM yy", { locale: localeId }),
+          start: startOfMonth(m).toISOString(),
+          end: endOfMonth(m).toISOString(),
+        };
+      });
+
+      const [targetRows, ...actualRows] = await Promise.all([
+        supabase
+          .from("branch_monthly_targets")
+          .select("month_key, bookings_target, revenue_target, agents_booking_target")
+          .eq("branch_id", bId)
+          .in("month_key", months6.map(m => m.key))
+          .then(({ data }: any) => data ?? []),
+        ...months6.map(m =>
+          supabase
+            .from("bookings")
+            .select("id, total_price, status, agent_id")
+            .eq("branch_id", bId)
+            .gte("created_at", m.start)
+            .lte("created_at", m.end)
+            .in("status", ["confirmed", "completed"])
+            .then(({ data }: any) => {
+              const rows = data ?? [];
+              return {
+                key: m.key,
+                actualBooking: rows.length,
+                actualRevenue: rows.reduce((s: number, b: any) => s + Number(b.total_price ?? 0), 0),
+                actualAgents: new Set(rows.map((b: any) => b.agent_id).filter(Boolean)).size,
+              };
+            })
+        ),
+      ]);
+
+      const targetMap: Record<string, any> = {};
+      (targetRows as any[]).forEach((r: any) => { targetMap[r.month_key] = r; });
+
+      return months6.map((m, i) => {
+        const t = targetMap[m.key];
+        const a = actualRows[i] as any;
+        return {
+          month: m.label,
+          key: m.key,
+          targetBooking: t?.bookings_target ?? null,
+          actualBooking: a.actualBooking,
+          targetRevenue: t ? Number(t.revenue_target) : null,
+          actualRevenue: a.actualRevenue,
+          targetAgents: t?.agents_booking_target ?? null,
+          actualAgents: a.actualAgents,
+        };
+      });
+    },
+  });
+
+  // 7. Save targets
   const saveMutation = useMutation({
     mutationFn: async (targets: Targets) => {
       const payload = { ...targets, branch_id: bId, month_key: selectedMonth, set_by: user?.id, updated_at: new Date().toISOString() };
@@ -545,6 +724,138 @@ export default function BranchKPITargets() {
           </CardContent>
         </Card>
       </div>
+
+      {/* ── Target vs Aktual Comparison ─────────────────────────────────────── */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <CardTitle className="text-base flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-emerald-500" />
+                Perbandingan Target vs. Aktual (6 Bulan)
+              </CardTitle>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Garis <span className="text-slate-500 font-semibold">abu-abu putus-putus</span> = target &nbsp;·&nbsp;
+                Garis <span className="text-emerald-600 font-semibold">hijau solid</span> = aktual
+              </p>
+            </div>
+            <Tabs value={kpiTab} onValueChange={v => setKpiTab(v as any)}>
+              <TabsList className="h-8">
+                <TabsTrigger value="booking" className="text-xs px-3 h-7">Booking</TabsTrigger>
+                <TabsTrigger value="revenue" className="text-xs px-3 h-7">Revenue</TabsTrigger>
+                <TabsTrigger value="agents"  className="text-xs px-3 h-7">Agen Aktif</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {comparison.length === 0 ? (
+            <div className="h-52 flex items-center justify-center text-muted-foreground text-sm border-2 border-dashed rounded-xl">
+              Belum ada data perbandingan
+            </div>
+          ) : (
+            <>
+              {kpiTab === "booking" && (
+                <KpiComparisonChart
+                  data={comparison}
+                  actualKey="actualBooking"
+                  targetKey="targetBooking"
+                  label="Booking"
+                  formatter={(v: number) => v.toLocaleString("id-ID")}
+                  color="#10b981"
+                  note={comparison.some(d => d.targetBooking !== null)
+                    ? undefined
+                    : "Belum ada target yang ditetapkan — atur target di tombol \"Atur Target\""}
+                />
+              )}
+              {kpiTab === "revenue" && (
+                <KpiComparisonChart
+                  data={comparison}
+                  actualKey="actualRevenue"
+                  targetKey="targetRevenue"
+                  label="Revenue"
+                  formatter={(v: number) => formatCurrency(v)}
+                  color="#6366f1"
+                  note={comparison.some(d => d.targetRevenue !== null)
+                    ? undefined
+                    : "Belum ada target yang ditetapkan — atur target di tombol \"Atur Target\""}
+                />
+              )}
+              {kpiTab === "agents" && (
+                <KpiComparisonChart
+                  data={comparison}
+                  actualKey="actualAgents"
+                  targetKey="targetAgents"
+                  label="Agen Aktif"
+                  formatter={(v: number) => `${v} agen`}
+                  color="#f59e0b"
+                  note={comparison.some(d => d.targetAgents !== null)
+                    ? undefined
+                    : "Belum ada target yang ditetapkan — atur target di tombol \"Atur Target\""}
+                />
+              )}
+
+              {/* Summary table below chart */}
+              <div className="mt-4 overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="py-1.5 pr-3 text-left font-medium text-muted-foreground">Bulan</th>
+                      {kpiTab === "booking" && <>
+                        <th className="py-1.5 px-2 text-right font-medium text-muted-foreground">Target</th>
+                        <th className="py-1.5 px-2 text-right font-medium text-muted-foreground">Aktual</th>
+                        <th className="py-1.5 pl-2 text-right font-medium text-muted-foreground">Capaian</th>
+                      </>}
+                      {kpiTab === "revenue" && <>
+                        <th className="py-1.5 px-2 text-right font-medium text-muted-foreground">Target</th>
+                        <th className="py-1.5 px-2 text-right font-medium text-muted-foreground">Aktual</th>
+                        <th className="py-1.5 pl-2 text-right font-medium text-muted-foreground">Capaian</th>
+                      </>}
+                      {kpiTab === "agents" && <>
+                        <th className="py-1.5 px-2 text-right font-medium text-muted-foreground">Target</th>
+                        <th className="py-1.5 px-2 text-right font-medium text-muted-foreground">Aktual</th>
+                        <th className="py-1.5 pl-2 text-right font-medium text-muted-foreground">Capaian</th>
+                      </>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {comparison.map(row => {
+                      const target = kpiTab === "booking" ? row.targetBooking
+                        : kpiTab === "revenue" ? row.targetRevenue
+                        : row.targetAgents;
+                      const actual = kpiTab === "booking" ? row.actualBooking
+                        : kpiTab === "revenue" ? row.actualRevenue
+                        : row.actualAgents;
+                      const pctVal = target ? Math.round((actual / target) * 100) : null;
+                      const fmt = kpiTab === "revenue" ? formatCurrency : (v: number) => v.toLocaleString("id-ID");
+                      return (
+                        <tr key={row.key} className="border-b border-border/40 hover:bg-muted/30 transition-colors">
+                          <td className="py-1.5 pr-3 font-medium capitalize">{row.month}</td>
+                          <td className="py-1.5 px-2 text-right text-muted-foreground">
+                            {target != null ? fmt(target) : <span className="text-slate-300">—</span>}
+                          </td>
+                          <td className="py-1.5 px-2 text-right font-semibold">{fmt(actual)}</td>
+                          <td className="py-1.5 pl-2 text-right">
+                            {pctVal != null ? (
+                              <span className={cn("font-bold",
+                                pctVal >= 100 ? "text-emerald-600"
+                                : pctVal >= 70  ? "text-amber-500"
+                                : "text-red-500"
+                              )}>
+                                {pctVal}%
+                              </span>
+                            ) : <span className="text-slate-300 text-xs">Tdk ada target</span>}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Per-agent performance */}
       {(a?.agentStats?.length ?? 0) > 0 && (
