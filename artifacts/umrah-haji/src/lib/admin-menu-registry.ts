@@ -140,6 +140,7 @@ export const RECOMMENDED_MENUS: AdminMenuItem[] = [
   { key: 'training',            label: 'Pelatihan Staf',        path: '/admin/training',             icon: 'GraduationCap',  group_name: 'SDM',                sort_order: 704, required_permission: PERMISSIONS.TRAINING },
   { key: 'hr-recruitment',     label: 'Rekrutmen & ATS',       path: '/admin/hr/recruitment',       icon: 'Briefcase',       group_name: 'SDM',                sort_order: 705, required_permission: PERMISSIONS.HR },
   { key: 'hr-analytics',       label: 'Analitik SDM',          path: '/admin/hr/analytics',         icon: 'BarChart3',       group_name: 'SDM',                sort_order: 706, required_permission: PERMISSIONS.HR },
+  { key: 'hr-onboarding',     label: 'Onboarding Karyawan',   path: '/admin/hr/onboarding',        icon: 'ClipboardList',   group_name: 'SDM',                sort_order: 707, required_permission: PERMISSIONS.HR },
 
   // ── Master Data (900s) ────────────────────────────────────────────────────
   { key: 'hotels',              label: 'Hotel',                 path: '/admin/hotels',               icon: 'Hotel',           group_name: 'Master Data',        sort_order: 901, required_permission: PERMISSIONS.HOTELS },

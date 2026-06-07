@@ -608,6 +608,19 @@ export async function runMigrations(): Promise<void> {
       logger.info("runMigrations: 29_sdm_contracts_recruitment — already applied, skipping");
     }
 
+    // ── Step 1z2: onboarding_templates + template_items + employee_onboarding_tasks ──
+    const onboardingChecklistApplied = await isApplied(client, "30_onboarding_checklist");
+    if (!onboardingChecklistApplied) {
+      await runSqlFile(
+        client,
+        sqlPath("30_onboarding_checklist.sql"),
+        "30_onboarding_checklist (onboarding_templates + template_items + employee_onboarding_tasks)",
+      );
+      await markApplied(client, "30_onboarding_checklist");
+    } else {
+      logger.info("runMigrations: 30_onboarding_checklist — already applied, skipping");
+    }
+
     // ── Step 2: payment sync trigger (always re-applied each boot) ────────
     // Wrapped in its own try/catch so a missing table on a broken DB state
     // doesn't crash the server — it just logs and continues.
