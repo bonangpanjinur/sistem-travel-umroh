@@ -482,6 +482,28 @@ export async function runMigrations(): Promise<void> {
       logger.info("runMigrations: 20_wa_template_broadcast — already applied, skipping");
     }
 
+    // ── Step 1t: WA Scheduled Broadcasts ──────────────────────────────────
+    // Extra check: verify table actually exists (migration may have been
+    // marked applied but all CREATE TABLE statements failed on first run)
+    const waSchedApplied = await isApplied(client, "21_wa_scheduled_broadcasts");
+    const waSchedTableCheck = await client.query(
+      `SELECT EXISTS(
+         SELECT 1 FROM information_schema.tables
+         WHERE table_schema = 'public' AND table_name = 'wa_scheduled_broadcasts'
+       )::bool AS exists`,
+    );
+    const waSchedTableExists = waSchedTableCheck.rows[0]?.exists === true;
+    if (!waSchedApplied || !waSchedTableExists) {
+      await runSqlFile(
+        client,
+        sqlPath("21_wa_scheduled_broadcasts.sql"),
+        "21_wa_scheduled_broadcasts (scheduled WA broadcast + per-recipient logs)",
+      );
+      if (!waSchedApplied) await markApplied(client, "21_wa_scheduled_broadcasts");
+    } else {
+      logger.info("runMigrations: 21_wa_scheduled_broadcasts — already applied, skipping");
+    }
+
     // ── Step 2: payment sync trigger (always re-applied each boot) ────────
     // Wrapped in its own try/catch so a missing table on a broken DB state
     // doesn't crash the server — it just logs and continues.

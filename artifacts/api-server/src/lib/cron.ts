@@ -67,7 +67,23 @@ export function startCronJobs() {
     runHealthCheck();
   }, { timezone: "UTC" });
 
+  // Setiap 5 menit — jalankan WA scheduled broadcasts yang sudah jatuh tempo
+  cron.schedule("*/5 * * * *", async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/whatsapp/scheduled-broadcasts/run-due`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const data: any = await res.json();
+      if (data.ran > 0) {
+        logger.info({ ran: data.ran, results: data.results }, "Cron: WA scheduled broadcasts executed");
+      }
+    } catch (err: any) {
+      logger.error({ err }, "Cron: WA scheduled broadcasts runner failed");
+    }
+  }, { timezone: "UTC" });
+
   logger.info(
-    "Cron jobs registered: cicilan+payment @08:00 WIB, H-7 @07:00 WIB, H-1 @06:00 WIB, integration-health @every hour",
+    "Cron jobs registered: cicilan+payment @08:00 WIB, H-7 @07:00 WIB, H-1 @06:00 WIB, integration-health @every hour, wa-scheduled @every 5min",
   );
 }

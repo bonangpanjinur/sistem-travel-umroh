@@ -1836,5 +1836,315 @@ router.get('/template-broadcasts/:id/recipients', async (req, res) => {
   }
 });
 
+// ══════════════════════════════════════════════════════════════════════════════
+//  SCHEDULED BROADCASTS
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ─── GET /scheduled-broadcasts ────────────────────────────────────────────────
+router.get('/scheduled-broadcasts', async (req, res) => {
+  try {
+    const page     = Math.max(0, Number(req.query.page)     || 0);
+    const pageSize = Math.min(100, Number(req.query.pageSize) || 20);
+    const { rows } = await pool.query(
+      `SELECT
+         sb.*,
+         d.name AS departure_name,
+         d.departure_date,
+         t.name AS template_name,
+         (SELECT COUNT(*)::int FROM wa_scheduled_broadcast_logs l WHERE l.broadcast_id = sb.id) AS log_count
+       FROM wa_scheduled_broadcasts sb
+       LEFT JOIN departures d ON d.id = sb.departure_id
+       LEFT JOIN wa_templates t ON t.id = sb.template_id
+       ORDER BY sb.scheduled_at DESC
+       LIMIT $1 OFFSET $2`,
+      [pageSize, page * pageSize],
+    );
+    const { rows: cnt } = await pool.query('SELECT COUNT(*)::int AS total FROM wa_scheduled_broadcasts');
+    res.json({ total: cnt[0].total, broadcasts: rows });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─── GET /scheduled-broadcasts/departures — untuk dropdown pilih keberangkatan ─
+router.get('/scheduled-broadcasts/departures', async (_req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, name, departure_date FROM departures
+       WHERE departure_date >= CURRENT_DATE
+       ORDER BY departure_date ASC LIMIT 50`,
+    );
+    res.json({ departures: rows });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─── GET /scheduled-broadcasts/templates — untuk dropdown pilih template ───────
+router.get('/scheduled-broadcasts/templates', async (_req, res) => {
+  try {
+    const rows = await db.select({
+      id: waTemplates.id,
+      name: waTemplates.name,
+      content: waTemplates.messageTemplate,
+    }).from(waTemplates).orderBy(waTemplates.name);
+    res.json({ templates: rows });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─── GET /scheduled-broadcasts/:id/logs — per-penerima logs ───────────────────
+router.get('/scheduled-broadcasts/:id/logs', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT * FROM wa_scheduled_broadcast_logs
+       WHERE broadcast_id = $1
+       ORDER BY created_at ASC`,
+      [req.params.id],
+    );
+    res.json({ logs: rows });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─── POST /scheduled-broadcasts — buat jadwal baru ────────────────────────────
+router.post('/scheduled-broadcasts', async (req, res) => {
+  const {
+    name, message, template_id,
+    target_type = 'all', target_tags = [], departure_id, offset_days = 0,
+    scheduled_at,
+  } = req.body as any;
+  if (!name || !scheduled_at) {
+    res.status(400).json({ error: 'name dan scheduled_at wajib diisi' });
+    return;
+  }
+  if (!message && !template_id) {
+    res.status(400).json({ error: 'Pesan atau template harus dipilih' });
+    return;
+  }
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO wa_scheduled_broadcasts
+         (name, message, template_id, target_type, target_tags, departure_id, offset_days, scheduled_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+       RETURNING *`,
+      [name, message || null, template_id || null, target_type,
+       target_tags, departure_id || null, offset_days, scheduled_at],
+    );
+    res.json({ broadcast: rows[0] });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─── PATCH /scheduled-broadcasts/:id — update atau cancel ─────────────────────
+router.patch('/scheduled-broadcasts/:id', async (req, res) => {
+  const allowed = ['name','message','template_id','target_type','target_tags','departure_id','offset_days','scheduled_at','status'];
+  const sets: string[] = [];
+  const vals: any[]   = [];
+  for (const [k,v] of Object.entries(req.body as any)) {
+    if (!allowed.includes(k)) continue;
+    vals.push(v);
+    sets.push(`${k} = $${vals.length}`);
+  }
+  if (!sets.length) { res.status(400).json({ error: 'Tidak ada field yang diupdate' }); return; }
+  vals.push(req.params.id);
+  try {
+    const { rows } = await pool.query(
+      `UPDATE wa_scheduled_broadcasts SET ${sets.join(', ')} WHERE id = $${vals.length} RETURNING *`,
+      vals,
+    );
+    if (!rows.length) { res.status(404).json({ error: 'Tidak ditemukan' }); return; }
+    res.json({ broadcast: rows[0] });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─── DELETE /scheduled-broadcasts/:id ─────────────────────────────────────────
+router.delete('/scheduled-broadcasts/:id', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT status FROM wa_scheduled_broadcasts WHERE id = $1`, [req.params.id],
+    );
+    if (!rows.length) { res.status(404).json({ error: 'Tidak ditemukan' }); return; }
+    if (rows[0].status === 'running') { res.status(400).json({ error: 'Tidak bisa hapus broadcast yang sedang berjalan' }); return; }
+    await pool.query('DELETE FROM wa_scheduled_broadcasts WHERE id = $1', [req.params.id]);
+    res.json({ ok: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─── Internal: resolve recipients for a scheduled broadcast ──────────────────
+async function resolveRecipients(broadcast: any): Promise<{ phone: string; name: string | null }[]> {
+  const { target_type, target_tags, departure_id } = broadcast;
+
+  if (target_type === 'departure' && departure_id) {
+    // Semua kontak opt-in yang terhubung ke customer yang punya booking confirmed pada keberangkatan ini
+    const { rows } = await pool.query(
+      `SELECT DISTINCT wc.phone, wc.name
+       FROM wa_contacts wc
+       JOIN customers c ON c.id = wc.customer_id
+       JOIN bookings b ON b.customer_id = c.id
+       WHERE b.departure_id = $1
+         AND b.booking_status IN ('confirmed','paid')
+         AND wc.opt_out = false`,
+      [departure_id],
+    );
+    return rows;
+  }
+
+  if (target_type === 'tags' && (target_tags as string[]).length > 0) {
+    const { rows } = await pool.query(
+      `SELECT phone, name FROM wa_contacts
+       WHERE opt_out = false AND tags && $1::text[]`,
+      [target_tags],
+    );
+    return rows;
+  }
+
+  // default: all opt-in
+  const { rows } = await pool.query(
+    `SELECT phone, name FROM wa_contacts WHERE opt_out = false`,
+  );
+  return rows;
+}
+
+// ─── Internal: execute one broadcast ──────────────────────────────────────────
+async function executeBroadcast(id: string): Promise<{ sent: number; failed: number; error?: string }> {
+  const { rows: bRows } = await pool.query(
+    `SELECT * FROM wa_scheduled_broadcasts WHERE id = $1`, [id],
+  );
+  if (!bRows.length) return { sent: 0, failed: 0, error: 'Tidak ditemukan' };
+  const broadcast = bRows[0];
+  if (broadcast.status === 'done' || broadcast.status === 'running') {
+    return { sent: 0, failed: 0, error: `Status sudah: ${broadcast.status}` };
+  }
+
+  // Resolve pesan dari template jika ada
+  let message = broadcast.message as string | null;
+  if (!message && broadcast.template_id) {
+    const tRows = await db.select({ content: waTemplates.messageTemplate })
+      .from(waTemplates)
+      .where(eq(waTemplates.id, broadcast.template_id))
+      .limit(1);
+    message = tRows[0]?.content ?? null;
+  }
+  if (!message) return { sent: 0, failed: 0, error: 'Pesan kosong' };
+
+  // Mark running
+  await pool.query(
+    `UPDATE wa_scheduled_broadcasts SET status = 'running', executed_at = now() WHERE id = $1`, [id],
+  );
+
+  const recipients = await resolveRecipients(broadcast);
+  await pool.query(
+    `UPDATE wa_scheduled_broadcasts SET recipient_count = $1 WHERE id = $2`,
+    [recipients.length, id],
+  );
+
+  if (recipients.length === 0) {
+    await pool.query(
+      `UPDATE wa_scheduled_broadcasts SET status = 'done', sent_count = 0, failed_count = 0 WHERE id = $1`, [id],
+    );
+    return { sent: 0, failed: 0 };
+  }
+
+  // Insert pending logs
+  for (const r of recipients) {
+    await pool.query(
+      `INSERT INTO wa_scheduled_broadcast_logs (broadcast_id, phone, name, status) VALUES ($1,$2,$3,'pending')
+       ON CONFLICT DO NOTHING`,
+      [id, r.phone, r.name],
+    );
+  }
+
+  const cfg = await getActiveConfig();
+  let sent = 0, failed = 0;
+
+  for (const r of recipients) {
+    // Rate limit: 200ms between sends to avoid spam detection
+    await new Promise(resolve => setTimeout(resolve, 200));
+
+    let result: SendResult;
+    if (cfg) {
+      const personalised = message.replace(/\{nama\}/gi, r.name || 'Jamaah')
+                                  .replace(/\{phone\}/gi, r.phone);
+      result = await dispatchSend(cfg, r.phone, personalised);
+    } else {
+      result = { success: false, error: 'Tidak ada provider WA aktif' };
+    }
+
+    if (result.success) {
+      sent++;
+      await pool.query(
+        `UPDATE wa_scheduled_broadcast_logs SET status = 'sent', sent_at = now()
+         WHERE broadcast_id = $1 AND phone = $2`,
+        [id, r.phone],
+      );
+    } else {
+      failed++;
+      await pool.query(
+        `UPDATE wa_scheduled_broadcast_logs SET status = 'failed', error_msg = $3
+         WHERE broadcast_id = $1 AND phone = $2`,
+        [id, r.phone, result.error || 'unknown'],
+      );
+    }
+  }
+
+  await pool.query(
+    `UPDATE wa_scheduled_broadcasts
+     SET status = 'done', sent_count = $1, failed_count = $2
+     WHERE id = $3`,
+    [sent, failed, id],
+  );
+  return { sent, failed };
+}
+
+// ─── POST /scheduled-broadcasts/:id/execute — manual trigger ──────────────────
+router.post('/scheduled-broadcasts/:id/execute', async (req, res) => {
+  try {
+    const result = await executeBroadcast(req.params.id);
+    res.json({ ok: true, ...result });
+  } catch (e: any) {
+    await pool.query(
+      `UPDATE wa_scheduled_broadcasts SET status = 'failed', error_msg = $1 WHERE id = $2`,
+      [e.message, req.params.id],
+    ).catch(() => {});
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─── POST /scheduled-broadcasts/run-due — dipanggil oleh cron setiap 5 menit ──
+router.post('/scheduled-broadcasts/run-due', async (_req, res) => {
+  try {
+    const { rows: due } = await pool.query(
+      `SELECT id FROM wa_scheduled_broadcasts
+       WHERE status = 'pending' AND scheduled_at <= now()
+       ORDER BY scheduled_at ASC
+       LIMIT 5`,
+    );
+    const results: any[] = [];
+    for (const { id } of due) {
+      try {
+        const r = await executeBroadcast(id);
+        results.push({ id, ...r });
+      } catch (e: any) {
+        results.push({ id, error: e.message });
+        await pool.query(
+          `UPDATE wa_scheduled_broadcasts SET status = 'failed', error_msg = $1 WHERE id = $2`,
+          [e.message, id],
+        ).catch(() => {});
+      }
+    }
+    res.json({ ran: due.length, results });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 export default router;
 

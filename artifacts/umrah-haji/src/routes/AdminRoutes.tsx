@@ -174,6 +174,7 @@ const AdminWARoadmap   = lazy(() => import("@/pages/admin/AdminWARoadmap"));
 const AdminWAChatbot   = lazy(() => import("@/pages/admin/AdminWAChatbot"));
 const AdminWAInbox     = lazy(() => import("@/pages/admin/AdminWAInbox"));
 const AdminWAContacts  = lazy(() => import("@/pages/admin/AdminWAContacts"));
+const AdminWAScheduledBroadcast = lazy(() => import("@/pages/admin/AdminWAScheduledBroadcast"));
 const AdminWABotMenu           = lazy(() => import("@/pages/admin/AdminWABotMenu"));
 const AdminWATemplateBroadcast = lazy(() => import("@/pages/admin/AdminWATemplateBroadcast"));
 
@@ -445,6 +446,7 @@ export default function AdminRoutes() {
       <Route path="wa-contacts"  element={<P k={PERMISSIONS.WA_CONTACTS}><LazyPage><AdminWAContacts /></LazyPage></P>} />
       <Route path="wa-bot-menu"          element={<P k={PERMISSIONS.WA_BOT_MENU}><LazyPage><AdminWABotMenu /></LazyPage></P>} />
       <Route path="wa-template-broadcast" element={<P k={PERMISSIONS.WA_TEMPLATE_BROADCAST}><LazyPage><AdminWATemplateBroadcast /></LazyPage></P>} />
+      <Route path="wa-scheduled-broadcast" element={<P k={PERMISSIONS.WA_SCHEDULED_BROADCAST}><LazyPage><AdminWAScheduledBroadcast /></LazyPage></P>} />
 
       {/* Fase 9 — Integrasi & Otomasi */}
       <Route path="wa-otomatis" element={<P k={PERMISSIONS.WA_OTOMATIS}><AdminWAOtomatis /></P>} />

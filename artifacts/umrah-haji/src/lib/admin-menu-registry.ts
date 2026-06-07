@@ -106,6 +106,7 @@ export const RECOMMENDED_MENUS: AdminMenuItem[] = [
   { key: 'wa-contacts',         label: 'Kontak WA',             path: '/admin/wa-contacts',          icon: 'Users',           group_name: 'Komunikasi',         sort_order: 320, required_permission: PERMISSIONS.WA_CONTACTS },
   { key: 'wa-bot-menu',          label: 'Bot Menu Interaktif',     path: '/admin/wa-bot-menu',              icon: 'ListOrdered',     group_name: 'Komunikasi', sort_order: 321, required_permission: PERMISSIONS.WA_BOT_MENU },
   { key: 'wa-template-broadcast', label: 'Broadcast Template WABA', path: '/admin/wa-template-broadcast',    icon: 'LayoutTemplate',  group_name: 'Komunikasi', sort_order: 322, required_permission: PERMISSIONS.WA_TEMPLATE_BROADCAST },
+  { key: 'wa-scheduled-broadcast', label: 'Broadcast Terjadwal',   path: '/admin/wa-scheduled-broadcast',  icon: 'CalendarClock',   group_name: 'Komunikasi', sort_order: 323, required_permission: PERMISSIONS.WA_SCHEDULED_BROADCAST },
   { key: 'email-templates',     label: 'Template Email',        path: '/admin/email-templates',      icon: 'Mail',            group_name: 'Komunikasi',         sort_order: 314, required_permission: PERMISSIONS.EMAIL_TEMPLATES },
   { key: 'push-notifications',  label: 'Push Notifikasi',       path: '/admin/push-notifications',   icon: 'Bell',            group_name: 'Komunikasi',         sort_order: 315, required_permission: PERMISSIONS.PUSH_NOTIFICATIONS },
 
