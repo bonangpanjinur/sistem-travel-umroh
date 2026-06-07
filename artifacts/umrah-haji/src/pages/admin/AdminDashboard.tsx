@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useDashboardStats, useRecentBookings, useUpcomingDepartures } from "@/hooks/useDashboardStats";
 import { useDashboardAlerts } from "@/hooks/useDashboardAlerts";
 import { SuperAdminPanel } from "@/components/admin/SuperAdminPanel";
@@ -11,7 +12,7 @@ import {
   AlertCircle, ArrowRight, Package, Calendar,
   Building2, User, RefreshCcw, Filter, X,
   FileText, Briefcase, Plane, ClipboardCheck, Info,
-  CheckCircle2, ExternalLink, Bell
+  CheckCircle2, ExternalLink, Bell, Activity, Zap
 } from "lucide-react";
 import { formatCurrency, getBookingStatusLabel, getPaymentStatusLabel } from "@/lib/format";
 import { format, parseISO, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths } from "date-fns";
@@ -35,7 +36,17 @@ import {
 export default function AdminDashboard() {
   const { branchId, hasRole } = useAuth();
   const isSuperAdmin = hasRole('super_admin') || hasRole('owner');
-  
+
+  // System health alert count (super_admin only)
+  const { data: systemAlerts } = useQuery<{ alerts: { id: string }[] }>({
+    queryKey: ["dashboard-system-alerts"],
+    queryFn: () => fetch("/api/v1/settings/integrations/alerts").then(r => r.json()),
+    enabled: isSuperAdmin,
+    staleTime: 60_000,
+    refetchInterval: 120_000,
+  });
+  const systemAlertCount = systemAlerts?.alerts?.length ?? 0;
+
   // Filter States
   const [hierarchyLevel, setHierarchyLevel] = useState<'all' | 'pusat' | 'cabang' | 'agen' | 'sub_agen'>('all');
   const [selectedBranch, setSelectedBranch] = useState<string>(branchId || "all");
@@ -249,6 +260,43 @@ export default function AdminDashboard() {
           </CardContent>
           <Link to="/admin/documents-generator" className="absolute inset-0" />
         </Card>
+
+        {isSuperAdmin && (
+          <Card className={`group transition-all cursor-pointer overflow-hidden relative ${
+            systemAlertCount > 0
+              ? "border-orange-400 bg-orange-50/60 hover:border-orange-500"
+              : "hover:border-primary/50"
+          }`}>
+            <div className="absolute right-[-10px] top-[-10px] opacity-5 group-hover:opacity-10 transition-opacity">
+              <Activity className="h-24 w-24" />
+            </div>
+            <CardContent className="p-6 flex items-center gap-4">
+              <div className={`p-3 rounded-xl group-hover:scale-110 transition-transform relative ${
+                systemAlertCount > 0
+                  ? "bg-orange-100 text-orange-600"
+                  : "bg-slate-100 text-slate-600"
+              }`}>
+                {systemAlertCount > 0
+                  ? <Zap className="h-6 w-6" />
+                  : <Activity className="h-6 w-6" />}
+                {systemAlertCount > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center leading-none">
+                    {systemAlertCount > 9 ? "9+" : systemAlertCount}
+                  </span>
+                )}
+              </div>
+              <div>
+                <p className="text-sm font-bold">System Health</p>
+                <p className={`text-xs ${systemAlertCount > 0 ? "text-orange-600 font-medium" : "text-muted-foreground"}`}>
+                  {systemAlertCount > 0
+                    ? `${systemAlertCount} alert aktif`
+                    : "Semua integrasi normal"}
+                </p>
+              </div>
+            </CardContent>
+            <Link to="/admin/system-health" className="absolute inset-0" />
+          </Card>
+        )}
       </div>
 
       {/* Main Stats Grid */}
