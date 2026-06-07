@@ -74,14 +74,20 @@ export default function AdminWABroadcast() {
       const { data, error } = await supabase
         .from("bookings")
         .select(`
-          id, booking_code, payment_status, status,
-          customer:profiles(full_name, phone_number),
+          id, booking_code, payment_status, booking_status,
+          customer:customers(full_name, phone),
           package:packages(name),
           departure:departures(departure_date)
         `)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data || [];
+      // Normalize: Supabase joins may return array instead of object
+      return (data || []).map((b: any) => ({
+        ...b,
+        customer: Array.isArray(b.customer) ? b.customer[0] ?? null : b.customer,
+        package:  Array.isArray(b.package)  ? b.package[0]  ?? null : b.package,
+        departure:Array.isArray(b.departure)? b.departure[0] ?? null : b.departure,
+      }));
     },
   });
 
@@ -102,13 +108,13 @@ export default function AdminWABroadcast() {
       if (selectedPackages.size && !selectedPackages.has(b.package?.name)) return false;
       if (selectedDepartures.size && !selectedDepartures.has(b.departure?.departure_date)) return false;
       if (selectedPayStatus.size && !selectedPayStatus.has(b.payment_status)) return false;
-      if (selectedBookStatus.size && !selectedBookStatus.has(b.status)) return false;
+      if (selectedBookStatus.size && !selectedBookStatus.has(b.booking_status)) return false;
       return true;
     });
   }, [bookings, selectedPackages, selectedDepartures, selectedPayStatus, selectedBookStatus]);
 
   const withPhone = useMemo(() => {
-    return filteredRecipients.filter((r: any) => r.customer?.phone_number);
+    return filteredRecipients.filter((r: any) => r.customer?.phone);
   }, [filteredRecipients]);
 
   useEffect(() => {
@@ -193,7 +199,7 @@ export default function AdminWABroadcast() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            target: r.phone_number || r.customer?.phone_number,
+            target: r.customer?.phone,
             message: buildMessage(r),
           }),
         });
@@ -206,7 +212,7 @@ export default function AdminWABroadcast() {
           (supabase as any).from("wa_broadcast_logs").insert({
             campaign_id: campaignId,
             booking_id: r.id,
-            phone: r.phone_number || r.customer?.phone_number,
+            phone: r.customer?.phone,
             message: buildMessage(r),
             status: (result.success || resp.ok) ? "sent" : "failed",
             sent_at: new Date().toISOString(),
@@ -434,7 +440,7 @@ export default function AdminWABroadcast() {
                             />
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-medium truncate">{r.customer?.full_name}</p>
-                              <p className="text-xs text-muted-foreground">{r.customer?.phone_number} · {r.package?.name}</p>
+                              <p className="text-xs text-muted-foreground">{r.customer?.phone} · {r.package?.name}</p>
                             </div>
                             <Badge variant="outline" className="text-[10px]">{r.payment_status}</Badge>
                           </div>

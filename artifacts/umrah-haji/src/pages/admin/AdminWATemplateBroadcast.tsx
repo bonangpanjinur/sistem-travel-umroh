@@ -46,8 +46,8 @@ interface Booking {
   id: string;
   booking_code: string;
   payment_status: string;
-  status: string;
-  customer: { full_name: string; phone_number: string } | null;
+  booking_status: string;
+  customer: { full_name: string; phone: string } | null;
   package: { name: string } | null;
   departure: { departure_date: string } | null;
 }
@@ -93,9 +93,9 @@ function extractHeaderVars(template: MetaTemplate): number[] {
 function buildRecipientRow(b: Booking): Record<string, string> {
   return {
     booking_id:     b.id,
-    phone:          b.customer?.phone_number || "",
+    phone:          b.customer?.phone || "",
     full_name:      b.customer?.full_name || "",
-    phone_number:   b.customer?.phone_number || "",
+    phone_number:   b.customer?.phone || "",
     package_name:   b.package?.name || "",
     booking_code:   b.booking_code || "",
     departure_date: b.departure?.departure_date
@@ -144,13 +144,19 @@ export default function AdminWATemplateBroadcast() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("bookings")
-        .select(`id, booking_code, payment_status, status,
-          customer:profiles(full_name, phone_number),
+        .select(`id, booking_code, payment_status, booking_status,
+          customer:customers(full_name, phone),
           package:packages(name),
           departure:departures(departure_date)`)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return (data || []) as unknown as Booking[];
+      // Normalize: Supabase joins may return array instead of object
+      return (data || []).map((b: any) => ({
+        ...b,
+        customer: Array.isArray(b.customer) ? b.customer[0] ?? null : b.customer,
+        package:  Array.isArray(b.package)  ? b.package[0]  ?? null : b.package,
+        departure:Array.isArray(b.departure)? b.departure[0] ?? null : b.departure,
+      })) as unknown as Booking[];
     },
   });
 
@@ -179,14 +185,14 @@ export default function AdminWATemplateBroadcast() {
 
   const filteredBookings = useMemo(() => {
     return bookings.filter(b => {
-      if (!b.customer?.phone_number) return false;
+      if (!b.customer?.phone) return false;
       if (filterPayStatus !== "all" && b.payment_status !== filterPayStatus) return false;
-      if (filterBookStatus !== "all" && b.status !== filterBookStatus) return false;
+      if (filterBookStatus !== "all" && b.booking_status !== filterBookStatus) return false;
       if (searchRecipient) {
         const q = searchRecipient.toLowerCase();
         return (b.customer?.full_name || "").toLowerCase().includes(q) ||
                (b.booking_code || "").toLowerCase().includes(q) ||
-               (b.customer?.phone_number || "").includes(q);
+               (b.customer?.phone || "").includes(q);
       }
       return true;
     });
@@ -618,7 +624,7 @@ export default function AdminWATemplateBroadcast() {
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium truncate">{b.customer?.full_name}</p>
                             <p className="text-xs text-muted-foreground">
-                              {b.customer?.phone_number} · {b.package?.name}
+                              {b.customer?.phone} · {b.package?.name}
                               {b.departure?.departure_date && ` · ${format(parseISO(b.departure.departure_date), "dd MMM yyyy", { locale: idLocale })}`}
                             </p>
                           </div>

@@ -1,0 +1,41 @@
+SW registered: https://www.vinstourtravel.com/
+/api/v1/settings/integrations/alerts:1  Failed to load resource: the server responded with a status of 404 ()Understand this error
+/api/v1/settings/integrations/alerts:1  Failed to load resource: the server responded with a status of 404 ()Understand this error
+/api/v1/settings/integrations/alerts:1  Failed to load resource: the server responded with a status of 404 ()Understand this error
+/api/v1/whatsapp/status:1  Failed to load resource: the server responded with a status of 404 ()Understand this error
+/api/v1/whatsapp/settings:1  Failed to load resource: the server responded with a status of 404 ()Understand this error
+/api/v1/whatsapp/templates:1  Failed to load resource: the server responded with a status of 404 ()Understand this error
+/api/v1/whatsapp/logs?pageSize=200:1  Failed to load resource: the server responded with a status of 404 ()Understand this error
+/api/v1/whatsapp/status:1  Failed to load resource: the server responded with a status of 404 ()Understand this error
+/api/v1/whatsapp/templates:1  Failed to load resource: the server responded with a status of 404 ()Understand this error
+/api/v1/whatsapp/logs?pageSize=200:1  Failed to load resource: the server responded with a status of 404 ()Understand this error
+/api/v1/whatsapp/settings:1  Failed to load resource: the server responded with a status of 404 ()Understand this error
+/api/v1/settings/integrations/alerts:1  Failed to load resource: the server responded with a status of 404 ()Understand this error
+/api/reminders/status:1  Failed to load resource: the server responded with a status of 404 ()Understand this error
+vtaqwkpnvtazcnvcfmyy.supabase.co/rest/v1/app_settings?select=key%2Cvalue&key=in.%28wa_otomatis_triggers%2Cwa_template_payment_confirmed%2Cwa_template_h7_departure%2Cwa_template_h1_departure%2Cwa_template_visa_approved%2Cwa_template_savings_reminder%2Cwa_template_document_verified%29:1  Failed to load resource: the server responded with a status of 404 ()Understand this error
+/api/v1/settings/integrations/alerts:1  Failed to load resource: the server responded with a status of 404 ()Understand this error
+index-BFzjht39.js:9 Error: Minified React error #185; visit https://react.dev/errors/185 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+    at Nl (index-BFzjht39.js:9:21307)
+    at fd (index-BFzjht39.js:9:20832)
+    at oo (index-BFzjht39.js:9:44882)
+    at Ug (index-BFzjht39.js:9:44519)
+    at scroll-area-DVjo-svl.js:1:600
+    at K_ (index-BFzjht39.js:10:36076)
+    at index-BFzjht39.js:10:36168
+    at Array.map (<anonymous>)
+    at index-BFzjht39.js:10:36152
+    at sr (index-BFzjht39.js:9:84652)
+Jg @ index-BFzjht39.js:9Understand this error
+index-BFzjht39.js:64 ErrorBoundary caught: Error: Minified React error #185; visit https://react.dev/errors/185 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+    at Nl (index-BFzjht39.js:9:21307)
+    at fd (index-BFzjht39.js:9:20832)
+    at oo (index-BFzjht39.js:9:44882)
+    at Ug (index-BFzjht39.js:9:44519)
+    at scroll-area-DVjo-svl.js:1:600
+    at K_ (index-BFzjht39.js:10:36076)
+    at index-BFzjht39.js:10:36168
+    at Array.map (<anonymous>)
+    at index-BFzjht39.js:10:36152
+    at sr (index-BFzjht39.js:9:84652) Object
+componentDidCatch @ index-BFzjht39.js:64Understand this error
+vtaqwkpnvtazcnvcfmyy.supabase.co/rest/v1/bookings?select=id%2Cbooking_code%2Cpayment_status%2Cstatus%2Ccustomer%3Aprofiles%28full_name%2Cphone_number%29%2Cpackage%3Apackages%28name%29%2Cdeparture%3Adepartures%28departure_date%29&order=created_at.desc:1  Failed to load resource: the server responded with a status of 400 ()

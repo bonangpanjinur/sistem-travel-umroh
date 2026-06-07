@@ -131,6 +131,7 @@
     "esbuild": "0.27.3"
   },
   "dependencies": {
+    "drizzle-orm": "catalog:",
     "web-vitals": "^5.2.0"
   }
 }
