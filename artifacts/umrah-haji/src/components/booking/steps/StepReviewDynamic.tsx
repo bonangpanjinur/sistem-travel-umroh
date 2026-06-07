@@ -17,6 +17,8 @@ import { RoomType } from "@/types/database";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { PaymentModeSelector, PaymentMode } from "@/components/booking/PaymentModeSelector";
+import { useCancellationRule } from "@/hooks/useCancellationRule";
+import { CancellationRuleDisplay } from "@/components/shared/CancellationRuleDisplay";
 
 interface StepReviewDynamicProps {
   formData: DynamicBookingFormData;
@@ -87,36 +89,16 @@ export function StepReviewDynamic({
     staleTime: 5 * 60 * 1000,
   });
 
-  const { data: cancellationPolicy } = useQuery({
-    queryKey: ["cancellation-policy", packageInfo.id],
-    queryFn: async () => {
-      if (packageInfo.id) {
-        const { data } = await (supabase as any)
-          .from("cancellation_policies")
-          .select("id, name, description, terms")
-          .eq("package_id", packageInfo.id)
-          .limit(1)
-          .maybeSingle();
-        if (data) return data;
-      }
-      const { data } = await (supabase as any)
-        .from("cancellation_policies")
-        .select("id, name, description, terms")
-        .eq("is_global", true)
-        .limit(1)
-        .maybeSingle();
-      return data ?? null;
-    },
-    enabled: true,
-    staleTime: 60_000,
-  });
+  const { rule: cancellationRule, isDefault: cancellationIsDefault } = useCancellationRule(
+    packageInfo.id ?? null
+  );
 
-  // When a policy loads, signal to parent that agreement is required
+  // When a rule loads, signal to parent that agreement is required
   useEffect(() => {
-    if (cancellationPolicy && cancellationAgreed === null) {
+    if (cancellationRule && cancellationAgreed === null) {
       onCancellationAgreedChange?.(false);
     }
-  }, [cancellationPolicy]);
+  }, [cancellationRule]);
 
   // Use departure prices (if available), fallback to package prices
   const priceSource = departurePrices || packageInfo;
@@ -434,8 +416,8 @@ export function StepReviewDynamic({
         </CardContent>
       </Card>
 
-      {/* Cancellation Policy */}
-      {cancellationPolicy && (
+      {/* Cancellation Policy — sumber: cancellation_rules (API) */}
+      {cancellationRule && (
         <Card className={cancellationAgreed === false ? "border-amber-300" : ""}>
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
@@ -444,23 +426,24 @@ export function StepReviewDynamic({
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <p className="text-sm font-medium">{cancellationPolicy.name}</p>
-            {cancellationPolicy.description && (
-              <p className="text-sm text-muted-foreground">{cancellationPolicy.description}</p>
-            )}
-            {cancellationPolicy.terms && (
+            {cancellationRule.sections.length > 0 && (
               <div>
                 <button
                   type="button"
-                  className="flex items-center gap-1 text-xs text-primary hover:underline"
+                  className="flex items-center gap-1 text-xs text-primary hover:underline mb-2"
                   onClick={() => setPolicyExpanded((v) => !v)}
                 >
                   {policyExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
                   {policyExpanded ? "Sembunyikan detail" : "Lihat detail syarat & ketentuan"}
                 </button>
                 {policyExpanded && (
-                  <div className="mt-2 p-3 bg-muted/50 rounded-lg text-xs text-muted-foreground whitespace-pre-wrap border">
-                    {cancellationPolicy.terms}
+                  <div className="mt-1 rounded-lg border bg-muted/30 p-3">
+                    <CancellationRuleDisplay
+                      name={cancellationRule.name}
+                      sections={cancellationRule.sections}
+                      isDefault={cancellationIsDefault}
+                      compact
+                    />
                   </div>
                 )}
               </div>

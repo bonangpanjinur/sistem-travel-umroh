@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useCancellationRule } from "@/hooks/useCancellationRule";
 import { supabase as supabaseRaw } from "@/integrations/supabase/client";
 const supabase: any = supabaseRaw;
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -87,24 +88,7 @@ export default function AdminProposalGenerator() {
     },
   });
 
-  const { data: cancelPolicies = [] } = useQuery({
-    queryKey: ["proposal-policies", selectedPackageId],
-    enabled: !!selectedPackageId,
-    queryFn: async () => {
-      const pkgPolicies = await supabase
-        .from("cancellation_policies")
-        .select("*")
-        .eq("package_id", selectedPackageId)
-        .order("days_before_departure");
-      if (pkgPolicies.data?.length) return pkgPolicies.data;
-      const global = await supabase
-        .from("cancellation_policies")
-        .select("*")
-        .eq("is_global", true)
-        .order("days_before_departure");
-      return global.data || [];
-    },
-  });
+  const { rule: cancelRule } = useCancellationRule(selectedPackageId || null);
 
   async function generatePDF() {
     if (!selectedPkg) { toast.error("Pilih paket terlebih dahulu"); return; }
@@ -257,27 +241,27 @@ export default function AdminProposalGenerator() {
       }
 
       // ── Kebijakan Pembatalan ─────────────────────────────────────
-      if (showTerms && (cancelPolicies as any[]).length > 0) {
+      const sections = cancelRule?.sections ?? [];
+      if (showTerms && sections.length > 0) {
         if (y > 200) { doc.addPage(); y = 20; }
         doc.setFillColor(30, 58, 138);
         doc.rect(margin, y, W - margin * 2, 8, "F");
         doc.setTextColor(255, 255, 255); doc.setFontSize(12); doc.setFont("helvetica", "bold");
         doc.text("SYARAT & KEBIJAKAN PEMBATALAN", margin + 2, y + 5.5);
-        y += 10;
-        autoTable(doc, {
-          startY: y,
-          head: [["H- Pembatalan", "% Denda", "Keterangan"]],
-          body: (cancelPolicies as any[]).map((p: any) => [
-            `H-${p.days_before_departure}`,
-            `${p.penalty_percentage || 0}%`,
-            p.description || "—",
-          ]),
-          styles: { fontSize: 8 },
-          headStyles: { fillColor: [220, 38, 38] },
-          alternateRowStyles: { fillColor: [255, 245, 245] },
-          margin: { left: margin, right: margin },
+        y += 12;
+        sections.forEach((section: any) => {
+          if (y > 245) { doc.addPage(); y = 20; }
+          doc.setTextColor(30, 30, 30);
+          doc.setFontSize(10); doc.setFont("helvetica", "bold");
+          doc.text(section.title || "", margin, y); y += 6;
+          doc.setFontSize(8); doc.setFont("helvetica", "normal");
+          (section.items || []).filter((i: string) => i?.trim()).forEach((item: string) => {
+            if (y > 270) { doc.addPage(); y = 20; }
+            const lines = doc.splitTextToSize(`• ${item}`, W - margin * 2 - 4);
+            lines.forEach((line: string) => { doc.text(line, margin + 3, y); y += 5; });
+          });
+          y += 3;
         });
-        y = (doc as any).lastAutoTable?.finalY + 6 || y + 20;
       }
 
       // ── Catatan ──────────────────────────────────────────────────
@@ -435,7 +419,7 @@ export default function AdminProposalGenerator() {
                 <div className="text-xs text-muted-foreground space-y-0.5">
                   {showPriceDetail && <p>✓ Detail harga</p>}
                   {showItinerary && (itinerary as any[]).length > 0 && <p>✓ Program perjalanan ({(itinerary as any[]).length} hari)</p>}
-                  {showTerms && (cancelPolicies as any[]).length > 0 && <p>✓ Kebijakan pembatalan ({(cancelPolicies as any[]).length} aturan)</p>}
+                  {showTerms && (cancelRule?.sections?.length ?? 0) > 0 && <p>✓ Kebijakan pembatalan ({cancelRule!.sections.length} seksi)</p>}
                   {notes && <p>✓ Catatan khusus</p>}
                 </div>
               </CardContent>

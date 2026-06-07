@@ -74,22 +74,6 @@ export function SavingsPackageForm({ packageData, onSuccess, onCancel }: Savings
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(packageData?.featured_image || null);
   const [isUploading, setIsUploading] = useState(false);
-  const [selectedPolicyId, setSelectedPolicyId] = useState<string>(
-    (packageData as any)?.cancellation_policy_id || ""
-  );
-
-  const { data: cancellationPolicies } = useQuery({
-    queryKey: ["admin-cancellation-policies-global"],
-    queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("cancellation_policies")
-        .select("id, name, description")
-        .eq("is_global", true)
-        .order("name", { ascending: true });
-      if (error) throw error;
-      return data || [];
-    },
-  });
 
   const form = useForm<SavingsPackageFormValues>({
     resolver: zodResolver(savingsPackageSchema),
@@ -229,12 +213,6 @@ export function SavingsPackageForm({ packageData, onSuccess, onCancel }: Savings
         packageId = inserted?.id;
       }
 
-      if (selectedPolicyId && selectedPolicyId !== "none" && packageId) {
-        await (supabase as any)
-          .from("cancellation_policies")
-          .update({ package_id: packageId })
-          .eq("id", selectedPolicyId);
-      }
     },
     onSuccess: () => {
       toast.success(isEditing ? "Paket tabungan berhasil diperbarui" : "Paket tabungan berhasil ditambahkan");
@@ -498,25 +476,16 @@ export function SavingsPackageForm({ packageData, onSuccess, onCancel }: Savings
           </div>
         </div>
 
-        {/* Kebijakan Pembatalan */}
-        <div className="space-y-3 p-4 bg-amber-50 border border-amber-200 rounded-lg">
-          <h4 className="text-sm font-semibold text-amber-900 uppercase tracking-wide">Kebijakan Pembatalan</h4>
-          <p className="text-xs text-amber-800">Pilih kebijakan pembatalan global yang berlaku untuk paket ini (opsional)</p>
-          <div className="space-y-1">
-            <Label className="text-sm">Kebijakan Pembatalan</Label>
-            <Select value={selectedPolicyId} onValueChange={setSelectedPolicyId}>
-              <SelectTrigger>
-                <SelectValue placeholder="— Tidak ada / Pilih kebijakan —" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">— Tidak ada kebijakan —</SelectItem>
-                {(cancellationPolicies || []).map((p: any) => (
-                  <SelectItem key={p.id} value={p.id}>
-                    {p.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        {/* Aturan Pembatalan */}
+        <div className="flex gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <Info className="h-4 w-4 text-blue-600 mt-0.5 shrink-0" />
+          <div>
+            <h4 className="text-sm font-semibold text-blue-900">Aturan Pembatalan</h4>
+            <p className="text-xs text-blue-800 mt-1">
+              Aturan pembatalan dapat dikonfigurasi setelah paket disimpan melalui halaman{" "}
+              <strong>Detail Paket → Kartu Aturan Pembatalan</strong>.
+              Setiap paket bisa menggunakan aturan global atau memiliki aturan khusus sendiri.
+            </p>
           </div>
         </div>
 

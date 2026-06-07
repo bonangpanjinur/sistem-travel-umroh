@@ -588,25 +588,16 @@ export default function AdminBookingDetail() {
   });
 
   const { data: cancellationPolicy } = useQuery({
-    queryKey: ['cancellation-policy-for-booking', id],
+    queryKey: ['cancellation-rule-for-booking', id],
     queryFn: async () => {
       const packageId = (booking?.departure as any)?.package?.id;
-      if (packageId) {
-        const { data: pkgPolicy } = await (supabase as any)
-          .from('cancellation_policies')
-          .select('*')
-          .eq('package_id', packageId)
-          .maybeSingle();
-        if (pkgPolicy) return pkgPolicy as { id: string; name: string; sections: { title: string; items: string[] }[] };
-      }
-      const { data: globalPolicy } = await (supabase as any)
-        .from('cancellation_policies')
-        .select('*')
-        .eq('is_global', true)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      return globalPolicy as { id: string; name: string; sections: { title: string; items: string[] }[] } | null;
+      const url = packageId
+        ? `/api/cancellation-rules/for-package/${packageId}`
+        : `/api/cancellation-rules/default`;
+      const res = await fetch(url);
+      if (!res.ok) return null;
+      const json = await res.json();
+      return (json.data ?? null) as { id: string; name: string; sections: { title: string; items: string[] }[] } | null;
     },
     enabled: !!booking,
   });

@@ -160,6 +160,52 @@ router.put("/bulk-unassign", async (req, res) => {
   }
 });
 
+// ── GET /api/cancellation-rules/for-package/:packageId ───────────────────────
+// Single-source-of-truth resolver: returns the effective cancellation rule for
+// a package. If the package has a specific cancellation_rule_id → return that.
+// Otherwise fall back to the is_default = TRUE rule.
+// Response: { data: { ...rule, is_using_default: boolean } | null }
+router.get("/for-package/:packageId", async (req, res) => {
+  try {
+    const { packageId } = req.params;
+
+    // Step 1: check if package exists and has a specific rule
+    const { rows: pkgRows } = await pool.query(
+      `SELECT cancellation_rule_id FROM packages WHERE id = $1`,
+      [packageId]
+    );
+
+    if (!pkgRows.length) {
+      res.status(404).json({ error: "Paket tidak ditemukan" });
+      return;
+    }
+
+    const specificRuleId = pkgRows[0].cancellation_rule_id as string | null;
+
+    if (specificRuleId) {
+      // Package has its own rule
+      const { rows } = await pool.query(
+        `SELECT id, name, is_default, sections FROM cancellation_rules WHERE id = $1`,
+        [specificRuleId]
+      );
+      if (rows.length) {
+        res.json({ data: { ...rows[0], is_using_default: false } });
+        return;
+      }
+      // Rule id set but deleted — fall through to default
+    }
+
+    // Step 2: fall back to the global default rule
+    const { rows: defRows } = await pool.query(
+      `SELECT id, name, is_default, sections FROM cancellation_rules WHERE is_default = TRUE LIMIT 1`
+    );
+
+    res.json({ data: defRows.length ? { ...defRows[0], is_using_default: true } : null });
+  } catch (err: any) {
+    err500(res, err, "for-package");
+  }
+});
+
 // ── GET /api/cancellation-rules/:id ───────────────────────────────────────────
 router.get("/:id", async (req, res) => {
   try {

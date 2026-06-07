@@ -110,7 +110,7 @@ const AdminDocumentGenerator = () => {
       if (depIds.length === 0) return [];
       const { data, error } = await supabase
         .from('bookings')
-        .select(`id, booking_code, room_type, total_price, total_pax, base_price, discount_amount, paid_amount, remaining_amount, payment_status, created_at, customer:customers(id, full_name, address, phone, email, nik, birth_place, birth_date, passport_number), departure:departures(departure_date, return_date, departure_time, flight_number, package_id, airline:airlines(name, code), departure_airport:airports!departures_departure_airport_id_fkey(name, city, code), arrival_airport:airports!departures_arrival_airport_id_fkey(name, city, code), hotel_makkah:hotels!departures_hotel_makkah_id_fkey(name), hotel_madinah:hotels!departures_hotel_madinah_id_fkey(name), package:packages(name, price_quad, price_triple, price_double, price_single, cancellation_policy:cancellation_policies(id, name, sections)))`)
+        .select(`id, booking_code, room_type, total_price, total_pax, base_price, discount_amount, paid_amount, remaining_amount, payment_status, created_at, customer:customers(id, full_name, address, phone, email, nik, birth_place, birth_date, passport_number), departure:departures(departure_date, return_date, departure_time, flight_number, package_id, airline:airlines(name, code), departure_airport:airports!departures_departure_airport_id_fkey(name, city, code), arrival_airport:airports!departures_arrival_airport_id_fkey(name, city, code), hotel_makkah:hotels!departures_hotel_makkah_id_fkey(name), hotel_madinah:hotels!departures_hotel_madinah_id_fkey(name), package:packages(name, price_quad, price_triple, price_double, price_single))`)
         .in('departure_id', depIds).order('created_at', { ascending: false });
       if (error) throw error; return data;
     },
@@ -226,10 +226,9 @@ const AdminDocumentGenerator = () => {
     const pricePerPax = booking.base_price || 0;
     const totalBeforeDiscount = pricePerPax * paxCount;
 
-    const cp = pkg?.cancellation_policy as any;
-    const cancellationPolicy = cp ? { id: cp.id, name: cp.name, sections: cp.sections ?? [] } : undefined;
+    const pkgId = (departure?.package_id as string) ?? null;
 
-    const data: InvoiceDataExtended = {
+    const baseData: Omit<InvoiceDataExtended, 'cancellationPolicy'> = {
       invoiceNumber: `INV-${booking.booking_code}`,
       invoiceDate: new Date(),
       dueDate: invoiceForm.dueDate || new Date(Date.now() + 7 * 86400000),
@@ -246,11 +245,27 @@ const AdminDocumentGenerator = () => {
       passengerSummary: { adult: paxCount },
       notes: invoiceForm.notes || 'Pembayaran dapat dilakukan secara bertahap. Pelunasan paling lambat 2 minggu sebelum keberangkatan.',
       bankInfo: bankAccount ? { bankName: bankAccount.bank_name, accountNumber: bankAccount.account_number, accountName: bankAccount.account_name } : undefined,
-      cancellationPolicy,
       // QR transparansi → halaman detail booking jamaah
       verifyUrl: `${window.location.origin}/transaksi/${(booking as any).public_token || booking.id}`,
     };
-    return { generate: async () => await generateInvoice(data, company) };
+    return {
+      generate: async () => {
+        // Fetch cancellation rule dari satu sumber kebenaran (API cancellation_rules)
+        let cancellationPolicy: { id?: string; name: string; sections: { title: string; items: string[] }[] } | undefined;
+        if (pkgId) {
+          try {
+            const res = await fetch(`/api/cancellation-rules/for-package/${pkgId}`);
+            if (res.ok) {
+              const json = await res.json();
+              if (json.data) {
+                cancellationPolicy = { id: json.data.id, name: json.data.name, sections: json.data.sections ?? [] };
+              }
+            }
+          } catch { /* tanpa aturan pembatalan jika gagal */ }
+        }
+        return await generateInvoice({ ...baseData, cancellationPolicy }, company);
+      }
+    };
   };
 
   const handleGenerateETicket = () => {

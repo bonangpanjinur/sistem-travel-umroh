@@ -60,25 +60,16 @@ export default function PackageDetail() {
     enabled: !!id,
   });
 
-  // Fetch cancellation policy (package-specific first, then global fallback)
+  // Fetch cancellation rule — satu sumber kebenaran via API (cancellation_rules)
+  // Paket punya rule sendiri → pakai itu. Tidak ada → fallback ke is_default = true.
   const { data: cancellationPolicy } = useQuery({
-    queryKey: ['pkg-cancellation-policy-public', id],
+    queryKey: ['cancellation-rule-for-package-public', id],
     queryFn: async () => {
       if (!id) return null;
-      const { data: ownPolicy } = await (supabase as any)
-        .from('cancellation_policies')
-        .select('id, name, is_global, sections')
-        .eq('package_id', id)
-        .maybeSingle();
-      if (ownPolicy) return { ...ownPolicy, isGlobal: false };
-      const { data: globalPolicy } = await (supabase as any)
-        .from('cancellation_policies')
-        .select('id, name, is_global, sections')
-        .eq('is_global', true)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      return globalPolicy ? { ...globalPolicy, isGlobal: true } : null;
+      const res = await fetch(`/api/cancellation-rules/for-package/${id}`);
+      if (!res.ok) return null;
+      const json = await res.json();
+      return json.data ?? null;
     },
     enabled: !!id,
   });
@@ -998,7 +989,7 @@ export default function PackageDetail() {
                         </CardTitle>
                         {cancellationPolicy && (
                           <div className="flex items-center gap-1.5 mt-1">
-                            {cancellationPolicy.isGlobal ? (
+                            {cancellationPolicy.is_using_default ? (
                               <span className="inline-flex items-center gap-1 text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded-full px-2 py-0.5">
                                 <Globe className="h-3 w-3" />
                                 Aturan Umum
