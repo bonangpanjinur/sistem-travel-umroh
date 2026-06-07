@@ -199,9 +199,11 @@ function AdminLayoutDynamicImproved() {
   const sidebarBadgeMap = useMemo(() => {
     const paymentCount = adminNotifications.notifications.filter(n => !n.read && n.type === 'payment').length;
     const bookingCount = adminNotifications.notifications.filter(n => !n.read && n.type === 'booking').length;
+    const systemAlertCount = adminNotifications.notifications.filter(n => !n.read && n.type === 'system_alert').length;
     return {
       '/admin/payments': paymentCount,
       '/admin/bookings': bookingCount,
+      '/admin/system-health': systemAlertCount,
     } as Record<string, number>;
   }, [adminNotifications.notifications]);
   const location = useLocation();
