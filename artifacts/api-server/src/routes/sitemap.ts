@@ -85,12 +85,12 @@ async function supabaseGet<T = any>(
 
 // ── DB pool (Neon / pg) — optional, used only if DATABASE_URL is set ──────────
 async function tryPool<T>(
-  fn: () => Promise<T>,
+  fn: (pool: any) => Promise<T>,
 ): Promise<T | null> {
   if (!process.env["DATABASE_URL"]) return null;
   try {
     const { pool } = await import("../lib/db.js");
-    return await fn.call(null, pool);
+    return await fn(pool);
   } catch {
     return null;
   }
@@ -166,12 +166,10 @@ router.get("/sitemap.xml", async (req, res) => {
     const result = await tryPool(async (pool: any) => {
       const client = await pool.connect();
       try {
-        const { rows } = await client.query<{
-          id: string; name: string; updated_at: string | null; package_type: string;
-        }>(
+        const queryRes = await client.query(
           `SELECT id, name, updated_at, package_type FROM packages WHERE is_active = true ORDER BY updated_at DESC NULLS LAST`,
         );
-        return rows;
+        return queryRes.rows;
       } finally {
         client.release();
       }
@@ -221,14 +219,14 @@ router.get("/sitemap.xml", async (req, res) => {
     const result = await tryPool(async (pool: any) => {
       const client = await pool.connect();
       try {
-        const { rows } = await client.query(
+        const queryRes = await client.query(
           `SELECT d.id, d.slug, d.departure_date, d.updated_at, p.name AS package_name
            FROM departures d
            LEFT JOIN packages p ON p.id = d.package_id
            WHERE d.status = 'open' AND d.departure_date >= CURRENT_DATE - 1
            ORDER BY d.departure_date ASC`,
         );
-        return rows;
+        return queryRes.rows;
       } finally { client.release(); }
     });
     if (result) {
@@ -263,10 +261,10 @@ router.get("/sitemap.xml", async (req, res) => {
     const result = await tryPool(async (pool: any) => {
       const client = await pool.connect();
       try {
-        const { rows } = await client.query(
+        const queryRes = await client.query(
           `SELECT id, slug, updated_at FROM blog_articles WHERE status = 'published' ORDER BY updated_at DESC NULLS LAST`,
         );
-        return rows;
+        return queryRes.rows;
       } finally { client.release(); }
     });
     if (result) {
@@ -298,10 +296,10 @@ router.get("/sitemap.xml", async (req, res) => {
     const result = await tryPool(async (pool: any) => {
       const client = await pool.connect();
       try {
-        const { rows } = await client.query(
+        const queryRes = await client.query(
           `SELECT id, slug, updated_at FROM landing_pages WHERE is_published = true ORDER BY updated_at DESC NULLS LAST`,
         );
-        return rows;
+        return queryRes.rows;
       } finally { client.release(); }
     });
     if (result) {
