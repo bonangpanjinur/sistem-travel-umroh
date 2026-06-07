@@ -12,8 +12,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Download, Eye, Banknote, Users, TrendingUp, Search, FileText, Info } from "lucide-react";
+import { Download, Eye, Banknote, Users, TrendingUp, Search, FileText, Info, Plus, Edit, Trash2, PlusCircle, Gift } from "lucide-react";
+
+const supabaseAny = supabase as any;
 import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import jsPDF from "jspdf";
@@ -302,6 +306,23 @@ function generatePayrollPDF(payroll: PayrollData, period: string, companyName = 
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
+const COMP_TYPE_LABELS: Record<string, string> = {
+  bonus: "Bonus", tunjangan: "Tunjangan", potongan: "Potongan",
+};
+const COMP_CALC_LABELS: Record<string, string> = {
+  fixed: "Nominal Tetap", percentage: "% dari Gaji Pokok",
+};
+
+const EMPTY_COMP_FORM = {
+  name: "", code: "", type: "tunjangan", calc_type: "fixed",
+  default_amount: "", is_taxable: false, is_active: true, description: "",
+};
+
+const EMPTY_EMP_COMP_FORM = {
+  employee_id: "", component_id: "", period: format(new Date(), "yyyy-MM"),
+  amount: "", note: "",
+};
+
 export default function AdminPayroll() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -313,10 +334,18 @@ export default function AdminPayroll() {
   const [selectedPayroll, setSelectedPayroll] = useState<PayrollData | null>(null);
   const [defaultPTKP, setDefaultPTKP] = useState<PTKPStatus>("TK/0");
 
+  const [compDialogOpen, setCompDialogOpen] = useState(false);
+  const [editingCompId, setEditingCompId] = useState<string | null>(null);
+  const [compForm, setCompForm] = useState({ ...EMPTY_COMP_FORM });
+
+  const [empCompDialogOpen, setEmpCompDialogOpen] = useState(false);
+  const [empCompForm, setEmpCompForm] = useState({ ...EMPTY_EMP_COMP_FORM });
+  const [empCompPeriod, setEmpCompPeriod] = useState(format(new Date(), "yyyy-MM"));
+
   const { data: employees = [], isLoading: loadingEmployees } = useQuery({
     queryKey: ["employees"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAny
         .from("employees")
         .select("*")
         .eq("is_active", true)
@@ -327,6 +356,124 @@ export default function AdminPayroll() {
     staleTime: 1000 * 60 * 10,
   });
 
+  const { data: payrollComponents = [] } = useQuery({
+    queryKey: ["payroll-components"],
+    queryFn: async () => {
+      const { data, error } = await supabaseAny
+        .from("payroll_components")
+        .select("*")
+        .order("type")
+        .order("name");
+      if (error) {
+        if (error.code === "42P01") return [];
+        throw error;
+      }
+      return data || [];
+    },
+  });
+
+  const { data: empPayrollComponents = [] } = useQuery({
+    queryKey: ["employee-payroll-components", empCompPeriod],
+    queryFn: async () => {
+      const { data, error } = await supabaseAny
+        .from("employee_payroll_components")
+        .select("*, employee:employees(full_name, employee_code), component:payroll_components(name, type, code)")
+        .eq("period", empCompPeriod)
+        .order("created_at", { ascending: false });
+      if (error) {
+        if (error.code === "42P01") return [];
+        throw error;
+      }
+      return data || [];
+    },
+  });
+
+  const saveCompMutation = useMutation({
+    mutationFn: async () => {
+      const payload = {
+        name: compForm.name,
+        code: compForm.code.toUpperCase(),
+        type: compForm.type,
+        calc_type: compForm.calc_type,
+        default_amount: parseFloat(compForm.default_amount) || 0,
+        is_taxable: compForm.is_taxable,
+        is_active: compForm.is_active,
+        description: compForm.description || null,
+        updated_at: new Date().toISOString(),
+      };
+      if (editingCompId) {
+        const { error } = await supabaseAny.from("payroll_components").update(payload).eq("id", editingCompId);
+        if (error) throw error;
+      } else {
+        const { error } = await supabaseAny.from("payroll_components").insert(payload);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["payroll-components"] });
+      setCompDialogOpen(false);
+      setEditingCompId(null);
+      setCompForm({ ...EMPTY_COMP_FORM });
+      toast.success(editingCompId ? "Komponen diperbarui" : "Komponen baru ditambahkan");
+    },
+    onError: (e: any) => toast.error("Gagal: " + e.message),
+  });
+
+  const deleteCompMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabaseAny.from("payroll_components").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["payroll-components"] });
+      toast.success("Komponen dihapus");
+    },
+  });
+
+  const saveEmpCompMutation = useMutation({
+    mutationFn: async () => {
+      const payload = {
+        employee_id: empCompForm.employee_id,
+        component_id: empCompForm.component_id,
+        period: empCompForm.period,
+        amount: parseFloat(empCompForm.amount) || 0,
+        note: empCompForm.note || null,
+      };
+      const { error } = await supabaseAny
+        .from("employee_payroll_components")
+        .upsert(payload, { onConflict: "employee_id,component_id,period" });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["employee-payroll-components"] });
+      setEmpCompDialogOpen(false);
+      setEmpCompForm({ ...EMPTY_EMP_COMP_FORM });
+      toast.success("Komponen karyawan disimpan");
+    },
+    onError: (e: any) => toast.error("Gagal: " + e.message),
+  });
+
+  const deleteEmpCompMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabaseAny.from("employee_payroll_components").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["employee-payroll-components"] });
+      toast.success("Dihapus");
+    },
+  });
+
+  const openEditComp = (c: any) => {
+    setEditingCompId(c.id);
+    setCompForm({
+      name: c.name, code: c.code, type: c.type, calc_type: c.calc_type,
+      default_amount: c.default_amount?.toString() ?? "0",
+      is_taxable: c.is_taxable, is_active: c.is_active, description: c.description || "",
+    });
+    setCompDialogOpen(true);
+  };
+
   const { data: attendanceRecords = [] } = useQuery({
     queryKey: ["attendance-records", selectedMonth],
     queryFn: async () => {
@@ -336,7 +483,7 @@ export default function AdminPayroll() {
         month === "12"
           ? `${parseInt(year) + 1}-01-01`
           : `${year}-${String(parseInt(month) + 1).padStart(2, "0")}-01`;
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAny
         .from("attendance_records")
         .select("*")
         .gte("attendance_date", startDate)
@@ -521,6 +668,9 @@ export default function AdminPayroll() {
           </TabsTrigger>
           <TabsTrigger value="bpjs" className="gap-2">
             <Users className="h-4 w-4" /> BPJS & PPh 21
+          </TabsTrigger>
+          <TabsTrigger value="komponen" className="gap-2">
+            <Gift className="h-4 w-4" /> Komponen Dinamis
           </TabsTrigger>
           <TabsTrigger value="reports" className="gap-2">
             <TrendingUp className="h-4 w-4" /> Laporan PDF
@@ -708,6 +858,158 @@ export default function AdminPayroll() {
           </Card>
         </TabsContent>
 
+        {/* ─── Komponen Dinamis Tab ─── */}
+        <TabsContent value="komponen" className="space-y-6">
+          {/* Master Komponen */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-base">Master Komponen Payroll</CardTitle>
+                  <CardDescription>Definisi bonus, tunjangan, dan potongan yang dapat diterapkan ke karyawan</CardDescription>
+                </div>
+                <Button size="sm" onClick={() => { setEditingCompId(null); setCompForm({ ...EMPTY_COMP_FORM }); setCompDialogOpen(true); }}>
+                  <Plus className="h-4 w-4 mr-2" /> Komponen Baru
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nama Komponen</TableHead>
+                    <TableHead>Kode</TableHead>
+                    <TableHead>Jenis</TableHead>
+                    <TableHead>Cara Hitung</TableHead>
+                    <TableHead className="text-right">Default</TableHead>
+                    <TableHead>Kena Pajak</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Aksi</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {!payrollComponents.length ? (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center py-6 text-muted-foreground">
+                        Belum ada komponen. Klik "+ Komponen Baru" untuk menambahkan.
+                      </TableCell>
+                    </TableRow>
+                  ) : (payrollComponents as any[]).map((c) => (
+                    <TableRow key={c.id}>
+                      <TableCell className="font-medium">{c.name}</TableCell>
+                      <TableCell className="font-mono text-xs text-muted-foreground">{c.code}</TableCell>
+                      <TableCell>
+                        <Badge variant={c.type === "bonus" ? "default" : c.type === "tunjangan" ? "secondary" : "destructive"} className="text-xs">
+                          {COMP_TYPE_LABELS[c.type] ?? c.type}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-sm">{COMP_CALC_LABELS[c.calc_type] ?? c.calc_type}</TableCell>
+                      <TableCell className="text-right text-sm">
+                        {c.calc_type === "percentage"
+                          ? `${c.default_amount}%`
+                          : formatCurrency(c.default_amount)}
+                      </TableCell>
+                      <TableCell>
+                        {c.is_taxable
+                          ? <Badge variant="outline" className="text-xs border-orange-400 text-orange-600">PPh 21</Badge>
+                          : <span className="text-xs text-muted-foreground">—</span>}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={c.is_active ? "secondary" : "outline"} className="text-xs">
+                          {c.is_active ? "Aktif" : "Nonaktif"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-1">
+                          <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => openEditComp(c)}>
+                            <Edit className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-red-500"
+                            onClick={() => { if (confirm("Hapus komponen ini?")) deleteCompMutation.mutate(c.id); }}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+
+          {/* Entri Per-Karyawan Per-Periode */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <div>
+                  <CardTitle className="text-base">Entri Komponen per Karyawan</CardTitle>
+                  <CardDescription>Assign bonus/tunjangan/potongan spesifik untuk karyawan di periode tertentu</CardDescription>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="month"
+                    value={empCompPeriod}
+                    onChange={e => setEmpCompPeriod(e.target.value)}
+                    className="w-40"
+                  />
+                  <Button size="sm" onClick={() => {
+                    setEmpCompForm({ ...EMPTY_EMP_COMP_FORM, period: empCompPeriod });
+                    setEmpCompDialogOpen(true);
+                  }}>
+                    <PlusCircle className="h-4 w-4 mr-2" /> Tambah Entri
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Karyawan</TableHead>
+                    <TableHead>Komponen</TableHead>
+                    <TableHead>Jenis</TableHead>
+                    <TableHead className="text-right">Nominal</TableHead>
+                    <TableHead>Catatan</TableHead>
+                    <TableHead className="text-right">Aksi</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {!(empPayrollComponents as any[]).length ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
+                        Belum ada entri komponen untuk periode {empCompPeriod}
+                      </TableCell>
+                    </TableRow>
+                  ) : (empPayrollComponents as any[]).map((ec) => (
+                    <TableRow key={ec.id}>
+                      <TableCell>
+                        <p className="font-medium text-sm">{ec.employee?.full_name || "—"}</p>
+                        <p className="text-xs text-muted-foreground">{ec.employee?.employee_code}</p>
+                      </TableCell>
+                      <TableCell className="text-sm">{ec.component?.name || "—"}</TableCell>
+                      <TableCell>
+                        <Badge variant={ec.component?.type === "potongan" ? "destructive" : "secondary"} className="text-xs">
+                          {COMP_TYPE_LABELS[ec.component?.type] ?? "—"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right font-medium">
+                        {formatCurrency(ec.amount)}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground max-w-[160px] truncate">{ec.note || "—"}</TableCell>
+                      <TableCell className="text-right">
+                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-red-500"
+                          onClick={() => deleteEmpCompMutation.mutate(ec.id)}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         {/* ─── Reports Tab ─── */}
         <TabsContent value="reports" className="space-y-4">
           <Card>
@@ -742,6 +1044,144 @@ export default function AdminPayroll() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* ─── Master Komponen Dialog ─── */}
+      <Dialog open={compDialogOpen} onOpenChange={setCompDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{editingCompId ? "Edit Komponen" : "Komponen Payroll Baru"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Nama Komponen *</Label>
+                <Input value={compForm.name} onChange={e => setCompForm(f => ({ ...f, name: e.target.value }))} placeholder="Tunjangan Makan" />
+              </div>
+              <div>
+                <Label>Kode *</Label>
+                <Input value={compForm.code} onChange={e => setCompForm(f => ({ ...f, code: e.target.value.toUpperCase() }))} placeholder="TUN_MAKAN" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Jenis</Label>
+                <Select value={compForm.type} onValueChange={v => setCompForm(f => ({ ...f, type: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="tunjangan">Tunjangan</SelectItem>
+                    <SelectItem value="bonus">Bonus</SelectItem>
+                    <SelectItem value="potongan">Potongan</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Cara Hitung</Label>
+                <Select value={compForm.calc_type} onValueChange={v => setCompForm(f => ({ ...f, calc_type: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="fixed">Nominal Tetap (Rp)</SelectItem>
+                    <SelectItem value="percentage">% dari Gaji Pokok</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div>
+              <Label>Nilai Default {compForm.calc_type === "percentage" ? "(%)" : "(Rp)"}</Label>
+              <Input
+                type="number"
+                value={compForm.default_amount}
+                onChange={e => setCompForm(f => ({ ...f, default_amount: e.target.value }))}
+                placeholder={compForm.calc_type === "percentage" ? "10" : "500000"}
+              />
+            </div>
+            <div>
+              <Label>Keterangan</Label>
+              <Textarea value={compForm.description} onChange={e => setCompForm(f => ({ ...f, description: e.target.value }))} rows={2} />
+            </div>
+            <div className="flex gap-6">
+              <div className="flex items-center gap-2">
+                <Switch checked={compForm.is_taxable} onCheckedChange={v => setCompForm(f => ({ ...f, is_taxable: v }))} />
+                <Label>Kena PPh 21</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Switch checked={compForm.is_active} onCheckedChange={v => setCompForm(f => ({ ...f, is_active: v }))} />
+                <Label>Aktif</Label>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCompDialogOpen(false)}>Batal</Button>
+            <Button onClick={() => saveCompMutation.mutate()} disabled={saveCompMutation.isPending || !compForm.name || !compForm.code}>
+              {saveCompMutation.isPending ? "Menyimpan..." : "Simpan"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Entri Karyawan Dialog ─── */}
+      <Dialog open={empCompDialogOpen} onOpenChange={setEmpCompDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Tambah Komponen Karyawan</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>Karyawan *</Label>
+              <Select value={empCompForm.employee_id} onValueChange={v => setEmpCompForm(f => ({ ...f, employee_id: v }))}>
+                <SelectTrigger><SelectValue placeholder="Pilih karyawan..." /></SelectTrigger>
+                <SelectContent>
+                  {(employees as any[]).map((e: any) => (
+                    <SelectItem key={e.id} value={e.id}>{e.full_name} ({e.employee_code})</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Komponen *</Label>
+              <Select value={empCompForm.component_id} onValueChange={v => {
+                const comp = (payrollComponents as any[]).find((c: any) => c.id === v);
+                setEmpCompForm(f => ({
+                  ...f,
+                  component_id: v,
+                  amount: comp?.default_amount?.toString() ?? f.amount,
+                }));
+              }}>
+                <SelectTrigger><SelectValue placeholder="Pilih komponen..." /></SelectTrigger>
+                <SelectContent>
+                  {(payrollComponents as any[]).filter((c: any) => c.is_active).map((c: any) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name} ({COMP_TYPE_LABELS[c.type]})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Periode *</Label>
+                <Input type="month" value={empCompForm.period} onChange={e => setEmpCompForm(f => ({ ...f, period: e.target.value }))} />
+              </div>
+              <div>
+                <Label>Nominal (Rp) *</Label>
+                <Input type="number" value={empCompForm.amount} onChange={e => setEmpCompForm(f => ({ ...f, amount: e.target.value }))} placeholder="0" />
+              </div>
+            </div>
+            <div>
+              <Label>Catatan</Label>
+              <Input value={empCompForm.note} onChange={e => setEmpCompForm(f => ({ ...f, note: e.target.value }))} placeholder="Keterangan opsional..." />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEmpCompDialogOpen(false)}>Batal</Button>
+            <Button
+              onClick={() => saveEmpCompMutation.mutate()}
+              disabled={saveEmpCompMutation.isPending || !empCompForm.employee_id || !empCompForm.component_id}
+            >
+              {saveEmpCompMutation.isPending ? "Menyimpan..." : "Simpan"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Detail Dialog */}
       <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>

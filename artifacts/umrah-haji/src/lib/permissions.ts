@@ -61,6 +61,7 @@ export const PERMISSIONS = {
   // SDM
   HR: 'hr',
   PAYROLL: 'payroll',
+  SURAT_PERINGATAN: 'surat-peringatan',
 
   // Dokumen
   DOCUMENT_VERIFICATION: 'document-verification',

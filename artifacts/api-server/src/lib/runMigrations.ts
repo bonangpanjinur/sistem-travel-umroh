@@ -543,6 +543,19 @@ export async function runMigrations(): Promise<void> {
       logger.info("runMigrations: 24_agent_tier_trigger_fix — already applied, skipping");
     }
 
+    // ── Step 1v: SDM Sprint-1 (payroll components + SP + employee training) ─
+    const sdmSprint1Applied = await isApplied(client, "25_sdm_sprint1");
+    if (!sdmSprint1Applied) {
+      await runSqlFile(
+        client,
+        sqlPath("25_sdm_sprint1.sql"),
+        "25_sdm_sprint1 (payroll_components + employee_payroll_components + disciplinary_letters + employee_training_progress)",
+      );
+      await markApplied(client, "25_sdm_sprint1");
+    } else {
+      logger.info("runMigrations: 25_sdm_sprint1 — already applied, skipping");
+    }
+
     // ── Step 2: payment sync trigger (always re-applied each boot) ────────
     // Wrapped in its own try/catch so a missing table on a broken DB state
     // doesn't crash the server — it just logs and continues.

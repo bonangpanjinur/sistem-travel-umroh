@@ -136,6 +136,8 @@ export const RECOMMENDED_MENUS: AdminMenuItem[] = [
   // ── SDM (700s) ────────────────────────────────────────────────────────────
   { key: 'hr',                  label: 'SDM / HR',              path: '/admin/hr',                   icon: 'UserCog',         group_name: 'SDM',                sort_order: 701, required_permission: PERMISSIONS.HR },
   { key: 'payroll',             label: 'Penggajian',            path: '/admin/hr/payroll',           icon: 'Wallet',          group_name: 'SDM',                sort_order: 702, required_permission: PERMISSIONS.PAYROLL },
+  { key: 'surat-peringatan',    label: 'Surat Peringatan (SP)', path: '/admin/hr/sp',               icon: 'FileWarning',     group_name: 'SDM',                sort_order: 703, required_permission: PERMISSIONS.SURAT_PERINGATAN },
+  { key: 'training',            label: 'Pelatihan Staf',        path: '/admin/training',             icon: 'GraduationCap',  group_name: 'SDM',                sort_order: 704, required_permission: PERMISSIONS.TRAINING },
 
   // ── Master Data (900s) ────────────────────────────────────────────────────
   { key: 'hotels',              label: 'Hotel',                 path: '/admin/hotels',               icon: 'Hotel',           group_name: 'Master Data',        sort_order: 901, required_permission: PERMISSIONS.HOTELS },
