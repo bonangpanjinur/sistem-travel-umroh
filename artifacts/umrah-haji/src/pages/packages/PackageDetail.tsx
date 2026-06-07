@@ -196,7 +196,7 @@ export default function PackageDetail() {
     const metaDesc = (pkg as any).meta_description || pkg.description || `Paket ${pkg.name} selama ${pkg.duration_days} hari bersama ${siteTitle}.`;
     const keywords: string[] = (pkg as any).keywords ?? [];
     const canonicalUrl = window.location.href.split('?')[0];
-    const ogImage = pkg.featured_image || (settings as any)?.og_image_url || null;
+    const ogImage = pkg.featured_image || (settings as any)?.og_image_url || `${window.location.origin}/opengraph.jpg`;
 
     document.title = metaTitle;
 

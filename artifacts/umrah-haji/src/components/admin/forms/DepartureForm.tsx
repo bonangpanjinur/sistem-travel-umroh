@@ -246,9 +246,9 @@ export function DepartureForm({ departureData, packageId, onSuccess, onCancel }:
       visa_deadline: (departureData as any)?.visa_deadline || "",
       break_even_pax: (departureData as any)?.break_even_pax || 0,
       operational_cost_per_pax: (departureData as any)?.operational_cost_per_pax || 0,
-      meta_title: (departureData as any)?.meta_title || null,
-      meta_description: (departureData as any)?.meta_description || null,
-      slug: (departureData as any)?.slug || null,
+      meta_title: departureData?.meta_title || null,
+      meta_description: departureData?.meta_description || null,
+      slug: departureData?.slug || null,
     },
   });
 

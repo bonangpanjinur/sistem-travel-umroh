@@ -1539,8 +1539,11 @@ export type Database = {
           price_infant: number | null
           child_price_percent: number | null
           infant_price_percent: number | null
+          meta_description: string | null
+          meta_title: string | null
           quota: number
           return_date: string
+          slug: string | null
           status: string | null
           team_leader_id: string | null
           updated_at: string | null
@@ -1574,8 +1577,11 @@ export type Database = {
           price_infant?: number | null
           child_price_percent?: number | null
           infant_price_percent?: number | null
+          meta_description?: string | null
+          meta_title?: string | null
           quota?: number
           return_date: string
+          slug?: string | null
           status?: string | null
           team_leader_id?: string | null
           updated_at?: string | null
@@ -1609,8 +1615,11 @@ export type Database = {
           price_infant?: number | null
           child_price_percent?: number | null
           infant_price_percent?: number | null
+          meta_description?: string | null
+          meta_title?: string | null
           quota?: number
           return_date?: string
+          slug?: string | null
           status?: string | null
           team_leader_id?: string | null
           updated_at?: string | null

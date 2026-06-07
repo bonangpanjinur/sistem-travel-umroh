@@ -1,5 +1,4 @@
 import { Router } from "express";
-import { pool } from "../lib/db.js";
 
 const router = Router();
 
@@ -54,6 +53,49 @@ ${urls}
 </urlset>`;
 }
 
+// ── Supabase REST API helper ──────────────────────────────────────────────────
+function getSupabaseClient() {
+  const url = process.env["VITE_SUPABASE_URL"] || process.env["SUPABASE_URL"];
+  const key =
+    process.env["VITE_SUPABASE_PUBLISHABLE_KEY"] ||
+    process.env["VITE_SUPABASE_ANON_KEY"] ||
+    process.env["SUPABASE_ANON_KEY"] ||
+    process.env["SUPABASE_SERVICE_ROLE_KEY"];
+  if (!url || !key || url.includes("placeholder")) return null;
+  return { url, key };
+}
+
+async function supabaseGet<T = any>(
+  table: string,
+  params: Record<string, string>,
+): Promise<T[]> {
+  const sb = getSupabaseClient();
+  if (!sb) return [];
+  const qs = new URLSearchParams(params).toString();
+  const res = await fetch(`${sb.url}/rest/v1/${table}?${qs}`, {
+    headers: {
+      apikey: sb.key,
+      Authorization: `Bearer ${sb.key}`,
+      "Content-Type": "application/json",
+    },
+  });
+  if (!res.ok) throw new Error(`Supabase ${table} HTTP ${res.status}`);
+  return res.json() as Promise<T[]>;
+}
+
+// ── DB pool (Neon / pg) — optional, used only if DATABASE_URL is set ──────────
+async function tryPool<T>(
+  fn: () => Promise<T>,
+): Promise<T | null> {
+  if (!process.env["DATABASE_URL"]) return null;
+  try {
+    const { pool } = await import("../lib/db.js");
+    return await fn.call(null, pool);
+  } catch {
+    return null;
+  }
+}
+
 router.get("/sitemap.xml", async (req, res) => {
   res.setHeader("Content-Type", "application/xml; charset=utf-8");
   res.setHeader("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400");
@@ -67,11 +109,11 @@ router.get("/sitemap.xml", async (req, res) => {
   const staticPages: UrlEntry[] = [
     { loc: `${baseUrl}/`, changefreq: "daily", priority: "1.0", lastmod: today },
     { loc: `${baseUrl}/packages`, changefreq: "daily", priority: "0.9", lastmod: today },
+    { loc: `${baseUrl}/departures`, changefreq: "weekly", priority: "0.7", lastmod: today },
     { loc: `${baseUrl}/about`, changefreq: "monthly", priority: "0.6", lastmod: today },
     { loc: `${baseUrl}/contact`, changefreq: "monthly", priority: "0.6", lastmod: today },
     { loc: `${baseUrl}/cek-booking`, changefreq: "monthly", priority: "0.5", lastmod: today },
     { loc: `${baseUrl}/blog`, changefreq: "daily", priority: "0.7", lastmod: today },
-    { loc: `${baseUrl}/departures`, changefreq: "weekly", priority: "0.7", lastmod: today },
     { loc: `${baseUrl}/testimonials`, changefreq: "monthly", priority: "0.5", lastmod: today },
     { loc: `${baseUrl}/fitur`, changefreq: "monthly", priority: "0.5", lastmod: today },
     { loc: `${baseUrl}/kurs`, changefreq: "monthly", priority: "0.5", lastmod: today },
@@ -90,97 +132,137 @@ router.get("/sitemap.xml", async (req, res) => {
   let blogEntries: UrlEntry[] = [];
   let landingPageEntries: UrlEntry[] = [];
 
+  // ── Packages ───────────────────────────────────────────────────────────────
   try {
-    const client = await pool.connect();
-    try {
-      const { rows } = await client.query<{
-        id: string;
-        name: string;
-        updated_at: string | null;
-        package_type: string;
-      }>(
-        `SELECT id, name, updated_at, package_type
-         FROM packages
-         WHERE is_active = true
-         ORDER BY updated_at DESC NULLS LAST`,
-      );
+    // 1. Try Supabase REST API (primary — this is a Supabase project)
+    const rows = await supabaseGet<{
+      id: string;
+      name: string;
+      updated_at: string | null;
+      package_type: string;
+    }>("packages", {
+      select: "id,name,updated_at,package_type",
+      is_active: "eq.true",
+      order: "updated_at.desc.nullslast",
+    });
 
-      packageEntries = rows.map((pkg) => {
-        const slug = `${pkg.id}-${slugify(pkg.name)}`;
-        const priority =
-          pkg.package_type === "umroh" ? "0.85"
-          : pkg.package_type === "haji" ? "0.80"
-          : "0.75";
-        return {
-          loc: `${baseUrl}/packages/${slug}`,
-          lastmod: toW3CDate(pkg.updated_at),
-          changefreq: "weekly",
-          priority,
-        };
-      });
-    } finally {
-      client.release();
+    packageEntries = rows.map((pkg) => {
+      const slug = `${pkg.id}-${slugify(pkg.name)}`;
+      const priority =
+        pkg.package_type === "umroh" ? "0.85"
+        : pkg.package_type === "haji" ? "0.80"
+        : "0.75";
+      return {
+        loc: `${baseUrl}/packages/${slug}`,
+        lastmod: toW3CDate(pkg.updated_at),
+        changefreq: "weekly",
+        priority,
+      };
+    });
+  } catch (sbErr: any) {
+    console.warn("[Sitemap] Supabase packages failed, trying pool:", sbErr?.message);
+    // 2. Fallback: Neon/pg pool
+    const result = await tryPool(async (pool: any) => {
+      const client = await pool.connect();
+      try {
+        const { rows } = await client.query<{
+          id: string; name: string; updated_at: string | null; package_type: string;
+        }>(
+          `SELECT id, name, updated_at, package_type FROM packages WHERE is_active = true ORDER BY updated_at DESC NULLS LAST`,
+        );
+        return rows;
+      } finally {
+        client.release();
+      }
+    });
+    if (result) {
+      packageEntries = result.map((pkg: any) => ({
+        loc: `${baseUrl}/packages/${pkg.id}-${slugify(pkg.name)}`,
+        lastmod: toW3CDate(pkg.updated_at),
+        changefreq: "weekly",
+        priority: pkg.package_type === "umroh" ? "0.85" : pkg.package_type === "haji" ? "0.80" : "0.75",
+      }));
+    } else {
+      console.error("[Sitemap] All package fetch methods failed");
     }
-  } catch (err: any) {
-    // Still serve static pages even if DB fails
-    console.error("[Sitemap] DB error fetching packages:", err?.message);
   }
 
+  // ── Blog Articles ──────────────────────────────────────────────────────────
   try {
-    const client = await pool.connect();
-    try {
-      const { rows } = await client.query<{
-        id: string;
-        slug: string;
-        updated_at: string | null;
-      }>(
-        `SELECT id, slug, updated_at
-         FROM blog_articles
-         WHERE status = 'published'
-         ORDER BY updated_at DESC NULLS LAST`,
-      );
-
-      blogEntries = rows.map((article) => ({
-        loc: `${baseUrl}/blog/${article.slug}`,
-        lastmod: toW3CDate(article.updated_at),
+    const rows = await supabaseGet<{
+      id: string; slug: string; updated_at: string | null;
+    }>("blog_articles", {
+      select: "id,slug,updated_at",
+      status: "eq.published",
+      order: "updated_at.desc.nullslast",
+    });
+    blogEntries = rows.map((a) => ({
+      loc: `${baseUrl}/blog/${a.slug}`,
+      lastmod: toW3CDate(a.updated_at),
+      changefreq: "weekly",
+      priority: "0.8",
+    }));
+  } catch {
+    const result = await tryPool(async (pool: any) => {
+      const client = await pool.connect();
+      try {
+        const { rows } = await client.query(
+          `SELECT id, slug, updated_at FROM blog_articles WHERE status = 'published' ORDER BY updated_at DESC NULLS LAST`,
+        );
+        return rows;
+      } finally { client.release(); }
+    });
+    if (result) {
+      blogEntries = result.map((a: any) => ({
+        loc: `${baseUrl}/blog/${a.slug}`,
+        lastmod: toW3CDate(a.updated_at),
         changefreq: "weekly",
         priority: "0.8",
       }));
-    } finally {
-      client.release();
     }
-  } catch (err: any) {
-    console.error("[Sitemap] DB error fetching blog articles:", err?.message);
   }
 
+  // ── Landing Pages ──────────────────────────────────────────────────────────
   try {
-    const client = await pool.connect();
-    try {
-      const { rows } = await client.query<{
-        id: string;
-        slug: string;
-        updated_at: string | null;
-      }>(
-        `SELECT id, slug, updated_at
-         FROM landing_pages
-         WHERE is_published = true
-         ORDER BY updated_at DESC NULLS LAST`,
-      );
-
-      landingPageEntries = rows.map((lp) => ({
+    const rows = await supabaseGet<{
+      id: string; slug: string; updated_at: string | null;
+    }>("landing_pages", {
+      select: "id,slug,updated_at",
+      is_published: "eq.true",
+      order: "updated_at.desc.nullslast",
+    });
+    landingPageEntries = rows.map((lp) => ({
+      loc: `${baseUrl}/lp/${lp.slug}`,
+      lastmod: toW3CDate(lp.updated_at),
+      changefreq: "monthly",
+      priority: "0.7",
+    }));
+  } catch {
+    const result = await tryPool(async (pool: any) => {
+      const client = await pool.connect();
+      try {
+        const { rows } = await client.query(
+          `SELECT id, slug, updated_at FROM landing_pages WHERE is_published = true ORDER BY updated_at DESC NULLS LAST`,
+        );
+        return rows;
+      } finally { client.release(); }
+    });
+    if (result) {
+      landingPageEntries = result.map((lp: any) => ({
         loc: `${baseUrl}/lp/${lp.slug}`,
         lastmod: toW3CDate(lp.updated_at),
         changefreq: "monthly",
         priority: "0.7",
       }));
-    } finally {
-      client.release();
     }
-  } catch (err: any) {
-    console.error("[Sitemap] DB error fetching landing pages:", err?.message);
   }
 
-  const xml = buildSitemapXml(baseUrl, [...staticPages, ...packageEntries, ...blogEntries, ...landingPageEntries]);
+  const xml = buildSitemapXml(baseUrl, [
+    ...staticPages,
+    ...packageEntries,
+    ...blogEntries,
+    ...landingPageEntries,
+  ]);
   res.send(xml);
 });
 
