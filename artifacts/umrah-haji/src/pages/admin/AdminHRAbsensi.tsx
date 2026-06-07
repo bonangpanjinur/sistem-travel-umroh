@@ -18,7 +18,7 @@ import { toast } from "sonner";
 import {
   Users, CheckCircle2, AlertCircle, XCircle, Clock,
   LogIn, LogOut, RefreshCw, Search, ChevronLeft,
-  Loader2, CalendarDays, Timer, FileDown, FileSpreadsheet, FileText
+  Loader2, CalendarDays, Timer, FileDown, FileSpreadsheet, FileText, BarChart3
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Database } from "@/integrations/supabase/types";
@@ -292,7 +292,7 @@ export default function AdminHRAbsensi() {
           </div>
         </div>
 
-        {/* Refresh + Export */}
+        {/* Refresh + Export + Rekap */}
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1.5 text-xs text-slate-400">
             <Timer className="w-3.5 h-3.5" />
@@ -308,6 +308,13 @@ export default function AdminHRAbsensi() {
             <RefreshCw className={cn("w-3.5 h-3.5", isLoading && "animate-spin")} />
             Refresh
           </Button>
+
+          <Link to="/admin/hr/absensi/rekap">
+            <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs border-slate-300 text-slate-600 hover:bg-slate-50">
+              <BarChart3 className="w-3.5 h-3.5" />
+              Rekap Bulanan
+            </Button>
+          </Link>
 
           {/* Export dropdown */}
           <DropdownMenu>
