@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -13,24 +13,25 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, BookOpen } from "lucide-react";
 
 const CATEGORIES = [
-  { value: "airline",        label: "✈️ Tiket Pesawat" },
-  { value: "hotel",          label: "🏨 Hotel" },
-  { value: "land_transport", label: "🚌 Transportasi Darat" },
-  { value: "visa",           label: "🛂 Visa & Dokumen" },
-  { value: "handling",       label: "🧳 Handling & Porter" },
-  { value: "muthawif",       label: "👨‍💼 Muthawif / Guide" },
-  { value: "equipment",      label: "📦 Perlengkapan Jamaah" },
-  { value: "manasik",        label: "🎓 Manasik" },
-  { value: "insurance",      label: "🔒 Asuransi" },
-  { value: "document",       label: "📄 Dokumen & Legalisasi" },
-  { value: "marketing",      label: "📢 Marketing & Promosi" },
-  { value: "pic_fee",        label: "💼 Komisi PIC / Agen" },
-  { value: "overhead",       label: "🏢 Overhead Kantor" },
-  { value: "other",          label: "📝 Lainnya" },
+  { value: "airline",        label: "✈️ Tiket Pesawat",      defaultCoa: "5100" },
+  { value: "hotel",          label: "🏨 Hotel",               defaultCoa: "5200" },
+  { value: "land_transport", label: "🚌 Transportasi Darat",  defaultCoa: "5300" },
+  { value: "visa",           label: "🛂 Visa & Dokumen",      defaultCoa: "5400" },
+  { value: "handling",       label: "🧳 Handling & Porter",   defaultCoa: "5500" },
+  { value: "muthawif",       label: "👨‍💼 Muthawif / Guide",   defaultCoa: "5600" },
+  { value: "equipment",      label: "📦 Perlengkapan Jamaah", defaultCoa: "5700" },
+  { value: "manasik",        label: "🎓 Manasik",             defaultCoa: "5800" },
+  { value: "insurance",      label: "🔒 Asuransi",            defaultCoa: "5420" },
+  { value: "document",       label: "📄 Dokumen & Legalisasi", defaultCoa: "5400" },
+  { value: "marketing",      label: "📢 Marketing & Promosi", defaultCoa: "5900" },
+  { value: "pic_fee",        label: "💼 Komisi PIC / Agen",   defaultCoa: "5910" },
+  { value: "overhead",       label: "🏢 Overhead Kantor",     defaultCoa: "6000" },
+  { value: "other",          label: "📝 Lainnya",             defaultCoa: "5990" },
 ];
 
 const UNITS = [
@@ -69,6 +70,7 @@ const schema = z.object({
   category:       z.string().min(1, "Pilih kategori"),
   sub_category:   z.string().optional(),
   description:    z.string().min(1, "Deskripsi harus diisi"),
+  account_code:   z.string().optional(),
   // Hotel fields
   location:       z.string().optional(),
   nights:         z.coerce.number().int().min(0).optional(),
@@ -108,6 +110,7 @@ export function DepartureCostItemForm({ departureId, paxCount = 1, item, onSucce
       category:       item?.category       ?? "hotel",
       sub_category:   item?.sub_category   ?? "",
       description:    item?.description    ?? "",
+      account_code:   item?.account_code   ?? "",
       location:       item?.location       ?? "",
       nights:         item?.nights         ?? undefined,
       room_type:      item?.room_type      ?? "",
@@ -125,29 +128,40 @@ export function DepartureCostItemForm({ departureId, paxCount = 1, item, onSucce
     },
   });
 
-  const category = form.watch("category");
-  const unit_cost = form.watch("unit_cost") || 0;
-  const quantity = form.watch("quantity") || 0;
+  const category     = form.watch("category");
+  const accountCode  = form.watch("account_code");
+  const unit_cost    = form.watch("unit_cost") || 0;
+  const quantity     = form.watch("quantity") || 0;
   const exchange_rate = form.watch("exchange_rate") || 1;
-  const currency = form.watch("currency");
+  const currency     = form.watch("currency");
 
   const totalIDR = quantity * unit_cost * exchange_rate;
 
-  const { data: airlines } = useQuery({
-    queryKey: ["airlines-select"],
+  // Auto-suggest account_code when category changes (only if field is empty or was the previous auto-suggested value)
+  useEffect(() => {
+    if (isEdit) return; // don't auto-suggest on edit
+    const suggested = CATEGORIES.find(c => c.value === category)?.defaultCoa;
+    if (suggested) {
+      form.setValue("account_code", suggested);
+    }
+  }, [category]);
+
+  // Fetch COA categories for the dropdown
+  const { data: coaCategories } = useQuery({
+    queryKey: ["coa-categories"],
     queryFn: async () => {
-      const { data } = await supabase.from("airlines").select("id,name,code").eq("is_active", true).order("name");
+      const db = supabase as any;
+      const { data } = await db
+        .from("coa_categories")
+        .select("code, name, category_key")
+        .eq("is_active", true)
+        .order("sort_order");
       return data || [];
     },
   });
 
-  const { data: hotels } = useQuery({
-    queryKey: ["hotels-select"],
-    queryFn: async () => {
-      const { data } = await supabase.from("hotels").select("id,name,city,star_rating").order("name");
-      return data || [];
-    },
-  });
+  // Resolve display name for current account_code
+  const selectedCoa = coaCategories?.find((c: any) => c.code === accountCode);
 
   const mutation = useMutation({
     mutationFn: async (data: FormData) => {
@@ -157,6 +171,7 @@ export function DepartureCostItemForm({ departureId, paxCount = 1, item, onSucce
         category:       data.category,
         sub_category:   data.sub_category || null,
         description:    data.description,
+        account_code:   data.account_code || null,
         location:       data.location || null,
         nights:         data.nights || null,
         room_type:      data.room_type || null,
@@ -196,6 +211,7 @@ export function DepartureCostItemForm({ departureId, paxCount = 1, item, onSucce
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit((d) => mutation.mutate(d))} className="space-y-4">
+
         {/* Category */}
         <FormField control={form.control} name="category" render={({ field }) => (
           <FormItem>
@@ -326,6 +342,68 @@ export function DepartureCostItemForm({ departureId, paxCount = 1, item, onSucce
             </div>
           </div>
         )}
+
+        {/* COA / Account Code */}
+        <div className="rounded-lg border border-violet-100 bg-violet-50/30 p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <BookOpen className="h-3.5 w-3.5 text-violet-600" />
+            <p className="text-xs font-semibold text-violet-700 uppercase tracking-wide">Kode Akun (COA)</p>
+          </div>
+
+          <FormField control={form.control} name="account_code" render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-xs">Kode Akun</FormLabel>
+              {coaCategories && coaCategories.length > 0 ? (
+                <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Pilih kode akun COA...">
+                        {field.value ? (
+                          <span className="flex items-center gap-2">
+                            <span className="font-mono text-xs bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded">{field.value}</span>
+                            <span className="text-sm">{selectedCoa?.name || field.value}</span>
+                          </span>
+                        ) : null}
+                      </SelectValue>
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="">— Tanpa kode akun —</SelectItem>
+                    {coaCategories.map((c: any) => (
+                      <SelectItem key={c.code} value={c.code}>
+                        <span className="flex items-center gap-2">
+                          <span className="font-mono text-xs text-muted-foreground">{c.code}</span>
+                          <span>{c.name}</span>
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <FormControl>
+                  <Input
+                    placeholder="Cth: 5100, 5200, ..."
+                    {...field}
+                    value={field.value ?? ""}
+                    className="font-mono"
+                  />
+                </FormControl>
+              )}
+              <FormDescription className="text-[10px]">
+                Kode akun dari Chart of Accounts untuk laporan keuangan. Otomatis diisi berdasarkan kategori.
+              </FormDescription>
+              {field.value && selectedCoa && (
+                <div className="flex items-center gap-1.5 mt-1">
+                  <Badge variant="outline" className="text-[10px] font-mono text-violet-700 border-violet-200 bg-violet-50">
+                    {selectedCoa.code}
+                  </Badge>
+                  <span className="text-[10px] text-muted-foreground">{selectedCoa.name}</span>
+                </div>
+              )}
+              <FormMessage />
+            </FormItem>
+          )} />
+        </div>
 
         {/* Cost Fields */}
         <div className="rounded-lg border bg-muted/30 p-4 space-y-3">

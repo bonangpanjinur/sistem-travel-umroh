@@ -1,6 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -76,10 +76,13 @@ const PAYMENT_LABELS: Record<string, string> = {
 const PAGE_SIZE = 20;
 
 export default function AdminBookings() {
+  const [searchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [paymentFilter, setPaymentFilter] = useState<string>("all");
-  const [packageFilter, setPackageFilter] = useState<string>("all");
+  const [packageFilter, setPackageFilter] = useState<string>(
+    searchParams.get("package") ?? "all"
+  );
   const [departureFilter, setDepartureFilter] = useState<string>("all");
   const [branchFilter, setBranchFilter] = useState<string>("all");
   const [dateFrom, setDateFrom] = useState("");

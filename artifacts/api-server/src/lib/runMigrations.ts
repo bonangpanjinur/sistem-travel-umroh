@@ -378,6 +378,32 @@ export async function runMigrations(): Promise<void> {
       logger.info("runMigrations: 14_seo_fields_departures — already applied, skipping");
     }
 
+    // ── Step 1n: COA categories table + account_code on departure_cost_items ─
+    const coaCategoriesApplied = await isApplied(client, "15_coa_categories");
+    if (!coaCategoriesApplied) {
+      await runSqlFile(
+        client,
+        sqlPath("15_coa_categories.sql"),
+        "15_coa_categories (coa_categories table + account_code column on departure_cost_items)",
+      );
+      await markApplied(client, "15_coa_categories");
+    } else {
+      logger.info("runMigrations: 15_coa_categories — already applied, skipping");
+    }
+
+    // ── Step 1o: financial tables compat + COA account_code column ────────
+    const financialTablesApplied = await isApplied(client, "16_financial_tables_compat");
+    if (!financialTablesApplied) {
+      await runSqlFile(
+        client,
+        sqlPath("16_financial_tables_compat.sql"),
+        "16_financial_tables_compat (departure_cost_items + financial tables + account_code column)",
+      );
+      await markApplied(client, "16_financial_tables_compat");
+    } else {
+      logger.info("runMigrations: 16_financial_tables_compat — already applied, skipping");
+    }
+
     // ── Step 2: payment sync trigger (always re-applied each boot) ────────
     // Wrapped in its own try/catch so a missing table on a broken DB state
     // doesn't crash the server — it just logs and continues.

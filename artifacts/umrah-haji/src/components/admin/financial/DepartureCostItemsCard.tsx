@@ -288,6 +288,12 @@ export function DepartureCostItemsCard({
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="text-sm font-medium truncate">{item.description}</span>
+                            {/* COA account code badge */}
+                            {item.account_code && (
+                              <Badge variant="outline" className="text-[9px] font-mono px-1.5 py-0 text-violet-700 border-violet-200 bg-violet-50 shrink-0">
+                                {item.account_code}
+                              </Badge>
+                            )}
                             {item.location && (
                               <Badge className={`text-[10px] px-1.5 py-0 ${meta.color}`}>{item.location}</Badge>
                             )}
