@@ -62,6 +62,10 @@ export const supabase = createClient<Database>(resolvedUrl, resolvedKey, {
     autoRefreshToken: true,
     detectSessionInUrl: true,
   },
+  // Disable realtime — the backend uses its own cron/polling; no WS server exists.
+  realtime: {
+    params: { eventsPerSecond: 0 },
+  },
   global: {
     headers: {
       // Identify requests from the local proxy client

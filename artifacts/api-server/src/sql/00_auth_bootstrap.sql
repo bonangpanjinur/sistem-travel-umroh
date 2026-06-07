@@ -5,6 +5,14 @@
 -- This file is idempotent and safe to run multiple times.
 -- =============================================================================
 
+-- ── 0. Required extensions ────────────────────────────────────────────────────
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- ── 0b. PostgreSQL roles expected by RLS policies ─────────────────────────────
+DO $$ BEGIN CREATE ROLE authenticated NOLOGIN; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE ROLE anon          NOLOGIN; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
 -- ── 1. auth schema ────────────────────────────────────────────────────────────
 CREATE SCHEMA IF NOT EXISTS auth;
 
