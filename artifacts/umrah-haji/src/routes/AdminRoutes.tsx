@@ -174,6 +174,7 @@ const AdminWARoadmap   = lazy(() => import("@/pages/admin/AdminWARoadmap"));
 const AdminWAChatbot   = lazy(() => import("@/pages/admin/AdminWAChatbot"));
 const AdminWAInbox     = lazy(() => import("@/pages/admin/AdminWAInbox"));
 const AdminWAContacts  = lazy(() => import("@/pages/admin/AdminWAContacts"));
+const AdminWABotMenu   = lazy(() => import("@/pages/admin/AdminWABotMenu"));
 
 // Fase 32 — WA Broadcast Tersegmentasi
 const AdminWABroadcast = lazy(() => import("@/pages/admin/AdminWABroadcast"));
@@ -437,6 +438,7 @@ export default function AdminRoutes() {
       <Route path="wa-chatbot"   element={<P k={PERMISSIONS.WA_CHATBOT}><LazyPage><AdminWAChatbot /></LazyPage></P>} />
       <Route path="wa-inbox"     element={<P k={PERMISSIONS.WA_INBOX}><LazyPage><AdminWAInbox /></LazyPage></P>} />
       <Route path="wa-contacts"  element={<P k={PERMISSIONS.WA_CONTACTS}><LazyPage><AdminWAContacts /></LazyPage></P>} />
+      <Route path="wa-bot-menu"  element={<P k={PERMISSIONS.WA_BOT_MENU}><LazyPage><AdminWABotMenu /></LazyPage></P>} />
 
       {/* Fase 9 — Integrasi & Otomasi */}
       <Route path="wa-otomatis" element={<P k={PERMISSIONS.WA_OTOMATIS}><AdminWAOtomatis /></P>} />

@@ -151,6 +151,7 @@ export const PERMISSIONS = {
   WA_CHATBOT: 'wa-chatbot',
   WA_INBOX: 'wa-inbox',
   WA_CONTACTS: 'wa-contacts',
+  WA_BOT_MENU: 'wa-bot-menu',
   MIDTRANS: 'midtrans',
   CICILAN_REMINDER: 'cicilan-reminder',
   PEMBAYARAN_REMINDER: 'pembayaran-reminder',

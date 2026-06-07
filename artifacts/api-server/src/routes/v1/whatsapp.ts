@@ -618,25 +618,76 @@ router.post('/webhook', async (req, res) => {
 
     let matchedKeyword: { id: string; reply_message: string } | null = null;
     const msgLower = message.toLowerCase().trim();
+    let botMenuReply: string | null = null;
 
     try {
-      // Match chatbot keywords
-      const { rows: keywords } = await pool.query(
-        `SELECT id, keyword, match_type, reply_message
-         FROM wa_chatbot_keywords
-         WHERE is_active = true
-         ORDER BY priority DESC`,
+      // ── Check bot menu: show menu list if trigger keyword matched ──────────
+      const { rows: menuConfig } = await pool.query(
+        `SELECT key, value FROM app_settings
+         WHERE key IN ('wa_bot_menu_enabled','wa_bot_menu_trigger','wa_bot_menu_header','wa_bot_menu_footer')`,
       );
+      const mCfg: Record<string, string> = {};
+      for (const r of menuConfig) mCfg[r.key] = r.value;
+      const menuEnabled = mCfg['wa_bot_menu_enabled'] !== 'false';
+      const menuTrigger = (mCfg['wa_bot_menu_trigger'] || 'menu').toLowerCase().trim();
+      const menuHeader  = mCfg['wa_bot_menu_header']  || "Assalamu'alaikum! 👋 Selamat datang.\n\nSilakan pilih menu:";
+      const menuFooter  = mCfg['wa_bot_menu_footer']  || '';
 
-      for (const kw of keywords) {
-        const k = (kw.keyword as string).toLowerCase();
-        const matched =
-          kw.match_type === 'exact'      ? msgLower === k :
-          kw.match_type === 'startswith' ? msgLower.startsWith(k) :
-          msgLower.includes(k);
-        if (matched) { matchedKeyword = kw; break; }
+      if (menuEnabled) {
+        // 1. User sent the trigger word (e.g. "menu") → show the menu list
+        if (msgLower === menuTrigger || msgLower.includes(menuTrigger)) {
+          const { rows: menuItems } = await pool.query(
+            `SELECT menu_number, label FROM wa_bot_menu_items WHERE is_active = true ORDER BY sort_order ASC, menu_number ASC`,
+          );
+          if (menuItems.length > 0) {
+            const lines = menuItems.map((m: any) => `${m.menu_number}. ${m.label}`).join('\n');
+            botMenuReply = `${menuHeader}\n\n${lines}${menuFooter}`;
+          }
+        }
+        // 2. User sent a number → find matching menu item
+        else {
+          const numMatch = msgLower.match(/^(\d)$/);
+          if (numMatch) {
+            const num = parseInt(numMatch[1]);
+            const { rows: menuItems } = await pool.query(
+              `SELECT id, reply_message FROM wa_bot_menu_items WHERE menu_number = $1 AND is_active = true LIMIT 1`,
+              [num],
+            );
+            if (menuItems[0]) {
+              botMenuReply = menuItems[0].reply_message.replace(/\{portal_url\}/g, 'portal jamaah kami');
+              // Increment trigger count
+              await pool.query(
+                `UPDATE wa_bot_menu_items SET trigger_count = trigger_count + 1 WHERE id = $1`,
+                [menuItems[0].id],
+              ).catch(() => {});
+            }
+          }
+        }
       }
     } catch { /* non-critical */ }
+
+    try {
+      // ── Match chatbot keywords (only if no bot menu match) ────────────────
+      if (!botMenuReply) {
+        const { rows: keywords } = await pool.query(
+          `SELECT id, keyword, match_type, reply_message
+           FROM wa_chatbot_keywords
+           WHERE is_active = true
+           ORDER BY priority DESC`,
+        );
+
+        for (const kw of keywords) {
+          const k = (kw.keyword as string).toLowerCase();
+          const matched =
+            kw.match_type === 'exact'      ? msgLower === k :
+            kw.match_type === 'startswith' ? msgLower.startsWith(k) :
+            msgLower.includes(k);
+          if (matched) { matchedKeyword = kw; break; }
+        }
+      }
+    } catch { /* non-critical */ }
+
+    const autoReply = botMenuReply ?? (matchedKeyword?.reply_message.replace(/\{portal_url\}/g, 'portal jamaah kami') ?? null);
 
     let incomingId: string | null = null;
     try {
@@ -646,7 +697,7 @@ router.post('/webhook', async (req, res) => {
          VALUES ($1,$2,$3,$4,$5,$6,$7)
          RETURNING id`,
         [phone, name, message, body.id || null, provider,
-          !!matchedKeyword, matchedKeyword?.id || null],
+          !!(botMenuReply || matchedKeyword), matchedKeyword?.id || null],
       );
       incomingId = rows[0]?.id;
     } catch { /* non-critical */ }
@@ -665,30 +716,31 @@ router.post('/webhook', async (req, res) => {
       );
     } catch { /* non-critical */ }
 
-    // Auto-reply if chatbot keyword matched
-    if (matchedKeyword) {
+    // Auto-reply: bot menu or chatbot keyword
+    if (autoReply) {
       const cfg = await getActiveConfig().catch(() => null);
       if (cfg) {
-        const reply = matchedKeyword.reply_message.replace(/\{portal_url\}/g, 'portal jamaah kami');
-        const sendResult = await dispatchSend(cfg, phone, reply);
+        const sendResult = await dispatchSend(cfg, phone, autoReply);
         if (sendResult.success && incomingId) {
           try {
             await pool.query(
               `UPDATE wa_incoming_messages
                SET is_replied = true, reply_message = $1, replied_at = NOW()
                WHERE id = $2`,
-              [reply, incomingId],
+              [autoReply, incomingId],
             );
-            await pool.query(
-              `UPDATE wa_chatbot_keywords SET trigger_count = trigger_count + 1 WHERE id = $1`,
-              [matchedKeyword.id],
-            );
+            if (matchedKeyword) {
+              await pool.query(
+                `UPDATE wa_chatbot_keywords SET trigger_count = trigger_count + 1 WHERE id = $1`,
+                [matchedKeyword.id],
+              );
+            }
           } catch { /* non-critical */ }
         }
       }
     }
 
-    res.json({ ok: true, type: 'incoming', matched_chatbot: !!matchedKeyword });
+    res.json({ ok: true, type: 'incoming', matched_chatbot: !!(botMenuReply || matchedKeyword), matched_bot_menu: !!botMenuReply });
     return;
   }
 
@@ -935,6 +987,119 @@ router.patch('/contacts/:id', async (req, res) => {
 router.delete('/contacts/:id', async (req, res) => {
   try {
     await pool.query(`DELETE FROM wa_contacts WHERE id = $1`, [req.params.id]);
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  BOT MENU — interactive numbered menu
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ─── GET /api/v1/whatsapp/bot-menu ────────────────────────────────────────
+router.get('/bot-menu', async (_req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, menu_number, label, reply_message, is_active, sort_order, trigger_count, created_at, updated_at
+       FROM wa_bot_menu_items ORDER BY sort_order ASC, menu_number ASC`,
+    );
+    res.json({ items: rows });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─── GET /api/v1/whatsapp/bot-menu/config ─────────────────────────────────
+router.get('/bot-menu/config', async (_req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT key, value FROM app_settings
+       WHERE key IN ('wa_bot_menu_enabled','wa_bot_menu_trigger','wa_bot_menu_header','wa_bot_menu_footer')`,
+    );
+    const cfg: Record<string, string> = {};
+    for (const r of rows) cfg[r.key] = r.value;
+    res.json({
+      enabled: cfg['wa_bot_menu_enabled'] !== 'false',
+      trigger: cfg['wa_bot_menu_trigger'] || 'menu',
+      header:  cfg['wa_bot_menu_header']  || "Assalamu'alaikum! 👋 Selamat datang di *Vinstour Travel*.\n\nSilakan pilih menu berikut dengan mengetik nomornya:",
+      footer:  cfg['wa_bot_menu_footer']  || '\n_Atau ketik pesan langsung dan CS kami akan segera membalas. Barakallahu fiikum 🕌_',
+    });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─── POST /api/v1/whatsapp/bot-menu/config ────────────────────────────────
+router.post('/bot-menu/config', async (req, res) => {
+  const { enabled, trigger, header, footer } = req.body as {
+    enabled?: boolean; trigger?: string; header?: string; footer?: string;
+  };
+  try {
+    const entries: [string, string][] = [
+      ['wa_bot_menu_enabled', String(enabled ?? true)],
+      ['wa_bot_menu_trigger', (trigger || 'menu').toLowerCase().trim()],
+      ['wa_bot_menu_header',  header || ''],
+      ['wa_bot_menu_footer',  footer || ''],
+    ];
+    for (const [key, value] of entries) {
+      await pool.query(
+        `INSERT INTO app_settings (key, value) VALUES ($1,$2)
+         ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`,
+        [key, value],
+      );
+    }
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─── POST /api/v1/whatsapp/bot-menu ───────────────────────────────────────
+router.post('/bot-menu', async (req, res) => {
+  const { menu_number, label, reply_message, is_active = true, sort_order = 0 } = req.body as {
+    menu_number: number; label: string; reply_message: string; is_active?: boolean; sort_order?: number;
+  };
+  if (!menu_number || !label || !reply_message) {
+    res.status(400).json({ error: 'menu_number, label, reply_message wajib diisi' });
+    return;
+  }
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO wa_bot_menu_items (menu_number, label, reply_message, is_active, sort_order)
+       VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+      [menu_number, label.trim(), reply_message.trim(), is_active, sort_order],
+    );
+    res.json({ success: true, item: rows[0] });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─── PUT /api/v1/whatsapp/bot-menu/:id ───────────────────────────────────
+router.put('/bot-menu/:id', async (req, res) => {
+  const { menu_number, label, reply_message, is_active, sort_order } = req.body as any;
+  const sets: string[] = ['updated_at = NOW()'];
+  const vals: any[] = [];
+  const push = (col: string, v: any) => { vals.push(v); sets.push(`${col} = $${vals.length}`); };
+  if (menu_number   !== undefined) push('menu_number',   menu_number);
+  if (label         !== undefined) push('label',         label.trim());
+  if (reply_message !== undefined) push('reply_message', reply_message.trim());
+  if (is_active     !== undefined) push('is_active',     is_active);
+  if (sort_order    !== undefined) push('sort_order',    sort_order);
+  vals.push(req.params.id);
+  try {
+    await pool.query(`UPDATE wa_bot_menu_items SET ${sets.join(', ')} WHERE id = $${vals.length}`, vals);
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─── DELETE /api/v1/whatsapp/bot-menu/:id ────────────────────────────────
+router.delete('/bot-menu/:id', async (req, res) => {
+  try {
+    await pool.query(`DELETE FROM wa_bot_menu_items WHERE id = $1`, [req.params.id]);
     res.json({ success: true });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
