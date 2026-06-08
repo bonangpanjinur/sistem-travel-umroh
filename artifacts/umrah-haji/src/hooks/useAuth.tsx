@@ -3,6 +3,7 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { AppRole, Profile } from '@/types/database';
 import { sortRoles } from '@/lib/constants';
+import { useAdminPushSubscription } from './useAdminPushSubscription';
 
 // Toggle verbose auth logging via `?debug=auth` in the URL.
 // Keeps production console clean while preserving on-demand debugging.
@@ -42,6 +43,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const authHandledRef = useRef(false);
   const lastFetchedUserIdRef = useRef<string | null>(null);
+
+  // ── Push notification auto-subscribe untuk staf & agen ───────────────────
+  useAdminPushSubscription({
+    userId: user?.id ?? null,
+    roles: roles as string[],
+    branchId: branchId,
+    autoSubscribe: true,
+  });
 
   useEffect(() => {
     // Set authHandledRef synchronously to prevent race condition

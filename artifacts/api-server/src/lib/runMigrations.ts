@@ -647,6 +647,32 @@ export async function runMigrations(): Promise<void> {
       logger.info("runMigrations: 32_training_notifications — already applied, skipping");
     }
 
+    // ── Step 1z5: auto commission trigger on booking confirmed ────────────
+    const autoCommissionApplied = await isApplied(client, "33_auto_commission_booking_confirmed");
+    if (!autoCommissionApplied) {
+      await runSqlFile(
+        client,
+        sqlPath("071_auto_commission_booking_confirmed.sql"),
+        "33_auto_commission_booking_confirmed (trigger komisi otomatis saat booking confirmed + commission_rate di branches)",
+      );
+      await markApplied(client, "33_auto_commission_booking_confirmed");
+    } else {
+      logger.info("runMigrations: 33_auto_commission_booking_confirmed — already applied, skipping");
+    }
+
+    // ── Step 1z6: push_subscriptions role/branch_id/agent_id columns ─────
+    const pushSubsRoleApplied = await isApplied(client, "34_push_subscriptions_role_branch_agent");
+    if (!pushSubsRoleApplied) {
+      await runSqlFile(
+        client,
+        sqlPath("072_push_subscriptions_role_branch_agent.sql"),
+        "34_push_subscriptions_role_branch_agent (role + branch_id + agent_id columns untuk targeting push notif)",
+      );
+      await markApplied(client, "34_push_subscriptions_role_branch_agent");
+    } else {
+      logger.info("runMigrations: 34_push_subscriptions_role_branch_agent — already applied, skipping");
+    }
+
     // ── Step 2: payment sync trigger (always re-applied each boot) ────────
     // Wrapped in its own try/catch so a missing table on a broken DB state
     // doesn't crash the server — it just logs and continues.

@@ -68,6 +68,9 @@ export const pushSubscriptions = pgTable("push_subscriptions", {
   userAgent: text("user_agent"),
   muthawifId: uuid("muthawif_id"),
   userId: uuid("user_id"),
+  role: text("role"),
+  branchId: uuid("branch_id"),
+  agentId: uuid("agent_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
