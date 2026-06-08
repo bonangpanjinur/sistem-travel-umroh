@@ -13,7 +13,8 @@ import {
   MoreHorizontal, Star, Info, Hotel, Plane, Clock, CheckCircle2, AlertCircle,
   Power, PowerOff, ChevronDown, Layers, TrendingUp, DollarSign, Users, Zap,
   ArrowUpRight, ArrowDownRight, Download, FileSpreadsheet, FileText,
-  AlertTriangle, CheckSquare, Square, BarChart3, LayoutGrid, List
+  AlertTriangle, CheckSquare, Square, BarChart3, LayoutGrid, List,
+  Tag, FolderOpen
 } from "lucide-react";
 import {
   Dialog,
@@ -114,6 +115,14 @@ export default function AdminPackages() {
   const [isLabelManagerOpen, setIsLabelManagerOpen] = useState(false);
   const [labelAssignFor, setLabelAssignFor] = useState<{ id: string; name: string } | null>(null);
   const [addJadwalFor, setAddJadwalFor] = useState<{ id: string; name: string } | null>(null);
+  // P3.2 — Package Groups
+  const [groupFilter, setGroupFilter] = useState<string>("all");
+  const [isGroupFormOpen, setIsGroupFormOpen] = useState(false);
+  const [editingGroup, setEditingGroup] = useState<any>(null);
+  const [deleteGroup, setDeleteGroup] = useState<any>(null);
+  const [groupSearchTerm, setGroupSearchTerm] = useState("");
+  const [groupForm, setGroupForm] = useState({ name: "", slug: "", color: "#6366f1", description: "", display_order: 0 });
+  const [assignGroupFor, setAssignGroupFor] = useState<any>(null);
   const { data: labelsMap } = usePackageLabelsMap();
   
   const queryClient = useQueryClient();
@@ -131,12 +140,26 @@ export default function AdminPackages() {
           hotel_makkah:hotels!packages_hotel_makkah_id_fkey(name, star_rating),
           hotel_madinah:hotels!packages_hotel_madinah_id_fkey(name, star_rating),
           package_type_ref:package_types(name),
+          package_group:package_groups(id, name, color, slug),
           departures(id, departure_date, quota, booked_count, status, price_quad, price_triple, price_double, price_single)
         `)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
       return data;
+    },
+  });
+
+  const { data: packageGroups = [], isLoading: isLoadingGroups } = useQuery({
+    queryKey: ["admin-package-groups"],
+    queryFn: async () => {
+      const db = supabase as any;
+      const { data, error } = await db
+        .from("package_groups")
+        .select("*")
+        .order("display_order", { ascending: true });
+      if (error) return [];
+      return data || [];
     },
   });
 
@@ -285,6 +308,64 @@ export default function AdminPackages() {
     },
   });
 
+  // ── P3.2 Group mutations ─────────────────────────────────────────────────
+  const saveGroupMutation = useMutation({
+    mutationFn: async (form: typeof groupForm & { id?: string }) => {
+      const db = supabase as any;
+      const payload = {
+        name: form.name.trim(),
+        slug: form.slug.trim() || form.name.trim().toLowerCase().replace(/\s+/g, '-'),
+        color: form.color,
+        description: form.description.trim() || null,
+        display_order: Number(form.display_order) || 0,
+      };
+      if (form.id) {
+        const { error } = await db.from("package_groups").update(payload).eq("id", form.id);
+        if (error) throw error;
+      } else {
+        const { error } = await db.from("package_groups").insert(payload);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      toast.success(editingGroup ? "Grup diperbarui" : "Grup berhasil ditambahkan");
+      queryClient.invalidateQueries({ queryKey: ["admin-package-groups"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-packages"] });
+      setIsGroupFormOpen(false);
+      setEditingGroup(null);
+      setGroupForm({ name: "", slug: "", color: "#6366f1", description: "", display_order: 0 });
+    },
+    onError: (e: any) => toast.error(e.message || "Gagal menyimpan grup"),
+  });
+
+  const deleteGroupMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const db = supabase as any;
+      const { error } = await db.from("package_groups").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Grup dihapus");
+      queryClient.invalidateQueries({ queryKey: ["admin-package-groups"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-packages"] });
+      setDeleteGroup(null);
+    },
+    onError: (e: any) => toast.error(e.message || "Gagal menghapus grup"),
+  });
+
+  const assignGroupMutation = useMutation({
+    mutationFn: async ({ packageId, groupId }: { packageId: string; groupId: string | null }) => {
+      const { error } = await supabase.from("packages" as any).update({ group_id: groupId }).eq("id", packageId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Grup paket diperbarui");
+      queryClient.invalidateQueries({ queryKey: ["admin-packages"] });
+      setAssignGroupFor(null);
+    },
+    onError: (e: any) => toast.error(e.message || "Gagal mengatur grup"),
+  });
+
   const getUpcomingDepartures = (departures: any[]) => {
     if (!departures) return [];
     const today = new Date().toISOString().split('T')[0];
@@ -324,10 +405,16 @@ export default function AdminPackages() {
         });
         if (!hasSoon) return false;
       }
+
+      // P3.2 — Group filter
+      if (groupFilter !== "all") {
+        const pg = (pkg as any).package_group;
+        if (!pg || pg.id !== groupFilter) return false;
+      }
       
       return true;
     }) || [];
-  }, [packages, searchTerm, packageTypeFilter, statusFilter, quickFilter]);
+  }, [packages, searchTerm, packageTypeFilter, statusFilter, quickFilter, groupFilter]);
 
   const filteredTypes = useMemo(() => {
     return packageTypes?.filter(t => 
@@ -335,6 +422,13 @@ export default function AdminPackages() {
       t.code.toLowerCase().includes(typeSearchTerm.toLowerCase())
     ) || [];
   }, [packageTypes, typeSearchTerm]);
+
+  const filteredGroups = useMemo(() => {
+    return (packageGroups as any[]).filter(g =>
+      g.name.toLowerCase().includes(groupSearchTerm.toLowerCase()) ||
+      (g.slug || "").toLowerCase().includes(groupSearchTerm.toLowerCase())
+    );
+  }, [packageGroups, groupSearchTerm]);
 
   const handleEdit = (pkg: any) => {
     setEditingPackage(pkg);
@@ -643,7 +737,7 @@ export default function AdminPackages() {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 rounded-xl bg-muted/50 p-1">
+          <TabsList className="grid w-full grid-cols-3 rounded-xl bg-muted/50 p-1">
             <TabsTrigger value="packages" className="rounded-lg gap-2">
               <Package className="h-4 w-4" />
               Daftar Paket
@@ -651,6 +745,10 @@ export default function AdminPackages() {
             <TabsTrigger value="types" className="rounded-lg gap-2">
               <Layers className="h-4 w-4" />
               Tipe Paket
+            </TabsTrigger>
+            <TabsTrigger value="groups" className="rounded-lg gap-2">
+              <FolderOpen className="h-4 w-4" />
+              Grup Paket
             </TabsTrigger>
           </TabsList>
 
@@ -704,11 +802,11 @@ export default function AdminPackages() {
                     onClick={() => setGroupedView(g => !g)}
                     className="rounded-full px-3 h-9 gap-2"
                   >
-                    {groupedView ? <List className="h-3.5 w-3.5" /> : <LayoutGrid className="h-3.5 w-3.5" />}
-                    <span className="hidden sm:inline">{groupedView ? "Grid Biasa" : "Per Tipe"}</span>
+                    {groupedView ? <List className="h-3.5 w-3.5" /> : <FolderOpen className="h-3.5 w-3.5" />}
+                    <span className="hidden sm:inline">{groupedView ? "Grid Biasa" : "Per Grup"}</span>
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>{groupedView ? "Tampilkan grid biasa" : "Kelompokkan berdasarkan tipe paket"}</TooltipContent>
+                <TooltipContent>{groupedView ? "Tampilkan grid biasa" : "Kelompokkan berdasarkan grup paket"}</TooltipContent>
               </Tooltip>
             </div>
 
@@ -746,6 +844,24 @@ export default function AdminPackages() {
                         <SelectItem value="inactive">Nonaktif</SelectItem>
                       </SelectContent>
                     </Select>
+                    {packageGroups.length > 0 && (
+                      <Select value={groupFilter} onValueChange={setGroupFilter}>
+                        <SelectTrigger className="w-[150px] h-11 rounded-xl border-none bg-background shadow-sm">
+                          <SelectValue placeholder="Grup Paket" />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-xl">
+                          <SelectItem value="all">Semua Grup</SelectItem>
+                          {packageGroups.map((g: any) => (
+                            <SelectItem key={g.id} value={g.id}>
+                              <span className="flex items-center gap-2">
+                                <span className="h-2.5 w-2.5 rounded-full inline-block shrink-0" style={{ background: g.color }} />
+                                {g.name}
+                              </span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
                   </div>
                 </div>
               </CardContent>
@@ -829,20 +945,27 @@ export default function AdminPackages() {
                 description="Coba ubah kata kunci pencarian atau filter Anda."
               />
             ) : groupedView ? (
-              /* P3.2 — Grouped view by package type */
+              /* P3.2 — Grouped view by package group */
               <div className="space-y-8">
-                {Array.from(new Set(filteredPackages.map(p => p.package_type))).map(type => {
-                  const group = filteredPackages.filter(p => p.package_type === type);
-                  return (
-                    <div key={type} className="space-y-4">
+                {(() => {
+                  const grouped: Record<string, { label: string; color: string; pkgs: any[] }> = {};
+                  filteredPackages.forEach(p => {
+                    const pg = (p as any).package_group;
+                    const key = pg?.id || "__ungrouped";
+                    if (!grouped[key]) grouped[key] = { label: pg?.name || "Tanpa Grup", color: pg?.color || "#94a3b8", pkgs: [] };
+                    grouped[key].pkgs.push(p);
+                  });
+                  return Object.entries(grouped).map(([key, { label, color, pkgs }]) => (
+                    <div key={key} className="space-y-4">
                       <div className="flex items-center gap-3">
-                        <div className="h-8 w-1 rounded-full bg-primary" />
-                        <h3 className="text-base font-bold text-foreground">{formatPackageType(type)}</h3>
-                        <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full font-medium">{group.length} paket</span>
+                        <div className="h-8 w-1 rounded-full" style={{ background: color }} />
+                        <span className="h-3 w-3 rounded-full inline-block" style={{ background: color }} />
+                        <h3 className="text-base font-bold text-foreground">{label}</h3>
+                        <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full font-medium">{pkgs.length} paket</span>
                         <div className="flex-1 h-px bg-border" />
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {group.map((pkg) => {
+                        {pkgs.map((pkg: any) => {
                   const upcoming = getUpcomingDepartures(pkg.departures || []);
                   const lowestPrice = getLowestPrice(pkg);
                   const isSelected = selectedPackages.includes(pkg.id);
@@ -895,6 +1018,11 @@ export default function AdminPackages() {
 
                       {/* Status Badges */}
                       <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
+                        {(pkg as any).package_group && (
+                          <Badge className="text-white border-none shadow-lg backdrop-blur-sm px-3 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase flex items-center gap-1" style={{ background: (pkg as any).package_group.color }}>
+                            <Tag className="h-3 w-3" /> {(pkg as any).package_group.name}
+                          </Badge>
+                        )}
                         {pkg.is_featured && (
                           <Badge className="bg-amber-500/90 hover:bg-amber-500 text-white border-none shadow-lg backdrop-blur-sm px-3 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase flex items-center gap-1">
                             <Star className="h-3 w-3 fill-current" /> UNGGULAN
@@ -1165,6 +1293,12 @@ export default function AdminPackages() {
                               >
                                 <Copy className="h-4 w-4 text-blue-500" /> Duplikat Paket
                               </DropdownMenuItem>
+                              <DropdownMenuItem
+                                className="text-xs font-semibold gap-2 py-2.5 cursor-pointer rounded-lg"
+                                onClick={() => setAssignGroupFor(pkg)}
+                              >
+                                <Tag className="h-4 w-4 text-indigo-500" /> Atur Grup
+                              </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem 
                                 className="text-xs font-semibold gap-2 py-2.5 cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/10 rounded-lg"
@@ -1181,8 +1315,8 @@ export default function AdminPackages() {
                 })}
               </div>
             </div>
-          );
-        })}
+          ));
+        })()}
       </div>
             ) : (
               /* Flat grid (default view) */
@@ -1216,6 +1350,7 @@ export default function AdminPackages() {
                         {isSelected ? <CheckSquare className="h-6 w-6" /> : <Square className="h-6 w-6" />}
                       </div>
                       <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
+                        {(pkg as any).package_group && <Badge className="text-white border-none shadow-lg backdrop-blur-sm px-3 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase flex items-center gap-1" style={{ background: (pkg as any).package_group.color }}><Tag className="h-3 w-3" /> {(pkg as any).package_group.name}</Badge>}
                         {pkg.is_featured && <Badge className="bg-amber-500/90 hover:bg-amber-500 text-white border-none shadow-lg backdrop-blur-sm px-3 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase flex items-center gap-1"><Star className="h-3 w-3 fill-current" /> UNGGULAN</Badge>}
                         {!pkg.is_active && <Badge variant="destructive" className="shadow-lg backdrop-blur-sm px-3 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase">NONAKTIF</Badge>}
                         {isLowQuota && <Badge className="bg-rose-500 text-white border-none shadow-lg backdrop-blur-sm px-3 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase animate-pulse flex items-center gap-1"><AlertTriangle className="h-3 w-3" /> KUOTA MENIPIS</Badge>}
@@ -1277,6 +1412,7 @@ export default function AdminPackages() {
                               <DropdownMenuItem className="text-xs font-semibold gap-2 py-2.5 cursor-pointer rounded-lg" onClick={() => toggleStatusMutation.mutate({ id: pkg.id, is_active: !pkg.is_active })}>{pkg.is_active ? (<><PowerOff className="h-4 w-4 text-orange-500" />Nonaktifkan Paket</>) : (<><Power className="h-4 w-4 text-emerald-500" />Aktifkan Paket</>)}</DropdownMenuItem>
                               <DropdownMenuItem className="text-xs font-semibold gap-2 py-2.5 cursor-pointer rounded-lg" onClick={() => setAddJadwalFor({ id: pkg.id, name: pkg.name })}><Calendar className="h-4 w-4 text-emerald-500" /> Tambah Jadwal</DropdownMenuItem>
                               <DropdownMenuItem className="text-xs font-semibold gap-2 py-2.5 cursor-pointer rounded-lg" onClick={() => duplicatePackageMutation.mutate(pkg)} disabled={duplicatePackageMutation.isPending}><Copy className="h-4 w-4 text-blue-500" /> Duplikat Paket</DropdownMenuItem>
+                              <DropdownMenuItem className="text-xs font-semibold gap-2 py-2.5 cursor-pointer rounded-lg" onClick={() => setAssignGroupFor(pkg)}><Tag className="h-4 w-4 text-indigo-500" /> Atur Grup</DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem className="text-xs font-semibold gap-2 py-2.5 cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/10 rounded-lg" onClick={() => setDeletePackage(pkg)}><Trash2 className="h-4 w-4" /> Hapus Permanen</DropdownMenuItem>
                             </DropdownMenuContent>
@@ -1387,6 +1523,91 @@ export default function AdminPackages() {
                             </TableRow>
                           ))
                         )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Package Groups Tab */}
+          <TabsContent value="groups" className="space-y-6 mt-6">
+            <Card className="border-none shadow-sm bg-card/50 backdrop-blur rounded-2xl">
+              <CardContent className="p-4">
+                <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Cari grup paket..."
+                      value={groupSearchTerm}
+                      onChange={e => setGroupSearchTerm(e.target.value)}
+                      className="pl-10 h-11 bg-background border-none shadow-inner rounded-xl focus-visible:ring-primary/20"
+                    />
+                  </div>
+                  <Button
+                    onClick={() => { setEditingGroup(null); setGroupForm({ name: "", slug: "", color: "#6366f1", description: "", display_order: 0 }); setIsGroupFormOpen(true); }}
+                    className="gap-2 shadow-sm bg-primary hover:bg-primary/90 rounded-xl whitespace-nowrap"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Tambah Grup
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-none shadow-sm rounded-2xl overflow-hidden">
+              <CardHeader className="bg-muted/30 border-b">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <FolderOpen className="h-5 w-5 text-primary" />
+                  Daftar Grup Paket
+                  <Badge variant="secondary" className="ml-auto">{filteredGroups.length} grup</Badge>
+                </CardTitle>
+                <CardDescription>Kategorikan paket ke dalam grup untuk pengelompokan tampilan.</CardDescription>
+              </CardHeader>
+              <CardContent className="p-0">
+                {isLoadingGroups ? (
+                  <div className="p-8 flex justify-center"><Skeleton className="h-32 w-full rounded-xl" /></div>
+                ) : filteredGroups.length === 0 ? (
+                  <EmptyState icon={FolderOpen} title="Belum ada grup" description="Tambah grup pertama untuk mengelompokkan paket Anda." />
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-muted/20">
+                          <TableHead className="w-16 text-center">Urutan</TableHead>
+                          <TableHead className="w-16">Warna</TableHead>
+                          <TableHead>Nama</TableHead>
+                          <TableHead>Slug</TableHead>
+                          <TableHead className="hidden md:table-cell">Deskripsi</TableHead>
+                          <TableHead className="text-center">Jumlah Paket</TableHead>
+                          <TableHead className="text-right">Aksi</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredGroups.map((grp: any) => {
+                          const count = (packages || []).filter((p: any) => (p as any).package_group?.id === grp.id).length;
+                          return (
+                            <TableRow key={grp.id} className="hover:bg-muted/20">
+                              <TableCell className="text-center font-bold text-muted-foreground">{grp.display_order ?? "-"}</TableCell>
+                              <TableCell>
+                                <span className="inline-block h-6 w-6 rounded-full border-2 border-white shadow" style={{ background: grp.color }} title={grp.color} />
+                              </TableCell>
+                              <TableCell className="font-bold">{grp.name}</TableCell>
+                              <TableCell><code className="text-xs bg-muted px-2 py-0.5 rounded">{grp.slug}</code></TableCell>
+                              <TableCell className="hidden md:table-cell text-sm text-muted-foreground max-w-xs truncate">{grp.description || "-"}</TableCell>
+                              <TableCell className="text-center">
+                                <Badge variant="secondary">{count} paket</Badge>
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <div className="flex justify-end gap-2">
+                                  <Button size="sm" variant="outline" onClick={() => { setEditingGroup(grp); setGroupForm({ name: grp.name, slug: grp.slug, color: grp.color, description: grp.description || "", display_order: grp.display_order ?? 0 }); setIsGroupFormOpen(true); }} className="rounded-lg h-8 w-8 p-0"><Edit className="h-3.5 w-3.5" /></Button>
+                                  <Button size="sm" variant="outline" onClick={() => setDeleteGroup(grp)} className="rounded-lg h-8 w-8 p-0 text-destructive hover:bg-destructive/10"><Trash2 className="h-3.5 w-3.5" /></Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
                       </TableBody>
                     </Table>
                   </div>
@@ -1526,6 +1747,156 @@ export default function AdminPackages() {
                   onCancel={() => setAddJadwalFor(null)}
                 />
               </Suspense>
+            </DialogContent>
+          </Dialog>
+        )}
+
+        {/* Group Form Dialog */}
+        <Dialog open={isGroupFormOpen} onOpenChange={v => { if (!v) { setIsGroupFormOpen(false); setEditingGroup(null); } }}>
+          <DialogContent className="max-w-lg rounded-3xl p-0 border-none shadow-2xl">
+            <DialogHeader className="p-6 bg-primary text-white rounded-t-3xl">
+              <DialogTitle className="text-2xl font-black flex items-center gap-2">
+                <FolderOpen className="h-6 w-6" />
+                {editingGroup ? "Edit Grup Paket" : "Tambah Grup Paket"}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="p-6 space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-semibold">Nama Grup <span className="text-destructive">*</span></label>
+                <Input
+                  value={groupForm.name}
+                  onChange={e => {
+                    const name = e.target.value;
+                    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+                    setGroupForm(f => ({ ...f, name, slug: editingGroup ? f.slug : slug }));
+                  }}
+                  placeholder="misal: Paket Premium"
+                  className="rounded-xl"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-semibold">Slug</label>
+                <Input
+                  value={groupForm.slug}
+                  onChange={e => setGroupForm(f => ({ ...f, slug: e.target.value }))}
+                  placeholder="misal: premium"
+                  className="rounded-xl font-mono text-sm"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-semibold">Warna</label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="color"
+                    value={groupForm.color}
+                    onChange={e => setGroupForm(f => ({ ...f, color: e.target.value }))}
+                    className="h-10 w-16 rounded-lg border border-border cursor-pointer"
+                  />
+                  <Input
+                    value={groupForm.color}
+                    onChange={e => setGroupForm(f => ({ ...f, color: e.target.value }))}
+                    className="rounded-xl font-mono text-sm flex-1"
+                    placeholder="#6366f1"
+                  />
+                  <span className="inline-block h-8 w-8 rounded-full border-2 border-white shadow-md" style={{ background: groupForm.color }} />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-semibold">Deskripsi</label>
+                <Input
+                  value={groupForm.description}
+                  onChange={e => setGroupForm(f => ({ ...f, description: e.target.value }))}
+                  placeholder="Deskripsi singkat grup (opsional)"
+                  className="rounded-xl"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-semibold">Urutan Tampil</label>
+                <Input
+                  type="number"
+                  value={groupForm.display_order}
+                  onChange={e => setGroupForm(f => ({ ...f, display_order: Number(e.target.value) }))}
+                  className="rounded-xl"
+                  min={0}
+                />
+              </div>
+              <div className="flex gap-3 pt-2">
+                <Button variant="outline" className="flex-1 rounded-xl" onClick={() => { setIsGroupFormOpen(false); setEditingGroup(null); }}>Batal</Button>
+                <Button
+                  className="flex-1 rounded-xl bg-primary"
+                  disabled={!groupForm.name || saveGroupMutation.isPending}
+                  onClick={() => saveGroupMutation.mutate(editingGroup ? { ...groupForm, id: editingGroup.id } : groupForm)}
+                >
+                  {saveGroupMutation.isPending ? "Menyimpan..." : (editingGroup ? "Simpan Perubahan" : "Tambah Grup")}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Group AlertDialog */}
+        <AlertDialog open={!!deleteGroup} onOpenChange={() => setDeleteGroup(null)}>
+          <AlertDialogContent className="rounded-3xl border-none shadow-2xl">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-xl font-bold">Hapus Grup Paket?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Apakah Anda yakin ingin menghapus grup <strong>{deleteGroup?.name}</strong>? Paket yang tergabung dalam grup ini tidak akan terhapus, tetapi akan kehilangan grup-nya.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel className="rounded-xl">Batal</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => deleteGroupMutation.mutate(deleteGroup.id)}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-xl"
+              >
+                Hapus Grup
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Assign Group Dialog */}
+        {!!assignGroupFor && (
+          <Dialog open={!!assignGroupFor} onOpenChange={v => { if (!v) setAssignGroupFor(null); }}>
+            <DialogContent className="max-w-sm rounded-3xl border-none shadow-2xl p-0">
+              <DialogHeader className="p-6 bg-primary text-white rounded-t-3xl">
+                <DialogTitle className="text-xl font-black flex items-center gap-2">
+                  <Tag className="h-5 w-5" />
+                  Atur Grup Paket
+                </DialogTitle>
+              </DialogHeader>
+              <div className="p-6 space-y-4">
+                <p className="text-sm text-muted-foreground">Pilih grup untuk paket <strong>{assignGroupFor?.name}</strong>.</p>
+                <Select
+                  value={(assignGroupFor as any).group_id || "__none"}
+                  onValueChange={val => setAssignGroupFor((prev: any) => ({ ...prev, group_id: val === "__none" ? null : val }))}
+                >
+                  <SelectTrigger className="rounded-xl">
+                    <SelectValue placeholder="Pilih grup..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none">— Tanpa Grup —</SelectItem>
+                    {(packageGroups as any[]).map((g: any) => (
+                      <SelectItem key={g.id} value={g.id}>
+                        <span className="flex items-center gap-2">
+                          <span className="inline-block h-3 w-3 rounded-full" style={{ background: g.color }} />
+                          {g.name}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="flex gap-3 pt-2">
+                  <Button variant="outline" className="flex-1 rounded-xl" onClick={() => setAssignGroupFor(null)}>Batal</Button>
+                  <Button
+                    className="flex-1 rounded-xl bg-primary"
+                    disabled={assignGroupMutation.isPending}
+                    onClick={() => assignGroupMutation.mutate({ packageId: assignGroupFor.id, groupId: (assignGroupFor as any).group_id || null })}
+                  >
+                    {assignGroupMutation.isPending ? "Menyimpan..." : "Simpan"}
+                  </Button>
+                </div>
+              </div>
             </DialogContent>
           </Dialog>
         )}
