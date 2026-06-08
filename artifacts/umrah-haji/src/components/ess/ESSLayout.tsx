@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
-  LayoutDashboard, FileText, CalendarOff, TrendingUp, User, LogOut, Menu, X, Building2, ClipboardCheck
+  LayoutDashboard, FileText, CalendarOff, TrendingUp, User, LogOut, Menu, X, Building2, ClipboardCheck, GraduationCap
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -15,6 +15,7 @@ const navItems = [
   { href: "/ess/payroll",    label: "Slip Gaji",     icon: FileText },
   { href: "/ess/absensi",    label: "Absensi",       icon: ClipboardCheck },
   { href: "/ess/cuti",       label: "Cuti & Izin",   icon: CalendarOff },
+  { href: "/ess/training",   label: "Training Saya", icon: GraduationCap },
   { href: "/ess/karir",      label: "Riwayat Karir", icon: TrendingUp },
   { href: "/ess/profil",     label: "Profil Saya",   icon: User },
 ];
