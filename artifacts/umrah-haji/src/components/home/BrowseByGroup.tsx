@@ -37,7 +37,7 @@ export function BrowseByGroup({ settings }: BrowseByGroupProps) {
   const { data: packageGroups = [], isLoading: isLoadingGroups } = useQuery({
     queryKey: ['public-package-groups'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('package_groups')
         .select('id,name,slug,color,description,display_order')
         .order('display_order', { ascending: true });

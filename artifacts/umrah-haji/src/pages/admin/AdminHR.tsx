@@ -997,6 +997,12 @@ export default function AdminHR() {
             reviewGoals={reviewGoals}
             setReviewGoals={setReviewGoals}
             saveReviewMutation={saveReviewMutation}
+            isContractDialogOpen={isContractDialogOpen}
+            setIsContractDialogOpen={setIsContractDialogOpen}
+            editingContractId={editingContractId}
+            contractForm={contractForm}
+            setContractForm={setContractForm}
+            saveContractMutation={saveContractMutation}
           />
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
@@ -2640,7 +2646,13 @@ function ManualAttendanceSection({
   setReviewImprovements,
   reviewGoals,
   setReviewGoals,
-  saveReviewMutation
+  saveReviewMutation,
+  isContractDialogOpen,
+  setIsContractDialogOpen,
+  editingContractId,
+  contractForm,
+  setContractForm,
+  saveContractMutation
 }: { 
   employees: Employee[]; 
   queryClient: any;
@@ -2672,6 +2684,12 @@ function ManualAttendanceSection({
   reviewGoals: string;
   setReviewGoals: (s: string) => void;
   saveReviewMutation: any;
+  isContractDialogOpen: boolean;
+  setIsContractDialogOpen: (open: boolean) => void;
+  editingContractId: string | null;
+  contractForm: any;
+  setContractForm: (fn: (f: any) => any) => void;
+  saveContractMutation: any;
 }) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [manualData, setManualData] = useState({
