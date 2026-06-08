@@ -338,6 +338,118 @@ router.post('/new-booking', async (req, res) => {
   res.json({ success: true, sent, failed, total: subscriptions.length, targets: userIdSet.size });
 });
 
+// ─── POST /api/push/broadcast — targeted broadcast ke staf (filter role/branch) ─
+router.post('/broadcast', async (req, res) => {
+  if (!isVapidConfigured()) {
+    res.status(503).json({
+      success: false,
+      error: 'VAPID keys belum dikonfigurasi. Tambahkan VAPID_PUBLIC_KEY dan VAPID_PRIVATE_KEY di Replit Secrets.',
+    });
+    return;
+  }
+
+  const { title, body, type = 'info', url = '/admin', roles, branch_ids } = req.body as {
+    title: string;
+    body: string;
+    type?: string;
+    url?: string;
+    roles?: string[];
+    branch_ids?: string[];
+  };
+
+  if (!title || !body) {
+    res.status(400).json({ success: false, error: 'title dan body wajib diisi.' });
+    return;
+  }
+
+  // Build query filtering by role and/or branch_id
+  let subscriptions: Array<{ endpoint: string; p256dh: string; auth_key: string }> = [];
+  try {
+    const { pool: dbPool } = await import('../lib/db.js');
+
+    let whereClause = `WHERE ps.user_id IS NOT NULL`;
+    const params: unknown[] = [];
+    let paramIdx = 1;
+
+    if (roles && roles.length > 0) {
+      const placeholders = roles.map(() => `$${paramIdx++}`).join(', ');
+      whereClause += ` AND ps.role IN (${placeholders})`;
+      params.push(...roles);
+    } else {
+      // Default: only staff (non-null role means it's a staff subscriber)
+      whereClause += ` AND ps.role IS NOT NULL`;
+    }
+
+    if (branch_ids && branch_ids.length > 0) {
+      const placeholders = branch_ids.map(() => `$${paramIdx++}`).join(', ');
+      whereClause += ` AND ps.branch_id IN (${placeholders})`;
+      params.push(...branch_ids);
+    }
+
+    const result = await (dbPool as any).query(
+      `SELECT ps.endpoint, ps.p256dh, ps.auth_key FROM push_subscriptions ps ${whereClause} LIMIT 500`,
+      params,
+    );
+    subscriptions = result.rows;
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: 'Gagal mengambil subscriber: ' + err.message });
+    return;
+  }
+
+  if (!subscriptions.length) {
+    res.json({ success: true, sent: 0, failed: 0, total: 0, message: 'Tidak ada subscriber yang cocok dengan filter.' });
+    return;
+  }
+
+  setupWebpush();
+  const payload = JSON.stringify({ title, body, type, url, tag: `broadcast-${Date.now()}`, timestamp: Date.now() });
+  const { sent, failed, stale } = await fanout(subscriptions, payload);
+  cleanStale(stale);
+
+  res.json({ success: true, sent, failed, total: subscriptions.length, cleaned: stale.length });
+});
+
+// ─── GET /api/push/subscriber-stats — jumlah subscriber per role & branch ────
+router.get('/subscriber-stats', async (req, res) => {
+  try {
+    const { pool: dbPool } = await import('../lib/db.js');
+
+    const byRole = await (dbPool as any).query(
+      `SELECT role, COUNT(*) AS count
+       FROM push_subscriptions
+       WHERE user_id IS NOT NULL AND role IS NOT NULL
+       GROUP BY role
+       ORDER BY count DESC`
+    );
+
+    const byBranch = await (dbPool as any).query(
+      `SELECT ps.branch_id, b.name AS branch_name, COUNT(*) AS count
+       FROM push_subscriptions ps
+       LEFT JOIN branches b ON b.id = ps.branch_id
+       WHERE ps.user_id IS NOT NULL AND ps.role IS NOT NULL
+       GROUP BY ps.branch_id, b.name
+       ORDER BY count DESC`
+    );
+
+    const total = await (dbPool as any).query(
+      `SELECT COUNT(*) AS count FROM push_subscriptions WHERE user_id IS NOT NULL AND role IS NOT NULL`
+    );
+
+    res.json({
+      success: true,
+      total: Number(total.rows[0]?.count ?? 0),
+      byRole: byRole.rows.map((r: any) => ({ role: r.role, count: Number(r.count) })),
+      byBranch: byBranch.rows.map((r: any) => ({
+        branch_id: r.branch_id,
+        branch_name: r.branch_name ?? 'Pusat',
+        count: Number(r.count),
+      })),
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // ─── POST /api/push/send — broadcast ke semua subscriber ────────────────────
 router.post('/send', async (req, res) => {
   if (!isVapidConfigured()) {
