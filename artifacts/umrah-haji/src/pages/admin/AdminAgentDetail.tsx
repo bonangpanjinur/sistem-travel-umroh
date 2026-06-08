@@ -29,7 +29,10 @@ import {
   TrendingUp, Users, DollarSign, BookOpen, ShieldOff, ShieldCheck,
   KeyRound, RefreshCw, Network, CheckCircle2, XCircle, Clock, BarChart3,
   Pencil, Save, X as XIcon, Percent, ImageIcon, BadgeCheck, ExternalLink,
+  Wallet, Send, Eye, Link as LinkIcon,
 } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 
 const API_BASE = "/api";
@@ -84,6 +87,12 @@ export default function AdminAgentDetail() {
   // Override commission state
   const [editingOverride, setEditingOverride] = useState<string | null>(null);
   const [overridePct, setOverridePct] = useState<string>("");
+
+  // Wallet/withdrawal state
+  const [proofDialog, setProofDialog] = useState<{ id: string; amount: number } | null>(null);
+  const [proofUrl, setProofUrl] = useState("");
+  const [proofNotes, setProofNotes] = useState("");
+  const [rejectWdId, setRejectWdId] = useState<string | null>(null);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["admin-agent-detail", id],
@@ -159,6 +168,69 @@ export default function AdminAgentDetail() {
     },
     onError: (e: any) => toast.error(e.message),
   });
+
+  // Withdrawal requests query
+  const { data: withdrawals = [], refetch: refetchWithdrawals } = useQuery({
+    queryKey: ["agent-withdrawals-admin", id],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("withdrawal_requests")
+        .select("*")
+        .eq("agent_id", agent?.id ?? "")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!agent?.id,
+  });
+
+  const approveWithdrawalMutation = useMutation({
+    mutationFn: async ({ wdId, proof, notes }: { wdId: string; proof: string; notes: string }) => {
+      const { error } = await (supabase as any)
+        .from("withdrawal_requests")
+        .update({
+          status: "processed",
+          proof_url: proof || null,
+          notes: notes || null,
+          processed_at: new Date().toISOString(),
+        })
+        .eq("id", wdId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Penarikan ditandai sebagai lunas");
+      setProofDialog(null);
+      setProofUrl("");
+      setProofNotes("");
+      refetchWithdrawals();
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const rejectWithdrawalMutation = useMutation({
+    mutationFn: async (wdId: string) => {
+      const { error } = await (supabase as any)
+        .from("withdrawal_requests")
+        .update({ status: "rejected", processed_at: new Date().toISOString() })
+        .eq("id", wdId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Permintaan penarikan ditolak");
+      setRejectWdId(null);
+      refetchWithdrawals();
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const WD_STATUS: Record<string, { label: string; cls: string }> = {
+    pending:   { label: "Menunggu",  cls: "bg-amber-100 text-amber-800" },
+    approved:  { label: "Disetujui", cls: "bg-blue-100 text-blue-800" },
+    processed: { label: "Lunas",     cls: "bg-emerald-100 text-emerald-800" },
+    rejected:  { label: "Ditolak",   cls: "bg-red-100 text-red-800" },
+  };
+
+  const pendingWdCount = (withdrawals as any[]).filter((w: any) => w.status === "pending").length;
 
   const perfData = useMemo(() => {
     const months: { key: string; bulan: string; booking: number; revenue: number; komisi: number }[] = [];
@@ -334,6 +406,14 @@ export default function AdminAgentDetail() {
           )}
           <TabsTrigger value="performa">
             <BarChart3 className="h-3.5 w-3.5 mr-1" />Performa
+          </TabsTrigger>
+          <TabsTrigger value="wallet" className="relative">
+            <Wallet className="h-3.5 w-3.5 mr-1" />Wallet
+            {pendingWdCount > 0 && (
+              <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-[10px] text-white font-bold">
+                {pendingWdCount}
+              </span>
+            )}
           </TabsTrigger>
         </TabsList>
 
@@ -796,7 +876,166 @@ export default function AdminAgentDetail() {
             </Card>
           </div>
         </TabsContent>
+
+        {/* Tab Wallet & Penarikan */}
+        <TabsContent value="wallet">
+          <div className="space-y-4">
+            {/* Stats */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {[
+                { label: "Total Permintaan", value: (withdrawals as any[]).length, cls: "" },
+                { label: "Menunggu", value: (withdrawals as any[]).filter((w: any) => w.status === "pending").length, cls: "text-amber-600" },
+                { label: "Sudah Lunas", value: (withdrawals as any[]).filter((w: any) => w.status === "processed").length, cls: "text-emerald-600" },
+                { label: "Total Dicairkan", value: formatCurrency((withdrawals as any[]).filter((w: any) => w.status === "processed").reduce((s: number, w: any) => s + Number(w.amount), 0)), cls: "text-emerald-600" },
+              ].map(({ label, value, cls }) => (
+                <Card key={label}>
+                  <CardContent className="p-4 text-center">
+                    <p className="text-xs text-muted-foreground mb-1">{label}</p>
+                    <p className={`text-lg font-bold ${cls}`}>{value}</p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Send className="h-4 w-4" /> Permintaan Penarikan
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                {(withdrawals as any[]).length === 0 ? (
+                  <div className="py-10 text-center text-sm text-muted-foreground">
+                    Belum ada permintaan penarikan dari agen ini.
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Tanggal</TableHead>
+                        <TableHead>Jumlah</TableHead>
+                        <TableHead>Rekening</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Bukti</TableHead>
+                        <TableHead>Catatan</TableHead>
+                        <TableHead>Aksi</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(withdrawals as any[]).map((wd: any) => {
+                        const s = WD_STATUS[wd.status] ?? { label: wd.status, cls: "" };
+                        const bank = (wd.bank_details as any) ?? {};
+                        return (
+                          <TableRow key={wd.id}>
+                            <TableCell className="text-xs">
+                              {wd.created_at ? format(new Date(wd.created_at), "d MMM yyyy HH:mm", { locale: localeId }) : "—"}
+                            </TableCell>
+                            <TableCell className="font-semibold">{formatCurrency(Number(wd.amount))}</TableCell>
+                            <TableCell className="text-xs text-muted-foreground">
+                              <span className="font-medium text-foreground">{bank.bank_name || "—"}</span><br />
+                              {bank.account_number || bank.account_name || "—"}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className={`text-xs ${s.cls}`}>{s.label}</Badge>
+                            </TableCell>
+                            <TableCell>
+                              {wd.proof_url ? (
+                                <a href={wd.proof_url} target="_blank" rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 text-xs text-emerald-700 hover:underline">
+                                  <Eye className="h-3.5 w-3.5" />Lihat
+                                  <ExternalLink className="h-3 w-3" />
+                                </a>
+                              ) : <span className="text-xs text-muted-foreground">—</span>}
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground max-w-[140px] truncate">
+                              {wd.notes || "—"}
+                            </TableCell>
+                            <TableCell>
+                              {wd.status === "pending" && (
+                                <div className="flex gap-1">
+                                  <Button size="sm" variant="outline"
+                                    className="h-7 text-xs text-emerald-700 border-emerald-300"
+                                    onClick={() => { setProofDialog({ id: wd.id, amount: Number(wd.amount) }); setProofUrl(""); setProofNotes(""); }}>
+                                    <CheckCircle2 className="h-3 w-3 mr-1" />Tandai Lunas
+                                  </Button>
+                                  <Button size="sm" variant="outline"
+                                    className="h-7 text-xs text-red-700 border-red-300"
+                                    onClick={() => setRejectWdId(wd.id)}>
+                                    <XCircle className="h-3 w-3 mr-1" />Tolak
+                                  </Button>
+                                </div>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
       </Tabs>
+
+      {/* Dialog: Tandai Lunas + Input Bukti Transfer */}
+      <Dialog open={!!proofDialog} onOpenChange={(o) => !o && setProofDialog(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Tandai Lunas — {proofDialog ? formatCurrency(proofDialog.amount) : ""}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="space-y-1.5">
+              <Label>URL Bukti Transfer <span className="text-muted-foreground">(opsional)</span></Label>
+              <Input
+                placeholder="https://... (link screenshot/struk)"
+                value={proofUrl}
+                onChange={(e) => setProofUrl(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">Tempelkan link gambar atau dokumen bukti transfer.</p>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Catatan <span className="text-muted-foreground">(opsional)</span></Label>
+              <Textarea
+                placeholder="Mis: Transfer BCA 08 Jun 2026 - Ref 12345"
+                value={proofNotes}
+                onChange={(e) => setProofNotes(e.target.value)}
+                rows={2}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setProofDialog(null)}>Batal</Button>
+            <Button
+              className="bg-emerald-600 hover:bg-emerald-700"
+              disabled={approveWithdrawalMutation.isPending}
+              onClick={() => proofDialog && approveWithdrawalMutation.mutate({ wdId: proofDialog.id, proof: proofUrl, notes: proofNotes })}>
+              <CheckCircle2 className="h-4 w-4 mr-1" />
+              {approveWithdrawalMutation.isPending ? "Menyimpan…" : "Simpan & Tandai Lunas"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog: Tolak Penarikan */}
+      <AlertDialog open={!!rejectWdId} onOpenChange={(o) => !o && setRejectWdId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Tolak permintaan penarikan ini?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Status akan berubah menjadi "Ditolak". Agen dapat mengajukan permintaan baru jika diperlukan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => rejectWdId && rejectWithdrawalMutation.mutate(rejectWdId)}>
+              Ya, Tolak
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Dialogs */}
       <AlertDialog open={suspendConfirm} onOpenChange={setSuspendConfirm}>
