@@ -4,6 +4,7 @@ import { BannerCarousel } from '@/components/home/BannerCarousel';
 import { ThemedHeroSection } from '@/components/home/ThemedHeroSection';
 import { ThemedCTASection } from '@/components/home/ThemedCTASection';
 import { FeaturedPackages } from '@/components/home/FeaturedPackages';
+import { BrowseByGroup } from '@/components/home/BrowseByGroup';
 import { WhyChooseUs } from '@/components/home/WhyChooseUs';
 import { Testimonials } from '@/components/home/Testimonials';
 import { JamaahTrackerWidget } from '@/components/home/JamaahTrackerWidget';
@@ -34,6 +35,7 @@ const Index = () => {
   const sectionComponents: Record<string, React.ComponentType<{ settings?: WebsiteSettings }>> = useMemo(() => ({
     hero: ThemedHeroSection as any,
     featured_packages: FeaturedPackages as any,
+    browse_by_group: BrowseByGroup as any,
     why_choose_us: WhyChooseUs as any,
     testimonials: Testimonials as any,
     cta: ThemedCTASection as any,
@@ -44,9 +46,10 @@ const Index = () => {
       return [
         { id: 'hero', order: 1, enabled: true, title: 'Hero' },
         { id: 'featured_packages', order: 2, enabled: true, title: 'Featured Packages' },
-        { id: 'why_choose_us', order: 3, enabled: true, title: 'Why Choose Us' },
-        { id: 'testimonials', order: 4, enabled: true, title: 'Testimonials' },
-        { id: 'cta', order: 5, enabled: true, title: 'CTA' },
+        { id: 'browse_by_group', order: 3, enabled: true, title: 'Browse by Group' },
+        { id: 'why_choose_us', order: 4, enabled: true, title: 'Why Choose Us' },
+        { id: 'testimonials', order: 5, enabled: true, title: 'Testimonials' },
+        { id: 'cta', order: 6, enabled: true, title: 'CTA' },
       ];
     }
     return settings.homepage_sections
