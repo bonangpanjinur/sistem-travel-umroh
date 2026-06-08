@@ -280,13 +280,14 @@ router.get('/invitation/:token', async (req, res) => {
 
 // ── POST /api/agents/invitation/register — daftar sub-agen via token ────────
 router.post('/invitation/register', async (req, res) => {
-  const { token, fullName, email, phone, companyName, ktpNumber } = req.body as {
+  const { token, fullName, email, phone, companyName, ktpNumber, ktp_url } = req.body as {
     token: string;
     fullName: string;
     email: string;
     phone?: string;
     companyName?: string;
     ktpNumber?: string;
+    ktp_url?: string;
   };
 
   if (!token || !fullName || !email || !phone) {
@@ -357,11 +358,13 @@ router.post('/invitation/register', async (req, res) => {
       [newAgentId, inv.id]
     );
 
-    // If KTP provided, store in notes field (we don't have a dedicated column)
-    if (ktpNumber) {
+    // Simpan ktp_number dan ktp_url ke kolom dedicated
+    if (ktpNumber || ktp_url) {
       await client.query(
-        `UPDATE agents SET website_bio = $1 WHERE id = $2`,
-        [`KTP: ${ktpNumber}`, newAgentId]
+        `UPDATE agents SET ktp_number = COALESCE($1, ktp_number),
+                           ktp_url    = COALESCE($2, ktp_url)
+         WHERE id = $3`,
+        [ktpNumber ?? null, ktp_url ?? null, newAgentId]
       );
     }
 

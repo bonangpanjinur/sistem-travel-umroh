@@ -987,9 +987,9 @@ CREATE TABLE IF NOT EXISTS job_applicants (
 | Portal Cabang | ✅ Selesai | Sprint D: push notifikasi |
 | Portal Agen | ✅ Selesai | Sprint C: verifikasi KTP |
 | SDM Core (HR, Payroll, Absensi) | ✅ Core selesai | Sprint SDM-1: bonus + SP + karir |
-| Training SDM | ⚠️ Parsial (agen only) | Sprint SDM-1: internal staff |
-| ESS (Employee Self-Service) | ❌ Belum ada | Sprint SDM-2 |
-| Rekrutmen / ATS | ❌ Belum ada | Sprint SDM-3 |
+| Training SDM | ✅ Selesai (target_audience + staff progress) | — |
+| ESS (Employee Self-Service) | ✅ Selesai (7 halaman + route) | — |
+| Rekrutmen / ATS | ✅ Selesai (AdminRecruitment.tsx) | — |
 
 ---
 

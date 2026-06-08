@@ -1,11 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { CheckCircle2, AlertCircle, Loader2, Users, Building2 } from "lucide-react";
+import { CheckCircle2, AlertCircle, Loader2, Users, Building2, Upload, X, ImageIcon } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 const API_BASE = "/api";
 
@@ -36,8 +37,11 @@ export default function DaftarSubAgen() {
     companyName: "",
     ktpNumber: "",
   });
+  const [ktpFile, setKtpFile] = useState<File | null>(null);
+  const [ktpPreview, setKtpPreview] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!token) {
@@ -60,6 +64,44 @@ export default function DaftarSubAgen() {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 4 * 1024 * 1024) {
+      toast.error("Ukuran file KTP maksimal 4 MB.");
+      return;
+    }
+    if (!file.type.startsWith("image/")) {
+      toast.error("File KTP harus berupa gambar (JPG, PNG, dll).");
+      return;
+    }
+    setKtpFile(file);
+    const reader = new FileReader();
+    reader.onloadend = () => setKtpPreview(reader.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  const removeKtp = () => {
+    setKtpFile(null);
+    setKtpPreview(null);
+    if (fileRef.current) fileRef.current.value = "";
+  };
+
+  const uploadKtp = async (): Promise<string | null> => {
+    if (!ktpFile) return null;
+    const ext = ktpFile.name.split(".").pop() ?? "jpg";
+    const path = `pending/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+    const { error } = await supabase.storage
+      .from("agent-ktp")
+      .upload(path, ktpFile, { upsert: false, contentType: ktpFile.type });
+    if (error) {
+      console.warn("KTP upload warning:", error.message);
+      return null;
+    }
+    const { data: urlData } = supabase.storage.from("agent-ktp").getPublicUrl(path);
+    return urlData?.publicUrl ?? null;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.fullName || !form.email || !form.phone) {
@@ -72,9 +114,13 @@ export default function DaftarSubAgen() {
     }
     setSubmitting(true);
     try {
+      let ktp_url: string | null = null;
+      if (ktpFile) {
+        ktp_url = await uploadKtp();
+      }
       await apiFetch("/agents/invitation/register", {
         method: "POST",
-        body: JSON.stringify({ token, ...form }),
+        body: JSON.stringify({ token, ...form, ktp_url }),
       });
       setSuccess(true);
     } catch (err: any) {
@@ -221,7 +267,7 @@ export default function DaftarSubAgen() {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="ktpNumber">Nomor KTP (opsional)</Label>
+                <Label htmlFor="ktpNumber">Nomor KTP / NIK (opsional)</Label>
                 <Input
                   id="ktpNumber"
                   name="ktpNumber"
@@ -232,6 +278,47 @@ export default function DaftarSubAgen() {
                 />
               </div>
 
+              {/* KTP File Upload */}
+              <div className="space-y-1.5">
+                <Label>Foto KTP (opsional)</Label>
+                <p className="text-xs text-muted-foreground">
+                  Upload foto KTP untuk mempercepat proses verifikasi. Maks. 4 MB.
+                </p>
+                {ktpPreview ? (
+                  <div className="relative rounded-lg overflow-hidden border border-emerald-200 bg-emerald-50">
+                    <img
+                      src={ktpPreview}
+                      alt="Preview KTP"
+                      className="w-full object-contain max-h-44"
+                    />
+                    <button
+                      type="button"
+                      onClick={removeKtp}
+                      className="absolute top-2 right-2 bg-white/90 hover:bg-white rounded-full p-1 shadow"
+                    >
+                      <X className="h-4 w-4 text-destructive" />
+                    </button>
+                  </div>
+                ) : (
+                  <label
+                    htmlFor="ktpFile"
+                    className="flex flex-col items-center gap-2 border-2 border-dashed border-emerald-200 rounded-lg p-6 cursor-pointer hover:bg-emerald-50 transition-colors"
+                  >
+                    <ImageIcon className="h-8 w-8 text-emerald-400" />
+                    <span className="text-sm text-muted-foreground">Klik untuk pilih foto KTP</span>
+                    <span className="text-xs text-muted-foreground">JPG, PNG, WEBP</span>
+                  </label>
+                )}
+                <input
+                  ref={fileRef}
+                  id="ktpFile"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleFileChange}
+                />
+              </div>
+
               <Button
                 type="submit"
                 className="w-full bg-emerald-600 hover:bg-emerald-700"
@@ -239,7 +326,9 @@ export default function DaftarSubAgen() {
               >
                 {submitting ? (
                   <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Mengirim…</>
-                ) : "Daftar Sekarang"}
+                ) : (
+                  <><Upload className="h-4 w-4 mr-2" /> Daftar Sekarang</>
+                )}
               </Button>
               <p className="text-xs text-muted-foreground text-center">
                 Dengan mendaftar, Anda menyetujui syarat dan ketentuan menjadi sub-agen Vinstour Travel.

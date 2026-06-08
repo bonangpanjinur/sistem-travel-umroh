@@ -28,7 +28,7 @@ import {
   ArrowLeft, User, Building2, Phone, Mail, MapPin, CreditCard,
   TrendingUp, Users, DollarSign, BookOpen, ShieldOff, ShieldCheck,
   KeyRound, RefreshCw, Network, CheckCircle2, XCircle, Clock, BarChart3,
-  Pencil, Save, X as XIcon, Percent,
+  Pencil, Save, X as XIcon, Percent, ImageIcon, BadgeCheck, ExternalLink,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -387,6 +387,92 @@ export default function AdminAgentDetail() {
               </CardContent>
             </Card>
           </div>
+
+          {/* KTP Verification Card */}
+          {(agent.ktp_number || agent.ktp_url || agent.status === 'pending') && (
+            <Card className="mt-4">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <ImageIcon className="h-4 w-4" /> Verifikasi KTP
+                  </CardTitle>
+                  {agent.ktp_verified_at ? (
+                    <Badge className="bg-emerald-100 text-emerald-800 gap-1">
+                      <BadgeCheck className="h-3.5 w-3.5" />
+                      Terverifikasi {format(new Date(agent.ktp_verified_at), "d MMM yyyy", { locale: localeId })}
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-amber-600 border-amber-300 gap-1">
+                      <Clock className="h-3.5 w-3.5" /> Belum Diverifikasi
+                    </Badge>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid sm:grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-muted-foreground block mb-1">Nomor KTP / NIK</span>
+                    <span className="font-mono font-semibold text-base">
+                      {agent.ktp_number || "—"}
+                    </span>
+                  </div>
+                  {agent.ktp_url && (
+                    <div className="flex items-center gap-2">
+                      <a
+                        href={agent.ktp_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 text-primary hover:underline text-sm font-medium"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" />
+                        Lihat Foto KTP
+                      </a>
+                    </div>
+                  )}
+                </div>
+
+                {agent.ktp_url && (
+                  <div className="rounded-lg overflow-hidden border bg-muted/30 max-w-sm">
+                    <img
+                      src={agent.ktp_url}
+                      alt="Foto KTP"
+                      className="w-full object-contain max-h-48"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = "none";
+                      }}
+                    />
+                  </div>
+                )}
+
+                {!agent.ktp_verified_at && (agent.ktp_number || agent.ktp_url) && (
+                  <Button
+                    size="sm"
+                    className="gap-2"
+                    onClick={async () => {
+                      try {
+                        await (supabase as any)
+                          .from("agents")
+                          .update({ ktp_verified_at: new Date().toISOString() })
+                          .eq("id", agent.id);
+                        queryClient.invalidateQueries({ queryKey: ["admin-agent-detail", id] });
+                        toast.success("KTP berhasil diverifikasi.");
+                      } catch {
+                        toast.error("Gagal verifikasi KTP.");
+                      }
+                    }}
+                  >
+                    <BadgeCheck className="h-4 w-4" /> Tandai KTP Terverifikasi
+                  </Button>
+                )}
+
+                {!agent.ktp_number && !agent.ktp_url && (
+                  <p className="text-sm text-muted-foreground italic">
+                    Agen belum mengunggah foto atau nomor KTP saat pendaftaran.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         {/* Tab Booking */}
