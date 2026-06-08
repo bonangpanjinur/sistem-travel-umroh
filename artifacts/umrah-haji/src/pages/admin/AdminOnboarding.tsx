@@ -97,7 +97,11 @@ export default function AdminOnboarding() {
         .eq("is_active", true)
         .order("full_name");
       if (error) throw error;
-      return data ?? [];
+      return (data ?? []).map((e) => ({
+        ...e,
+        position: e.position ?? undefined,
+        department: e.department ?? undefined,
+      }));
     },
   });
 
