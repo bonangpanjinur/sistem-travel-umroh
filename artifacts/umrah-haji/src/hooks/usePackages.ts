@@ -19,7 +19,8 @@ export function usePackages() {
             hotel_makkah:hotels!departures_hotel_makkah_id_fkey(*),
             hotel_madinah:hotels!departures_hotel_madinah_id_fkey(*)
           ),
-          package_type_ref:package_types(*)
+          package_type_ref:package_types(*),
+          package_group:package_groups(id,name,color,slug)
         `)
         .eq('is_active', true)
         .order('is_featured', { ascending: false })

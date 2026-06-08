@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { DynamicPublicLayout } from '@/components/layout/DynamicPublicLayout';
 
 import { PackageSearch } from '@/components/packages/PackageSearch';
@@ -7,18 +8,33 @@ import { PackageCard } from '@/components/packages/PackageCard';
 import { usePackages } from '@/hooks/usePackages';
 import { useWebsiteSettings } from '@/hooks/useWebsiteSettings';
 import { useSEO } from '@/hooks/useSEO';
+import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Grid3X3, List, SlidersHorizontal, Scale } from 'lucide-react';
+import { Grid3X3, List, SlidersHorizontal, Scale, Tag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Link } from 'react-router-dom';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Label } from '@/components/ui/label';
+import { cn } from '@/lib/utils';
 
 export default function PackageList() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { data: packages = [], isLoading } = usePackages();
   const { data: settings } = useWebsiteSettings();
+
+  const { data: packageGroups = [] } = useQuery({
+    queryKey: ['public-package-groups'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('package_groups')
+        .select('id,name,slug,color,display_order')
+        .order('display_order', { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+  });
 
   const siteTitle = settings?.company_name || "Vinstour Travel";
   const activePackages = packages.filter((p: any) => p.is_active !== false);
@@ -53,6 +69,14 @@ export default function PackageList() {
   const [sortBy, setSortBy] = useState('price_asc');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isSheetOpen, setIsSheetOpen] = useState(false);
+
+  // Group filter from URL
+  const groupFilter = searchParams.get('group') || 'all';
+  const setGroupFilter = (slug: string) => {
+    const params = new URLSearchParams(searchParams);
+    if (slug === 'all') params.delete('group'); else params.set('group', slug);
+    setSearchParams(params);
+  };
   
   // Design settings from database
   const cardLayout = settings?.package_card_layout || 'modern';
@@ -126,6 +150,11 @@ export default function PackageList() {
       });
     }
 
+    // Group filter
+    if (groupFilter && groupFilter !== 'all') {
+      result = result.filter(p => (p as any).package_group?.slug === groupFilter);
+    }
+
     // Sort packages
     result.sort((a, b) => {
       switch (sortBy) {
@@ -145,7 +174,7 @@ export default function PackageList() {
     });
 
     return result;
-  }, [packages, q, typeFilter, currencyFilter, minPrice, maxPrice, durationFilter, sortBy]);
+  }, [packages, q, typeFilter, currencyFilter, minPrice, maxPrice, durationFilter, sortBy, groupFilter]);
 
   const handleFilterApplied = () => {
     setIsSheetOpen(false);
@@ -183,6 +212,65 @@ export default function PackageList() {
           </div>
         </div>
       </section>
+
+      {/* Group Filter Pills */}
+      {packageGroups.length > 0 && (
+        <section className="bg-background border-b">
+          <div className="container mx-auto px-4 py-3">
+            <div className="flex items-center gap-2 overflow-x-auto pb-0.5 scrollbar-none">
+              <button
+                onClick={() => setGroupFilter('all')}
+                className={cn(
+                  "shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold transition-all border",
+                  groupFilter === 'all'
+                    ? "bg-primary text-white border-primary shadow-sm"
+                    : "bg-background text-muted-foreground border-border hover:border-primary/50 hover:text-primary"
+                )}
+              >
+                Semua Paket
+                <span className={cn(
+                  "text-[10px] px-1.5 py-0.5 rounded-full font-bold",
+                  groupFilter === 'all' ? "bg-white/20 text-white" : "bg-muted text-muted-foreground"
+                )}>
+                  {packages.filter((p: any) => p.is_active !== false).length}
+                </span>
+              </button>
+              {(packageGroups as any[]).map((grp: any) => {
+                const count = packages.filter((p: any) => p.is_active !== false && (p as any).package_group?.slug === grp.slug).length;
+                const active = groupFilter === grp.slug;
+                return (
+                  <button
+                    key={grp.id}
+                    onClick={() => setGroupFilter(grp.slug)}
+                    className={cn(
+                      "shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold transition-all border",
+                      active
+                        ? "text-white border-transparent shadow-sm"
+                        : "bg-background border-border hover:border-transparent"
+                    )}
+                    style={active
+                      ? { background: grp.color }
+                      : { color: grp.color, borderColor: grp.color + '50' }
+                    }
+                  >
+                    <span
+                      className="inline-block h-2 w-2 rounded-full shrink-0"
+                      style={{ background: active ? 'rgba(255,255,255,0.7)' : grp.color }}
+                    />
+                    {grp.name}
+                    <span className={cn(
+                      "text-[10px] px-1.5 py-0.5 rounded-full font-bold",
+                      active ? "bg-white/20 text-white" : "bg-muted"
+                    )}>
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Filter Bar */}
       <section className="border-b bg-background sticky top-16 z-40 shadow-sm">

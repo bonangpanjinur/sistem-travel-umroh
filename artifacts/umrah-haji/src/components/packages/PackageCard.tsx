@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Calendar, Clock, Star, Plane, MapPin, Users, Hotel, Building2, ChevronRight, Info, Heart } from 'lucide-react';
+import { Calendar, Clock, Star, Plane, MapPin, Users, Hotel, Building2, ChevronRight, Info, Heart, Tag } from 'lucide-react';
 
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -223,6 +223,15 @@ export function PackageCard({
                 🎉 DISKON {discountPercentage > 0 ? `${discountPercentage}%` : ''}
               </Badge>
             )}
+            {(pkg as any).package_group && (
+              <Badge
+                className="border-none text-white text-[10px] font-bold uppercase tracking-wider flex items-center gap-1"
+                style={{ background: (pkg as any).package_group.color + 'dd' }}
+              >
+                <Tag className="h-2.5 w-2.5" />
+                {(pkg as any).package_group.name}
+              </Badge>
+            )}
             <CustomLabelBadges packageId={pkg.id} />
           </div>
 
@@ -405,10 +414,19 @@ export function PackageCard({
             alt={pkg.name}
             className="h-full w-full object-cover"
           />
-          <div className="absolute top-0 right-0 p-2">
+          <div className="absolute top-0 right-0 p-2 flex flex-col items-end gap-1.5">
             <Badge variant="secondary" className="bg-white/90 backdrop-blur-sm text-primary font-bold">
               {getPackageTypeLabel(pkg.package_type)}
             </Badge>
+            {(pkg as any).package_group && (
+              <Badge
+                className="border-none text-white text-[10px] font-bold flex items-center gap-1"
+                style={{ background: (pkg as any).package_group.color }}
+              >
+                <Tag className="h-2.5 w-2.5" />
+                {(pkg as any).package_group.name}
+              </Badge>
+            )}
           </div>
         </div>
         <CardContent className="p-6 flex-1 flex flex-col">
@@ -530,6 +548,17 @@ export function PackageCard({
           alt={pkg.name}
           className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
         />
+        <div className="absolute top-2 left-2 flex flex-col gap-1">
+          {(pkg as any).package_group && (
+            <Badge
+              className="border-none text-white text-[10px] font-bold flex items-center gap-1 shadow"
+              style={{ background: (pkg as any).package_group.color }}
+            >
+              <Tag className="h-2.5 w-2.5" />
+              {(pkg as any).package_group.name}
+            </Badge>
+          )}
+        </div>
         {showDuration && (
           <div className="absolute bottom-2 left-2">
             <Badge className="bg-black/60 backdrop-blur-md border-none text-white text-[10px]">
