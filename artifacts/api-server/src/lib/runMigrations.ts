@@ -634,6 +634,19 @@ export async function runMigrations(): Promise<void> {
       logger.info("runMigrations: 31_position_training_curricula — already applied, skipping");
     }
 
+    // ── Step 1z4: training_notification_settings + training_notification_log ──
+    const trainingNotifApplied = await isApplied(client, "32_training_notifications");
+    if (!trainingNotifApplied) {
+      await runSqlFile(
+        client,
+        sqlPath("32_training_notifications.sql"),
+        "32_training_notifications (training_notification_settings + training_notification_log)",
+      );
+      await markApplied(client, "32_training_notifications");
+    } else {
+      logger.info("runMigrations: 32_training_notifications — already applied, skipping");
+    }
+
     // ── Step 2: payment sync trigger (always re-applied each boot) ────────
     // Wrapped in its own try/catch so a missing table on a broken DB state
     // doesn't crash the server — it just logs and continues.

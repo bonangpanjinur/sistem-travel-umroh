@@ -83,6 +83,15 @@ export function startCronJobs() {
     }
   }, { timezone: "UTC" });
 
+  // Setiap hari jam 09:00 WIB (02:00 UTC) — pengingat training karyawan
+  cron.schedule("0 2 * * *", () => {
+    logger.info("Cron: running training notification reminders");
+    fetch(`${API_BASE}/api/v1/training/run-notifications`, { method: "POST", headers: { "Content-Type": "application/json" } })
+      .then((r) => r.json())
+      .then((d: any) => logger.info({ sent: d.sent, candidates: d.candidates }, "Cron: training notifications complete"))
+      .catch((err: any) => logger.error({ err }, "Cron: training notifications failed"));
+  }, { timezone: "UTC" });
+
   // Setiap malam jam 02:00 WIB (19:00 UTC) — refresh membership tier agen
   cron.schedule("0 19 * * *", async () => {
     logger.info("Cron: running nightly agent membership tier refresh");
@@ -99,6 +108,6 @@ export function startCronJobs() {
   }, { timezone: "UTC" });
 
   logger.info(
-    "Cron jobs registered: cicilan+payment @08:00 WIB, H-7 @07:00 WIB, H-1 @06:00 WIB, integration-health @every hour, wa-scheduled @every 5min, agent-tier-refresh @02:00 WIB",
+    "Cron jobs registered: cicilan+payment @08:00 WIB, H-7 @07:00 WIB, H-1 @06:00 WIB, integration-health @every hour, wa-scheduled @every 5min, agent-tier-refresh @02:00 WIB, training-notif @09:00 WIB",
   );
 }
