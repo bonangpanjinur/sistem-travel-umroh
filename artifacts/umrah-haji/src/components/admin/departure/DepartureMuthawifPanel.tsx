@@ -11,7 +11,9 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Users, Plus, Trash2, Star, AlertTriangle, Calendar, Crown, User } from "lucide-react";
+import { Users, Plus, Trash2, Star, AlertTriangle, Calendar, Crown, User, CalendarDays } from "lucide-react";
+import { Dialog as BigDialog, DialogContent as BigDialogContent, DialogHeader as BigDialogHeader, DialogTitle as BigDialogTitle } from "@/components/ui/dialog";
+import { MuthawifConflictCalendar } from "@/components/admin/muthawif/MuthawifConflictCalendar";
 import { format, parseISO } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 
@@ -30,6 +32,7 @@ const ROLE_LABELS: Record<string, { label: string; color: string; icon: any }> =
 export function DepartureMuthawifPanel({ departureId, departureDate, returnDate }: DepartureMuthawifPanelProps) {
   const queryClient = useQueryClient();
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [selectedMuthawifId, setSelectedMuthawifId] = useState("");
   const [selectedRole, setSelectedRole] = useState("muthawif");
   const [notes, setNotes] = useState("");
@@ -131,10 +134,16 @@ export function DepartureMuthawifPanel({ departureId, departureDate, returnDate 
               <Users className="h-5 w-5" />
               Tim Muthawif
             </div>
-            <Button size="sm" variant="outline" onClick={() => setIsAddOpen(true)} disabled={availableMuthawifs.length === 0}>
-              <Plus className="h-4 w-4 mr-1.5" />
-              Tambah
-            </Button>
+            <div className="flex gap-2">
+              <Button size="sm" variant="ghost" onClick={() => setIsCalendarOpen(true)} className="text-muted-foreground hover:text-foreground">
+                <CalendarDays className="h-4 w-4 mr-1.5" />
+                <span className="hidden sm:inline text-xs">Kalender</span>
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setIsAddOpen(true)} disabled={availableMuthawifs.length === 0}>
+                <Plus className="h-4 w-4 mr-1.5" />
+                Tambah
+              </Button>
+            </div>
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -194,6 +203,21 @@ export function DepartureMuthawifPanel({ departureId, departureDate, returnDate 
           )}
         </CardContent>
       </Card>
+
+      {/* C6 — Muthawif Conflict Calendar Dialog */}
+      <BigDialog open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+        <BigDialogContent className="max-w-5xl w-full">
+          <BigDialogHeader>
+            <BigDialogTitle className="flex items-center gap-2">
+              <CalendarDays className="h-5 w-5" />
+              Kalender Jadwal Muthawif
+            </BigDialogTitle>
+          </BigDialogHeader>
+          <div className="mt-2">
+            <MuthawifConflictCalendar highlightDepartureId={departureId} />
+          </div>
+        </BigDialogContent>
+      </BigDialog>
 
       <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
         <DialogContent>

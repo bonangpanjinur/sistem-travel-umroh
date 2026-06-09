@@ -336,7 +336,7 @@
 | C3 | Itinerary Template → Departure Auto-Populate | ✅ SELESAI (DepartureItineraryEditor: salin template→departure dengan tanggal otomatis, edit per hari inline) |
 | C4 | Multi-Muthawif per Departure | ✅ SELESAI (DepartureMuthawifPanel.tsx + departure_muthawifs table, migration 082) |
 | C5 | Muthawif Rating Post-Trip (survei otomatis) | ✅ SELESAI (AdminPostDepartureSurvey.tsx, post-departure survey flow) |
-| C6 | Muthawif Conflict Calendar | ⏳ Belum |
+| C6 | Muthawif Conflict Calendar | ✅ SELESAI (MuthawifConflictCalendar.tsx: Gantt-style timeline, conflict detection merah, navigasi prev/next, highlight departure aktif; tab di AdminMuthawifs + dialog di DepartureMuthawifPanel) |
 | C7 | Hotel Contract / Voucher Management | ✅ SELESAI (AdminHotelContracts.tsx 617 baris, hotel_contracts+hotel_vouchers tables) |
 | C8 | SOS Eskalasi Otomatis + History Log | ✅ SELESAI (AdminSOSAlerts.tsx 520 baris, sos_escalation_log table) |
 | C9 | Departure Capacity Visual (Admin + Publik) | ✅ SELESAI (DepartureCapacityVisual di AdminDepartureDetail, breakdown quad/triple/double) |
