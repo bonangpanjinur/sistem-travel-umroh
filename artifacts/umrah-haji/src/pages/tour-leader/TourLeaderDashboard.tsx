@@ -12,7 +12,7 @@ import { toast } from "sonner";
 import { Link } from "react-router-dom";
 import {
   Radio, Users, AlertTriangle, MessageSquare, CalendarCheck,
-  ChevronRight, Send, Megaphone, ClipboardList, MapPin, Mic
+  ChevronRight, Send, Megaphone, ClipboardList, MapPin, Mic, Bus
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
@@ -228,6 +228,7 @@ export default function TourLeaderDashboard() {
         {[
           { to: "/tour-leader/broadcast", icon: Megaphone, label: "Transmisi", color: "text-blue-600 bg-blue-50" },
           { to: "/tour-leader/attendance", icon: ClipboardList, label: "Absensi Sesi", color: "text-purple-600 bg-purple-50" },
+          { to: "/tour-leader/rombongan", icon: Bus, label: "Sub-Grup Bus", color: "text-teal-600 bg-teal-50" },
           { to: "/tour-leader/siaran", icon: Mic, label: "Siaran Audio", color: "text-emerald-600 bg-emerald-50" },
           { to: "/jamaah/rombongan", icon: Users, label: "Daftar Jamaah", color: "text-orange-600 bg-orange-50" },
         ].map(item => (

@@ -523,3 +523,218 @@ router.patch("/program/:itemId", requireAuth, async (req: Request, res: Response
 });
 
 export default router;
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// FASE 3 — Sub-grup Rombongan & Admin Monitor Lapangan
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ── GET /api/v1/guide/subgroups/:departureId ─────────────────────────────────
+router.get("/subgroups/:departureId", requireAuth, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { departureId } = req.params;
+    const { rows } = await pool.query(
+      `SELECT sg.*,
+              COUNT(DISTINCT sm.customer_id) AS member_count
+       FROM guide_subgroups sg
+       LEFT JOIN guide_subgroup_members sm ON sm.subgroup_id = sg.id
+       WHERE sg.departure_id = $1
+       GROUP BY sg.id
+       ORDER BY sg.created_at`,
+      [departureId]
+    );
+    res.json({ subgroups: rows });
+  } catch (err: any) {
+    logger.error(err, "guide.subgroups.list");
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET /api/v1/guide/subgroups/:id/members ──────────────────────────────────
+router.get("/subgroups/:id/members", requireAuth, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT sm.customer_id, c.full_name, c.nik, c.phone
+       FROM guide_subgroup_members sm
+       JOIN customers c ON c.id = sm.customer_id
+       WHERE sm.subgroup_id = $1
+       ORDER BY c.full_name`,
+      [req.params.id]
+    );
+    res.json({ members: rows });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── POST /api/v1/guide/subgroups ─────────────────────────────────────────────
+router.post("/subgroups", requireAuth, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { departure_id, name, color } = req.body;
+    if (!departure_id || !name) { res.status(400).json({ error: "departure_id dan name wajib diisi" }); return; }
+    const { rows } = await pool.query(
+      `INSERT INTO guide_subgroups (departure_id, name, color, created_by) VALUES ($1,$2,$3,$4) RETURNING *`,
+      [departure_id, name, color || "#6b7280", req.user!.sub]
+    );
+    res.json({ subgroup: rows[0] });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── PATCH /api/v1/guide/subgroups/:id ────────────────────────────────────────
+router.patch("/subgroups/:id", requireAuth, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { name, color } = req.body;
+    const sets: string[] = []; const vals: any[] = []; let i = 1;
+    if (name !== undefined) { sets.push(`name = $${i++}`); vals.push(name); }
+    if (color !== undefined) { sets.push(`color = $${i++}`); vals.push(color); }
+    if (!sets.length) { res.status(400).json({ error: "Tidak ada field yang diupdate" }); return; }
+    vals.push(req.params.id);
+    const { rows } = await pool.query(`UPDATE guide_subgroups SET ${sets.join(", ")} WHERE id = $${i} RETURNING *`, vals);
+    if (!rows[0]) { res.status(404).json({ error: "Sub-grup tidak ditemukan" }); return; }
+    res.json({ subgroup: rows[0] });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── DELETE /api/v1/guide/subgroups/:id ───────────────────────────────────────
+router.delete("/subgroups/:id", requireAuth, async (req: Request, res: Response): Promise<void> => {
+  try {
+    await pool.query(`DELETE FROM guide_subgroups WHERE id = $1`, [req.params.id]);
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── POST /api/v1/guide/subgroups/:id/members ─────────────────────────────────
+router.post("/subgroups/:id/members", requireAuth, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { customer_ids }: { customer_ids: string[] } = req.body;
+    if (!Array.isArray(customer_ids) || !customer_ids.length) { res.status(400).json({ error: "customer_ids wajib diisi" }); return; }
+    const values = customer_ids.map((cid, i) => `($1, $${i + 2})`).join(", ");
+    await pool.query(
+      `INSERT INTO guide_subgroup_members (subgroup_id, customer_id) VALUES ${values} ON CONFLICT DO NOTHING`,
+      [req.params.id, ...customer_ids]
+    );
+    res.json({ success: true, added: customer_ids.length });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── DELETE /api/v1/guide/subgroups/:id/members/:customerId ───────────────────
+router.delete("/subgroups/:id/members/:customerId", requireAuth, async (req: Request, res: Response): Promise<void> => {
+  try {
+    await pool.query(`DELETE FROM guide_subgroup_members WHERE subgroup_id = $1 AND customer_id = $2`, [req.params.id, req.params.customerId]);
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET /api/v1/guide/admin/overview — ringkasan semua rombongan aktif ────────
+router.get("/admin/overview", requireAuth, async (req: Request, res: Response): Promise<void> => {
+  const user = req.user!;
+  if (!["super_admin", "owner", "admin", "branch_manager", "operational"].includes(user.role)) {
+    res.status(403).json({ error: "Akses ditolak" }); return;
+  }
+  try {
+    const { rows } = await pool.query(`
+      WITH departure_stats AS (
+        SELECT
+          d.id,
+          d.departure_date,
+          d.return_date,
+          d.status,
+          d.booked_count,
+          d.quota,
+          p.name AS package_name,
+          p.package_type,
+          -- SOS aktif
+          (SELECT COUNT(*) FROM sos_alerts sa
+           WHERE sa.departure_id = d.id AND sa.status IN ('active','pending')) AS active_sos,
+          -- Last broadcast
+          (SELECT gb.title FROM guide_broadcasts gb
+           WHERE gb.departure_id = d.id ORDER BY gb.created_at DESC LIMIT 1) AS last_broadcast_title,
+          (SELECT gb.created_at FROM guide_broadcasts gb
+           WHERE gb.departure_id = d.id ORDER BY gb.created_at DESC LIMIT 1) AS last_broadcast_at,
+          (SELECT gb.message_type FROM guide_broadcasts gb
+           WHERE gb.departure_id = d.id ORDER BY gb.created_at DESC LIMIT 1) AS last_broadcast_type,
+          -- Guide location active
+          (SELECT COUNT(*) FROM guide_locations gl
+           WHERE gl.departure_id = d.id AND gl.is_active = true
+             AND (gl.shared_until IS NULL OR gl.shared_until > NOW())) AS active_guide_locations,
+          -- Last session attendance
+          (SELECT ROUND(100.0 * COUNT(CASE WHEN gsa.status = 'present' THEN 1 END) / NULLIF(COUNT(*),0))
+           FROM guide_sessions gs
+           JOIN guide_session_attendance gsa ON gsa.session_id = gs.id
+           WHERE gs.departure_id = d.id
+             AND gs.id = (SELECT id FROM guide_sessions WHERE departure_id = d.id ORDER BY started_at DESC LIMIT 1)
+          ) AS last_session_attendance_pct
+        FROM departures d
+        LEFT JOIN packages p ON p.id = d.package_id
+        WHERE d.status IN ('open','active','departed')
+          AND d.departure_date >= NOW() - INTERVAL '30 days'
+        ORDER BY d.departure_date
+      )
+      SELECT * FROM departure_stats
+    `);
+    res.json({ departures: rows });
+  } catch (err: any) {
+    logger.error(err, "guide.admin.overview");
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET /api/v1/guide/admin/:departureId/overview — detail satu rombongan ─────
+router.get("/admin/:departureId/overview", requireAuth, async (req: Request, res: Response): Promise<void> => {
+  const user = req.user!;
+  if (!["super_admin", "owner", "admin", "branch_manager", "operational"].includes(user.role)) {
+    res.status(403).json({ error: "Akses ditolak" }); return;
+  }
+  try {
+    const { departureId } = req.params;
+    const [depRes, broadcastsRes, sessionsRes, locationsRes] = await Promise.all([
+      pool.query(
+        `SELECT d.*, p.name AS package_name FROM departures d
+         LEFT JOIN packages p ON p.id = d.package_id WHERE d.id = $1`,
+        [departureId]
+      ),
+      pool.query(
+        `SELECT * FROM guide_broadcasts WHERE departure_id = $1 ORDER BY created_at DESC LIMIT 20`,
+        [departureId]
+      ),
+      pool.query(
+        `SELECT gs.*,
+                COUNT(CASE WHEN gsa.status = 'present' THEN 1 END) AS present_count,
+                COUNT(CASE WHEN gsa.status = 'absent'  THEN 1 END) AS absent_count,
+                COUNT(*) AS total_registered
+         FROM guide_sessions gs
+         LEFT JOIN guide_session_attendance gsa ON gsa.session_id = gs.id
+         WHERE gs.departure_id = $1
+         GROUP BY gs.id
+         ORDER BY gs.created_at DESC LIMIT 10`,
+        [departureId]
+      ),
+      pool.query(
+        `SELECT gl.*, u.email AS guide_email
+         FROM guide_locations gl
+         JOIN auth.users u ON u.id = gl.user_id
+         WHERE gl.departure_id = $1 AND gl.is_active = true
+           AND (gl.shared_until IS NULL OR gl.shared_until > NOW())`,
+        [departureId]
+      ),
+    ]);
+    res.json({
+      departure:  depRes.rows[0] || null,
+      broadcasts: broadcastsRes.rows,
+      sessions:   sessionsRes.rows,
+      locations:  locationsRes.rows,
+    });
+  } catch (err: any) {
+    logger.error(err, "guide.admin.departureOverview");
+    res.status(500).json({ error: err.message });
+  }
+});

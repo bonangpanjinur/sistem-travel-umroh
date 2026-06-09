@@ -118,6 +118,7 @@ const JamaahAbsensi        = lazy(() => import("@/pages/jamaah/JamaahAbsensi"));
 // Tour Guide System — Fase 2: Program Live & Lokasi
 const TourLeaderProgram    = lazy(() => import("@/pages/tour-leader/TourLeaderProgram"));
 const TourLeaderMap        = lazy(() => import("@/pages/tour-leader/TourLeaderMap"));
+const TourLeaderSubgroups  = lazy(() => import("@/pages/tour-leader/TourLeaderSubgroups"));
 const JamaahProgramLive    = lazy(() => import("@/pages/jamaah/JamaahProgramLive"));
 const JamaahLokasiGuide    = lazy(() => import("@/pages/jamaah/JamaahLokasiGuide"));
 const MuthawifBroadcast    = lazy(() => import("@/pages/muthawif/MuthawifBroadcast"));
@@ -321,6 +322,11 @@ export default function CustomerRoutes() {
       <Route path="/tour-leader/map" element={
         <ProtectedRoute allowedRoles={['super_admin', 'owner', 'operational', 'branch_manager']}>
           <LazyPage><TourLeaderMap /></LazyPage>
+        </ProtectedRoute>
+      } />
+      <Route path="/tour-leader/rombongan" element={
+        <ProtectedRoute allowedRoles={['super_admin', 'owner', 'operational', 'branch_manager']}>
+          <LazyPage><TourLeaderSubgroups /></LazyPage>
         </ProtectedRoute>
       } />
       <Route path="/jamaah/program-live"  element={<JamaahRoute><JamaahProgramLive /></JamaahRoute>} />

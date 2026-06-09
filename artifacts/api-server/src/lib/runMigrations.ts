@@ -911,6 +911,23 @@ export async function runMigrations(): Promise<void> {
       logger.info("runMigrations: 076_trip_timeline_live_columns — already applied, skipping");
     }
 
+    // ── Step 077: Guide sub-groups (Fase 3 Tour Guide — F3.1) ──────────────────
+    const guideSubgroupsApplied = await isApplied(client, "077_guide_subgroups");
+    if (!guideSubgroupsApplied) {
+      try {
+        await runSqlFile(
+          client,
+          sqlPath("077_guide_subgroups.sql"),
+          "077_guide_subgroups (guide_subgroups + guide_subgroup_members)",
+        );
+        await markApplied(client, "077_guide_subgroups");
+      } catch (e: any) {
+        logger.warn({ err: e?.message }, "runMigrations: 077_guide_subgroups — skipping (non-fatal)");
+      }
+    } else {
+      logger.info("runMigrations: 077_guide_subgroups — already applied, skipping");
+    }
+
   } catch (err) {
     logger.error({ err }, "runMigrations: unexpected error — server continues");
   } finally {

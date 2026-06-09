@@ -293,7 +293,9 @@ const AdminPushOutbox = lazy(() => import("@/pages/admin/AdminPushOutbox"));
 const AdminDepartureTracking = lazy(
   () => import("@/pages/admin/AdminDepartureTracking"),
 );
-const AdminSOSAlerts = lazy(() => import("@/pages/admin/AdminSOSAlerts"));
+const AdminSOSAlerts  = lazy(() => import("@/pages/admin/AdminSOSAlerts"));
+const AdminLapangan       = lazy(() => import("@/pages/admin/AdminLapangan"));
+const AdminLapanganDetail = lazy(() => import("@/pages/admin/AdminLapanganDetail"));
 const AdminRefunds = lazy(() => import("@/pages/admin/AdminRefunds"));
 const AdminRefundDetail = lazy(() => import("@/pages/admin/AdminRefundDetail"));
 const AdminWithdrawalManagement = lazy(
@@ -1525,6 +1527,22 @@ export default function AdminRoutes() {
         element={
           <P k={PERMISSIONS.SOS_ALERTS}>
             <AdminSOSAlerts />
+          </P>
+        }
+      />
+      <Route
+        path="lapangan"
+        element={
+          <P k={PERMISSIONS.LAPANGAN}>
+            <LazyPage><AdminLapangan /></LazyPage>
+          </P>
+        }
+      />
+      <Route
+        path="lapangan/:departureId"
+        element={
+          <P k={PERMISSIONS.LAPANGAN}>
+            <LazyPage><AdminLapanganDetail /></LazyPage>
           </P>
         }
       />

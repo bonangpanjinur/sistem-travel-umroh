@@ -48,6 +48,7 @@ export const RECOMMENDED_MENUS: AdminMenuItem[] = [
   { key: 'departure-tracking',  label: 'Tracking Real-time',    path: '/admin/departure-tracking',   icon: 'Navigation',      group_name: 'Operasional',        sort_order: 269, required_permission: PERMISSIONS.DEPARTURE_TRACKING },
   { key: 'itinerary-templates', label: 'Template Itinerary',    path: '/admin/itinerary-templates',  icon: 'ListOrdered',     group_name: 'Operasional',        sort_order: 271, required_permission: PERMISSIONS.ITINERARY_TEMPLATES },
   { key: 'sos-alerts',          label: 'Monitor SOS',           path: '/admin/sos-alerts',           icon: 'AlertCircle',     group_name: 'Operasional',        sort_order: 272, required_permission: PERMISSIONS.SOS_ALERTS },
+  { key: 'lapangan',            label: 'Monitor Lapangan',      path: '/admin/lapangan',             icon: 'Radio',           group_name: 'Operasional',        sort_order: 274, required_permission: PERMISSIONS.LAPANGAN },
   { key: 'equipment-settings',  label: 'Setting Perlengkapan',  path: '/admin/equipment-settings',   icon: 'Settings2',       group_name: 'Operasional',        sort_order: 273, required_permission: PERMISSIONS.EQUIPMENT_SETTINGS },
   { key: 'wa-blast-keberangkatan', label: 'Broadcast WA Keberangkatan', path: '/admin/wa-blast',   icon: 'MessageSquare',   group_name: 'Operasional',        sort_order: 275, required_permission: PERMISSIONS.WA_BLAST_KEBERANGKATAN },
 
@@ -200,7 +201,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
   branch_manager: [
     'dashboard', 'analytics', 'web-vitals', 'kpi-dashboard', 'ai-summary',
     'leads', 'chat-leads', 'bookings', 'packages', 'coupons', 'banners',
-    'departures', 'departure-tracking', 'sos-alerts',
+    'departures', 'departure-tracking', 'sos-alerts', 'lapangan',
     'customers', 'agents', 'branches', 'loyalty',
     'payments', 'reports', 'reports-central',
     'laporan-keuangan', 'laporan-keberangkatan', 'laporan-agen', 'laporan-reminder',
@@ -239,7 +240,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
 
   operational: [
     'dashboard', 'kpi-dashboard',
-    'bookings', 'packages', 'departures', 'departure-tracking', 'sos-alerts',
+    'bookings', 'packages', 'departures', 'departure-tracking', 'sos-alerts', 'lapangan',
     'room-assignments', 'manifest-jamaah', 'manasik', 'haji',
     'itinerary-templates', 'absensi-digital', 'wa-blast-keberangkatan',
     'equipment', 'equipment-master', 'stock-opname',

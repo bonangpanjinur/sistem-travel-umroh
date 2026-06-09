@@ -143,10 +143,10 @@
 - meta_title, meta_description di PackageForm dan DepartureForm (SEO editor sudah ada)
 - Digunakan di halaman publik
 
-#### P3.2 ❌ Pengelompokan Paket (Package Groups) — BELUM DIKERJAKAN
-- Tabel `package_groups` (Ramadhan, Regular, Premium, Haji, Wisata)
-- Filter + grouping di list paket
-- Belum ada di codebase sama sekali
+#### P3.2 ✅ Pengelompokan Paket (Package Groups) — SELESAI
+- Tabel `package_groups` sudah ada + CRUD di AdminPackages.tsx
+- Filter + grouping di list paket sudah berfungsi
+- Tab "Grup Paket" di AdminPackages dengan tambah/edit/hapus grup
 
 #### P3.3 Duplikat Jadwal + Copy HPP
 - Saat duplikat jadwal, tawarkan pilihan: salin HPP template juga
@@ -177,10 +177,10 @@
 | P2.4 | Rekonsiliasi Kuota dari Detail | ✅ DONE | Juni 2025 |
 | P2.5 | Harga Anak/Bayi di Card | ✅ DONE | Juni 2025 |
 | P3.1 | SEO Fields Paket & Jadwal (PackageForm, DepartureForm) | ✅ DONE | Juni 2025 |
-| P3.2 | Package Groups | ❌ BELUM | - |
-| P3.3 | Duplikat + Copy HPP | ❓ Perlu verifikasi | - |
-| P3.4 | Analytics Terintegrasi | ❓ Perlu verifikasi | - |
-| P3.5 | Bulk Status Change | ❓ Perlu verifikasi | - |
+| P3.2 | Package Groups | ✅ DONE | Juni 2025 |
+| P3.3 | Duplikat + Copy HPP | ✅ DONE | Juni 2025 |
+| P3.4 | Analytics Terintegrasi | ✅ DONE | Juni 2025 |
+| P3.5 | Bulk Status Change | ✅ DONE | Juni 2025 |
 
 ---
 
@@ -797,13 +797,13 @@ PATCH  /api/v1/guide/program/:departure_id/:day       → update program harian 
 | F1.2c | TourLeaderAttendance + QR (`/tour-leader/attendance`) | ✅ Selesai | Fase 1 |
 | F1.3a | JamaahTransmisi (`/jamaah/transmisi`) | ✅ Selesai | Fase 1 |
 | F1.3b | JamaahAbsensi (`/jamaah/absensi`) | ✅ Selesai | Fase 1 |
-| F1.4 | Push notif broadcast darurat | ❌ Belum | Fase 1 |
-| F2.1 | TourLeaderProgram + JamaahProgramLive | ❌ Belum | Fase 2 |
-| F2.2 | Live location sharing (TL + jamaah view) | ❌ Belum | Fase 2 |
-| F2.3 | MuthawifBroadcast + MuthawifAbsensi | ❌ Belum | Fase 2 |
-| F3.1 | Sub-grup rombongan (per bus/kelompok) | ❌ Belum | Fase 3 |
-| F3.2 | AdminLapangan (monitor semua rombongan) | ❌ Belum | Fase 3 |
-| F3.3 | Analytics transmisi & kehadiran | ❌ Belum | Fase 3 |
+| F1.4 | Push notif broadcast darurat | ✅ DONE | Juni 2025 |
+| F2.1 | TourLeaderProgram + JamaahProgramLive | ✅ DONE | Juni 2025 |
+| F2.2 | Live location sharing (TL + jamaah view) | ✅ DONE | Juni 2025 |
+| F2.3 | MuthawifBroadcast + MuthawifAbsensi | ✅ DONE | Juni 2025 |
+| F3.1 | Sub-grup rombongan (per bus/kelompok) | ✅ DONE | Juni 2025 |
+| F3.2 | AdminLapangan (monitor semua rombongan) | ✅ DONE | Juni 2025 |
+| F3.3 | Analytics transmisi & kehadiran | ✅ DONE | Juni 2025 |
 
 ---
 
