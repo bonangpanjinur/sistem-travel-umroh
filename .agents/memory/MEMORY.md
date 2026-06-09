@@ -5,6 +5,7 @@
 
 - [Sprint C migration 082](sprint-c-migration.md) — departure_muthawifs (C4/C6), hotel_contracts+hotel_vouchers (C7), sos_escalation_log (C8) ada di 082_sprint_c.sql; WA departure trigger IDs pakai pola h{N}_departure (h60/h45/h30/h14/h7/h1).
 - [Sprint D migration 083](sprint-d-migration.md) — height_cm+weight_kg+clothing_size+suggest_clothing_size() di customers (083_sprint_d_height_clothing_size.sql). D5=DepartureVisaSummary+visaDeadline prop. D7=DepartureCommissionCard di keuangan tab. AdminOnboarding.tsx pernah punya duplicate mutation code (merge artifact) — sudah fix.
+- [C3 Itinerary copy bug](c3-itinerary-copy.md) — query itinerary di AdminDepartureDetail wajib include `days` dalam select itinerary_templates, atau copy button selalu gagal (field undefined). DepartureItineraryEditor handles copy+edit in one component.
 
 
 - [Passenger Type Pricing](passenger-type-pricing.md) — price_adult (baru), child/infant_price_percent di departures+packages; perhitungan room-based sudah fix untuk anak/balita.

@@ -333,7 +333,7 @@
 |---|---|---|
 | C1 | Dokumen Upload Portal Jamaah | ✅ SELESAI (JamaahDocuments.tsx) |
 | C2 | Automated Reminder Schedule (H-60 s/d H-1) | ✅ SELESAI (cron H-60/45/30/14/7/1 di api-server/src/lib/cron.ts) |
-| C3 | Itinerary Template → Departure Auto-Populate | ⚠️ Parsial (template ada, tombol auto-copy belum) |
+| C3 | Itinerary Template → Departure Auto-Populate | ✅ SELESAI (DepartureItineraryEditor: salin template→departure dengan tanggal otomatis, edit per hari inline) |
 | C4 | Multi-Muthawif per Departure | ✅ SELESAI (DepartureMuthawifPanel.tsx + departure_muthawifs table, migration 082) |
 | C5 | Muthawif Rating Post-Trip (survei otomatis) | ✅ SELESAI (AdminPostDepartureSurvey.tsx, post-departure survey flow) |
 | C6 | Muthawif Conflict Calendar | ⏳ Belum |
