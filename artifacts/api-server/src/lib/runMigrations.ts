@@ -809,6 +809,19 @@ export async function runMigrations(): Promise<void> {
       logger.info("runMigrations: 38_waiting_list — already applied, skipping");
     }
 
+    // ── Step 39: Jurnal Umum — journal_entries + journal_entry_lines ──────
+    const journalEntriesApplied = await isApplied(client, "39_journal_entries");
+    if (!journalEntriesApplied) {
+      await runSqlFile(
+        client,
+        sqlPath("39_journal_entries.sql"),
+        "39_journal_entries (journal_entries + journal_entry_lines tables, double-entry accounting)",
+      );
+      await markApplied(client, "39_journal_entries");
+    } else {
+      logger.info("runMigrations: 39_journal_entries — already applied, skipping");
+    }
+
     // ── Step 1g: trip_timeline v2 schema (add day_number, activity_type, etc) ─
     const tripTimelineV2Applied = await isApplied(client, "07_trip_timeline_v2");
     if (!tripTimelineV2Applied) {

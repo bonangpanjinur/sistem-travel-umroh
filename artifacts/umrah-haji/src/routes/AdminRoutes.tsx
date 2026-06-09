@@ -195,6 +195,7 @@ const AdminMarketingMaterials = lazy(
 const AdminFinanceAR = lazy(() => import("@/pages/admin/AdminFinanceAR"));
 const AdminFinanceAP = lazy(() => import("@/pages/admin/AdminFinanceAP"));
 const AdminCOA = lazy(() => import("@/pages/admin/AdminCOA"));
+const AdminJurnalUmum = lazy(() => import("@/pages/admin/AdminJurnalUmum"));
 const AdminPayroll = lazy(() => import("@/pages/admin/AdminPayroll"));
 const AdminManasik = lazy(() => import("@/pages/admin/AdminManasik"));
 const AdminVisaManagement = lazy(
@@ -807,6 +808,16 @@ export default function AdminRoutes() {
           <P k={PERMISSIONS.COA}>
             <LazyPage>
               <AdminCOA />
+            </LazyPage>
+          </P>
+        }
+      />
+      <Route
+        path="finance/jurnal"
+        element={
+          <P k={PERMISSIONS.JURNAL_UMUM}>
+            <LazyPage>
+              <AdminJurnalUmum />
             </LazyPage>
           </P>
         }

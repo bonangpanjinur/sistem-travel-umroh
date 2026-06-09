@@ -131,6 +131,9 @@ export const PERMISSIONS = {
   // COA — Chart of Accounts
   COA: 'coa',
 
+  // Akuntansi
+  JURNAL_UMUM: 'jurnal-umum',
+
   // Ringkasan AI Otomatis
   AI_SUMMARY: 'ai-summary',
 

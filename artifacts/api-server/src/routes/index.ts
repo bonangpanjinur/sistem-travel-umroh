@@ -24,6 +24,7 @@ import publicPaymentsRouter from "./publicPayments.js";
 import publicBookingStatusRouter from "./publicBookingStatus.js";
 import documentsRouter from "./documents.js";
 import coaRouter from "./coa.js";
+import journalRouter from "./journal.js";
 
 const router: IRouter = Router();
 
@@ -52,5 +53,6 @@ router.use("/public/payments", publicPaymentsRouter);
 router.use("/public/booking-status", publicBookingStatusRouter);
 router.use("/documents", documentsRouter);
 router.use("/coa", coaRouter);
+router.use("/journal", journalRouter);
 
 export default router;
