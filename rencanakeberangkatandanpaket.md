@@ -649,9 +649,9 @@ Untuk admin kantor memantau semua rombongan yang sedang aktif di lapangan:
 
 ## 8. PRIORITAS IMPLEMENTASI
 
-### FASE 1 — Fondasi (2 minggu) 🔴
+### FASE 1 — Fondasi ✅ SELESAI (Juni 2026)
 
-#### F1.1 Migration Database (`074_tour_guide_system.sql`)
+#### F1.1 Migration Database (`075_tour_guide_system.sql`)
 - Semua tabel baru: `guide_channels`, `guide_broadcasts`, `guide_broadcast_reads`, `guide_sessions`, `guide_session_attendance`, `guide_locations`, `guide_subgroups`
 - Alter `trip_timeline` dengan kolom tambahan
 - RLS policies lengkap
@@ -791,12 +791,12 @@ PATCH  /api/v1/guide/program/:departure_id/:day       → update program harian 
 
 | ID | Fitur | Status | Target |
 |----|-------|--------|--------|
-| F1.1 | Migration 074 (semua tabel baru) | ❌ Belum | Fase 1 |
-| F1.2a | TourLeaderDashboard | ❌ Belum | Fase 1 |
-| F1.2b | TourLeaderBroadcast | ❌ Belum | Fase 1 |
-| F1.2c | TourLeaderAttendance + QR | ❌ Belum | Fase 1 |
-| F1.3a | JamaahTransmisi (feed broadcast) | ❌ Belum | Fase 1 |
-| F1.3b | JamaahAbsensi (scan QR) | ❌ Belum | Fase 1 |
+| F1.1 | Migration 075 (`guide_channels`, `guide_broadcasts`, `guide_sessions`, `guide_session_attendance`, `guide_locations`) | ✅ Selesai | Fase 1 |
+| F1.2a | TourLeaderDashboard (`/tour-leader`) | ✅ Selesai | Fase 1 |
+| F1.2b | TourLeaderBroadcast (`/tour-leader/broadcast`) | ✅ Selesai | Fase 1 |
+| F1.2c | TourLeaderAttendance + QR (`/tour-leader/attendance`) | ✅ Selesai | Fase 1 |
+| F1.3a | JamaahTransmisi (`/jamaah/transmisi`) | ✅ Selesai | Fase 1 |
+| F1.3b | JamaahAbsensi (`/jamaah/absensi`) | ✅ Selesai | Fase 1 |
 | F1.4 | Push notif broadcast darurat | ❌ Belum | Fase 1 |
 | F2.1 | TourLeaderProgram + JamaahProgramLive | ❌ Belum | Fase 2 |
 | F2.2 | Live location sharing (TL + jamaah view) | ❌ Belum | Fase 2 |

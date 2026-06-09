@@ -144,7 +144,7 @@ export default function AgentSubAgentDocTracker() {
         return { id: dt.id, name: dt.name, code: dt.code, required: dt.is_required, status };
       });
 
-      const verified = docRows.filter(d => d.status === "verified").length;
+      const verified = docRows.filter((d: { status: string }) => d.status === "verified").length;
       const total = requiredDocTypes.length;
 
       return {

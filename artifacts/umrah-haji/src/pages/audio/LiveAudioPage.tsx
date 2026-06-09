@@ -61,10 +61,12 @@ export default function LiveAudioPage({ mode }: { mode?: PageMode }) {
     if (effectiveMode === 'listener') return;
     supabase
       .from('departures')
-      .select('id, name')
+      .select('id, departure_date')
       .eq('status', 'active')
       .order('departure_date')
-      .then(({ data }) => setDepartures(data || []));
+      .then(({ data }) => setDepartures(
+        (data || []).map((d: any) => ({ id: d.id, name: d.departure_date || d.id }))
+      ));
   }, [effectiveMode]);
 
   // Auto-join existing session

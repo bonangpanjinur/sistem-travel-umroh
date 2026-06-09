@@ -108,6 +108,13 @@ const JamaahWishlist = lazy(() => import("@/pages/jamaah/JamaahWishlist"));
 const LiveAudioPage = lazy(() => import("@/pages/audio/LiveAudioPage"));
 const JamaahSignaturePage = lazy(() => import("@/pages/jamaah/JamaahSignaturePage"));
 
+// Tour Guide System — Fase 1
+const TourLeaderDashboard  = lazy(() => import("@/pages/tour-leader/TourLeaderDashboard"));
+const TourLeaderBroadcast  = lazy(() => import("@/pages/tour-leader/TourLeaderBroadcast"));
+const TourLeaderAttendance = lazy(() => import("@/pages/tour-leader/TourLeaderAttendance"));
+const JamaahTransmisi      = lazy(() => import("@/pages/jamaah/JamaahTransmisi"));
+const JamaahAbsensi        = lazy(() => import("@/pages/jamaah/JamaahAbsensi"));
+
 // Toko Online / E-Commerce
 const StorePage        = lazy(() => import("@/pages/customer/StorePage"));
 const StoreCheckout    = lazy(() => import("@/pages/customer/StoreCheckout"));
@@ -275,6 +282,27 @@ export default function CustomerRoutes() {
           <LazyPage><LiveAudioPage mode="controller" /></LazyPage>
         </ProtectedRoute>
       } />
+
+      {/* Tour Guide System — Fase 1: Portal Tour Leader */}
+      <Route path="/tour-leader" element={
+        <ProtectedRoute allowedRoles={['super_admin', 'owner', 'operational', 'branch_manager']}>
+          <LazyPage><TourLeaderDashboard /></LazyPage>
+        </ProtectedRoute>
+      } />
+      <Route path="/tour-leader/broadcast" element={
+        <ProtectedRoute allowedRoles={['super_admin', 'owner', 'operational', 'branch_manager']}>
+          <LazyPage><TourLeaderBroadcast /></LazyPage>
+        </ProtectedRoute>
+      } />
+      <Route path="/tour-leader/attendance" element={
+        <ProtectedRoute allowedRoles={['super_admin', 'owner', 'operational', 'branch_manager']}>
+          <LazyPage><TourLeaderAttendance /></LazyPage>
+        </ProtectedRoute>
+      } />
+
+      {/* Tour Guide System — Fase 1: Sisi Jamaah */}
+      <Route path="/jamaah/transmisi" element={<JamaahRoute><JamaahTransmisi /></JamaahRoute>} />
+      <Route path="/jamaah/absensi"   element={<JamaahRoute><JamaahAbsensi /></JamaahRoute>} />
 
       {/* Booking — guest mode: wizard publik, login diminta saat konfirmasi pembayaran */}
       <Route path="/booking/:packageId" element={<LazyPage><BookingPage /></LazyPage>} />

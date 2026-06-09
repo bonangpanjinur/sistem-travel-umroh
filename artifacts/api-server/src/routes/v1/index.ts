@@ -11,6 +11,7 @@ import integrationsRouter from './integrations.js';
 import systemRouter from './system.js';
 import trainingNotifRouter from './training-notifications.js';
 import audioRouter from './audio.js';
+import guideRouter from '../guide.js';
 
 const v1Router = Router();
 
@@ -26,5 +27,6 @@ v1Router.use('/settings/integrations', integrationsRouter);
 v1Router.use('/system', systemRouter);
 v1Router.use('/training', trainingNotifRouter);
 v1Router.use('/guide/audio', audioRouter);
+v1Router.use('/guide', guideRouter);
 
 export default v1Router;

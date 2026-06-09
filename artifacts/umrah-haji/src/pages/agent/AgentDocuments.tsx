@@ -147,53 +147,65 @@ export default function AgentDocuments() {
       let filename = "";
 
       if (docType === "eticket") {
-        const data: ETicketData = {
-          bookingCode: booking.booking_code, customerName: customer?.full_name || "-",
-          passportNumber: customer?.passport_number || "-", packageName: pkg?.name || "-",
+        const data = {
+          bookingCode: booking.booking_code,
+          passengerName: customer?.full_name || "-",
+          passportNumber: customer?.passport_number || "-",
+          packageName: pkg?.name || "-",
           departureDate: dep?.departure_date ? new Date(dep.departure_date) : new Date(),
-          returnDate: dep?.return_date ? new Date(dep.return_date) : undefined,
+          returnDate: dep?.return_date ? new Date(dep.return_date) : new Date(),
           departureTime: dep?.departure_time || "-",
-          airlineName: (dep?.airline as any)?.name || "-", flightNumber: dep?.flight_number || "-",
-          departureCity: (dep?.departure_airport as any)?.city || "Jakarta",
-          arrivalCity: (dep?.arrival_airport as any)?.city || "Jeddah",
+          airline: (dep?.airline as any)?.name || "-",
+          flightNumber: dep?.flight_number || "-",
           departureAirport: (dep?.departure_airport as any)?.name || "-",
           arrivalAirport: (dep?.arrival_airport as any)?.name || "-",
           hotelMakkah: (dep?.hotel_makkah as any)?.name || "-",
           hotelMadinah: (dep?.hotel_madinah as any)?.name || "-",
-          roomType: booking.room_type || "quad", totalPax: booking.total_pax || 1,
+          roomType: booking.room_type || "quad",
           itinerary: [],
-        };
+        } as ETicketData;
         doc = await generateETicket(data, company);
         filename = `eticket-${booking.booking_code}`;
       } else if (docType === "invoice") {
         const roomMap: Record<string, string> = { quad: "Quad (4 orang)", triple: "Triple (3 orang)", double: "Double (2 orang)", single: "Single (1 orang)" };
         const priceMap: Record<string, number> = { quad: pkg?.price_quad || 0, triple: pkg?.price_triple || 0, double: pkg?.price_double || 0, single: pkg?.price_single || 0 };
         const roomType = booking.room_type || "quad";
-        const data: InvoiceDataExtended = {
-          bookingCode: booking.booking_code, customerName: customer?.full_name || "-",
-          customerAddress: customer?.address || "-", customerPhone: customer?.phone || "-",
-          customerEmail: customer?.email || "-", customerNik: customer?.nik || "-",
-          packageName: pkg?.name || "-", departureDate: dep?.departure_date ? new Date(dep.departure_date) : new Date(),
-          returnDate: dep?.return_date ? new Date(dep.return_date) : undefined,
-          roomType: roomMap[roomType] || roomType,
-          totalPax: booking.total_pax || 1, pricePerPax: priceMap[roomType],
-          totalPrice: booking.total_price || 0, paidAmount: booking.paid_amount || 0,
-          remainingAmount: booking.remaining_amount || 0, paymentStatus: booking.payment_status || "pending",
-          items: [{ description: `Paket ${pkg?.name || ""} - ${roomMap[roomType] || roomType}`, qty: booking.total_pax || 1, unitPrice: priceMap[roomType], total: booking.total_price || 0 }],
-          dueDate: undefined, notes: "", agentName: agentData?.company_name || undefined, agentCode: agentData?.agent_code || undefined,
-        };
-        doc = await generateInvoice(data, genDocNumber("INV"), company, bankAccount);
+        const data = {
+          invoiceNumber: genDocNumber("INV"),
+          invoiceDate: new Date(),
+          dueDate: new Date(),
+          customer: {
+            name: customer?.full_name || "-",
+            address: customer?.address || "-",
+            phone: customer?.phone || "-",
+            email: customer?.email || undefined,
+          },
+          items: [{ description: `Paket ${pkg?.name || ""} - ${roomMap[roomType] || roomType}`, quantity: booking.total_pax || 1, unitPrice: priceMap[roomType], total: booking.total_price || 0 }],
+          subtotal: booking.total_price || 0,
+          total: booking.total_price || 0,
+          notes: "",
+          packageName: pkg?.name || "-",
+          departureDate: dep?.departure_date || undefined,
+          paidAmount: booking.paid_amount || 0,
+          remainingAmount: booking.remaining_amount || 0,
+          paymentStatus: booking.payment_status || "pending",
+          agentName: agentData?.company_name || undefined,
+          agentCode: agentData?.agent_code || undefined,
+        } as InvoiceDataExtended;
+        doc = await generateInvoice(data, company);
         filename = `invoice-${booking.booking_code}`;
       } else if (docType === "sertifikat") {
-        const data: UmrahCertificateData = {
-          recipientName: customer?.full_name || "-", recipientNik: customer?.nik || "-",
+        const data = {
+          participantName: customer?.full_name || "-",
+          passportNumber: customer?.passport_number || customer?.nik || "-",
+          birthPlace: customer?.birth_place || "-",
+          birthDate: customer?.birth_date ? new Date(customer.birth_date) : new Date(),
           departureDate: dep?.departure_date ? new Date(dep.departure_date) : new Date(),
           returnDate: dep?.return_date ? new Date(dep.return_date) : new Date(),
-          packageName: pkg?.name || "-", bookingCode: booking.booking_code,
-          hotelMakkah: (dep?.hotel_makkah as any)?.name || "-",
-          hotelMadinah: (dep?.hotel_madinah as any)?.name || "-",
-        };
-        doc = await generateUmrahCertificate(data, genDocNumber("SERTIF"), company);
+          packageName: pkg?.name || "-",
+          certificateNumber: genDocNumber("SERTIF"),
+        } as UmrahCertificateData;
+        doc = await generateUmrahCertificate(data, company);
         filename = `sertifikat-${booking.booking_code}`;
       } else if (docType === "lunas") {
         const data: SuratLunasData = {

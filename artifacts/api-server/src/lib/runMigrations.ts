@@ -877,6 +877,23 @@ export async function runMigrations(): Promise<void> {
       logger.info("runMigrations: 074_audio_sessions — already applied, skipping");
     }
 
+    // ── Step 075: Tour Guide System — transmisi, absensi, lokasi ─────────────
+    const guideSystemApplied = await isApplied(client, "075_tour_guide_system");
+    if (!guideSystemApplied) {
+      try {
+        await runSqlFile(
+          client,
+          sqlPath("075_tour_guide_system.sql"),
+          "075_tour_guide_system (guide_channels, guide_broadcasts, guide_sessions, guide_session_attendance, guide_locations)",
+        );
+        await markApplied(client, "075_tour_guide_system");
+      } catch (e: any) {
+        logger.warn({ err: e?.message }, "runMigrations: 075_tour_guide_system — skipping (non-fatal)");
+      }
+    } else {
+      logger.info("runMigrations: 075_tour_guide_system — already applied, skipping");
+    }
+
   } catch (err) {
     logger.error({ err }, "runMigrations: unexpected error — server continues");
   } finally {
