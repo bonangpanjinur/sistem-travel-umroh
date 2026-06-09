@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
-import { FileText, Send, Mail, Users, Briefcase, Plane, Receipt, Ticket, Award, Package, MessageCircle, Loader2, Heart, CheckCircle2 } from 'lucide-react';
+import { FileText, Send, Mail, Users, Briefcase, Plane, Receipt, Ticket, Award, Package, MessageCircle, Loader2, Heart, CheckCircle2, Calendar } from 'lucide-react';
 import { useCompanyInfo } from '@/hooks/useCompanyInfo';
 import {
   generateLeaveLetter, generateJamaahLeaveLetter, generatePassportLetter,
@@ -19,6 +19,8 @@ import {
   type SuratMahramData, type SuratLunasData,
 } from '@/lib/document-generator';
 import { BulkDocumentTab } from '@/components/document-generator/BulkDocumentTab';
+import { BulkSendTab } from '@/components/document-generator/BulkSendTab';
+import { DocumentDeadlinePanel } from '@/components/admin/DocumentDeadlinePanel';
 import { DepartureInfo } from '@/components/document-generator/shared';
 import { JamaahLeaveTab } from '@/components/document-generator/JamaahLeaveTab';
 import { EmployeeLeaveTab } from '@/components/document-generator/EmployeeLeaveTab';
@@ -432,6 +434,12 @@ const AdminDocumentGenerator = () => {
             <TabsTrigger value="bulk" className="flex items-center gap-1.5 font-semibold text-primary">
               <Package className="h-4 w-4" /><span>Generate Massal</span>
             </TabsTrigger>
+            <TabsTrigger value="bulk-send" className="flex items-center gap-1.5 font-semibold text-green-600">
+              <Send className="h-4 w-4" /><span>Kirim WA Massal</span>
+            </TabsTrigger>
+            <TabsTrigger value="deadline" className="flex items-center gap-1.5">
+              <Calendar className="h-4 w-4" /><span className="hidden lg:inline">Deadline Upload</span>
+            </TabsTrigger>
             <TabsTrigger value="jamaah-leave" className="flex items-center gap-1">
               <Users className="h-4 w-4" /><span className="hidden lg:inline">Cuti Jamaah</span>
             </TabsTrigger>
@@ -461,6 +469,19 @@ const AdminDocumentGenerator = () => {
             </TabsTrigger>
           </TabsList>
         </div>
+
+        <TabsContent value="bulk-send">
+          <BulkSendTab
+            packages={packages}
+            allDepartures={allDepartures}
+            company={company}
+            bankAccount={bankAccount}
+          />
+        </TabsContent>
+
+        <TabsContent value="deadline">
+          <DocumentDeadlinePanel />
+        </TabsContent>
 
         <TabsContent value="bulk">
           <BulkDocumentTab

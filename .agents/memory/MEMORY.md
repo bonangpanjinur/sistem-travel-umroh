@@ -7,3 +7,4 @@
 - [rencanadarurat P1+P2 selesai](rencanadarurat-done.md) — Semua P1+P2 dari rencanadarurat.md selesai di sesi 9 Jun 2026; P3 belum. Migrations 33-35 applied.
 - [SQL migration file placement](sql-migration-placement.md) — SQL files for runner must live in `artifacts/api-server/src/sql/`, not root `sql/migrations/`
 - [Sprint DOC-1 pattern](sprint-doc1-pattern.md) — JamaahDocuments download: useCompanyInfo + bookings query + generateETicket/Invoice/UmrahCertificate; sertifikat hanya muncul setelah tripEnded (returnDate ≤ today).
+- [Sprint DOC-4 agent portal docs](sprint-doc4.md) — SuratLunasData uses totalAmount (NOT totalPrice), departureDate is string|undefined (NOT Date). xlsx missing from api-server → install via pnpm add xlsx.

@@ -31,6 +31,10 @@ const AgentUniqueLink = lazy(() => import("@/pages/agent/AgentUniqueLink"));
 const AgentLaporan = lazy(() => import("@/pages/agent/AgentLaporan"));
 const AgentSubAgentJamaah = lazy(() => import("@/pages/agent/AgentSubAgentJamaah"));
 
+// Sprint DOC-4 — Portal Agen Dokumen
+const AgentDocuments = lazy(() => import("@/pages/agent/AgentDocuments"));
+const AgentSubAgentDocTracker = lazy(() => import("@/pages/agent/AgentSubAgentDocTracker"));
+
 /**
  * Role yang boleh mengakses portal agen.
  * - super_admin: untuk keperluan pengujian dan dukungan teknis.
@@ -114,6 +118,10 @@ export default function AgentRoutes() {
       <Route path="broadcast" element={<AgentOnlyPage><AgentBroadcast /></AgentOnlyPage>} />
       <Route path="unique-link" element={<LazyPage><AgentUniqueLink /></LazyPage>} />
       <Route path="laporan" element={<AgentOnlyPage><AgentLaporan /></AgentOnlyPage>} />
+
+      {/* Sprint DOC-4 — Portal Agen Dokumen */}
+      <Route path="documents" element={<LazyPage><AgentDocuments /></LazyPage>} />
+      <Route path="sub-agent-docs" element={<AgentManagePage><AgentSubAgentDocTracker /></AgentManagePage>} />
     </Route>
   );
 }

@@ -7,7 +7,7 @@ import { AgentNotificationBell } from "@/components/agent/AgentNotificationBell"
 import { 
   Home, Users, DollarSign, Package, UserCog,
   Menu, X, LogOut, Wallet, Globe, Zap, Network, Crown, Link2,
-  Trophy, Target
+  Trophy, Target, FileText
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -37,8 +37,11 @@ const navItems: NavItem[] = [
   { label: "Laporan Bulanan",    href: "/agent/laporan",      icon: Target,   agentOnly: true },
   { label: "Broadcast WA",       href: "/agent/broadcast",    icon: Zap,      agentOnly: true },
   { label: "Link Pendaftaran",   href: "/agent/unique-link",  icon: Link2,    agentOnly: true },
-  { label: "Jaringan Sub Agen",  href: "/agent/network",      icon: Network,  agentOnly: true },
-  { label: "Website Saya",       href: "/agent/website",      icon: Globe,    agentOnly: true },
+  { label: "Jaringan Sub Agen",  href: "/agent/network",          icon: Network,   agentOnly: true },
+  { label: "Website Saya",       href: "/agent/website",          icon: Globe,     agentOnly: true },
+  // Sprint DOC-4
+  { label: "Dokumen Jamaah",     href: "/agent/documents",        icon: FileText },
+  { label: "Tracking Dok Sub-Agen", href: "/agent/sub-agent-docs", icon: Network, agentOnly: true },
 ];
 
 export default function AgentLayoutEnhanced() {

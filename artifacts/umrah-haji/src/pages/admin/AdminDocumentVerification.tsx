@@ -18,8 +18,9 @@ import { toast } from "sonner";
 import {
   FileText, Search, CheckCircle, XCircle, Clock,
   Eye, AlertTriangle, FileCheck, Filter, Users, Building2,
-  Plane, CheckSquare, Square, Loader2, ExternalLink
+  Plane, CheckSquare, Square, Loader2, ExternalLink, Upload
 } from "lucide-react";
+import { AdminUploadForJamaah } from "@/components/admin/AdminUploadForJamaah";
 
 export default function AdminDocumentVerification() {
   const queryClient = useQueryClient();
@@ -39,6 +40,9 @@ export default function AdminDocumentVerification() {
   const [bulkRejectReason, setBulkRejectReason] = useState("");
   const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
   const [bulkAction, setBulkAction] = useState<"verified" | "rejected">("verified");
+
+  // ── F-17: Upload for jamaah ──
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
 
   // ── Data: documents ──
   const { data: documents, isLoading } = useQuery({
@@ -257,7 +261,17 @@ export default function AdminDocumentVerification() {
           <h1 className="text-2xl font-bold">Verifikasi Dokumen</h1>
           <p className="text-muted-foreground">Verifikasi dokumen jamaah · Filter per keberangkatan · Bulk approve</p>
         </div>
+        <Button onClick={() => setUploadDialogOpen(true)} className="shrink-0 gap-2">
+          <Upload className="h-4 w-4" />
+          Upload Dokumen Jamaah
+        </Button>
       </div>
+
+      <AdminUploadForJamaah
+        open={uploadDialogOpen}
+        onOpenChange={setUploadDialogOpen}
+        onSuccess={() => queryClient.invalidateQueries({ queryKey: ['admin-documents'] })}
+      />
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
