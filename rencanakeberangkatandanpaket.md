@@ -1,7 +1,7 @@
 # Analisis & Rencana: Keberangkatan, Paket, Booking, Perlengkapan, Kamar, Tour Guide & Operasional
 
 > **Dibuat:** 07 Juni 2026  
-> **Diperbarui:** 09 Juni 2026  
+> **Diperbarui:** 09 Juni 2026 (Sprint B selesai 8/8)  
 > **Tujuan:** Analisis komprehensif — apa yang sudah ada, apa yang belum saling terelasi, apa yang harus terelasi, apa yang belum ada fiturnya, apa yang harus ada, apa yang belum sempurna — beserta roadmap prioritas.
 
 ---
@@ -142,7 +142,7 @@
 ---
 
 #### R4. Booking Room Type ↔ Hotel Room Capacity Belum Divalidasi Saat Booking
-> **STATUS: ⚠️ Parsial** — `useHotelRoomCapacities.ts` hook sudah ada tapi belum diintegrasikan ke Booking Wizard sebagai warning real-time. Dijadwalkan Sprint B6.
+> **STATUS: ✅ SELESAI** — `HotelWizardWarning` component ditambahkan ke Booking Wizard (step "Pilih Kamar"). Query departure sekarang fetch `hotel_makkah_id` + `hotel_madinah_id` + nama hotel. Warning amber/merah muncul otomatis jika kapasitas kamar hotel ≥80% atau melebihi batas fisik (Sprint B6).
 
 ---
 
@@ -179,7 +179,7 @@
 ---
 
 #### R11. Jamaah Checklist → Departure Go/No-Go Belum Terhubung
-> **STATUS: ⚠️ Parsial** — `EquipmentReadinessCard.tsx` ada tapi belum ada summary lengkap (visa %, lunas %, paspor %). Dijadwalkan Sprint B1.
+> **STATUS: ✅ SELESAI** — `DepartureReadinessDashboard.tsx` (Sprint B1) sudah embedded di tab Checklist `AdminDepartureDetail`. Menampilkan 5 kategori dengan progress bar: Lunas Pembayaran, Data Paspor, Visa Disetujui, Perlengkapan Terdistribusi, Checklist Pre-Departure — plus overall % & badge "Siap Berangkat / Hampir Siap / Perlu Perhatian". Halaman standalone di `/operational/readiness`.
 
 ---
 
@@ -193,12 +193,12 @@
 ---
 
 #### F2. Waiting List per Departure
-> **STATUS: ⏳ Belum** — Sprint B2. Perlu tabel `departure_waiting_list`, UI daftar/promosi, notifikasi WA saat slot kosong.
+> **STATUS: ✅ SELESAI** — Sprint B2. Tabel `departure_waiting_list` (migration `38_waiting_list.sql`, applied). `DepartureWaitingListTab.tsx` (287 baris) wired di tab "Waiting List" `AdminDepartureDetail`. Fitur: tambah calon jamaah (nama, HP, email, tipe kamar, seat), ubah status (Menunggu → Sudah Notif → Jadi Booking / Dibatalkan), hapus entri.
 
 ---
 
 #### F3. Mutasi Booking (Pindah Departure)
-> **STATUS: ⏳ Belum** — Sprint B3. `AdminBookingTransfers.tsx` ada tapi untuk pindah cabang, bukan pindah departure. Perlu fitur terpisah.
+> **STATUS: ✅ SELESAI** — Sprint B3. `MutasiDepartureDialog.tsx` (214 baris) wired di `AdminBookingDetail`. Fitur: pilih keberangkatan tujuan (paket sama, status open/almost_full, seat > 0), kalkulasi selisih harga otomatis (jamaah harus bayar tambahan / ada sisa), catatan alasan mutasi, audit trail di `booking_status_history`. Terpisah dari `AdminBookingTransfers` yang untuk pindah cabang.
 
 ---
 
@@ -314,16 +314,16 @@
 | A5 | Muthawif Assign → Guide Channel Auto-Init (trigger) | ✅ SELESAI (migration 080) |
 | A6 | Room Occupants → booking_passengers Sync (trigger) | ✅ SELESAI (migration 080) |
 
-### Sprint B — Fitur Operasional Inti 🔄 IN PROGRESS
+### Sprint B — Fitur Operasional Inti ✅ DONE
 
 | Kode | Fitur | Status |
 |---|---|---|
-| B1 | Departure Readiness Dashboard (% siap per kategori) | ⏳ Belum |
-| B2 | Waiting List per Departure | ⏳ Belum |
-| B3 | Mutasi Booking (pindah departure) | ⏳ Belum |
+| B1 | Departure Readiness Dashboard (% siap per kategori) | ✅ SELESAI (DepartureReadinessDashboard di tab Checklist + /operational/readiness) |
+| B2 | Waiting List per Departure | ✅ SELESAI (DepartureWaitingListTab + migration 38_waiting_list) |
+| B3 | Mutasi Booking (pindah departure) | ✅ SELESAI (MutasiDepartureDialog di AdminBookingDetail + audit trail) |
 | B4 | Kebijakan Pembatalan + Refund Workflow | ✅ SELESAI (AdminRefunds + cancellation_rules) |
 | B5 | Muthawif Profile di PackageDetail Publik | ✅ SELESAI (card muthawif di PackageDetail) |
-| B6 | Hotel Capacity Warning di Booking Wizard | ⚠️ Parsial (hook ada, warning belum) |
+| B6 | Hotel Capacity Warning di Booking Wizard | ✅ SELESAI (HotelWizardWarning di step Pilih Kamar, amber/merah jika near_full/exceeded) |
 | B7 | Equipment Distribution → departure_expenses Auto | ✅ SELESAI (trigger di migration 080) |
 | B8 | Pre-Departure Checklist (Admin + Jamaah) | ✅ SELESAI (BookingDepartureChecklist) |
 
@@ -363,7 +363,7 @@
 |---|---|---|
 | **Paket** | ✅ Solid & Lengkap | Sprint A3 DONE |
 | **Keberangkatan** | ✅ Koneksi data sudah lengkap | Sprint A DONE semua |
-| **Booking** | ✅ Wizard kuat, payment OK | B4 DONE; B2, B3 masih pending |
+| **Booking** | ✅ Wizard kuat, payment OK, capacity warning aktif | Sprint B DONE semua (B2 waiting list, B3 mutasi, B6 hotel warning) |
 | **Perlengkapan** | ✅ Auto-queue + auto-expense sudah connected | Sprint A1, B7 DONE |
 | **Kamar** | ⚠️ Sync trigger sudah ada | A6 DONE; D1 full unification masih pending |
 | **Tour Guide** | ✅ Guide channel auto-init | A5 DONE; C4 multi-muthawif masih pending |
@@ -372,4 +372,4 @@
 
 **Sprint A selesai 100%** — semua 6 trigger data-connectivity sudah aktif di database via migration `080_sprint_a_triggers.sql`.
 
-**Sprint B: 4 dari 8 selesai** — B4, B5, B7, B8. Masih perlu: B1 (readiness dashboard), B2 (waiting list), B3 (mutasi booking), B6 (hotel capacity warning di wizard).
+**Sprint B selesai 8/8** — B1 (readiness dashboard), B2 (waiting list), B3 (mutasi booking), B4 (pembatalan + refund), B5 (muthawif profile publik), B6 (hotel capacity warning di wizard), B7 (equipment → departure_expenses auto), B8 (pre-departure checklist). Sprint B ✅ DONE.
