@@ -183,7 +183,7 @@ function PackageSection() {
       <IslamicSectionTitle
         title="Paket Pilihan"
         arabic="بَاقَات مُخْتَارَة"
-        action={<Link to="/packages" className="text-xs text-primary font-semibold flex items-center gap-0.5">Semua <ArrowRight className="h-3 w-3" /></Link>}
+        action={<Link to="/jamaah/paket" className="text-xs text-primary font-semibold flex items-center gap-0.5">Semua <ArrowRight className="h-3 w-3" /></Link>}
       />
       <LazyMount minHeight={320} rootMargin="300px">
         <Suspense fallback={<GridSkeleton />}>

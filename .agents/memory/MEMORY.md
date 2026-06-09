@@ -1,4 +1,5 @@
 
+- [Portal Jamaah route architecture](portal-jamaah-routes.md) — semua menu portal wajib prefix /jamaah/; /my-bookings→/jamaah/booking, /packages→/jamaah/paket, /customer/settings→/jamaah/profil; rencana lengkap di rencanaportal.md
 - [Equipment queued status flow](equipment-queued-status.md) — trigger auto-queue saat booking confirmed; UI harus fetch queued+distributed bersama, bukan hanya distributed
 - [bookings.status vs booking_status alias](bookings-status-column.md) — trigger DB harus pakai `status`, bukan `booking_status` (itu hanya alias di views/RPCs)
 - [departures muthawif_id column](departures-muthawif-id.md) — kolom muthawif_id di departures TIDAK ADA di skema awal; ditambahkan migration 081. Trigger A5 gagal di 080 karena kolom belum ada.

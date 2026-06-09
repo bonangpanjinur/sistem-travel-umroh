@@ -17,9 +17,9 @@ import { usePWAConfig } from "@/hooks/usePWAConfig";
 
 const DEFAULT_MOBILE_ITEMS = [
   { to: "/jamaah",               icon: Home,       label: "Beranda" },
-  { to: "/my-bookings",          icon: Plane,       label: "Booking" },
+  { to: "/jamaah/booking",       icon: Plane,       label: "Booking" },
   { to: "/jamaah/payment",       icon: CreditCard,  label: "Bayar" },
-  { to: "/jamaah/notifications", icon: Bell,        label: "Notif", showBadge: true },
+  { to: "/jamaah/profil",        icon: User,        label: "Profil" },
 ];
 
 const ICON_MAP: Record<string, any> = {
@@ -64,7 +64,7 @@ const moreMenuItems: MenuItem[] = [
   { to: "/jamaah/visa",             icon: Shield,        label: "Tracker Visa",     color: "text-cyan-600",       bg: "bg-cyan-50 dark:bg-cyan-950/30",              category: "Lainnya",      keywords: "status visa paspor" },
   { to: "/jamaah/wishlist",         icon: Heart,         label: "Wishlist",         color: "text-rose-600",       bg: "bg-rose-50 dark:bg-rose-950/30",              category: "Lainnya",      keywords: "favorit simpan paket" },
   { to: "/jamaah/kesehatan",        icon: Heart,         label: "Profil Kesehatan", color: "text-red-600",        bg: "bg-red-50 dark:bg-red-950/30",                category: "Lainnya",      keywords: "medical rekam medis" },
-  { to: "/customer/settings",       icon: User,          label: "Profil & Akun",    color: "text-gray-600",       bg: "bg-gray-100 dark:bg-gray-800",                category: "Lainnya",      keywords: "pengaturan setting sandi" },
+  { to: "/jamaah/profil",            icon: User,          label: "Profil & Akun",    color: "text-gray-600",       bg: "bg-gray-100 dark:bg-gray-800",                category: "Lainnya",      keywords: "pengaturan setting sandi" },
 ];
 
 const CATEGORIES = ["Semua", "Administrasi", "Ibadah", "Komunitas", "Lainnya"] as const;
@@ -74,7 +74,7 @@ const sidebarGroups = [
     label: "Perjalanan",
     items: [
       { to: "/jamaah",             icon: Home,          label: "Beranda",            exact: true },
-      { to: "/my-bookings",        icon: Plane,         label: "Booking Saya" },
+      { to: "/jamaah/booking",      icon: Plane,         label: "Booking Saya" },
       { to: "/jamaah/itinerary",   icon: CalendarDays,  label: "Itinerary" },
       { to: "/jamaah/digital-id",  icon: QrCode,        label: "ID Digital" },
       { to: "/jamaah/visa",        icon: Shield,        label: "Tracker Visa" },
@@ -115,7 +115,7 @@ const sidebarGroups = [
     items: [
       { to: "/jamaah/notifications",   icon: Bell,      label: "Notifikasi",         showBadge: true },
       { to: "/jamaah/pantau-keluarga", icon: UsersRound,label: "Pantau Keluarga" },
-      { to: "/customer/settings",      icon: User,      label: "Profil & Pengaturan" },
+      { to: "/jamaah/profil",           icon: User,      label: "Profil & Pengaturan" },
     ],
   },
 ];

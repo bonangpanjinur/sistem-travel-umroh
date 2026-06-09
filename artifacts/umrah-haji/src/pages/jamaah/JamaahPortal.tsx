@@ -648,12 +648,12 @@ export default function JamaahPortal() {
                 </div>
               </div>
               <Button asChild className="w-full">
-                <Link to="/packages">
+                <Link to="/jamaah/paket">
                   Lihat Paket Tersedia <ArrowRight className="h-4 w-4 ml-1" />
                 </Link>
               </Button>
               <Button asChild variant="outline" size="sm" className="w-full">
-                <Link to="/my-bookings">Cek Booking Saya</Link>
+                <Link to="/jamaah/booking">Cek Booking Saya</Link>
               </Button>
             </CardContent>
           </Card>
@@ -673,7 +673,7 @@ export default function JamaahPortal() {
                 </p>
               </div>
               <Button asChild variant="outline" size="sm">
-                <Link to="/customer/settings">Lengkapi Profil</Link>
+                <Link to="/jamaah/profil">Lengkapi Profil</Link>
               </Button>
             </CardContent>
           </Card>
@@ -710,7 +710,7 @@ export default function JamaahPortal() {
                 return (
                   <Link
                     key={pkg.id}
-                    to={`/packages/${slug}`}
+                    to={`/jamaah/paket/${slug}`}
                     className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-muted/60 transition-colors group"
                   >
                     {/* Thumbnail */}
@@ -752,7 +752,7 @@ export default function JamaahPortal() {
               })}
 
               <Button asChild variant="ghost" size="sm" className="w-full text-xs mt-1">
-                <Link to="/packages">
+                <Link to="/jamaah/paket">
                   Lihat semua paket <ArrowRight className="h-3 w-3 ml-1" />
                 </Link>
               </Button>
@@ -790,7 +790,7 @@ export default function JamaahPortal() {
                 return (
                   <Link
                     key={pkg.id}
-                    to={`/packages/${slug}`}
+                    to={`/jamaah/paket/${slug}`}
                     className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-muted/60 transition-colors group"
                   >
                     <div className="w-14 h-14 rounded-lg overflow-hidden flex-shrink-0 bg-muted">
@@ -844,13 +844,13 @@ export default function JamaahPortal() {
                 </div>
                 <span className="text-sm font-bold text-gray-800 dark:text-gray-200">Perjalanan</span>
               </div>
-              <Link to="/my-bookings" className="text-[11px] text-primary font-medium flex items-center gap-0.5">
+              <Link to="/jamaah/booking" className="text-[11px] text-primary font-medium flex items-center gap-0.5">
                 Lihat semua <ChevronRight className="h-3 w-3" />
               </Link>
             </div>
             <div className="grid grid-cols-4 gap-2.5">
               {[
-                { to: "/my-bookings", icon: CreditCard, label: "Booking", color: "bg-blue-500", bg: "bg-blue-50 dark:bg-blue-950/30 hover:bg-blue-100" },
+                { to: "/jamaah/booking", icon: CreditCard, label: "Booking", color: "bg-blue-500", bg: "bg-blue-50 dark:bg-blue-950/30 hover:bg-blue-100" },
                 { to: "/jamaah/itinerary", icon: CalendarDays, label: "Itinerary", color: "bg-sky-500", bg: "bg-sky-50 dark:bg-sky-950/30 hover:bg-sky-100" },
                 { to: "/jamaah/digital-id", icon: QrCode, label: "ID Digital", color: "bg-indigo-500", bg: "bg-indigo-50 dark:bg-indigo-950/30 hover:bg-indigo-100" },
                 { to: "/jamaah/documents", icon: FolderOpen, label: "Dokumen", color: "bg-orange-500", bg: "bg-orange-50 dark:bg-orange-950/30 hover:bg-orange-100" },
@@ -1024,7 +1024,7 @@ export default function JamaahPortal() {
               </div>
               {(booking.remaining_amount || 0) > 0 && (
                 <Button asChild size="sm" className="w-full mt-3">
-                  <Link to={`/my-bookings/${booking.id}/payment`}>Upload Bukti Bayar</Link>
+                  <Link to="/jamaah/payment">Upload Bukti Bayar</Link>
                 </Button>
               )}
             </CardContent>

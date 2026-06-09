@@ -124,6 +124,12 @@ const JamaahLokasiGuide    = lazy(() => import("@/pages/jamaah/JamaahLokasiGuide
 const MuthawifBroadcast    = lazy(() => import("@/pages/muthawif/MuthawifBroadcast"));
 const MuthawifAbsensiSesi  = lazy(() => import("@/pages/muthawif/MuthawifAbsensiSesi"));
 
+// Portal Jamaah — Halaman Mandiri (tidak link ke website)
+const JamaahBookingList  = lazy(() => import("@/pages/jamaah/JamaahBookingList"));
+const JamaahProfil       = lazy(() => import("@/pages/jamaah/JamaahProfil"));
+const JamaahKatalogPaket = lazy(() => import("@/pages/jamaah/JamaahKatalogPaket"));
+const JamaahDetailPaket  = lazy(() => import("@/pages/jamaah/JamaahDetailPaket"));
+
 // Toko Online / E-Commerce
 const StorePage        = lazy(() => import("@/pages/customer/StorePage"));
 const StoreCheckout    = lazy(() => import("@/pages/customer/StoreCheckout"));
@@ -186,6 +192,12 @@ export default function CustomerRoutes() {
       <Route path="/jamaah" element={<LazyPage><JamaahPortal /></LazyPage>} />
       <Route path="/jamaah/welcome" element={<LazyPage><JamaahWelcome /></LazyPage>} />
       <Route path="/jamaah/chatbot" element={<LazyPage><JamaahChatbot /></LazyPage>} />
+      <Route path="/jamaah/paket" element={<LazyPage><JamaahKatalogPaket /></LazyPage>} />
+      <Route path="/jamaah/paket/:slug" element={<LazyPage><JamaahDetailPaket /></LazyPage>} />
+
+      {/* Portal mandiri — butuh login */}
+      <Route path="/jamaah/booking" element={<JamaahRoute><JamaahBookingList /></JamaahRoute>} />
+      <Route path="/jamaah/profil" element={<JamaahRoute><JamaahProfil /></JamaahRoute>} />
 
       {/* ── Fitur Pribadi Jamaah — soft prompt login (bukan access denied) ── */}
       <Route path="/jamaah/digital-id" element={<JamaahRoute><JamaahDigitalID /></JamaahRoute>} />
