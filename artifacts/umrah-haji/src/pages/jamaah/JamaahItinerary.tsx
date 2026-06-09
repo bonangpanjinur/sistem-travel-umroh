@@ -5,28 +5,43 @@ import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { ArrowLeft, MapPin, Clock, Calendar, CheckCircle2, Share2, Bus, Users, Navigation } from "lucide-react";
+import {
+  ArrowLeft, MapPin, Clock, Calendar, CheckCircle2, Share2,
+  Bus, Users, Navigation, Plane, Hotel, Star, Circle,
+} from "lucide-react";
 import { Link } from "react-router-dom";
 import { JamaahBottomNav } from "@/components/jamaah/JamaahBottomNav";
 import { format, addDays, isToday, isBefore } from "date-fns";
 import { id } from "date-fns/locale";
 
+interface ItineraryActivity {
+  time: string;
+  activity: string;
+  location?: string;
+  type?: string;
+  is_completed?: boolean;
+}
+
 interface ItineraryDay {
   day: number;
   date: string;
   title: string;
-  activities: {
-    time: string;
-    activity: string;
-    location?: string;
-  }[];
+  activities: ItineraryActivity[];
+  source: "live" | "package" | "default";
 }
+
+const ACTIVITY_ICON: Record<string, React.ComponentType<{ className?: string }>> = {
+  flight: Plane,
+  hotel: Hotel,
+  transport: Bus,
+  group: Users,
+  location: MapPin,
+  other: Circle,
+};
 
 export default function JamaahItinerary() {
   const { user } = useAuth();
 
-  // Fetch customer data
   const { data: customer } = useQuery({
     queryKey: ["jamaah-customer", user?.id],
     queryFn: async () => {
@@ -42,7 +57,6 @@ export default function JamaahItinerary() {
     enabled: !!user?.id,
   });
 
-  // Fetch booking with departure and package
   const { data: booking } = useQuery({
     queryKey: ["jamaah-booking-itinerary", customer?.id],
     queryFn: async () => {
@@ -67,92 +81,157 @@ export default function JamaahItinerary() {
     enabled: !!customer?.id,
   });
 
-  const departure = booking?.departure;
-  const packageData = departure?.package;
+  const departure = (booking?.departure as any) ?? null;
+  const packageData = (departure?.package as any) ?? null;
+  const departureId: string | null = departure?.id ?? null;
 
-  // Generate itinerary from package data or use default
+  const { data: timelineEntries } = useQuery({
+    queryKey: ["trip-timeline-jamaah", departureId],
+    enabled: !!departureId,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("trip_timeline")
+        .select("id, day_number, activity_type, title, description, location, time_start, is_completed")
+        .eq("departure_id", departureId)
+        .order("day_number", { ascending: true })
+        .order("time_start", { ascending: true });
+      if (error) {
+        if (error.code === "42P01") return [];
+        throw error;
+      }
+      return (data ?? []) as {
+        id: string;
+        day_number: number;
+        activity_type: string;
+        title: string;
+        description: string | null;
+        location: string | null;
+        time_start: string | null;
+        is_completed: boolean;
+      }[];
+    },
+  });
+
   const generateItinerary = (): ItineraryDay[] => {
     if (!departure) return [];
 
     const startDate = new Date(departure.departure_date);
     const durationDays = packageData?.duration_days || 9;
 
-    // Check if package has itinerary JSON
+    // Priority 1: trip_timeline live data
+    if (timelineEntries && timelineEntries.length > 0) {
+      const grouped = new Map<number, typeof timelineEntries>();
+      for (const entry of timelineEntries) {
+        const dn = entry.day_number ?? 1;
+        if (!grouped.has(dn)) grouped.set(dn, []);
+        grouped.get(dn)!.push(entry);
+      }
+
+      const days: ItineraryDay[] = [];
+      for (const [dayNum, entries] of Array.from(grouped.entries()).sort((a, b) => a[0] - b[0])) {
+        days.push({
+          day: dayNum,
+          date: format(addDays(startDate, dayNum - 1), "yyyy-MM-dd"),
+          title: entries[0]?.title ?? `Hari ${dayNum}`,
+          source: "live",
+          activities: entries.map(e => ({
+            time: e.time_start ?? "",
+            activity: e.title,
+            location: e.location ?? undefined,
+            type: e.activity_type,
+            is_completed: e.is_completed,
+          })),
+        });
+      }
+      return days;
+    }
+
+    // Priority 2: packages.itinerary JSON
     if (packageData?.itinerary && Array.isArray(packageData.itinerary)) {
       return (packageData.itinerary as any[]).map((day: any, index: number) => ({
         day: index + 1,
         date: format(addDays(startDate, index), "yyyy-MM-dd"),
         title: day.title || `Hari ${index + 1}`,
-        activities: day.activities || [],
+        source: "package" as const,
+        activities: (day.activities ?? []).map((a: any) => ({
+          time: a.time ?? "",
+          activity: a.activity ?? a.title ?? "",
+          location: a.location,
+          type: a.type,
+          is_completed: false,
+        })),
       }));
     }
 
-    // Default itinerary template
+    // Priority 3: default template
     const defaultItinerary: ItineraryDay[] = [
       {
         day: 1,
         date: format(startDate, "yyyy-MM-dd"),
         title: "Keberangkatan dari Indonesia",
+        source: "default",
         activities: [
-          { time: "06:00", activity: "Berkumpul di Bandara", location: "Terminal Internasional" },
-          { time: "09:00", activity: "Check-in dan boarding", location: "Bandara" },
-          { time: "12:00", activity: "Penerbangan ke Jeddah", location: "Pesawat" },
-          { time: "18:00", activity: "Tiba di Jeddah, transfer ke Madinah", location: "Jeddah" },
+          { time: "06:00", activity: "Berkumpul di Bandara", location: "Terminal Internasional", type: "group" },
+          { time: "09:00", activity: "Check-in dan boarding", location: "Bandara", type: "flight" },
+          { time: "12:00", activity: "Penerbangan ke Jeddah", location: "Pesawat", type: "flight" },
+          { time: "18:00", activity: "Tiba di Jeddah, transfer ke Madinah", location: "Jeddah", type: "transport" },
         ],
       },
       {
         day: 2,
         date: format(addDays(startDate, 1), "yyyy-MM-dd"),
-        title: "Madinah - Ziarah Masjid Nabawi",
+        title: "Madinah – Ziarah Masjid Nabawi",
+        source: "default",
         activities: [
-          { time: "05:00", activity: "Sholat Subuh berjamaah", location: "Masjid Nabawi" },
-          { time: "07:00", activity: "Sarapan di hotel", location: "Hotel" },
-          { time: "09:00", activity: "Ziarah Raudhah", location: "Masjid Nabawi" },
-          { time: "12:00", activity: "Sholat Dzuhur", location: "Masjid Nabawi" },
-          { time: "16:00", activity: "City Tour Madinah", location: "Madinah" },
+          { time: "05:00", activity: "Sholat Subuh berjamaah", location: "Masjid Nabawi", type: "group" },
+          { time: "07:00", activity: "Sarapan di hotel", location: "Hotel", type: "hotel" },
+          { time: "09:00", activity: "Ziarah Raudhah", location: "Masjid Nabawi", type: "location" },
+          { time: "12:00", activity: "Sholat Dzuhur", location: "Masjid Nabawi", type: "group" },
+          { time: "16:00", activity: "City Tour Madinah", location: "Madinah", type: "location" },
         ],
       },
       {
         day: 3,
         date: format(addDays(startDate, 2), "yyyy-MM-dd"),
-        title: "Madinah - Ziarah Sejarah",
+        title: "Madinah – Ziarah Sejarah",
+        source: "default",
         activities: [
-          { time: "05:00", activity: "Sholat Subuh berjamaah", location: "Masjid Nabawi" },
-          { time: "08:00", activity: "Ziarah Uhud & Khandaq", location: "Madinah" },
-          { time: "12:00", activity: "Sholat Dzuhur", location: "Masjid Nabawi" },
-          { time: "14:00", activity: "Ziarah Masjid Quba", location: "Madinah" },
-          { time: "16:00", activity: "Ziarah Qiblatain", location: "Madinah" },
+          { time: "05:00", activity: "Sholat Subuh berjamaah", location: "Masjid Nabawi", type: "group" },
+          { time: "08:00", activity: "Ziarah Uhud & Khandaq", location: "Madinah", type: "location" },
+          { time: "12:00", activity: "Sholat Dzuhur", location: "Masjid Nabawi", type: "group" },
+          { time: "14:00", activity: "Ziarah Masjid Quba", location: "Madinah", type: "location" },
+          { time: "16:00", activity: "Ziarah Qiblatain", location: "Madinah", type: "location" },
         ],
       },
     ];
 
-    // Add remaining days
     for (let i = 3; i < durationDays - 1; i++) {
       defaultItinerary.push({
         day: i + 1,
         date: format(addDays(startDate, i), "yyyy-MM-dd"),
-        title: i < 5 ? "Makkah - Ibadah di Masjidil Haram" : "Makkah - Umrah & Ibadah",
+        title: i < 5 ? "Makkah – Ibadah di Masjidil Haram" : "Makkah – Umrah & Ibadah",
+        source: "default",
         activities: [
-          { time: "05:00", activity: "Sholat Subuh berjamaah", location: "Masjidil Haram" },
-          { time: "07:00", activity: "Sarapan di hotel", location: "Hotel" },
-          { time: "09:00", activity: "Thawaf & Sa'i (jika umrah)", location: "Masjidil Haram" },
-          { time: "12:00", activity: "Sholat Dzuhur", location: "Masjidil Haram" },
-          { time: "20:00", activity: "Sholat Isya & Tahajud", location: "Masjidil Haram" },
+          { time: "05:00", activity: "Sholat Subuh berjamaah", location: "Masjidil Haram", type: "group" },
+          { time: "07:00", activity: "Sarapan di hotel", location: "Hotel", type: "hotel" },
+          { time: "09:00", activity: "Thawaf & Sa'i (jika umrah)", location: "Masjidil Haram", type: "location" },
+          { time: "12:00", activity: "Sholat Dzuhur", location: "Masjidil Haram", type: "group" },
+          { time: "20:00", activity: "Sholat Isya & Tahajud", location: "Masjidil Haram", type: "group" },
         ],
       });
     }
 
-    // Last day - return
     defaultItinerary.push({
       day: durationDays,
       date: format(addDays(startDate, durationDays - 1), "yyyy-MM-dd"),
       title: "Kepulangan ke Indonesia",
+      source: "default",
       activities: [
-        { time: "05:00", activity: "Sholat Subuh", location: "Hotel" },
-        { time: "08:00", activity: "Check-out hotel", location: "Hotel" },
-        { time: "10:00", activity: "Transfer ke Bandara Jeddah", location: "Jeddah" },
-        { time: "14:00", activity: "Penerbangan kembali ke Indonesia", location: "Pesawat" },
-        { time: "23:00", activity: "Tiba di Indonesia", location: "Bandara" },
+        { time: "05:00", activity: "Sholat Subuh", location: "Hotel", type: "group" },
+        { time: "08:00", activity: "Check-out hotel", location: "Hotel", type: "hotel" },
+        { time: "10:00", activity: "Transfer ke Bandara Jeddah", location: "Jeddah", type: "transport" },
+        { time: "14:00", activity: "Penerbangan kembali ke Indonesia", location: "Pesawat", type: "flight" },
+        { time: "23:00", activity: "Tiba di Indonesia", location: "Bandara", type: "flight" },
       ],
     });
 
@@ -160,23 +239,21 @@ export default function JamaahItinerary() {
   };
 
   const itinerary = generateItinerary();
+  const isLiveData = itinerary.length > 0 && itinerary[0].source === "live";
 
   const getDayStatus = (dateStr: string) => {
     const date = new Date(dateStr);
-    const today = new Date();
-    
     if (isToday(date)) return "today";
-    if (isBefore(date, today)) return "past";
+    if (isBefore(date, new Date())) return "past";
     return "future";
   };
 
   const [showTransport, setShowTransport] = useState(true);
 
-  // Derive transport info from booking/departure
-  const transportSchedule = booking ? [
+  const transportSchedule = departure ? [
     {
       label: "Penjemputan ke Bandara",
-      time: departure?.departure_date
+      time: departure.departure_date
         ? format(new Date(new Date(departure.departure_date).getTime() - 3 * 60 * 60 * 1000), "HH:mm")
         : "05:00",
       location: "Titik Kumpul – Kantor Travel",
@@ -188,7 +265,7 @@ export default function JamaahItinerary() {
       time: "Setelah tiba di Jeddah",
       location: "Bandara King Abdulaziz, Jeddah",
       bus: "Bus Charter",
-      notes: "Perkiraan 5-6 jam perjalanan darat",
+      notes: "Perkiraan 5–6 jam perjalanan darat",
     },
     {
       label: "Transfer Madinah → Makkah",
@@ -199,14 +276,32 @@ export default function JamaahItinerary() {
     },
     {
       label: "Transfer Makkah → Jeddah (Pulang)",
-      time: departure?.return_date
+      time: departure.return_date
         ? format(new Date(new Date(departure.return_date).getTime() - 4 * 60 * 60 * 1000), "HH:mm")
         : "08:00",
       location: "Hotel Makkah",
       bus: "Bus Charter",
-      notes: "Perkiraan 1-2 jam perjalanan",
+      notes: "Perkiraan 1–2 jam perjalanan",
     },
   ] : [];
+
+  const shareItinerary = async () => {
+    const text = itinerary.map(day =>
+      `Hari ${day.day} – ${day.title}\n` +
+      day.activities.map(a => `  ${a.time} ${a.activity}${a.location ? ` (${a.location})` : ""}`).join("\n")
+    ).join("\n\n");
+    const shareData = {
+      title: `Itinerary ${packageData?.name || "Perjalanan Umroh"}`,
+      text: `*Itinerary ${packageData?.name || "Umroh/Haji"}*\n\n${text}`,
+    };
+    if (navigator.share) {
+      try { await navigator.share(shareData); } catch {}
+    } else {
+      await navigator.clipboard.writeText(shareData.text);
+      const { toast } = await import("sonner");
+      toast.success("Itinerary disalin ke clipboard!");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background pb-20">
@@ -224,29 +319,12 @@ export default function JamaahItinerary() {
               <p className="text-xs opacity-80">{packageData?.name || "Jadwal Perjalanan"}</p>
             </div>
           </div>
-          {/* Q3: Tombol Share untuk Itinerary */}
           {itinerary.length > 0 && (
             <Button
               variant="ghost"
               size="icon"
               className="text-primary-foreground"
-              onClick={async () => {
-                const text = itinerary.map(day =>
-                  `Hari ${day.day} - ${day.title}\n` +
-                  day.activities.map(a => `  ${a.time} ${a.activity}${a.location ? ` (${a.location})` : ""}`).join("\n")
-                ).join("\n\n");
-                const shareData = {
-                  title: `Itinerary ${packageData?.name || "Perjalanan Umroh"}`,
-                  text: `*Itinerary ${packageData?.name || "Umroh/Haji"}*\n\n${text}`,
-                };
-                if (navigator.share) {
-                  try { await navigator.share(shareData); } catch {}
-                } else {
-                  await navigator.clipboard.writeText(shareData.text);
-                  const { toast } = await import("sonner");
-                  toast.success("Itinerary disalin ke clipboard!");
-                }
-              }}
+              onClick={shareItinerary}
             >
               <Share2 className="h-5 w-5" />
             </Button>
@@ -256,7 +334,18 @@ export default function JamaahItinerary() {
 
       <div className="p-4">
 
-        {/* O2: Info Transportasi / Bus */}
+        {/* Live data badge */}
+        {isLiveData && (
+          <div className="mb-3 flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-3 py-2">
+            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+            <span className="text-xs text-green-700 font-medium">Live Update dari Guide</span>
+            <Badge variant="outline" className="text-[10px] text-green-700 border-green-300 ml-auto">
+              Real-time
+            </Badge>
+          </div>
+        )}
+
+        {/* Info Transportasi */}
         {transportSchedule.length > 0 && (
           <div className="mb-4">
             <button
@@ -306,22 +395,17 @@ export default function JamaahItinerary() {
           <div className="space-y-4">
             {itinerary.map((day) => {
               const status = getDayStatus(day.date);
-              
+
               return (
-                <Card 
-                  key={day.day} 
-                  className={`overflow-hidden ${
-                    status === "today" ? "ring-2 ring-primary" : ""
-                  } ${status === "past" ? "opacity-60" : ""}`}
+                <Card
+                  key={day.day}
+                  className={`overflow-hidden ${status === "today" ? "ring-2 ring-primary" : ""} ${status === "past" ? "opacity-70" : ""}`}
                 >
-                  <CardHeader className={`py-3 ${
-                    status === "today" 
-                      ? "bg-primary text-primary-foreground" 
-                      : "bg-muted"
-                  }`}>
+                  <CardHeader className={`py-3 ${status === "today" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         {status === "past" && <CheckCircle2 className="h-4 w-4 text-green-500" />}
+                        {status === "today" && <Star className="h-4 w-4 text-yellow-300 fill-yellow-300" />}
                         <CardTitle className="text-base">Hari {day.day}</CardTitle>
                       </div>
                       <Badge variant={status === "today" ? "secondary" : "outline"}>
@@ -334,28 +418,40 @@ export default function JamaahItinerary() {
                   </CardHeader>
                   <CardContent className="py-3">
                     <div className="space-y-3">
-                      {day.activities.map((activity, idx) => (
-                        <div key={idx} className="flex gap-3">
-                          <div className="flex flex-col items-center">
-                            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                              <Clock className="h-4 w-4 text-primary" />
+                      {day.activities.map((activity, idx) => {
+                        const Icon = ACTIVITY_ICON[activity.type ?? "other"] ?? Circle;
+                        return (
+                          <div key={idx} className="flex gap-3">
+                            <div className="flex flex-col items-center">
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${activity.is_completed ? "bg-green-100" : "bg-primary/10"}`}>
+                                {activity.is_completed
+                                  ? <CheckCircle2 className="h-4 w-4 text-green-600" />
+                                  : <Icon className="h-4 w-4 text-primary" />
+                                }
+                              </div>
+                              {idx < day.activities.length - 1 && (
+                                <div className="w-0.5 flex-1 bg-border mt-1 min-h-[12px]" />
+                              )}
                             </div>
-                            {idx < day.activities.length - 1 && (
-                              <div className="w-0.5 h-full bg-border mt-1" />
-                            )}
-                          </div>
-                          <div className="flex-1 pb-3">
-                            <p className="text-xs text-muted-foreground">{activity.time}</p>
-                            <p className="font-medium text-sm">{activity.activity}</p>
-                            {activity.location && (
-                              <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                                <MapPin className="h-3 w-3" />
-                                {activity.location}
+                            <div className={`flex-1 pb-3 ${activity.is_completed ? "opacity-60" : ""}`}>
+                              {activity.time && (
+                                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                  <Clock className="h-3 w-3" />{activity.time}
+                                </p>
+                              )}
+                              <p className={`font-medium text-sm ${activity.is_completed ? "line-through" : ""}`}>
+                                {activity.activity}
                               </p>
-                            )}
+                              {activity.location && (
+                                <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                                  <MapPin className="h-3 w-3" />
+                                  {activity.location}
+                                </p>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </CardContent>
                 </Card>

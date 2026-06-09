@@ -809,6 +809,19 @@ export async function runMigrations(): Promise<void> {
       logger.info("runMigrations: 38_waiting_list — already applied, skipping");
     }
 
+    // ── Step 1g: trip_timeline v2 schema (add day_number, activity_type, etc) ─
+    const tripTimelineV2Applied = await isApplied(client, "07_trip_timeline_v2");
+    if (!tripTimelineV2Applied) {
+      await runSqlFile(
+        client,
+        sqlPath("07_trip_timeline_v2.sql"),
+        "07_trip_timeline_v2 (add day_number + activity_type columns to trip_timeline)",
+      );
+      await markApplied(client, "07_trip_timeline_v2");
+    } else {
+      logger.info("runMigrations: 07_trip_timeline_v2 — already applied, skipping");
+    }
+
     // ── Step 2: payment sync trigger (always re-applied each boot) ────────
     // Wrapped in its own try/catch so a missing table on a broken DB state
     // doesn't crash the server — it just logs and continues.

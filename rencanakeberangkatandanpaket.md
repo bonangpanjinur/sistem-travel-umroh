@@ -213,7 +213,7 @@
 ---
 
 #### F6. Automated Reminder Schedule (H-X Otomatis)
-> **STATUS: ⚠️ Parsial** — Cron H-7 dan H-1 sudah berjalan. H-60, H-45, H-30, H-14 belum diimplementasikan. Sprint C2.
+> **STATUS: ✅ SELESAI** — `cron.ts` mendaftar semua threshold: H-60, H-45, H-30, H-14 @07:00–07:20 WIB, H-7 @07:00, H-1 @06:00 WIB. Sprint C2 lengkap.
 
 ---
 
@@ -288,7 +288,7 @@
 > **STATUS: ✅ SELESAI** — Sprint D6. Migration `083_sprint_d_height_clothing_size.sql` — `height_cm`, `weight_kg`, `clothing_size` di `booking_passengers`. Fungsi `suggest_clothing_size()`. Badge ungu di EquipmentPage.
 
 ### I8. Itinerary — Ada Tapi Tidak Tersambung ke Jamaah
-> **STATUS: ⚠️ Parsial** — `TripTimelinePage.tsx` ada untuk live update guide. Portal jamaah belum menampilkan itinerary pre-departure secara mandiri (panduan ibadah ada di `/jamaah/panduan-ibadah`).
+> **STATUS: ✅ SELESAI** — `JamaahItinerary.tsx` sekarang query `trip_timeline` (live data dari guide, grouped by `day_number`) sebagai prioritas 1. Fallback ke `packages.itinerary` JSON (prioritas 2), kemudian template default (prioritas 3). Badge "Live Update dari Guide" muncul jika ada data real-time. Migration `07_trip_timeline_v2.sql` menambah kolom `day_number`, `activity_type`, `time_start`, `is_completed` ke tabel `trip_timeline`. Activity icon per tipe (flight/hotel/transport/group/location). Aktivitas selesai ditampilkan dengan strikethrough + icon ✓.
 
 ### I9. Muthawif Assignment di Departure Detail — Input Belum Nyaman
 > **STATUS: ✅ SELESAI** — Sprint C4/C6. `DepartureMuthawifPanel.tsx` untuk assign banyak muthawif. `MuthawifConflictCalendar.tsx` untuk deteksi konflik jadwal. Guide channel auto-init via trigger.
@@ -366,7 +366,7 @@
 
 ## RINGKASAN EKSEKUTIF
 
-> **Diperbarui: 09 Juni 2026** — Sprint A–E semua selesai. Tidak ada item ⏳ Belum yang tersisa kecuali I8 (itinerary portal jamaah, parsial).
+> **Diperbarui: 09 Juni 2026** — Sprint A–E semua selesai. I8 dan F6 diselesaikan — tidak ada item ⚠️ Parsial yang tersisa. Semua item SELESAI.
 
 | Area | Kondisi | Semua Kode Sprint |
 |---|---|---|
@@ -391,9 +391,9 @@
 
 **Sprint E selesai 2/2** — auto-split subgroup (3 strategi + preview), manifest export per bus/grup (PDF multi-halaman + Excel multi-sheet).
 
-### ⚠️ Item Parsial yang Tersisa
+### ✅ Semua Item Selesai
 
-| Item | Status | Keterangan |
+| Item | Status | Penyelesaian |
 |---|---|---|
-| **I8** — Itinerary Portal Jamaah | ⚠️ Parsial | `TripTimelinePage` live update ada. Portal jamaah belum tampilkan itinerary pre-departure mandiri. |
-| **F6** — Reminder H-X (parsial) | ⚠️ Cek | Cron H-60/45/30/14/7/1 di `cron.ts` — perlu verifikasi apakah semua threshold sudah diimplementasikan. |
+| **I8** — Itinerary Portal Jamaah | ✅ Selesai | `JamaahItinerary.tsx` query `trip_timeline` live → fallback package JSON → default template. Badge live update. Icon per tipe aktivitas. |
+| **F6** — Reminder H-X | ✅ Selesai | Semua threshold H-60/45/30/14/7/1 terdaftar di `cron.ts`. |
