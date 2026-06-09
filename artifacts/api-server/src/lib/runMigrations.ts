@@ -712,6 +712,19 @@ export async function runMigrations(): Promise<void> {
       logger.info("runMigrations: 35_equipment_unit_cost — already applied, skipping");
     }
 
+    // ── Step 1z8: package view_count column + RPC ─────────────────────────────
+    const pvcApplied = await isApplied(client, "36_package_view_count");
+    if (!pvcApplied) {
+      await runSqlFile(
+        client,
+        sqlPath("36_package_view_count.sql"),
+        "36_package_view_count (view counter + RPC untuk analytics conversion)",
+      );
+      await markApplied(client, "36_package_view_count");
+    } else {
+      logger.info("runMigrations: 36_package_view_count — already applied, skipping");
+    }
+
     // ── Step 2: payment sync trigger (always re-applied each boot) ────────
     // Wrapped in its own try/catch so a missing table on a broken DB state
     // doesn't crash the server — it just logs and continues.

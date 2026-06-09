@@ -178,6 +178,12 @@ export default function PackageDetail() {
     }
   }, [pkg?.id]);
 
+  // Increment view counter for analytics (fire-and-forget, silently ignore errors)
+  useEffect(() => {
+    if (!id) return;
+    (supabase as any).rpc('increment_package_view_count', { p_package_id: id });
+  }, [id]);
+
   // Inject SEO meta tags + JSON-LD + canonical dynamically
   useEffect(() => {
     if (!pkg) return;

@@ -321,6 +321,13 @@ export default function AdminPackageDetail() {
                   ) : (
                     <span className="text-sm text-muted-foreground italic">Belum ada keberangkatan</span>
                   )}
+                  {(packageData as any).view_count > 0 && (
+                    <div className="flex items-center gap-1.5 text-sm">
+                      <Eye className="h-4 w-4 text-blue-500" />
+                      <span className="font-semibold">{((packageData as any).view_count as number).toLocaleString('id-ID')}</span>
+                      <span className="text-muted-foreground">tayangan</span>
+                    </div>
+                  )}
                   {pkgStats && (
                     <div className="flex items-center gap-1.5 text-sm">
                       <TrendingUp className="h-4 w-4 text-emerald-500" />
@@ -887,19 +894,102 @@ export default function AdminPackageDetail() {
 
         {/* ═══ TAB: ANALITIK ════════════════════════════════════ */}
         <TabsContent value="analitik" className="space-y-6">
-          {!pkgStats ? (
-            <Card className="border-dashed">
-              <CardContent className="py-12 text-center">
-                <BarChart3 className="h-12 w-12 mx-auto mb-4 opacity-30" />
-                <p className="font-medium">Belum ada data analitik</p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Data akan muncul setelah ada booking pada keberangkatan yang terhubung.
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
+
+          {/* ── Baris 1: Page Views + Marketing CR (always shown) ── */}
+          {(() => {
+            const viewCount: number = (packageData as any).view_count || 0;
+            const totalBookings = pkgStats?.total ?? 0;
+            const marketingCR = viewCount > 0 ? (totalBookings / viewCount) * 100 : null;
+            const crColor = marketingCR === null ? 'muted'
+              : marketingCR >= 5 ? 'emerald'
+              : marketingCR >= 2 ? 'amber'
+              : 'rose';
+            const crColorMap: Record<string, string> = {
+              muted:   'bg-muted/30 border text-muted-foreground',
+              emerald: 'bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200',
+              amber:   'bg-amber-50 dark:bg-amber-950/30 border border-amber-200',
+              rose:    'bg-rose-50 dark:bg-rose-950/30 border border-rose-200',
+            };
+            const crIconMap: Record<string, string> = {
+              muted:   'bg-muted text-muted-foreground',
+              emerald: 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600',
+              amber:   'bg-amber-100 dark:bg-amber-900/50 text-amber-600',
+              rose:    'bg-rose-100 dark:bg-rose-900/50 text-rose-600',
+            };
+            const crValueMap: Record<string, string> = {
+              muted:   'text-muted-foreground',
+              emerald: 'text-emerald-700 dark:text-emerald-400',
+              amber:   'text-amber-700 dark:text-amber-400',
+              rose:    'text-rose-700 dark:text-rose-400',
+            };
+            return (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {/* Tayangan Halaman */}
+                <div className="rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 p-4 flex items-center gap-4">
+                  <div className="rounded-lg bg-blue-100 dark:bg-blue-900/50 p-3 shrink-0">
+                    <Eye className="h-6 w-6 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-blue-700 dark:text-blue-400">
+                      {viewCount.toLocaleString('id-ID')}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Tayangan Halaman Publik</p>
+                    {viewCount === 0 && (
+                      <p className="text-xs text-muted-foreground/70 mt-0.5 italic">Bertambah otomatis saat ada pengunjung</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Marketing Conversion Rate */}
+                <div className={`rounded-xl p-4 flex items-center gap-4 ${crColorMap[crColor]}`}>
+                  <div className={`rounded-lg p-3 shrink-0 ${crIconMap[crColor]}`}>
+                    <Target className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <p className={`text-2xl font-bold ${crValueMap[crColor]}`}>
+                      {marketingCR !== null ? `${marketingCR.toFixed(1)}%` : '—'}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Marketing CR (booking / tayangan)</p>
+                    {marketingCR !== null ? (
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {totalBookings} booking dari {viewCount.toLocaleString('id-ID')} tayangan
+                      </p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground/70 mt-0.5 italic">
+                        {viewCount === 0 ? 'Butuh data tayangan' : 'Belum ada booking'}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Avg booking value jika ada pkgStats, else placeholder */}
+                {pkgStats ? (
+                  <div className="rounded-xl bg-primary/5 border p-4 flex items-center gap-4">
+                    <div className="rounded-lg bg-primary/10 p-3 shrink-0">
+                      <TrendingUp className="h-6 w-6 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-xl font-bold text-primary leading-tight">{formatCurrency(pkgStats.avgBookingValue)}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Rata-rata Nilai Booking</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">dari {pkgStats.confirmed} booking konfirmasi</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="rounded-xl bg-muted/30 border border-dashed p-4 flex items-center gap-3 text-muted-foreground">
+                    <BarChart3 className="h-8 w-8 opacity-30 shrink-0" />
+                    <div>
+                      <p className="font-medium text-sm">Belum ada data booking</p>
+                      <p className="text-xs mt-0.5">Statistik muncul setelah ada booking pada keberangkatan terhubung.</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* ── Baris 2: KPI Booking (hanya jika ada booking) ── */}
+          {pkgStats && (
             <>
-              {/* KPI cards */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <div className="rounded-xl bg-primary/5 p-4 text-center border">
                   <ShoppingCart className="h-5 w-5 text-primary mx-auto mb-1" />
@@ -924,12 +1014,12 @@ export default function AdminPackageDetail() {
               </div>
 
               {/* Rate cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="p-4 border rounded-xl">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
                       <Target className="h-4 w-4 text-primary" />
-                      <p className="text-sm font-semibold">Conversion Rate</p>
+                      <p className="text-sm font-semibold">Booking Conversion Rate</p>
                     </div>
                     <span className={`text-xs font-bold px-2 py-0.5 rounded-full flex items-center gap-0.5
                       ${pkgStats.conversionRate >= 60 ? 'bg-emerald-100 text-emerald-700' :
@@ -945,7 +1035,7 @@ export default function AdminPackageDetail() {
                       style={{ width: `${pkgStats.conversionRate}%` }} />
                   </div>
                   <p className="text-xs text-muted-foreground mt-2">
-                    {pkgStats.confirmed} konfirmasi dari {pkgStats.total} booking
+                    {pkgStats.confirmed} dikonfirmasi dari {pkgStats.total} total booking
                   </p>
                 </div>
 
@@ -970,15 +1060,6 @@ export default function AdminPackageDetail() {
                   <p className="text-xs text-muted-foreground mt-2">
                     {formatCurrency(pkgStats.totalPaid)} dari {formatCurrency(pkgStats.totalRevenue)}
                   </p>
-                </div>
-
-                <div className="p-4 border rounded-xl">
-                  <div className="flex items-center gap-2 mb-3">
-                    <TrendingUp className="h-4 w-4 text-blue-600" />
-                    <p className="text-sm font-semibold">Rata-rata Nilai Booking</p>
-                  </div>
-                  <p className="text-xl font-bold text-blue-600">{formatCurrency(pkgStats.avgBookingValue)}</p>
-                  <p className="text-xs text-muted-foreground mt-2">per booking yang dikonfirmasi</p>
                   <div className="mt-2 flex gap-2 flex-wrap">
                     {pkgStats.pending > 0 && (
                       <span className="text-[10px] bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded-full font-medium">{pkgStats.pending} pending</span>
