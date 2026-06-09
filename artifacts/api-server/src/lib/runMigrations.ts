@@ -894,6 +894,23 @@ export async function runMigrations(): Promise<void> {
       logger.info("runMigrations: 075_tour_guide_system — already applied, skipping");
     }
 
+    // ── Step 076: Trip timeline live columns (Fase 2 Tour Guide) ──────────────
+    const timelineLiveApplied = await isApplied(client, "076_trip_timeline_live_columns");
+    if (!timelineLiveApplied) {
+      try {
+        await runSqlFile(
+          client,
+          sqlPath("076_trip_timeline_live_columns.sql"),
+          "076_trip_timeline_live_columns (live_status, delay_minutes, live_notes, location_changed_to)",
+        );
+        await markApplied(client, "076_trip_timeline_live_columns");
+      } catch (e: any) {
+        logger.warn({ err: e?.message }, "runMigrations: 076_trip_timeline_live_columns — skipping (non-fatal)");
+      }
+    } else {
+      logger.info("runMigrations: 076_trip_timeline_live_columns — already applied, skipping");
+    }
+
   } catch (err) {
     logger.error({ err }, "runMigrations: unexpected error — server continues");
   } finally {

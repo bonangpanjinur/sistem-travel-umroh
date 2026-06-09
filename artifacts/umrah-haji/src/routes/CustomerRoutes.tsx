@@ -115,6 +115,14 @@ const TourLeaderAttendance = lazy(() => import("@/pages/tour-leader/TourLeaderAt
 const JamaahTransmisi      = lazy(() => import("@/pages/jamaah/JamaahTransmisi"));
 const JamaahAbsensi        = lazy(() => import("@/pages/jamaah/JamaahAbsensi"));
 
+// Tour Guide System — Fase 2: Program Live & Lokasi
+const TourLeaderProgram    = lazy(() => import("@/pages/tour-leader/TourLeaderProgram"));
+const TourLeaderMap        = lazy(() => import("@/pages/tour-leader/TourLeaderMap"));
+const JamaahProgramLive    = lazy(() => import("@/pages/jamaah/JamaahProgramLive"));
+const JamaahLokasiGuide    = lazy(() => import("@/pages/jamaah/JamaahLokasiGuide"));
+const MuthawifBroadcast    = lazy(() => import("@/pages/muthawif/MuthawifBroadcast"));
+const MuthawifAbsensiSesi  = lazy(() => import("@/pages/muthawif/MuthawifAbsensiSesi"));
+
 // Toko Online / E-Commerce
 const StorePage        = lazy(() => import("@/pages/customer/StorePage"));
 const StoreCheckout    = lazy(() => import("@/pages/customer/StoreCheckout"));
@@ -303,6 +311,32 @@ export default function CustomerRoutes() {
       {/* Tour Guide System — Fase 1: Sisi Jamaah */}
       <Route path="/jamaah/transmisi" element={<JamaahRoute><JamaahTransmisi /></JamaahRoute>} />
       <Route path="/jamaah/absensi"   element={<JamaahRoute><JamaahAbsensi /></JamaahRoute>} />
+
+      {/* Tour Guide System — Fase 2: Program Live & Lokasi */}
+      <Route path="/tour-leader/program" element={
+        <ProtectedRoute allowedRoles={['super_admin', 'owner', 'operational', 'branch_manager']}>
+          <LazyPage><TourLeaderProgram /></LazyPage>
+        </ProtectedRoute>
+      } />
+      <Route path="/tour-leader/map" element={
+        <ProtectedRoute allowedRoles={['super_admin', 'owner', 'operational', 'branch_manager']}>
+          <LazyPage><TourLeaderMap /></LazyPage>
+        </ProtectedRoute>
+      } />
+      <Route path="/jamaah/program-live"  element={<JamaahRoute><JamaahProgramLive /></JamaahRoute>} />
+      <Route path="/jamaah/lokasi-guide"  element={<JamaahRoute><JamaahLokasiGuide /></JamaahRoute>} />
+
+      {/* Tour Guide System — Fase 2: Perluasan Muthawif */}
+      <Route path="/muthawif/broadcast" element={
+        <ProtectedRoute allowedRoles={['super_admin', 'owner', 'operational']}>
+          <LazyPage><MuthawifBroadcast /></LazyPage>
+        </ProtectedRoute>
+      } />
+      <Route path="/muthawif/absensi-sesi" element={
+        <ProtectedRoute allowedRoles={['super_admin', 'owner', 'operational']}>
+          <LazyPage><MuthawifAbsensiSesi /></LazyPage>
+        </ProtectedRoute>
+      } />
 
       {/* Booking — guest mode: wizard publik, login diminta saat konfirmasi pembayaran */}
       <Route path="/booking/:packageId" element={<LazyPage><BookingPage /></LazyPage>} />
