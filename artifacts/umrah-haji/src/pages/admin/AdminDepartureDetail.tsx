@@ -101,6 +101,8 @@ import { useMarginAlert } from "@/hooks/useMarginAlert";
 import { DeparturePreChecklist } from "@/components/admin/departure/DeparturePreChecklist";
 import { DepartureVisaSummary } from "@/components/admin/departure/DepartureVisaSummary";
 import { BulkChecklistApplyDialog } from "@/components/admin/departure/BulkChecklistApplyDialog";
+import { DepartureMuthawifPanel } from "@/components/admin/departure/DepartureMuthawifPanel";
+import { DepartureCapacityVisual } from "@/components/admin/departure/DepartureCapacityVisual";
 import { DepartureReadinessDashboard } from "@/components/departure/DepartureReadinessDashboard";
 import { DepartureWaitingListTab } from "@/components/departure/DepartureWaitingListTab";
 
@@ -136,6 +138,7 @@ export default function AdminDepartureDetail() {
   // K8 — H-X notification state
   const [sendingHX, setSendingHX] = useState<number | null>(null);
   const [bulkChecklistOpen, setBulkChecklistOpen] = useState(false);
+  const [isCopyingItinerary, setIsCopyingItinerary] = useState(false);
 
   // K9 — Ringkasan budget di tab trigger
   const { data: _budgets = [] } = useDepartureBudget(id || "");
@@ -1286,27 +1289,12 @@ export default function AdminDepartureDetail() {
               </CardContent>
             </Card>
 
-            {/* Tim */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="h-5 w-5" />
-                  Tim
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">Muthawif</p>
-                  <p className="font-semibold">{departure.muthawif?.name || "-"}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Team Leader</p>
-                  <p className="font-semibold">
-                    {departure.team_leader?.full_name || "-"}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+            {/* Tim — C4/C6: Multi-Muthawif + Conflict Check */}
+            <DepartureMuthawifPanel
+              departureId={id}
+              departureDate={departure.departure_date}
+              returnDate={departure.return_date}
+            />
 
             {/* Harga */}
             <Card>
@@ -1344,6 +1332,16 @@ export default function AdminDepartureDetail() {
               </CardContent>
             </Card>
           </div>
+
+          {/* C9 — Departure Capacity Visual (room type breakdown) */}
+          <DepartureCapacityVisual
+            departureId={id}
+            quota={departure.quota || 0}
+            priceQuad={departure.price_quad || 0}
+            priceTriple={departure.price_triple || 0}
+            priceDouble={departure.price_double || 0}
+            priceSingle={departure.price_single || 0}
+          />
 
           {/* K8 — H-X Scheduled WA Notification */}
           {departure.departure_date && departure.status !== 'departed' && (() => {
@@ -1859,40 +1857,102 @@ export default function AdminDepartureDetail() {
           <EquipmentRealizationTab selectedDeparture={id} />
         </TabsContent>
 
-        {/* Tab: Itinerary */}
+        {/* Tab: Itinerary — C3 Auto-Populate */}
         <TabsContent value="itinerary" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <MapPin className="h-5 w-5" />
-                Itinerary
+              <CardTitle className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <MapPin className="h-5 w-5" />
+                  Itinerary
+                </div>
+                <div className="flex gap-2">
+                  {itinerary && !itinerary.customized_days && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-emerald-700 border-emerald-300 hover:bg-emerald-50"
+                      disabled={isCopyingItinerary}
+                      onClick={async () => {
+                        if (!itinerary?.itinerary_template?.days?.length) {
+                          toast.error("Template tidak memiliki data hari yang bisa disalin");
+                          return;
+                        }
+                        setIsCopyingItinerary(true);
+                        try {
+                          const { error } = await (supabase as any)
+                            .from("departure_itineraries")
+                            .update({ customized_days: itinerary.itinerary_template.days })
+                            .eq("id", itinerary.id);
+                          if (error) throw error;
+                          toast.success("Template berhasil disalin ke keberangkatan ini! Sekarang Anda dapat mengedit hari per hari.");
+                          queryClient.invalidateQueries({ queryKey: ["departure-itinerary", id] });
+                        } catch (e: any) {
+                          toast.error("Gagal menyalin template: " + e.message);
+                        } finally {
+                          setIsCopyingItinerary(false);
+                        }
+                      }}
+                    >
+                      <Layers className="h-3.5 w-3.5 mr-1.5" />
+                      {isCopyingItinerary ? "Menyalin..." : "Salin Template ke Departure"}
+                    </Button>
+                  )}
+                  {itinerary && (
+                    <Button variant="outline" size="sm" onClick={() => setIsItineraryOpen(true)}>
+                      <Edit className="h-3.5 w-3.5 mr-1.5" />
+                      Kelola
+                    </Button>
+                  )}
+                </div>
               </CardTitle>
             </CardHeader>
             <CardContent>
               {itinerary ? (
                 <div className="space-y-4">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Template</p>
-                    <p className="font-semibold">
-                      {itinerary.itinerary_template?.name}
-                    </p>
+                  <div className="flex items-center gap-4">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Template</p>
+                      <p className="font-semibold">{itinerary.itinerary_template?.name || "-"}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Durasi</p>
+                      <p className="font-semibold">{itinerary.itinerary_template?.duration_days || 0} hari</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Status</p>
+                      <p className={`text-sm font-medium ${itinerary.customized_days ? "text-emerald-700" : "text-amber-700"}`}>
+                        {itinerary.customized_days ? "✅ Sudah disalin & dapat diedit" : "⚠️ Menggunakan template asli"}
+                      </p>
+                    </div>
                   </div>
-                  <Button
-                    variant="outline"
-                    onClick={() => setIsItineraryOpen(true)}
-                  >
-                    <Edit className="h-4 w-4 mr-2" />
-                    Kelola Itinerary
-                  </Button>
+
+                  {(() => {
+                    const days: any[] = itinerary.customized_days || itinerary.itinerary_template?.days || [];
+                    if (!days.length) return <p className="text-sm text-muted-foreground">Tidak ada data hari di template ini.</p>;
+                    return (
+                      <div className="space-y-3 border rounded-lg p-4 bg-muted/20 max-h-96 overflow-y-auto">
+                        {days.map((day: any) => (
+                          <div key={day.day} className="border-l-4 border-primary pl-3 py-1">
+                            <p className="font-semibold text-sm">Hari {day.day}: {day.title}</p>
+                            {day.activities?.map((act: any, i: number) => (
+                              <div key={i} className="flex items-start gap-2 mt-1 text-xs text-muted-foreground">
+                                <span className="font-mono shrink-0 w-12">{act.time || "--:--"}</span>
+                                <span>{act.activity}</span>
+                                {act.location && <span className="text-primary/70">📍 {act.location}</span>}
+                              </div>
+                            ))}
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
                 </div>
               ) : (
                 <div className="text-center py-8">
-                  <p className="text-muted-foreground mb-4">
-                    Belum ada itinerary terhubung
-                  </p>
+                  <p className="text-muted-foreground mb-4">Belum ada itinerary terhubung</p>
                   <Button onClick={() => setIsItineraryOpen(true)}>
-                    <MapPin className="h-4 w-4 mr-2" />
-                    Hubungkan Itinerary
+                    <MapPin className="h-4 w-4 mr-2" />Hubungkan Itinerary
                   </Button>
                 </div>
               )}

@@ -11,11 +11,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import {
   AlertCircle, CheckCircle2, Clock, Phone, MapPin, Heart,
   Shield, HelpCircle, RefreshCcw, Eye, MessageSquare, Info,
-  AlertTriangle, Wifi, WifiOff, MessageCircle
+  AlertTriangle, Wifi, WifiOff, MessageCircle, ArrowUpCircle, History
 } from "lucide-react";
 import { format, parseISO, formatDistanceToNow } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
@@ -33,6 +34,12 @@ const SOS_STATUS: Record<string, { label: string; variant: any; color: string }>
   resolved:   { label: "Selesai",    variant: "outline",     color: "bg-green-100 text-green-800" },
 };
 
+const ESCALATION_TARGETS = [
+  { value: "team_leader",        label: "Team Leader",         icon: "👤" },
+  { value: "admin_pusat",        label: "Admin Pusat",         icon: "🏢" },
+  { value: "emergency_services", label: "Layanan Darurat (112)",icon: "🚨" },
+];
+
 interface SOSAlert {
   id: string;
   customer_id: string;
@@ -48,6 +55,15 @@ interface SOSAlert {
   customer?: { full_name: string; phone: string | null };
 }
 
+interface EscalationLog {
+  id: string;
+  escalated_to: string;
+  escalated_by: string | null;
+  reason: string | null;
+  notified_at: string;
+  acknowledged: boolean;
+}
+
 export default function AdminSOSAlerts() {
   const queryClient   = useQueryClient();
   const [statusFilter, setStatusFilter]       = useState("all");
@@ -55,6 +71,9 @@ export default function AdminSOSAlerts() {
   const [responseNote, setResponseNote]       = useState("");
   const [isLive, setIsLive]                   = useState(false);
   const [newAlertFlash, setNewAlertFlash]     = useState(false);
+  const [escalateTo, setEscalateTo]           = useState("team_leader");
+  const [escalateReason, setEscalateReason]   = useState("");
+  const [showEscalation, setShowEscalation]   = useState(false);
 
   const { data: alerts = [], isLoading, refetch } = useQuery<SOSAlert[]>({
     queryKey: ["sos-alerts", statusFilter],
@@ -71,6 +90,21 @@ export default function AdminSOSAlerts() {
         throw error;
       }
       return (data || []) as unknown as SOSAlert[];
+    },
+  });
+
+  const { data: escalationLogs = [] } = useQuery<EscalationLog[]>({
+    queryKey: ["sos-escalation-log", selectedAlert?.id],
+    enabled: !!selectedAlert?.id,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("sos_escalation_log")
+        .select("*")
+        .eq("sos_alert_id", selectedAlert!.id)
+        .order("notified_at", { ascending: false });
+      if (error && error.code === "42P01") return [];
+      if (error) throw error;
+      return (data || []) as EscalationLog[];
     },
   });
 
@@ -116,6 +150,44 @@ export default function AdminSOSAlerts() {
       toast.success("Status SOS diperbarui");
     },
     onError: (e: any) => toast.error("Gagal: " + e.message),
+  });
+
+  const escalateMutation = useMutation({
+    mutationFn: async ({ alertId, escalateTo, reason }: { alertId: string; escalateTo: string; reason: string }) => {
+      const { error } = await (supabase as any).from("sos_escalation_log").insert({
+        sos_alert_id: alertId,
+        escalated_to: escalateTo,
+        escalated_by: "admin",
+        reason: reason || null,
+        notified_at: new Date().toISOString(),
+      });
+      if (error) throw error;
+      if (escalateTo === "emergency_services") {
+        window.open(`tel:112`, "_self");
+      }
+    },
+    onSuccess: (_, vars) => {
+      const target = ESCALATION_TARGETS.find(t => t.value === vars.escalateTo);
+      toast.success(`SOS dieskalasi ke ${target?.label || vars.escalateTo}`);
+      queryClient.invalidateQueries({ queryKey: ["sos-escalation-log", vars.alertId] });
+      setShowEscalation(false);
+      setEscalateReason("");
+    },
+    onError: (e: any) => toast.error("Gagal eskalasi: " + e.message),
+  });
+
+  const acknowledgeEscalation = useMutation({
+    mutationFn: async (logId: string) => {
+      const { error } = await (supabase as any)
+        .from("sos_escalation_log")
+        .update({ acknowledged: true, acknowledged_at: new Date().toISOString() })
+        .eq("id", logId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["sos-escalation-log", selectedAlert?.id] });
+      toast.success("Eskalasi dikonfirmasi");
+    },
   });
 
   const stats = {
@@ -273,7 +345,7 @@ export default function AdminSOSAlerts() {
                             <MessageCircle className="h-3.5 w-3.5" />
                           </Button>
                         )}
-                        <Button size="sm" variant="ghost" onClick={() => { setSelectedAlert(a); setResponseNote(a.response_notes || ""); }}>
+                        <Button size="sm" variant="ghost" onClick={() => { setSelectedAlert(a); setResponseNote(a.response_notes || ""); setShowEscalation(false); }}>
                           <Eye className="h-3.5 w-3.5" />
                         </Button>
                       </div>
@@ -287,7 +359,7 @@ export default function AdminSOSAlerts() {
       </Card>
 
       <Dialog open={!!selectedAlert} onOpenChange={(v) => { if (!v) setSelectedAlert(null); }}>
-        <DialogContent>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-red-500" />
@@ -346,6 +418,97 @@ export default function AdminSOSAlerts() {
                     onClick={() => updateStatus.mutate({ id: selectedAlert.id, status: "resolved", notes: responseNote })}>
                     <CheckCircle2 className="h-4 w-4 mr-2" /> Tandai Selesai
                   </Button>
+                )}
+              </div>
+
+              {/* ── C8: Eskalasi Otomatis ──────────────────────────────────────── */}
+              <Separator />
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-sm font-semibold flex items-center gap-1.5">
+                    <ArrowUpCircle className="h-4 w-4 text-orange-500" />
+                    Eskalasi
+                  </p>
+                  <Button
+                    size="sm"
+                    variant={showEscalation ? "secondary" : "outline"}
+                    className="border-orange-300 text-orange-700 hover:bg-orange-50"
+                    onClick={() => setShowEscalation(p => !p)}
+                  >
+                    <ArrowUpCircle className="h-3.5 w-3.5 mr-1.5" />
+                    {showEscalation ? "Sembunyikan" : "Eskalasi Sekarang"}
+                  </Button>
+                </div>
+
+                {showEscalation && (
+                  <div className="space-y-3 p-3 border rounded-lg bg-orange-50/40">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Eskalasikan ke</Label>
+                      <Select value={escalateTo} onValueChange={setEscalateTo}>
+                        <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {ESCALATION_TARGETS.map(t => (
+                            <SelectItem key={t.value} value={t.value}>{t.icon} {t.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Alasan Eskalasi</Label>
+                      <Textarea
+                        rows={2}
+                        value={escalateReason}
+                        onChange={e => setEscalateReason(e.target.value)}
+                        placeholder="Tidak ada respons dalam 15 menit, situasi memburuk..."
+                        className="text-sm"
+                      />
+                    </div>
+                    <Button
+                      size="sm"
+                      className="w-full bg-orange-600 hover:bg-orange-700"
+                      disabled={escalateMutation.isPending}
+                      onClick={() => escalateMutation.mutate({ alertId: selectedAlert.id, escalateTo, reason: escalateReason })}
+                    >
+                      {escalateMutation.isPending ? "Mengeskalasi..." : "Konfirmasi Eskalasi"}
+                    </Button>
+                  </div>
+                )}
+
+                {/* Riwayat Eskalasi */}
+                {escalationLogs.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                      <History className="h-3.5 w-3.5" />
+                      Riwayat Eskalasi ({escalationLogs.length})
+                    </p>
+                    {escalationLogs.map((log) => {
+                      const target = ESCALATION_TARGETS.find(t => t.value === log.escalated_to);
+                      return (
+                        <div key={log.id} className="flex items-start gap-3 p-2.5 rounded border bg-muted/40 text-xs">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium">{target?.icon} {target?.label || log.escalated_to}</p>
+                            <p className="text-muted-foreground">
+                              {format(parseISO(log.notified_at), "dd MMM yyyy HH:mm")}
+                              {log.escalated_by && ` — oleh ${log.escalated_by}`}
+                            </p>
+                            {log.reason && <p className="mt-0.5 italic">{log.reason}</p>}
+                          </div>
+                          {!log.acknowledged ? (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 text-xs text-emerald-700"
+                              onClick={() => acknowledgeEscalation.mutate(log.id)}
+                            >
+                              ✓ ACK
+                            </Button>
+                          ) : (
+                            <Badge variant="outline" className="text-xs text-emerald-700 shrink-0">Dikonfirmasi</Badge>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
             </div>

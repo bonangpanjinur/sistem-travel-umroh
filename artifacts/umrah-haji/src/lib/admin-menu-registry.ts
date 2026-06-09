@@ -148,6 +148,7 @@ export const RECOMMENDED_MENUS: AdminMenuItem[] = [
 
   // ── Master Data (900s) ────────────────────────────────────────────────────
   { key: 'hotels',              label: 'Hotel',                 path: '/admin/hotels',               icon: 'Hotel',           group_name: 'Master Data',        sort_order: 901, required_permission: PERMISSIONS.HOTELS },
+  { key: 'hotel-contracts',     label: 'Kontrak Hotel',         path: '/admin/hotel-contracts',      icon: 'FileContract',    group_name: 'Master Data',        sort_order: 902, required_permission: PERMISSIONS.HOTELS },
   { key: 'airlines',            label: 'Maskapai',              path: '/admin/airlines',             icon: 'Plane',           group_name: 'Master Data',        sort_order: 902, required_permission: PERMISSIONS.AIRLINES },
   { key: 'airports',            label: 'Bandara',               path: '/admin/airports',             icon: 'Building',        group_name: 'Master Data',        sort_order: 903, required_permission: PERMISSIONS.AIRPORTS },
   { key: 'vendors',             label: 'Vendor',                path: '/admin/vendors',              icon: 'Store',           group_name: 'Master Data',        sort_order: 904, required_permission: PERMISSIONS.VENDORS },

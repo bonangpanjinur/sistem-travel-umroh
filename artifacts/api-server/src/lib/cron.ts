@@ -19,7 +19,7 @@ async function triggerReminders(type: string) {
   }
 }
 
-async function triggerDepartureReminder(days: 7 | 1) {
+async function triggerDepartureReminder(days: number) {
   try {
     const res = await fetch(`${API_BASE}/api/reminders/trigger-departure`, {
       method: "POST",
@@ -61,8 +61,32 @@ export function startCronJobs() {
     triggerReminders("doc_deadline_h1");
   }, { timezone: "UTC" });
 
-  // Setiap hari jam 07:00 WIB (00:00 UTC) — H-7 departure reminder
+  // Setiap hari jam 07:00 WIB (00:00 UTC) — H-60 departure reminder
   cron.schedule("0 0 * * *", () => {
+    logger.info("Cron: running H-60 departure reminder");
+    triggerDepartureReminder(60);
+  }, { timezone: "UTC" });
+
+  // Setiap hari jam 07:05 WIB (00:05 UTC) — H-45 departure reminder
+  cron.schedule("5 0 * * *", () => {
+    logger.info("Cron: running H-45 departure reminder");
+    triggerDepartureReminder(45);
+  }, { timezone: "UTC" });
+
+  // Setiap hari jam 07:10 WIB (00:10 UTC) — H-30 departure reminder
+  cron.schedule("10 0 * * *", () => {
+    logger.info("Cron: running H-30 departure reminder");
+    triggerDepartureReminder(30);
+  }, { timezone: "UTC" });
+
+  // Setiap hari jam 07:15 WIB (00:15 UTC) — H-14 departure reminder
+  cron.schedule("15 0 * * *", () => {
+    logger.info("Cron: running H-14 departure reminder");
+    triggerDepartureReminder(14);
+  }, { timezone: "UTC" });
+
+  // Setiap hari jam 07:20 WIB (00:20 UTC) — H-7 departure reminder
+  cron.schedule("20 0 * * *", () => {
     logger.info("Cron: running H-7 departure reminder");
     triggerDepartureReminder(7);
   }, { timezone: "UTC" });
@@ -120,6 +144,6 @@ export function startCronJobs() {
   }, { timezone: "UTC" });
 
   logger.info(
-    "Cron jobs registered: cicilan+payment @08:00 WIB, doc-deadline-H3 @09:00 WIB, doc-deadline-H1 @06:30 WIB, H-7 @07:00 WIB, H-1 @06:00 WIB, integration-health @every hour, wa-scheduled @every 5min, agent-tier-refresh @02:00 WIB, training-notif @09:00 WIB",
+    "Cron jobs registered: cicilan+payment @08:00 WIB, doc-deadline-H3 @09:00 WIB, doc-deadline-H1 @06:30 WIB, H-60/45/30/14/7 @07:00-07:20 WIB, H-1 @06:00 WIB, integration-health @every hour, wa-scheduled @every 5min, agent-tier-refresh @02:00 WIB, training-notif @09:00 WIB",
   );
 }

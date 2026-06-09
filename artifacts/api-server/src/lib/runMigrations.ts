@@ -1007,6 +1007,23 @@ export async function runMigrations(): Promise<void> {
       logger.info("runMigrations: 078_auto_equipment_queue — already applied, skipping");
     }
 
+    // ── Step 082: Sprint C — departure_muthawifs, hotel_contracts, hotel_vouchers, sos_escalation_log ──
+    const sprintCApplied = await isApplied(client, "082_sprint_c");
+    if (!sprintCApplied) {
+      try {
+        await runSqlFile(
+          client,
+          sqlPath("082_sprint_c.sql"),
+          "082_sprint_c (departure_muthawifs C4, hotel_contracts+hotel_vouchers C7, sos_escalation_log C8)",
+        );
+        await markApplied(client, "082_sprint_c");
+      } catch (e: any) {
+        logger.warn({ err: e?.message }, "runMigrations: 082_sprint_c — skipping (non-fatal)");
+      }
+    } else {
+      logger.info("runMigrations: 082_sprint_c — already applied, skipping");
+    }
+
   } catch (err) {
     logger.error({ err }, "runMigrations: unexpected error — server continues");
   } finally {

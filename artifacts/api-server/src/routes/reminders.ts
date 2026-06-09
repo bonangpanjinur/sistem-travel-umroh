@@ -227,7 +227,84 @@ async function runPaymentReminders(): Promise<{ sent: number; failed: number; sk
 
 // ─── H-7 / H-1 Departure Reminders ──────────────────────────────────────────
 
-const DEFAULT_H7_TEMPLATE = `Assalamu'alaikum *{nama}*,
+const DEFAULT_DEPARTURE_TEMPLATES: Record<number, string> = {
+  60: `Assalamu'alaikum *{nama}*,
+
+📅 *Pengingat — Keberangkatan H-60!*
+
+Keberangkatan ibadah Anda ke Tanah Suci tinggal *60 hari lagi* pada *{tanggal_berangkat}*.
+
+📦 Paket: *{paket}*
+📋 Kode Booking: *{kode_booking}*
+
+📋 *Persiapan H-60:*
+• ✅ Pastikan paspor berlaku min. 6 bulan dari tanggal keberangkatan
+• ✅ Cek ketersediaan & progress pengurusan visa
+• ✅ Lunasi sisa pembayaran sesuai jadwal cicilan
+• ✅ Ikuti manasik (akan dijadwalkan tim kami)
+
+Hubungi kami jika ada pertanyaan.
+
+Barakallahu fiikum 🤲
+_Tim Vinstour Travel_`,
+
+  45: `Assalamu'alaikum *{nama}*,
+
+📅 *Pengingat — Keberangkatan H-45!*
+
+Keberangkatan Anda ke Tanah Suci tinggal *45 hari lagi* pada *{tanggal_berangkat}*.
+
+📦 Paket: *{paket}*
+📋 Kode Booking: *{kode_booking}*
+
+📋 *Persiapan H-45:*
+• ✅ Pastikan semua dokumen sudah dikumpulkan ke agen
+• ✅ Suntik meningitis (wajib, berlaku 2 tahun)
+• ✅ Cek status visa Anda di portal jamaah
+• ✅ Pelunasan pembayaran (pastikan tidak ada tunggakan)
+
+Barakallahu fiikum 🤲
+_Tim Vinstour Travel_`,
+
+  30: `Assalamu'alaikum *{nama}*,
+
+⏳ *Pengingat — Keberangkatan H-30!*
+
+Satu bulan lagi Anda akan menunaikan ibadah mulia! Keberangkatan *{tanggal_berangkat}*.
+
+📦 Paket: *{paket}*
+📋 Kode Booking: *{kode_booking}*
+
+📋 *Persiapan H-30:*
+• ✅ Cek status visa sudah approved
+• ✅ Ikuti manasik terakhir
+• ✅ Siapkan pakaian ihram & perlengkapan
+• ✅ Lunasi seluruh pembayaran
+• ✅ Baca buku panduan perjalanan
+
+Barakallahu fiikum 🤲
+_Tim Vinstour Travel_`,
+
+  14: `Assalamu'alaikum *{nama}*,
+
+🕋 *Pengingat — Keberangkatan H-14!*
+
+Dua minggu lagi Anda akan berangkat ke Tanah Suci! *{tanggal_berangkat}*.
+
+📦 Paket: *{paket}*
+📋 Kode Booking: *{kode_booking}*
+
+📋 *Persiapan H-14:*
+• ✅ Mulai packing — cek daftar bawaan
+• ✅ Konfirmasi nomor kursi / kamar ke agen
+• ✅ Simpan nomor darurat muthawif & tim
+• ✅ Unduh & login portal jamaah Vinstour
+• ✅ Istirahat cukup & jaga kesehatan
+
+Barakallahu fiikum 🤲
+_Tim Vinstour Travel_`,
+
+  7: `Assalamu'alaikum *{nama}*,
 
 ✈️ *Pengingat — Keberangkatan H-7!*
 
@@ -246,9 +323,9 @@ Keberangkatan Anda ke Tanah Suci tinggal *7 hari lagi* pada *{tanggal_berangkat}
 Informasi lebih lanjut, hubungi kami.
 
 Barakallahu fiikum 🤲
-_Tim Vinstour Travel_`;
+_Tim Vinstour Travel_`,
 
-const DEFAULT_H1_TEMPLATE = `Assalamu'alaikum *{nama}*,
+  1: `Assalamu'alaikum *{nama}*,
 
 🕋 *Besok Hari Keberangkatan!*
 
@@ -261,18 +338,20 @@ Alhamdulillah, besok Anda akan menjalani perjalanan ibadah yang mulia. Semoga me
 Bawa semua dokumen perjalanan dan pastikan kondisi fisik prima.
 
 Barakallahu fiikum 🤲
-_Tim Vinstour Travel_`;
+_Tim Vinstour Travel_`,
+};
 
-async function runDepartureReminders(days: 7 | 1 = 7): Promise<{ sent: number; failed: number; skipped: number; details: string[] }> {
+async function runDepartureReminders(days: number = 7): Promise<{ sent: number; failed: number; skipped: number; details: string[] }> {
   const result = { sent: 0, failed: 0, skipped: 0, details: [] as string[] };
   const FONNTE_TOKEN = await getFonnteToken();
   if (!FONNTE_TOKEN) { result.details.push("Konfigurasi WhatsApp belum diatur"); return result; }
 
-  const triggerId = days === 7 ? "h7_departure" : "h1_departure";
+  // Canonical trigger IDs: h1_departure, h7_departure, h14_departure, h30_departure, h45_departure, h60_departure
+  const triggerId = `h${days}_departure`;
   const triggers = await getWAOtomatisTriggers();
   if (!triggers[triggerId]) { result.details.push(`Trigger "${triggerId}" tidak aktif — skip`); return result; }
 
-  const defaultTemplate = days === 7 ? DEFAULT_H7_TEMPLATE : DEFAULT_H1_TEMPLATE;
+  const defaultTemplate = DEFAULT_DEPARTURE_TEMPLATES[days] || DEFAULT_DEPARTURE_TEMPLATES[7];
   const template = await getWATemplate(`wa_template_${triggerId}`, defaultTemplate);
 
   const targetDate = new Date();
@@ -398,10 +477,12 @@ router.post("/trigger-doc-deadline", async (req, res) => {
 });
 
 router.post("/trigger-departure", async (req, res) => {
-  const days = Number(req.body?.days) === 1 ? 1 : 7;
+  const validDays = [1, 7, 14, 30, 45, 60];
+  const requested = Number(req.body?.days);
+  const days = validDays.includes(requested) ? requested : 7;
   logger.info({ days }, "Manual departure reminder trigger");
   try {
-    const result = await runDepartureReminders(days as 7 | 1);
+    const result = await runDepartureReminders(days);
     return res.json({ success: true, result, ran_at: new Date().toISOString() });
   } catch (err: any) {
     return res.status(500).json({ success: false, error: err.message });

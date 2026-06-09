@@ -264,6 +264,7 @@ const DashboardAccessManagerPanel = lazy(
   () => import("@/components/admin/DashboardAccessManagerPanel"),
 );
 const AdminHotels = lazy(() => import("@/pages/admin/AdminHotels"));
+const AdminHotelContracts = lazy(() => import("@/pages/admin/AdminHotelContracts"));
 const AdminMuthawifs = lazy(() => import("@/pages/admin/AdminMuthawifs"));
 const AdminBusProviders = lazy(() => import("@/pages/admin/AdminBusProviders"));
 const AdminAnnouncements = lazy(
@@ -1649,6 +1650,14 @@ export default function AdminRoutes() {
         element={
           <P k={PERMISSIONS.HOTELS}>
             <AdminHotels />
+          </P>
+        }
+      />
+      <Route
+        path="hotel-contracts"
+        element={
+          <P k={PERMISSIONS.HOTELS}>
+            <AdminHotelContracts />
           </P>
         }
       />
