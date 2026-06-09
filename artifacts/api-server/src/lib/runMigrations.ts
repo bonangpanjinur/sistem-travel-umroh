@@ -621,6 +621,58 @@ export async function runMigrations(): Promise<void> {
       logger.info("runMigrations: 30_onboarding_checklist — already applied, skipping");
     }
 
+    // ── Step 1z3: position_training_curricula (kurikulum per jabatan) ─────────
+    const posTrainingCurriculaApplied = await isApplied(client, "31_position_training_curricula");
+    if (!posTrainingCurriculaApplied) {
+      await runSqlFile(
+        client,
+        sqlPath("31_position_training_curricula.sql"),
+        "31_position_training_curricula (position_training_curricula table for staff training curriculum)",
+      );
+      await markApplied(client, "31_position_training_curricula");
+    } else {
+      logger.info("runMigrations: 31_position_training_curricula — already applied, skipping");
+    }
+
+    // ── Step 1z4: training_notification_settings + training_notification_log ──
+    const trainingNotifApplied = await isApplied(client, "32_training_notifications");
+    if (!trainingNotifApplied) {
+      await runSqlFile(
+        client,
+        sqlPath("32_training_notifications.sql"),
+        "32_training_notifications (training_notification_settings + training_notification_log)",
+      );
+      await markApplied(client, "32_training_notifications");
+    } else {
+      logger.info("runMigrations: 32_training_notifications — already applied, skipping");
+    }
+
+    // ── Step 1z5: auto commission trigger on booking confirmed ────────────
+    const autoCommissionApplied = await isApplied(client, "33_auto_commission_booking_confirmed");
+    if (!autoCommissionApplied) {
+      await runSqlFile(
+        client,
+        sqlPath("071_auto_commission_booking_confirmed.sql"),
+        "33_auto_commission_booking_confirmed (trigger komisi otomatis saat booking confirmed + commission_rate di branches)",
+      );
+      await markApplied(client, "33_auto_commission_booking_confirmed");
+    } else {
+      logger.info("runMigrations: 33_auto_commission_booking_confirmed — already applied, skipping");
+    }
+
+    // ── Step 1z6: push_subscriptions role/branch_id/agent_id columns ─────
+    const pushSubsRoleApplied = await isApplied(client, "34_push_subscriptions_role_branch_agent");
+    if (!pushSubsRoleApplied) {
+      await runSqlFile(
+        client,
+        sqlPath("072_push_subscriptions_role_branch_agent.sql"),
+        "34_push_subscriptions_role_branch_agent (role + branch_id + agent_id columns untuk targeting push notif)",
+      );
+      await markApplied(client, "34_push_subscriptions_role_branch_agent");
+    } else {
+      logger.info("runMigrations: 34_push_subscriptions_role_branch_agent — already applied, skipping");
+    }
+
     // ── Step 2: payment sync trigger (always re-applied each boot) ────────
     // Wrapped in its own try/catch so a missing table on a broken DB state
     // doesn't crash the server — it just logs and continues.

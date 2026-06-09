@@ -982,14 +982,15 @@ CREATE TABLE IF NOT EXISTS job_applicants (
 
 | Modul | Status | Sprint Berikutnya |
 |-------|--------|-------------------|
-| Manajemen Cabang | ✅ Core selesai | Sprint A: trigger komisi otomatis |
-| Manajemen Agen | ✅ Core selesai | Sprint B: training terstruktur |
+| Manajemen Cabang | ✅ Selesai | — |
+| Manajemen Agen | ✅ Selesai | — |
 | Portal Cabang | ✅ Selesai | Sprint D: push notifikasi |
 | Portal Agen | ✅ Selesai | Sprint C: verifikasi KTP |
-| SDM Core (HR, Payroll, Absensi) | ✅ Core selesai | Sprint SDM-1: bonus + SP + karir |
+| SDM Core (HR, Payroll, Absensi) | ✅ Selesai | — |
 | Training SDM | ✅ Selesai (target_audience + staff progress) | — |
-| ESS (Employee Self-Service) | ✅ Selesai (7 halaman + route) | — |
+| ESS (Employee Self-Service) | ✅ Selesai (8 halaman + route) | — |
 | Rekrutmen / ATS | ✅ Selesai (AdminRecruitment.tsx) | — |
+| Sprint A — Komisi Otomatis | ✅ Selesai (migration 071, wallet UI, transfer rekonsiliasi) | — |
 
 ---
 

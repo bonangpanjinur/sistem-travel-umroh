@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import {
-  FileText, CalendarOff, TrendingUp, User, Clock, CheckCircle2, XCircle, AlertCircle
+  FileText, CalendarOff, TrendingUp, User, Clock, CheckCircle2, XCircle, AlertCircle, GraduationCap, Play
 } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
@@ -46,6 +46,24 @@ export default function ESSDashboard() {
       return data || [];
     },
   });
+
+  const { data: trainingProgress = [] } = useQuery({
+    queryKey: ["ess-training-summary", empId],
+    enabled: !!empId,
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("employee_training_progress")
+        .select("module_id,status")
+        .eq("employee_id", empId);
+      return (data as any[]) || [];
+    },
+  });
+
+  const trainingSummary = {
+    total: trainingProgress.length,
+    completed: trainingProgress.filter((p: any) => p.status === "completed").length,
+    inProgress: trainingProgress.filter((p: any) => p.status === "in_progress").length,
+  };
 
   const { data: recentSlips = [] } = useQuery({
     queryKey: ["ess-slips-recent", empId],
@@ -85,10 +103,11 @@ export default function ESSDashboard() {
     : "-";
 
   const cards = [
-    { label: "Slip Gaji", desc: "Lihat riwayat payroll", icon: FileText, color: "text-emerald-600 bg-emerald-50", href: "/ess/payroll" },
-    { label: "Cuti & Izin", desc: "Ajukan & cek status", icon: CalendarOff, color: "text-blue-600 bg-blue-50", href: "/ess/cuti" },
-    { label: "Riwayat Karir", desc: "Jejak karir Anda", icon: TrendingUp, color: "text-violet-600 bg-violet-50", href: "/ess/karir" },
-    { label: "Profil Saya", desc: "Data diri karyawan", icon: User, color: "text-orange-600 bg-orange-50", href: "/ess/profil" },
+    { label: "Slip Gaji",     desc: "Lihat riwayat payroll",  icon: FileText,      color: "text-emerald-600 bg-emerald-50", href: "/ess/payroll" },
+    { label: "Cuti & Izin",   desc: "Ajukan & cek status",    icon: CalendarOff,   color: "text-blue-600 bg-blue-50",      href: "/ess/cuti" },
+    { label: "Training Saya", desc: "Modul & kurikulum",      icon: GraduationCap, color: "text-indigo-600 bg-indigo-50",  href: "/ess/training" },
+    { label: "Riwayat Karir", desc: "Jejak karir Anda",       icon: TrendingUp,    color: "text-violet-600 bg-violet-50",  href: "/ess/karir" },
+    { label: "Profil Saya",   desc: "Data diri karyawan",     icon: User,          color: "text-orange-600 bg-orange-50",  href: "/ess/profil" },
   ];
 
   return (
@@ -116,7 +135,7 @@ export default function ESSDashboard() {
         </div>
 
         {/* Quick menu */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
           {cards.map(({ label, desc, icon: Icon, color, href }) => (
             <Link key={href} to={href}>
               <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
@@ -187,6 +206,51 @@ export default function ESSDashboard() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Training Progress Widget */}
+        <Card className="border-indigo-100">
+          <CardHeader className="pb-3 flex flex-row items-center justify-between">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <GraduationCap className="w-4 h-4 text-indigo-600" /> Progress Training
+            </CardTitle>
+            <Link to="/ess/training" className="text-xs text-emerald-600 hover:underline">Lihat detail</Link>
+          </CardHeader>
+          <CardContent className="pt-0">
+            {trainingSummary.total === 0 ? (
+              <p className="text-sm text-slate-400 text-center py-4">Belum ada modul training ditugaskan</p>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex items-center gap-4">
+                  <div className="flex-1 bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                    <div
+                      className="h-full bg-indigo-500 rounded-full transition-all"
+                      style={{ width: `${trainingSummary.total > 0 ? Math.round((trainingSummary.completed / trainingSummary.total) * 100) : 0}%` }}
+                    />
+                  </div>
+                  <span className="text-sm font-semibold text-indigo-700 w-10 text-right">
+                    {trainingSummary.total > 0 ? Math.round((trainingSummary.completed / trainingSummary.total) * 100) : 0}%
+                  </span>
+                </div>
+                <div className="flex gap-4 text-xs text-slate-500">
+                  <span className="flex items-center gap-1">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
+                    {trainingSummary.completed} selesai
+                  </span>
+                  {trainingSummary.inProgress > 0 && (
+                    <span className="flex items-center gap-1">
+                      <Play className="w-3.5 h-3.5 text-blue-500" />
+                      {trainingSummary.inProgress} sedang berjalan
+                    </span>
+                  )}
+                  <span className="flex items-center gap-1">
+                    <AlertCircle className="w-3.5 h-3.5 text-slate-400" />
+                    {trainingSummary.total} total modul
+                  </span>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Gaji pokok */}
         {employee?.salary && (

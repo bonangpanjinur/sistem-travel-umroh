@@ -71,12 +71,15 @@ router.get('/vapid-public-key', (_req, res) => {
 
 // ─── POST /api/push/subscribe ─────────────────────────────────────────────────
 router.post('/subscribe', async (req, res) => {
-  const { endpoint, keys, customer_id, muthawif_id, user_id } = req.body as {
+  const { endpoint, keys, customer_id, muthawif_id, user_id, role, branch_id, agent_id } = req.body as {
     endpoint: string;
     keys: { p256dh: string; auth: string };
     customer_id?: string;
     muthawif_id?: string;
     user_id?: string;
+    role?: string;
+    branch_id?: string;
+    agent_id?: string;
   };
 
   if (!endpoint || !keys?.p256dh || !keys?.auth) {
@@ -92,9 +95,12 @@ router.post('/subscribe', async (req, res) => {
         endpoint,
         p256dh:     keys.p256dh,
         authKey:    keys.auth,
-        customerId: customer_id  ?? null,
-        muthawifId: muthawif_id  ?? null,
-        userId:     user_id      ?? null,
+        customerId: customer_id ?? null,
+        muthawifId: muthawif_id ?? null,
+        userId:     user_id     ?? null,
+        role:       role        ?? null,
+        branchId:   branch_id   ?? null,
+        agentId:    agent_id    ?? null,
         userAgent,
       })
       .onConflictDoUpdate({
@@ -102,9 +108,12 @@ router.post('/subscribe', async (req, res) => {
         set: {
           p256dh:     keys.p256dh,
           authKey:    keys.auth,
-          customerId: customer_id  ?? null,
-          muthawifId: muthawif_id  ?? null,
-          userId:     user_id      ?? null,
+          customerId: customer_id ?? null,
+          muthawifId: muthawif_id ?? null,
+          userId:     user_id     ?? null,
+          role:       role        ?? null,
+          branchId:   branch_id   ?? null,
+          agentId:    agent_id    ?? null,
           userAgent,
           updatedAt:  new Date(),
         },
@@ -222,6 +231,111 @@ router.post('/sos', async (req, res) => {
   cleanStale(stale);
 
   res.json({ success: true, sent, failed, total: subscriptions.length, muthawif_found: !!muthawifId });
+});
+
+// ─── POST /api/push/new-booking — kirim notif ke branch manager + agen ──────
+// Body: { booking_id }
+router.post('/new-booking', async (req, res) => {
+  if (!isVapidConfigured()) {
+    res.json({ success: true, sent: 0, skipped: 'VAPID not configured' });
+    return;
+  }
+
+  const { booking_id } = req.body as { booking_id: string };
+  if (!booking_id) {
+    res.status(400).json({ success: false, error: 'booking_id wajib.' });
+    return;
+  }
+
+  // Ambil data booking: branch_id, agent_id, booking_code, customer_name
+  let bookingData: { branch_id: string | null; agent_id: string | null; booking_code: string; customer_name: string } | null = null;
+  try {
+    const { pool: dbPool } = await import('../lib/db.js');
+    const row = await (dbPool as any).query(`
+      SELECT b.branch_id, b.agent_id, b.booking_code,
+             COALESCE(p.full_name, b.contact_name, 'Jamaah') AS customer_name
+      FROM bookings b
+      LEFT JOIN profiles p ON p.user_id = b.customer_id
+      WHERE b.id = $1
+      LIMIT 1
+    `, [booking_id]);
+    bookingData = row.rows[0] ?? null;
+  } catch { /* non-fatal */ }
+
+  if (!bookingData) {
+    res.json({ success: true, sent: 0, message: 'Booking tidak ditemukan.' });
+    return;
+  }
+
+  const { branch_id, agent_id, booking_code, customer_name } = bookingData;
+
+  const title   = '📋 Booking Baru Masuk';
+  const body    = `${customer_name} — ${booking_code}. Segera tinjau di panel admin.`;
+  const url     = `/admin/bookings`;
+  const tag     = `new-booking-${booking_id}`;
+  const payload = JSON.stringify({ title, body, type: 'new_booking', url, tag, timestamp: Date.now() });
+
+  // Kumpulkan user_id yang perlu diberitahu:
+  // 1. Semua branch_manager cabang tersebut
+  // 2. Super admin & owner (role-based)
+  // 3. Agen yang membuat booking ini
+  const userIdSet = new Set<string>();
+
+  try {
+    const { pool: dbPool } = await import('../lib/db.js');
+
+    // Branch managers untuk cabang ini
+    if (branch_id) {
+      const bm = await (dbPool as any).query(
+        `SELECT user_id FROM user_roles WHERE role = 'branch_manager' AND branch_id = $1 AND user_id IS NOT NULL`,
+        [branch_id]
+      );
+      bm.rows.forEach((r: any) => r.user_id && userIdSet.add(r.user_id));
+    }
+
+    // Super admin & owner (semua cabang)
+    const sa = await (dbPool as any).query(
+      `SELECT DISTINCT user_id FROM user_roles WHERE role IN ('super_admin','owner') AND user_id IS NOT NULL`
+    );
+    sa.rows.forEach((r: any) => r.user_id && userIdSet.add(r.user_id));
+
+    // Agen yang buat booking — cari user_id dari agents.id
+    if (agent_id) {
+      const ag = await (dbPool as any).query(
+        `SELECT user_id FROM agents WHERE id = $1 LIMIT 1`,
+        [agent_id]
+      );
+      if (ag.rows[0]?.user_id) userIdSet.add(ag.rows[0].user_id);
+    }
+  } catch { /* non-fatal */ }
+
+  if (!userIdSet.size) {
+    res.json({ success: true, sent: 0, message: 'Tidak ada target subscriber.' });
+    return;
+  }
+
+  // Query push subscriptions untuk user_id tersebut
+  let subscriptions: Array<{ endpoint: string; p256dh: string; auth_key: string }> = [];
+  try {
+    const userIds = Array.from(userIdSet);
+    const subs = await db
+      .select({ endpoint: pushSubscriptions.endpoint, p256dh: pushSubscriptions.p256dh, auth_key: pushSubscriptions.authKey })
+      .from(pushSubscriptions)
+      .where(inArray(pushSubscriptions.userId, userIds))
+      .limit(50);
+    subscriptions = subs;
+  } catch { /* non-fatal */ }
+
+  if (!subscriptions.length) {
+    res.json({ success: true, sent: 0, message: 'Tidak ada subscriber terdaftar untuk target.' });
+    return;
+  }
+
+  setupWebpush();
+  const { sent, failed, stale } = await fanout(subscriptions, payload);
+  cleanStale(stale);
+
+  res.json({ success: true, sent, failed, total: subscriptions.length, targets: userIdSet.size });
 });
 
 // ─── POST /api/push/send — broadcast ke semua subscriber ────────────────────

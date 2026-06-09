@@ -170,6 +170,15 @@ router.patch('/:id/status', async (req, res) => {
     } finally {
       client.release();
     }
+
+    // Fire push notification untuk booking confirmed (best-effort, non-blocking)
+    if (status === 'confirmed' || status === 'pending') {
+      fetch(`http://localhost:${process.env['PORT'] ?? 8080}/api/push/new-booking`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ booking_id: id }),
+      }).catch(() => {});
+    }
   } catch (err: any) {
     logger.error({ err }, 'PATCH /bookings/:id/status error');
     res.status(500).json({ success: false, error: err.message });

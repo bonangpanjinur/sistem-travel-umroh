@@ -9,6 +9,7 @@ import chatbotRouter from './chatbot.js';
 import whatsappRouter from './whatsapp.js';
 import integrationsRouter from './integrations.js';
 import systemRouter from './system.js';
+import trainingNotifRouter from './training-notifications.js';
 
 const v1Router = Router();
 
@@ -22,5 +23,6 @@ v1Router.use('/chatbot', chatbotRouter);
 v1Router.use('/whatsapp', whatsappRouter);
 v1Router.use('/settings/integrations', integrationsRouter);
 v1Router.use('/system', systemRouter);
+v1Router.use('/training', trainingNotifRouter);
 
 export default v1Router;

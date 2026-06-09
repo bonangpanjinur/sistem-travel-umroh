@@ -15,7 +15,7 @@ import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import { 
   Wallet, ArrowUpRight, ArrowDownRight, Send, 
-  Clock, CheckCircle2, XCircle, CreditCard
+  Clock, CheckCircle2, XCircle, CreditCard, ExternalLink, Eye
 } from "lucide-react";
 
 export default function AgentWallet() {
@@ -299,12 +299,13 @@ export default function AgentWallet() {
                     <TableHead>Bank</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Diproses</TableHead>
+                    <TableHead>Bukti Transfer</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {withdrawals?.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                         Belum ada permintaan penarikan
                       </TableCell>
                     </TableRow>
@@ -324,6 +325,22 @@ export default function AgentWallet() {
                             ? format(new Date(wd.processed_at), "dd MMM yyyy")
                             : '-'
                           }
+                        </TableCell>
+                        <TableCell>
+                          {wd.proof_url ? (
+                            <a
+                              href={wd.proof_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-xs text-emerald-700 hover:underline font-medium"
+                            >
+                              <Eye className="h-3.5 w-3.5" />
+                              Lihat Bukti
+                              <ExternalLink className="h-3 w-3" />
+                            </a>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
                         </TableCell>
                       </TableRow>
                     ))
