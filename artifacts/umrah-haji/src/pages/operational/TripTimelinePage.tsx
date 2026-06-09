@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -113,6 +113,29 @@ export default function TripTimelinePage() {
     },
   });
 
+  // ── Fire-and-forget push notification helper ─────────────────────────────
+  const fireTimelineNotify = useCallback((
+    entryTitle: string,
+    activityType: string,
+    location: string | null,
+    notes: string | null,
+    changeType: 'new' | 'update' | 'complete' | 'location',
+  ) => {
+    if (!selectedDepartureId) return;
+    fetch('/api/guide/timeline-notify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        departure_id: selectedDepartureId,
+        entry_title: entryTitle,
+        activity_type: activityType,
+        location: location ?? undefined,
+        notes: notes ?? undefined,
+        change_type: changeType,
+      }),
+    }).catch(() => {});
+  }, [selectedDepartureId]);
+
   const addEntryMutation = useMutation({
     mutationFn: async (data: typeof form) => {
       const payload: any = {
@@ -133,13 +156,23 @@ export default function TripTimelinePage() {
         const { error } = await (supabase as any).from('trip_timeline').insert(payload);
         if (error) throw error;
       }
+      return payload;
     },
-    onSuccess: () => {
+    onSuccess: (payload) => {
       queryClient.invalidateQueries({ queryKey: ['trip-timeline'] });
-      toast.success(editEntry ? 'Aktivitas diperbarui' : 'Aktivitas berhasil ditambahkan');
+      const wasEdit = !!editEntry;
+      toast.success(wasEdit ? 'Aktivitas diperbarui' : 'Aktivitas berhasil ditambahkan');
       setAddDialogOpen(false);
       setEditEntry(null);
       resetForm();
+      // Kirim push notification ke jamaah
+      fireTimelineNotify(
+        payload.title,
+        payload.activity_type,
+        payload.location ?? null,
+        payload.notes ?? null,
+        wasEdit ? 'update' : 'new',
+      );
     },
     onError: (err: any) => toast.error('Gagal menyimpan: ' + err?.message),
   });
@@ -155,8 +188,18 @@ export default function TripTimelinePage() {
         })
         .eq('id', id);
       if (error) throw error;
+      return { id, is_completed };
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['trip-timeline'] }),
+    onSuccess: ({ id, is_completed }) => {
+      queryClient.invalidateQueries({ queryKey: ['trip-timeline'] });
+      // Notify jamaah saat aktivitas selesai
+      if (is_completed) {
+        const entry = entries?.find(e => e.id === id);
+        if (entry) {
+          fireTimelineNotify(entry.title, entry.activity_type, entry.location ?? null, entry.notes ?? null, 'complete');
+        }
+      }
+    },
     onError: () => toast.error('Gagal update status'),
   });
 

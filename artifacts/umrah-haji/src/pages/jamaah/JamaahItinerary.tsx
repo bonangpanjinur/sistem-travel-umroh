@@ -1,13 +1,14 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useJamaahPushSubscription } from "@/hooks/useJamaahPushSubscription";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   ArrowLeft, MapPin, Clock, Calendar, CheckCircle2, Share2,
-  Bus, Users, Navigation, Plane, Hotel, Star, Circle,
+  Bus, Users, Navigation, Plane, Hotel, Star, Circle, Bell, BellOff, Loader2,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { JamaahBottomNav } from "@/components/jamaah/JamaahBottomNav";
@@ -81,9 +82,49 @@ export default function JamaahItinerary() {
     enabled: !!customer?.id,
   });
 
+  const queryClient = useQueryClient();
   const departure = (booking?.departure as any) ?? null;
   const packageData = (departure?.package as any) ?? null;
   const departureId: string | null = departure?.id ?? null;
+
+  // ── Push notification subscription ───────────────────────────────────────
+  const {
+    isSupported: pushSupported,
+    isSubscribed: pushSubscribed,
+    isLoading: pushLoading,
+    permission: pushPermission,
+    subscribe: subscribePush,
+    unsubscribe: unsubscribePush,
+  } = useJamaahPushSubscription({
+    customerId: customer?.id,
+    userId: user?.id,
+    autoSubscribe: true,
+  });
+
+  // ── Realtime subscription — auto-refresh itinerary saat guide update ─────
+  useEffect(() => {
+    if (!departureId) return;
+
+    const channel = (supabase as any)
+      .channel(`trip-timeline-${departureId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "trip_timeline",
+          filter: `departure_id=eq.${departureId}`,
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["trip-timeline-jamaah", departureId] });
+        },
+      )
+      .subscribe();
+
+    return () => {
+      (supabase as any).removeChannel(channel);
+    };
+  }, [departureId, queryClient]);
 
   const { data: timelineEntries } = useQuery({
     queryKey: ["trip-timeline-jamaah", departureId],
@@ -319,16 +360,36 @@ export default function JamaahItinerary() {
               <p className="text-xs opacity-80">{packageData?.name || "Jadwal Perjalanan"}</p>
             </div>
           </div>
-          {itinerary.length > 0 && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-primary-foreground"
-              onClick={shareItinerary}
-            >
-              <Share2 className="h-5 w-5" />
-            </Button>
-          )}
+          <div className="flex items-center gap-1">
+            {/* Tombol notifikasi push */}
+            {pushSupported && pushPermission !== "denied" && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-primary-foreground"
+                onClick={() => pushSubscribed ? unsubscribePush() : subscribePush()}
+                disabled={pushLoading}
+                title={pushSubscribed ? "Nonaktifkan notifikasi" : "Aktifkan notifikasi itinerary"}
+              >
+                {pushLoading
+                  ? <Loader2 className="h-5 w-5 animate-spin" />
+                  : pushSubscribed
+                    ? <Bell className="h-5 w-5" />
+                    : <BellOff className="h-5 w-5 opacity-60" />
+                }
+              </Button>
+            )}
+            {itinerary.length > 0 && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-primary-foreground"
+                onClick={shareItinerary}
+              >
+                <Share2 className="h-5 w-5" />
+              </Button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -342,6 +403,27 @@ export default function JamaahItinerary() {
             <Badge variant="outline" className="text-[10px] text-green-700 border-green-300 ml-auto">
               Real-time
             </Badge>
+          </div>
+        )}
+
+        {/* Prompt aktifkan notifikasi push jika belum subscribe */}
+        {pushSupported && pushPermission === "default" && !pushSubscribed && customer?.id && (
+          <div className="mb-3 flex items-center justify-between gap-3 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <Bell className="h-4 w-4 text-amber-600 flex-shrink-0" />
+              <span className="text-xs text-amber-800 font-medium truncate">
+                Aktifkan notifikasi agar tahu saat guide memperbarui program
+              </span>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="text-amber-700 border-amber-300 hover:bg-amber-100 text-xs flex-shrink-0 h-7 px-2"
+              onClick={() => subscribePush()}
+              disabled={pushLoading}
+            >
+              {pushLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : "Aktifkan"}
+            </Button>
           </div>
         )}
 

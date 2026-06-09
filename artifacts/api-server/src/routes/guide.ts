@@ -522,6 +522,72 @@ router.patch("/program/:itemId", requireAuth, async (req: Request, res: Response
   }
 });
 
+// ── POST /api/guide/timeline-notify ──────────────────────────────────────────
+// Dipanggil oleh TripTimelinePage setelah guide insert/update trip_timeline.
+// Mengirim push notification ke semua jamaah pada departure tersebut.
+// Body: { departure_id, entry_title, activity_type, location?, notes?, change_type }
+// change_type: 'new' | 'update' | 'complete' | 'location'
+router.post("/timeline-notify", requireAuth, async (req: Request, res: Response): Promise<void> => {
+  const {
+    departure_id,
+    entry_title = "Program Perjalanan",
+    activity_type,
+    location,
+    notes,
+    change_type = "new",
+  } = req.body as {
+    departure_id?: string;
+    entry_title?: string;
+    activity_type?: string;
+    location?: string;
+    notes?: string;
+    change_type?: "new" | "update" | "complete" | "location";
+  };
+
+  if (!departure_id) {
+    res.status(400).json({ success: false, error: "departure_id wajib." });
+    return;
+  }
+
+  const typeEmoji: Record<string, string> = {
+    flight: "✈️", hotel: "🏨", transport: "🚌", group: "👥", location: "📍", other: "📋",
+  };
+  const emoji = typeEmoji[activity_type ?? "other"] ?? "📋";
+
+  let title: string;
+  let body: string;
+  let type: string;
+
+  switch (change_type) {
+    case "complete":
+      title = `✅ ${entry_title} — Selesai`;
+      body = notes || (location ? `Selesai di ${location}` : "Aktivitas telah selesai.");
+      type = "program_update";
+      break;
+    case "location":
+      title = `📍 Lokasi Diperbarui: ${entry_title}`;
+      body = location ? `Lokasi: ${location}` : "Lokasi aktivitas diperbarui oleh guide.";
+      type = "warning";
+      break;
+    case "update":
+      title = `${emoji} Perubahan Program: ${entry_title}`;
+      body = notes || (location ? `Lokasi: ${location}` : "Program telah diperbarui oleh guide.");
+      type = "program_update";
+      break;
+    case "new":
+    default:
+      title = `${emoji} Program Baru Ditambahkan`;
+      body = `${entry_title}${location ? ` — ${location}` : ""}`;
+      type = "program_update";
+      break;
+  }
+
+  // Fire-and-forget — tidak blokir response
+  fireJamaahPush(departure_id, title, body, type, "/jamaah/itinerary").catch(() => {});
+
+  res.json({ success: true, message: "Push notification dikirim." });
+});
+
 export default router;
 
 // ═══════════════════════════════════════════════════════════════════════════════
