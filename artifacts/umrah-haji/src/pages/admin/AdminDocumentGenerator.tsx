@@ -114,7 +114,7 @@ const AdminDocumentGenerator = () => {
       if (depIds.length === 0) return [];
       const { data, error } = await supabase
         .from('bookings')
-        .select(`id, booking_code, room_type, total_price, total_pax, base_price, discount_amount, paid_amount, remaining_amount, payment_status, created_at, customer:customers(id, full_name, address, phone, email, nik, birth_place, birth_date, passport_number), departure:departures(departure_date, return_date, departure_time, flight_number, package_id, airline:airlines(name, code), departure_airport:airports!departures_departure_airport_id_fkey(name, city, code), arrival_airport:airports!departures_arrival_airport_id_fkey(name, city, code), hotel_makkah:hotels!departures_hotel_makkah_id_fkey(name), hotel_madinah:hotels!departures_hotel_madinah_id_fkey(name), package:packages(name, price_quad, price_triple, price_double, price_single))`)
+        .select(`id, booking_code, room_type, total_price, total_pax, base_price, discount_amount, paid_amount, remaining_amount, payment_status, created_at, agent_id, customer:customers(id, full_name, address, phone, email, nik, birth_place, birth_date, passport_number), departure:departures(departure_date, return_date, departure_time, flight_number, package_id, airline:airlines(name, code), departure_airport:airports!departures_departure_airport_id_fkey(name, city, code), arrival_airport:airports!departures_arrival_airport_id_fkey(name, city, code), hotel_makkah:hotels!departures_hotel_makkah_id_fkey(name), hotel_madinah:hotels!departures_hotel_madinah_id_fkey(name), package:packages(name, price_quad, price_triple, price_double, price_single))`)
         .in('departure_id', depIds).order('created_at', { ascending: false });
       if (error) throw error; return data;
     },
@@ -313,7 +313,23 @@ const AdminDocumentGenerator = () => {
             }
           } catch { /* tanpa aturan pembatalan jika gagal */ }
         }
-        return await generateInvoice({ ...baseData, cancellationPolicy }, company);
+        // Fetch agent info (F-12) jika booking memiliki agent_id
+        let agentName: string | undefined;
+        let agentCode: string | undefined;
+        if ((booking as any).agent_id) {
+          try {
+            const { data: agentData } = await supabase
+              .from('agents')
+              .select('id, company_name, agent_code')
+              .eq('id', (booking as any).agent_id)
+              .single();
+            if (agentData) {
+              agentName = (agentData as any).company_name || undefined;
+              agentCode = (agentData as any).agent_code || undefined;
+            }
+          } catch { /* abaikan jika gagal */ }
+        }
+        return await generateInvoice({ ...baseData, cancellationPolicy, agentName, agentCode }, company);
       }
     };
   };

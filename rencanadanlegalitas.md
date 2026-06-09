@@ -186,21 +186,31 @@
 
 ## 4. Prioritas Sprint yang Disarankan
 
-### Sprint DOC-1 (2 minggu) — Operasional Mendesak
+### Sprint DOC-1 (2 minggu) — Operasional Mendesak ✅ SELESAI
 ```
-F-04  Kirim dokumen via WhatsApp
-F-05  Portal jamaah: halaman "Dokumen Saya"
-F-08  Bulk verify dokumen
-F-09  Filter verifikasi per cabang & keberangkatan
-F-10  Penomoran surat otomatis
+✅ F-04  Kirim dokumen via WhatsApp (Fonnte integration)
+✅ F-05  Portal jamaah: halaman "Dokumen Saya" (JamaahDocuments)
+✅ F-08  Bulk verify dokumen (checkbox multi-select + bulk action)
+✅ F-09  Filter verifikasi per cabang & keberangkatan
+✅ F-10  Penomoran surat otomatis (get_next_document_number RPC)
 ```
 
-### Sprint DOC-2 (2 minggu) — Branding & Koneksi Cabang
+### Sprint DOC-2 (2 minggu) — Branding & Koneksi Cabang ✅ SELESAI
 ```
-F-02  Branding & letterhead per cabang
-F-03  Upload tanda tangan & stempel per cabang
-F-01  Template desain per tipe dokumen (surat izin, e-ticket, sertifikat)
-F-12  Invoice mencantumkan nama agen
+✅ F-02  Branding & letterhead per cabang
+         → Tabel branches ditambah kolom: logo_url, letterhead_data
+         → UI: BranchBrandingTab.tsx + tab "Branding" di AdminBranchDetail
+✅ F-03  Upload tanda tangan & stempel per cabang
+         → Tabel branches ditambah kolom: signature_url, stamp_url
+         → UI: upload TTD & stempel di BranchBrandingTab (Supabase Storage)
+✅ F-01  Template desain per tipe dokumen
+         → Tabel: document_templates (CRUD penuh)
+         → Halaman: AdminDocumentTemplates.tsx
+         → Route: /admin/document-templates
+✅ F-12  Invoice mencantumkan nama agen
+         → InvoiceDataExtended ditambah agentName & agentCode
+         → AdminDocumentGenerator.tsx fetch agent saat generate invoice
+         → document-generator.ts render blok agen di PDF (warna amber)
 ```
 
 ### Sprint DOC-3 (2 minggu) — Generator Baru & Reminder

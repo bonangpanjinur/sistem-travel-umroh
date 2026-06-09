@@ -62,6 +62,9 @@ const AdminSavings = lazy(() => import("@/pages/admin/AdminSavings"));
 const AdminDocumentVerification = lazy(
   () => import("@/pages/admin/AdminDocumentVerification"),
 );
+const AdminDocumentTemplates = lazy(
+  () => import("@/pages/admin/AdminDocumentTemplates"),
+);
 const AdminDocumentTypes = lazy(
   () => import("@/pages/admin/AdminDocumentTypes"),
 );
@@ -1060,6 +1063,14 @@ export default function AdminRoutes() {
       />
 
       {/* Dokumen & Surat */}
+      <Route
+        path="document-templates"
+        element={
+          <P k="document-templates">
+            <AdminDocumentTemplates />
+          </P>
+        }
+      />
       <Route
         path="document-verification"
         element={

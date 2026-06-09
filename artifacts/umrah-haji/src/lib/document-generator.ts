@@ -184,6 +184,8 @@ export interface InvoiceDataExtended extends InvoiceData {
   paymentStatus?: string;
   cancellationPolicy?: CancellationPolicy;
   lineItems?: any[];
+  agentName?: string;
+  agentCode?: string;
 }
 
 export interface GeneralLetterData {
@@ -527,6 +529,26 @@ export async function generateInvoice(
     }
 
     y += 19;
+    doc.setTextColor(0, 0, 0);
+  }
+
+  // ── Info Agen (jika ada) ──────────────────────────────────────────────
+  if (data.agentName) {
+    doc.setFillColor(255, 251, 235);
+    doc.setDrawColor(253, 230, 138);
+    doc.setLineWidth(0.3);
+    doc.rect(14, y, pageWidth - 28, 10, 'FD');
+    doc.setFontSize(7.5);
+    doc.setFont(font, 'bold');
+    doc.setTextColor(120, 53, 15);
+    doc.text('MELALUI AGEN', 18, y + 6);
+    doc.setFont(font, 'normal');
+    doc.setTextColor(15, 23, 42);
+    const agentText = data.agentCode
+      ? `${data.agentName}  ·  Kode: ${data.agentCode}`
+      : data.agentName;
+    doc.text(agentText, 52, y + 6);
+    y += 16;
     doc.setTextColor(0, 0, 0);
   }
 

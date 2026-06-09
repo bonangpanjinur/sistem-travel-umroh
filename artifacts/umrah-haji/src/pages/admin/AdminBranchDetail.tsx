@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import ResetPasswordDialog from "@/components/admin/ResetPasswordDialog";
+import { BranchBrandingTab } from "@/components/admin/BranchBrandingTab";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
@@ -240,7 +241,7 @@ export default function AdminBranchDetail() {
 
       {/* Tabs */}
       <Tabs defaultValue="info">
-        <TabsList className="grid grid-cols-5 w-full max-w-2xl">
+        <TabsList className="grid grid-cols-6 w-full max-w-3xl">
           <TabsTrigger value="info">
             <Building2 className="h-4 w-4 mr-1 hidden sm:inline" />Info
           </TabsTrigger>
@@ -255,6 +256,9 @@ export default function AdminBranchDetail() {
           </TabsTrigger>
           <TabsTrigger value="keuangan">
             <DollarSign className="h-4 w-4 mr-1 hidden sm:inline" />Keuangan
+          </TabsTrigger>
+          <TabsTrigger value="branding">
+            <Receipt className="h-4 w-4 mr-1 hidden sm:inline" />Branding
           </TabsTrigger>
         </TabsList>
 
@@ -657,6 +661,11 @@ export default function AdminBranchDetail() {
               </>
             );
           })()}
+        </TabsContent>
+
+        {/* === TAB BRANDING === */}
+        <TabsContent value="branding" className="mt-4">
+          <BranchBrandingTab branch={branch} />
         </TabsContent>
       </Tabs>
 
