@@ -161,13 +161,60 @@ _Tim Vinstour Travel_`,
     color: "text-teal-600 bg-teal-50",
     badge: "bg-teal-100 text-teal-700",
   },
+  {
+    id: "doc_deadline_h3",
+    icon: Clock,
+    label: "Deadline Upload Dokumen H-3",
+    desc: "Kirim WA pengingat 3 hari sebelum batas upload dokumen jamaah (otomatis setiap pagi 09:00 WIB)",
+    template: `Assalamu'alaikum *{nama}*,
+
+📄 *Pengingat — Batas Upload Dokumen H-3!*
+
+Batas waktu pengumpulan dokumen perjalanan Anda untuk paket *{paket}* tinggal *3 hari lagi* pada *{deadline}*.
+
+📋 Kode Booking: *{kode_booking}*
+
+Dokumen yang perlu disiapkan:
+• ✅ Paspor (scan halaman data diri)
+• ✅ KTP / KK / Akta Lahir
+• ✅ Foto 4x6 background putih
+• ✅ Suntik meningitis (jika ada)
+• ✅ Buku nikah / surat mahram (jika diperlukan)
+
+Segera upload dokumen melalui portal jamaah atau hubungi agen Anda.
+
+Barakallahu fiikum 🤲
+_Tim Vinstour Travel_`,
+    color: "text-yellow-600 bg-yellow-50",
+    badge: "bg-yellow-100 text-yellow-700",
+  },
+  {
+    id: "doc_deadline_h1",
+    icon: AlertCircle,
+    label: "Deadline Upload Dokumen H-1",
+    desc: "Kirim WA urgensi 1 hari sebelum batas upload dokumen (otomatis setiap malam 06:30 WIB)",
+    template: `Assalamu'alaikum *{nama}*,
+
+⚠️ *SEGERA — Batas Upload Dokumen Besok!*
+
+Batas pengumpulan dokumen perjalanan Anda untuk paket *{paket}* adalah *besok, {deadline}*.
+
+📋 Kode Booking: *{kode_booking}*
+
+Harap segera melengkapi dan mengupload dokumen Anda agar proses perjalanan ibadah tidak terganggu. Hubungi agen Anda jika membutuhkan bantuan.
+
+Barakallahu fiikum 🤲
+_Tim Vinstour Travel_`,
+    color: "text-red-600 bg-red-50",
+    badge: "bg-red-100 text-red-700",
+  },
 ];
 
 type ReminderStatus = {
   fonnte_token_set: boolean;
   configured: boolean;
   triggers: Record<string, boolean>;
-  upcoming: { cicilan: number; departure_h7: number; departure_h1: number };
+  upcoming: { cicilan: number; departure_h7: number; departure_h1: number; doc_deadline_h3: number; doc_deadline_h1: number };
   next_run: string;
   cicilan_settings: { auto_enabled: boolean; reminder_days: number };
 };
@@ -183,6 +230,7 @@ export default function AdminWAOtomatis() {
   const [sendingTest, setSendingTest] = useState<string | null>(null);
   const [testPhone, setTestPhone] = useState("");
   const [triggeringDeparture, setTriggeringDeparture] = useState<null | 7 | 1>(null);
+  const [triggeringDocDeadline, setTriggeringDocDeadline] = useState<null | 3 | 1>(null);
 
   // Load trigger states + templates from DB on mount
   useEffect(() => {
@@ -333,6 +381,32 @@ export default function AdminWAOtomatis() {
       toast.error("Error: " + e.message);
     } finally {
       setTriggeringDeparture(null);
+    }
+  }
+
+  // Manual trigger for doc deadline reminders
+  async function manualTriggerDocDeadline(days: 3 | 1) {
+    setTriggeringDocDeadline(days);
+    try {
+      const res = await fetch(`${API_BASE}/api/reminders/trigger-doc-deadline`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ days }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        const { sent, failed, skipped, details } = data.result;
+        toast.success(`Deadline H-${days}: ${sent} terkirim, ${failed} gagal, ${skipped} dilewati`);
+        if (details?.length) console.log("[DocDeadline H-" + days + "]", details);
+        queryClient.invalidateQueries({ queryKey: ["wa-otomatis-logs"] });
+        refetchStatus();
+      } else {
+        toast.error("Gagal: " + (data.error || "unknown"));
+      }
+    } catch (e: any) {
+      toast.error("Error: " + e.message);
+    } finally {
+      setTriggeringDocDeadline(null);
     }
   }
 
@@ -609,6 +683,68 @@ export default function AdminWAOtomatis() {
                     </Button>
                   </CardContent>
                 </Card>
+
+                {/* Doc Deadline H-3 */}
+                <Card className="border-yellow-200 bg-yellow-50/30">
+                  <CardContent className="p-4 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-5 w-5 text-yellow-600" />
+                      <div>
+                        <p className="font-semibold text-sm">Deadline Dokumen H-3</p>
+                        <p className="text-xs text-muted-foreground">Jamaah dengan deadline upload dokumen 3 hari lagi</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Users className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm">{reminderStatus?.upcoming?.doc_deadline_h3 ?? "—"} keberangkatan eligible</span>
+                    </div>
+                    {!triggerStates["doc_deadline_h3"] && (
+                      <p className="text-xs text-amber-600">⚠️ Trigger Deadline H-3 belum diaktifkan di tab Trigger Otomatis</p>
+                    )}
+                    <Button
+                      className="w-full"
+                      variant="outline"
+                      disabled={!reminderStatus?.fonnte_token_set || triggeringDocDeadline === 3}
+                      onClick={() => manualTriggerDocDeadline(3)}
+                    >
+                      {triggeringDocDeadline === 3
+                        ? <><RefreshCcw className="h-4 w-4 mr-2 animate-spin" />Mengirim...</>
+                        : <><Send className="h-4 w-4 mr-2" />Kirim Deadline H-3 Sekarang</>
+                      }
+                    </Button>
+                  </CardContent>
+                </Card>
+
+                {/* Doc Deadline H-1 */}
+                <Card className="border-red-200 bg-red-50/30">
+                  <CardContent className="p-4 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <AlertCircle className="h-5 w-5 text-red-600" />
+                      <div>
+                        <p className="font-semibold text-sm">Deadline Dokumen H-1</p>
+                        <p className="text-xs text-muted-foreground">Jamaah dengan deadline upload dokumen besok</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Users className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm">{reminderStatus?.upcoming?.doc_deadline_h1 ?? "—"} keberangkatan eligible</span>
+                    </div>
+                    {!triggerStates["doc_deadline_h1"] && (
+                      <p className="text-xs text-amber-600">⚠️ Trigger Deadline H-1 belum diaktifkan di tab Trigger Otomatis</p>
+                    )}
+                    <Button
+                      className="w-full"
+                      variant="destructive"
+                      disabled={!reminderStatus?.fonnte_token_set || triggeringDocDeadline === 1}
+                      onClick={() => manualTriggerDocDeadline(1)}
+                    >
+                      {triggeringDocDeadline === 1
+                        ? <><RefreshCcw className="h-4 w-4 mr-2 animate-spin" />Mengirim...</>
+                        : <><Send className="h-4 w-4 mr-2" />Kirim Deadline H-1 Sekarang</>
+                      }
+                    </Button>
+                  </CardContent>
+                </Card>
               </div>
 
               <Separator />
@@ -618,8 +754,10 @@ export default function AdminWAOtomatis() {
                 <div className="grid grid-cols-1 gap-2">
                   {[
                     { time: "06:00 WIB", label: "H-1 Departure Reminder", color: "text-orange-600" },
+                    { time: "06:30 WIB", label: "Deadline Dokumen H-1", color: "text-red-600" },
                     { time: "07:00 WIB", label: "H-7 Departure Reminder", color: "text-blue-600" },
                     { time: "08:00 WIB", label: "Cicilan + Batas Pembayaran", color: "text-green-600" },
+                    { time: "09:00 WIB", label: "Deadline Dokumen H-3", color: "text-yellow-600" },
                   ].map(({ time, label, color }) => (
                     <div key={time} className="flex items-center gap-3 p-2.5 bg-muted/50 rounded-lg">
                       <Clock className={`h-4 w-4 ${color} flex-shrink-0`} />

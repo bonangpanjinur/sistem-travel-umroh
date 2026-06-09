@@ -49,6 +49,18 @@ export function startCronJobs() {
     triggerReminders("payment");
   }, { timezone: "UTC" });
 
+  // Setiap hari jam 09:00 WIB (02:00 UTC) — doc deadline H-3 reminder
+  cron.schedule("0 2 * * *", () => {
+    logger.info("Cron: running doc deadline H-3 reminder");
+    triggerReminders("doc_deadline_h3");
+  }, { timezone: "UTC" });
+
+  // Setiap hari jam 07:00 WIB (00:00 UTC) — doc deadline H-1 reminder
+  cron.schedule("30 23 * * *", () => {
+    logger.info("Cron: running doc deadline H-1 reminder");
+    triggerReminders("doc_deadline_h1");
+  }, { timezone: "UTC" });
+
   // Setiap hari jam 07:00 WIB (00:00 UTC) — H-7 departure reminder
   cron.schedule("0 0 * * *", () => {
     logger.info("Cron: running H-7 departure reminder");
@@ -108,6 +120,6 @@ export function startCronJobs() {
   }, { timezone: "UTC" });
 
   logger.info(
-    "Cron jobs registered: cicilan+payment @08:00 WIB, H-7 @07:00 WIB, H-1 @06:00 WIB, integration-health @every hour, wa-scheduled @every 5min, agent-tier-refresh @02:00 WIB, training-notif @09:00 WIB",
+    "Cron jobs registered: cicilan+payment @08:00 WIB, doc-deadline-H3 @09:00 WIB, doc-deadline-H1 @06:30 WIB, H-7 @07:00 WIB, H-1 @06:00 WIB, integration-health @every hour, wa-scheduled @every 5min, agent-tier-refresh @02:00 WIB, training-notif @09:00 WIB",
   );
 }
