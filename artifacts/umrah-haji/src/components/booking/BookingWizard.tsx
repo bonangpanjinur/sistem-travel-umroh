@@ -9,7 +9,7 @@ import { StepReviewDynamic } from "./steps/StepReviewDynamic";
 import { StepRoomAllocation } from "./steps/StepRoomAllocation";
 import { PICSelectionStepImproved } from "./PICSelectionStepImproved";
 import { useBookingWizardDynamic, RoomAllocation, PICData } from "@/hooks/useBookingWizardDynamic";
-import { Loader2, ArrowLeft, BedDouble, Users, Building2, Ticket, LogIn } from "lucide-react";
+import { Loader2, ArrowLeft, BedDouble, Users, Building2, Ticket, LogIn, AlertTriangle } from "lucide-react";
 import { Clock, AlertCircle } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,6 +28,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useSeatHold, formatHoldRemaining } from "@/hooks/useSeatHold";
+import { useHotelCapacitySummary } from "@/hooks/useHotelRoomCapacities";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { getAgentRef } from "@/hooks/useAgentRef";
@@ -69,6 +70,26 @@ const STEPS_HAJI: { id: BookingStep; label: string }[] = [
   { id: 'pic', label: 'Sumber Pendaftaran' },
   { id: 'review', label: 'Review & Bayar' },
 ];
+
+const ROOM_LABEL: Record<string, string> = { single: "Single", double: "Double", triple: "Triple", quad: "Quad" };
+
+function HotelWizardWarning({ hotelId, departureId, hotelName }: { hotelId: string; departureId: string; hotelName?: string }) {
+  const { data: summary } = useHotelCapacitySummary(hotelId, departureId);
+  if (!summary || summary.length === 0) return null;
+  const issues = summary.filter((r: any) => r.status === "near_full" || r.status === "exceeded");
+  if (!issues.length) return null;
+  const isExceeded = issues.some((r: any) => r.status === "exceeded");
+  const roomLabels = issues.map((r: any) => ROOM_LABEL[r.room_type] ?? r.room_type).join(", ");
+  return (
+    <Alert className={isExceeded ? "border-red-200 bg-red-50" : "border-amber-200 bg-amber-50"}>
+      <AlertTriangle className={`h-4 w-4 ${isExceeded ? "text-red-600" : "text-amber-600"}`} />
+      <AlertDescription className={`text-sm ${isExceeded ? "text-red-700" : "text-amber-700"}`}>
+        <span className="font-semibold">{hotelName ? `Hotel ${hotelName}` : "Hotel"} — Kapasitas Kamar Terbatas: </span>
+        Tipe {roomLabels} {isExceeded ? "melebihi kapasitas fisik hotel" : "sudah hampir penuh (≥80%)"}. Hubungi admin untuk konfirmasi ketersediaan kamar.
+      </AlertDescription>
+    </Alert>
+  );
+}
 
 export function BookingWizard() {
   const { packageId } = useParams();
@@ -123,7 +144,7 @@ export function BookingWizard() {
   const { data: departureInfo } = useQuery({
     queryKey: ['departure-info', initialDepartureId],
     queryFn: async () => {
-      const { data, error } = await supabase.from('departures').select('id, departure_date, return_date, flight_number, price_quad, price_triple, price_double, price_single, price_adult, price_child, price_infant, currency, available_seats').eq('id', initialDepartureId).single();
+      const { data, error } = await supabase.from('departures').select('id, departure_date, return_date, flight_number, price_quad, price_triple, price_double, price_single, price_adult, price_child, price_infant, currency, available_seats, hotel_makkah_id, hotel_madinah_id, hotel_makkah:hotels!departures_hotel_makkah_id_fkey(id,name), hotel_madinah:hotels!departures_hotel_madinah_id_fkey(id,name)').eq('id', initialDepartureId).single();
       if (error) throw error;
       return data as any;
     },
@@ -478,18 +499,34 @@ export function BookingWizard() {
       <Card>
         <CardContent className="p-6">
           {currentStep === 'rooms' && (
-            <StepRoomAllocation
-              totalPax={initialPax || formData.passengers.length}
-              allocation={formData.roomAllocation}
-              prices={departureInfo ? {
-                quad: departureInfo.price_quad ?? 0,
-                triple: departureInfo.price_triple ?? 0,
-                double: departureInfo.price_double ?? 0,
-                single: departureInfo.price_single ?? 0,
-              } : { quad: 0, triple: 0, double: 0, single: 0 }}
-              onUpdate={updateRoomAllocation}
-              availableSeats={departureInfo?.available_seats ?? undefined}
-            />
+            <div className="space-y-4">
+              {departureInfo?.hotel_makkah_id && (
+                <HotelWizardWarning
+                  hotelId={departureInfo.hotel_makkah_id}
+                  departureId={initialDepartureId}
+                  hotelName={(departureInfo as any)?.hotel_makkah?.name}
+                />
+              )}
+              {departureInfo?.hotel_madinah_id && (
+                <HotelWizardWarning
+                  hotelId={departureInfo.hotel_madinah_id}
+                  departureId={initialDepartureId}
+                  hotelName={(departureInfo as any)?.hotel_madinah?.name}
+                />
+              )}
+              <StepRoomAllocation
+                totalPax={initialPax || formData.passengers.length}
+                allocation={formData.roomAllocation}
+                prices={departureInfo ? {
+                  quad: departureInfo.price_quad ?? 0,
+                  triple: departureInfo.price_triple ?? 0,
+                  double: departureInfo.price_double ?? 0,
+                  single: departureInfo.price_single ?? 0,
+                } : { quad: 0, triple: 0, double: 0, single: 0 }}
+                onUpdate={updateRoomAllocation}
+                availableSeats={departureInfo?.available_seats ?? undefined}
+              />
+            </div>
           )}
           {currentStep === 'passengers' && (
             <StepPassengersDynamic
