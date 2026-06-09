@@ -30,3 +30,9 @@ id = "XGeuRhSuEatXJ7NjglNH4"
 uri = "file://rencanadanlegalitas.md"
 type = "text"
 title = "Rencana & Analisis: Dokumen & Legalitas"
+
+[[outputs]]
+id = "-WIkzwdofM3x8NgLJ2sGO"
+uri = "file://rencanakeuangan.md"
+type = "text"
+title = "Rencana Perbaikan Modul Keuangan"
