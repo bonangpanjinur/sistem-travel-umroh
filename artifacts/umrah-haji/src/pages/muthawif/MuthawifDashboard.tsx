@@ -17,7 +17,7 @@ import {
   Navigation, Heart, Shield, HelpCircle, ChevronDown,
   ChevronRight, UserCheck, XCircle, Clock, BellRing,
   CheckCheck, Siren, X, FileBarChart, Hash,
-  Bell, BellOff, BellDot, UserX, AlertTriangle
+  Bell, BellOff, BellDot, UserX, AlertTriangle, Radio
 } from "lucide-react";
 import { format, parseISO, formatDistanceToNow, subDays } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
@@ -1260,6 +1260,11 @@ export default function MuthawifDashboard() {
                 <Button size="sm" variant="outline" className="h-9 text-xs" asChild>
                   <Link to="/admin/sos-alerts">
                     <BellRing className="h-3.5 w-3.5 mr-1.5" /> Monitor SOS
+                  </Link>
+                </Button>
+                <Button size="sm" className="h-9 text-xs bg-emerald-600 hover:bg-emerald-700 text-white col-span-2 sm:col-span-1" asChild>
+                  <Link to="/muthawif/siaran">
+                    <Radio className="h-3.5 w-3.5 mr-1.5" /> Siaran Live
                   </Link>
                 </Button>
               </div>

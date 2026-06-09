@@ -10,6 +10,7 @@ import whatsappRouter from './whatsapp.js';
 import integrationsRouter from './integrations.js';
 import systemRouter from './system.js';
 import trainingNotifRouter from './training-notifications.js';
+import audioRouter from './audio.js';
 
 const v1Router = Router();
 
@@ -24,5 +25,6 @@ v1Router.use('/whatsapp', whatsappRouter);
 v1Router.use('/settings/integrations', integrationsRouter);
 v1Router.use('/system', systemRouter);
 v1Router.use('/training', trainingNotifRouter);
+v1Router.use('/guide/audio', audioRouter);
 
 export default v1Router;

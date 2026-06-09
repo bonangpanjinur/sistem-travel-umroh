@@ -750,6 +750,7 @@ export async function runMigrations(): Promise<void> {
       await markApplied(client, "22_doc_security_features");
     } else {
       logger.info("runMigrations: 22_doc_security_features — already applied, skipping");
+    }
 
     // ── Step 37: doc deadline reminder log (dedup table) ─────────────────────
     const ddrApplied = await isApplied(client, "37_doc_deadline_reminder_log");
@@ -857,6 +858,23 @@ export async function runMigrations(): Promise<void> {
         { err: triggerErr?.message },
         "runMigrations: payment sync trigger install failed — server continues without trigger",
       );
+    }
+
+    // ── Step N: guide_audio_sessions table ──────────────────────────────────
+    const audioSessionsApplied = await isApplied(client, "074_audio_sessions");
+    if (!audioSessionsApplied) {
+      try {
+        await runSqlFile(
+          client,
+          sqlPath("074_audio_sessions.sql"),
+          "074_audio_sessions (live audio broadcast sessions for guide system)",
+        );
+        await markApplied(client, "074_audio_sessions");
+      } catch (e: any) {
+        logger.warn({ err: e?.message }, "runMigrations: 074_audio_sessions — skipping (non-fatal)");
+      }
+    } else {
+      logger.info("runMigrations: 074_audio_sessions — already applied, skipping");
     }
 
   } catch (err) {

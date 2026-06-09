@@ -9,3 +9,5 @@
 - [Sprint DOC-1 pattern](sprint-doc1-pattern.md) — JamaahDocuments download: useCompanyInfo + bookings query + generateETicket/Invoice/UmrahCertificate; sertifikat hanya muncul setelah tripEnded (returnDate ≤ today).
 - [Sprint DOC-4 agent portal docs](sprint-doc4.md) — SuratLunasData uses totalAmount (NOT totalPrice), departureDate is string|undefined (NOT Date). xlsx missing from api-server → install via pnpm add xlsx.
 - [DOC-5 security features](doc5-security.md) — gen_random_bytes() tidak ada di Neon; gunakan replace(gen_random_uuid()::text||gen_random_uuid()::text,'-','') untuk token. Migration key: "22_doc_security_features".
+- [runMigrations brace bug](runmigrations-brace-bug.md) — Step 22 else block di runMigrations.ts pernah tidak tertutup (missing `}`), menyebabkan semua step 37+ nested di dalamnya. Sudah diperbaiki. Hati-hati saat menambah step baru di area ini.
+- [Live audio WS relay](live-audio-ws.md) — WebSocket audio relay di audioRelay.ts; index.ts harus `createServer(app)` bukan `app.listen()`; Vite proxy `/ws` dengan `ws: true`; routes `/jamaah/siaran`, `/muthawif/siaran`, `/tour-leader/siaran`.

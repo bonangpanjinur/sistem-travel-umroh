@@ -30,7 +30,7 @@ import {
   Heart, Sparkles, Luggage, FileSignature, BookMarked,
   MessageSquare, Image, Gift, Scale, Scroll, GraduationCap, BellRing,
   ShoppingBag, Receipt, CheckCircle, MapPin, Zap, Trophy,
-  Moon, Sun
+  Moon, Sun, Radio
 } from "lucide-react";
 import { format, differenceInDays, differenceInSeconds } from "date-fns";
 import { id } from "date-fns/locale";
@@ -944,6 +944,7 @@ export default function JamaahPortal() {
             </div>
             <div className="grid grid-cols-4 gap-2.5">
               {[
+                { to: "/jamaah/siaran", icon: Radio, label: "Siaran Live", color: "bg-emerald-600", bg: "bg-emerald-50 dark:bg-emerald-950/30 hover:bg-emerald-100" },
                 { to: "/jamaah/chat", icon: MessageSquare, label: "Chat", color: "bg-blue-500", bg: "bg-blue-50 dark:bg-blue-950/30 hover:bg-blue-100" },
                 { to: "/jamaah/rombongan", icon: Users, label: "Rombongan", color: "bg-indigo-500", bg: "bg-indigo-50 dark:bg-indigo-950/30 hover:bg-indigo-100" },
                 { to: "/jamaah/galeri", icon: Image, label: "Galeri", color: "bg-pink-500", bg: "bg-pink-50 dark:bg-pink-950/30 hover:bg-pink-100" },

@@ -103,6 +103,9 @@ const JamaahPantauKeluarga = lazy(() => import("@/pages/jamaah/JamaahPantauKelua
 
 // Wishlist Paket
 const JamaahWishlist = lazy(() => import("@/pages/jamaah/JamaahWishlist"));
+
+// Live Audio — Siaran Muthawif & Tour Leader
+const LiveAudioPage = lazy(() => import("@/pages/audio/LiveAudioPage"));
 const JamaahSignaturePage = lazy(() => import("@/pages/jamaah/JamaahSignaturePage"));
 
 // Toko Online / E-Commerce
@@ -255,6 +258,23 @@ export default function CustomerRoutes() {
 
       {/* Wishlist Paket */}
       <Route path="/jamaah/wishlist" element={<CustomerRoute><JamaahWishlist /></CustomerRoute>} />
+
+      {/* Live Audio — Siaran suara muthawif / tour leader */}
+      <Route path="/jamaah/siaran" element={
+        <ProtectedRoute allowedRoles={['customer', 'jamaah', 'super_admin']}>
+          <LazyPage><LiveAudioPage mode="listener" /></LazyPage>
+        </ProtectedRoute>
+      } />
+      <Route path="/muthawif/siaran" element={
+        <ProtectedRoute allowedRoles={['super_admin', 'owner', 'operational', 'branch_manager']}>
+          <LazyPage><LiveAudioPage mode="speaker" /></LazyPage>
+        </ProtectedRoute>
+      } />
+      <Route path="/tour-leader/siaran" element={
+        <ProtectedRoute allowedRoles={['super_admin', 'owner', 'operational', 'branch_manager']}>
+          <LazyPage><LiveAudioPage mode="controller" /></LazyPage>
+        </ProtectedRoute>
+      } />
 
       {/* Booking — guest mode: wizard publik, login diminta saat konfirmasi pembayaran */}
       <Route path="/booking/:packageId" element={<LazyPage><BookingPage /></LazyPage>} />
