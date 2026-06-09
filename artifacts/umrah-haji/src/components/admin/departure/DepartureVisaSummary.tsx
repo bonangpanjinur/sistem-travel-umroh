@@ -3,12 +3,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ShieldCheck, ShieldAlert, Clock, XCircle, AlertCircle } from "lucide-react";
+import { ShieldCheck, ShieldAlert, Clock, XCircle, AlertCircle, CalendarClock } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { differenceInCalendarDays, format } from "date-fns";
+import { id as idLocale } from "date-fns/locale";
 
 interface Props {
   departureId: string;
   customerIds: string[];
+  visaDeadline?: string | null;
 }
 
 const STATUS_CFG = {
@@ -57,9 +60,45 @@ export function DepartureVisaSummary({ departureId, customerIds }: Props) {
   const allIssued = counts.issued >= totalJamaah && totalJamaah > 0;
   const pct = totalJamaah > 0 ? Math.round((counts.issued / totalJamaah) * 100) : 0;
 
+  const deadlineDays = visaDeadline
+    ? differenceInCalendarDays(new Date(visaDeadline), new Date())
+    : null;
+  const deadlineUrgent  = deadlineDays !== null && deadlineDays <= 7  && deadlineDays >= 0;
+  const deadlineWarning = deadlineDays !== null && deadlineDays <= 14 && deadlineDays > 7;
+  const deadlinePassed  = deadlineDays !== null && deadlineDays < 0;
+
   if (isLoading) return <Skeleton className="h-32 w-full rounded-xl" />;
 
   return (
+    <div className="space-y-2">
+      {/* D5: Deadline visa banner */}
+      {visaDeadline && deadlineDays !== null && (
+        <div className={cn(
+          "flex items-center gap-2 rounded-lg border px-3 py-2 text-sm",
+          deadlinePassed  ? "bg-red-50 border-red-300 text-red-700 dark:bg-red-950/20 dark:text-red-300" :
+          deadlineUrgent  ? "bg-orange-50 border-orange-300 text-orange-700 dark:bg-orange-950/20 dark:text-orange-300" :
+          deadlineWarning ? "bg-amber-50 border-amber-300 text-amber-700 dark:bg-amber-950/20 dark:text-amber-300" :
+                            "bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-950/20 dark:text-blue-300"
+        )}>
+          <CalendarClock className="h-4 w-4 shrink-0" />
+          <div className="flex-1">
+            <span className="font-semibold">Deadline Visa: </span>
+            <span>{format(new Date(visaDeadline), "d MMMM yyyy", { locale: idLocale })}</span>
+          </div>
+          <span className={cn(
+            "text-xs font-bold px-2 py-0.5 rounded-full",
+            deadlinePassed  ? "bg-red-100 text-red-800"    :
+            deadlineUrgent  ? "bg-orange-100 text-orange-800" :
+            deadlineWarning ? "bg-amber-100 text-amber-800" :
+                              "bg-blue-100 text-blue-800"
+          )}>
+            {deadlinePassed  ? `Terlewat ${Math.abs(deadlineDays)} hari` :
+             deadlineDays === 0 ? "Hari ini!" :
+             `${deadlineDays} hari lagi`}
+          </span>
+        </div>
+      )}
+
     <Card className={cn("border-2", allIssued ? "border-green-400" : counts.rejected > 0 ? "border-red-300" : "border-border")}>
       <CardHeader className="pb-2">
         <CardTitle className="text-sm flex items-center gap-2">
@@ -128,5 +167,6 @@ export function DepartureVisaSummary({ departureId, customerIds }: Props) {
         )}
       </CardContent>
     </Card>
+    </div>
   );
 }

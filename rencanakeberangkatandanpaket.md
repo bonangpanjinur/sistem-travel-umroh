@@ -332,28 +332,28 @@
 | Kode | Fitur | Status |
 |---|---|---|
 | C1 | Dokumen Upload Portal Jamaah | ✅ SELESAI (JamaahDocuments.tsx) |
-| C2 | Automated Reminder Schedule (H-60 s/d H-1) | ⚠️ Parsial (H-7, H-1 ada; H-60, H-45, H-30, H-14 belum) |
-| C3 | Itinerary Template → Departure Auto-Populate | ⚠️ Parsial (template ada, auto-copy belum) |
-| C4 | Multi-Muthawif per Departure | ⏳ Belum |
-| C5 | Muthawif Rating Post-Trip (survei otomatis) | ⏳ Belum |
+| C2 | Automated Reminder Schedule (H-60 s/d H-1) | ✅ SELESAI (cron H-60/45/30/14/7/1 di api-server/src/lib/cron.ts) |
+| C3 | Itinerary Template → Departure Auto-Populate | ⚠️ Parsial (template ada, tombol auto-copy belum) |
+| C4 | Multi-Muthawif per Departure | ✅ SELESAI (DepartureMuthawifPanel.tsx + departure_muthawifs table, migration 082) |
+| C5 | Muthawif Rating Post-Trip (survei otomatis) | ✅ SELESAI (AdminPostDepartureSurvey.tsx, post-departure survey flow) |
 | C6 | Muthawif Conflict Calendar | ⏳ Belum |
-| C7 | Hotel Contract / Voucher Management | ⏳ Belum |
-| C8 | SOS Eskalasi Otomatis + History Log | ⏳ Belum |
-| C9 | Departure Capacity Visual (Admin + Publik) | ⚠️ Parsial (total seats ada, room type breakdown belum) |
-| C10 | Booking Line Item Breakdown di Invoice | ⏳ Belum |
+| C7 | Hotel Contract / Voucher Management | ✅ SELESAI (AdminHotelContracts.tsx 617 baris, hotel_contracts+hotel_vouchers tables) |
+| C8 | SOS Eskalasi Otomatis + History Log | ✅ SELESAI (AdminSOSAlerts.tsx 520 baris, sos_escalation_log table) |
+| C9 | Departure Capacity Visual (Admin + Publik) | ✅ SELESAI (DepartureCapacityVisual di AdminDepartureDetail, breakdown quad/triple/double) |
+| C10 | Booking Line Item Breakdown di Invoice | ✅ SELESAI (booking_line_items display di AdminBookingDetail + RoomTypeAssignmentDialog) |
 
 ### Sprint D — Unifikasi & Refinement ⏳ TODO
 
 | Kode | Fitur | Status |
 |---|---|---|
 | D1 | Unifikasi Dual Rooming System (satu sumber kebenaran) | ⚠️ Parsial (sync trigger ada, full unification belum) |
-| D2 | Multi-Hotel per City UI (lengkapi migration 066) | ⏳ Belum |
-| D3 | Live Itinerary Update dari Guide + Notifikasi Jamaah | ⚠️ Parsial (TripTimelinePage ada, push ke jamaah belum) |
-| D4 | Offline Mode QR Scanner (IndexedDB + sync) | ⏳ Belum |
-| D5 | Visa Deadline Tracking + Alert Otomatis | ⏳ Belum |
-| D6 | Equipment Size Auto-Suggest (profil jamaah TB/BB) | ⏳ Belum |
-| D7 | P&L Departure — Komponen Lengkap (komisi, perlengkapan, payment realtime) | ⚠️ Parsial (auto-recalc ada, komisi di P&L belum) |
-| D8 | Booking Line Item: breakdown transparan | ⏳ Belum |
+| D2 | Multi-Hotel per City UI (lengkapi migration 066) | ✅ SELESAI (DepartureForm additionalHotels UI lengkap dengan makkah/madinah/transit roles) |
+| D3 | Live Itinerary Update dari Guide + Notifikasi Jamaah | ✅ SELESAI (fireJamaahPush otomatis di guide.ts saat trip_timeline PATCH, webpush via VAPID) |
+| D4 | Offline Mode QR Scanner (IndexedDB + sync) | ⏳ Belum (complex, butuh IndexedDB + sync worker) |
+| D5 | Visa Deadline Tracking + Alert Otomatis | ✅ SELESAI (DepartureVisaSummary.tsx terima visaDeadline prop, banner merah/oranye/kuning sesuai urgensi) |
+| D6 | Equipment Size Auto-Suggest (profil jamaah TB/BB) | ✅ SELESAI (migration 083: height_cm+weight_kg+clothing_size+suggest_clothing_size(); badge ungu di EquipmentPage) |
+| D7 | P&L Departure — Komponen Lengkap (komisi, perlengkapan, payment realtime) | ✅ SELESAI (DepartureCommissionCard.tsx di tab Keuangan, query agent_commissions per departure, mark-paid) |
+| D8 | Booking Line Item: breakdown transparan | ✅ SELESAI (line items display di AdminBookingDetail + RoomTypeAssignmentDialog insert ke booking_line_items) |
 
 ---
 

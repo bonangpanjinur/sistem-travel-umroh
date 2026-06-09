@@ -100,6 +100,7 @@ import { DepartureOtherRevenuesCard } from "@/components/admin/financial/Departu
 import { useMarginAlert } from "@/hooks/useMarginAlert";
 import { DeparturePreChecklist } from "@/components/admin/departure/DeparturePreChecklist";
 import { DepartureVisaSummary } from "@/components/admin/departure/DepartureVisaSummary";
+import { DepartureCommissionCard } from "@/components/admin/financial/DepartureCommissionCard";
 import { BulkChecklistApplyDialog } from "@/components/admin/departure/BulkChecklistApplyDialog";
 import { DepartureMuthawifPanel } from "@/components/admin/departure/DepartureMuthawifPanel";
 import { DepartureCapacityVisual } from "@/components/admin/departure/DepartureCapacityVisual";
@@ -1473,9 +1474,13 @@ export default function AdminDepartureDetail() {
           {/* Readiness Dashboard */}
           <DepartureReadinessDashboard departureId={id || ""} />
 
-          {/* K1 — Visa Status Summary */}
+          {/* K1 — Visa Status Summary + D5 Deadline Tracking */}
           {customerIds.length > 0 && (
-            <DepartureVisaSummary departureId={id || ""} customerIds={customerIds} />
+            <DepartureVisaSummary
+              departureId={id || ""}
+              customerIds={customerIds}
+              visaDeadline={(departure as any)?.visa_deadline}
+            />
           )}
 
           {/* K7 — Sertifikat massal (hanya saat status = departed) */}
@@ -2202,6 +2207,8 @@ export default function AdminDepartureDetail() {
           />
           <DepartureExpensesCard departureId={id || ""} />
           <DepartureOtherRevenuesCard departureId={id || ""} />
+          {/* D7 — Komisi Agen */}
+          <DepartureCommissionCard departureId={id || ""} />
         </TabsContent>
 
         <TabsContent value="daftar-tunggu" className="space-y-4">

@@ -239,17 +239,10 @@ export default function AdminOnboarding() {
       if (!taskEmployeeId || !taskForm.title) throw new Error("Judul task wajib diisi");
       const payload = { ...taskForm, employee_id: taskEmployeeId };
       if (editingTaskId) {
-
-        const { error } = await (supabase as any).from("employee_onboarding_tasks").update(payload).eq("id", editingTaskId);
-        if (error) throw error;
-      } else {
-        const { error } = await (supabase as any).from("employee_onboarding_tasks").insert(payload);
-
         const { error } = await supabaseAny.from("employee_onboarding_tasks").update(payload).eq("id", editingTaskId);
         if (error) throw error;
       } else {
         const { error } = await supabaseAny.from("employee_onboarding_tasks").insert(payload);
-
         if (error) throw error;
       }
     },
@@ -263,11 +256,7 @@ export default function AdminOnboarding() {
 
   const deleteTaskMutation = useMutation({
     mutationFn: async (id: string) => {
-
-      const { error } = await (supabase as any).from("employee_onboarding_tasks").delete().eq("id", id);
-
       const { error } = await supabaseAny.from("employee_onboarding_tasks").delete().eq("id", id);
-
       if (error) throw error;
     },
     onSuccess: () => {
@@ -281,17 +270,10 @@ export default function AdminOnboarding() {
     mutationFn: async () => {
       if (!templateForm.name) throw new Error("Nama template wajib diisi");
       if (editingTemplateId) {
-
-        const { error } = await (supabase as any).from("onboarding_templates").update(templateForm).eq("id", editingTemplateId);
-        if (error) throw error;
-      } else {
-        const { error } = await (supabase as any).from("onboarding_templates").insert(templateForm);
-
         const { error } = await supabaseAny.from("onboarding_templates").update(templateForm).eq("id", editingTemplateId);
         if (error) throw error;
       } else {
         const { error } = await supabaseAny.from("onboarding_templates").insert(templateForm);
-
         if (error) throw error;
       }
     },
@@ -305,11 +287,7 @@ export default function AdminOnboarding() {
 
   const deleteTemplateMutation = useMutation({
     mutationFn: async (id: string) => {
-
-      const { error } = await (supabase as any).from("onboarding_templates").delete().eq("id", id);
-
       const { error } = await supabaseAny.from("onboarding_templates").delete().eq("id", id);
-
       if (error) throw error;
     },
     onSuccess: () => {
@@ -324,17 +302,10 @@ export default function AdminOnboarding() {
       if (!activeTemplateId || !itemForm.title) throw new Error("Judul item wajib diisi");
       const payload = { ...itemForm, template_id: activeTemplateId };
       if (editingItemId) {
-
-        const { error } = await (supabase as any).from("onboarding_template_items").update(payload).eq("id", editingItemId);
-        if (error) throw error;
-      } else {
-        const { error } = await (supabase as any).from("onboarding_template_items").insert(payload);
-
         const { error } = await supabaseAny.from("onboarding_template_items").update(payload).eq("id", editingItemId);
         if (error) throw error;
       } else {
         const { error } = await supabaseAny.from("onboarding_template_items").insert(payload);
-
         if (error) throw error;
       }
     },
@@ -348,11 +319,7 @@ export default function AdminOnboarding() {
 
   const deleteItemMutation = useMutation({
     mutationFn: async (id: string) => {
-
-      const { error } = await (supabase as any).from("onboarding_template_items").delete().eq("id", id);
-
       const { error } = await supabaseAny.from("onboarding_template_items").delete().eq("id", id);
-
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["onboarding-templates"] }),

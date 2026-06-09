@@ -1024,6 +1024,23 @@ export async function runMigrations(): Promise<void> {
       logger.info("runMigrations: 082_sprint_c — already applied, skipping");
     }
 
+    // ── Step 083: Sprint D — D6: height_cm + weight_kg + clothing_size pada customers ──
+    const sprintD083Applied = await isApplied(client, "083_sprint_d_height_clothing_size");
+    if (!sprintD083Applied) {
+      try {
+        await runSqlFile(
+          client,
+          sqlPath("083_sprint_d_height_clothing_size.sql"),
+          "083_sprint_d_height_clothing_size (D6: TB/BB + auto-suggest ukuran pakaian)",
+        );
+        await markApplied(client, "083_sprint_d_height_clothing_size");
+      } catch (e: any) {
+        logger.warn({ err: e?.message }, "runMigrations: 083_sprint_d — skipping (non-fatal)");
+      }
+    } else {
+      logger.info("runMigrations: 083_sprint_d — already applied, skipping");
+    }
+
   } catch (err) {
     logger.error({ err }, "runMigrations: unexpected error — server continues");
   } finally {

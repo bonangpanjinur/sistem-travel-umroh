@@ -62,7 +62,7 @@ export interface Distribution {
 interface Passenger {
   id: string;
   customer_id: string;
-  customer: { id: string; full_name: string; gender?: string | null };
+  customer: { id: string; full_name: string; gender?: string | null; height_cm?: number | null; clothing_size?: string | null };
   booking: { departure_id: string };
   is_main_passenger: boolean;
   passenger_type: string;
@@ -175,7 +175,7 @@ export default function EquipmentPage() {
         .from("booking_passengers")
         .select(`
           id, customer_id,
-          customer:customers(id, full_name, gender),
+          customer:customers(id, full_name, gender, height_cm, clothing_size),
           booking:bookings!inner(departure_id),
           is_main_passenger, passenger_type
         `)
@@ -610,8 +610,17 @@ export default function EquipmentPage() {
                                         >
                                           {p.customer.full_name}
                                         </Link>
-                                        <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                                        <p className="text-[10px] text-muted-foreground uppercase tracking-wider flex items-center gap-1.5 flex-wrap">
                                           {p.passenger_type} • {p.customer?.gender === 'male' || p.customer?.gender === 'Laki-laki' ? 'Laki-laki' : 'Perempuan'}
+                                          {(p.customer?.clothing_size || p.customer?.height_cm) && (
+                                            <span className="inline-flex items-center gap-0.5 rounded bg-violet-100 text-violet-700 px-1 py-0 text-[9px] font-semibold normal-case tracking-normal">
+                                              {p.customer.clothing_size
+                                                ? `Ukuran ${p.customer.clothing_size}`
+                                                : p.customer.height_cm
+                                                  ? `TB ${p.customer.height_cm}cm`
+                                                  : ""}
+                                            </span>
+                                          )}
                                         </p>
                                       </div>
                                     </div>
