@@ -6,14 +6,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Plus, Search, Edit, Trash2, DollarSign, TrendingDown, AlertCircle, CheckCircle2 } from "lucide-react";
-import { format } from "date-fns";
+import { Plus, Search, Edit, Trash2, DollarSign, TrendingDown, AlertCircle, CheckCircle2, CalendarDays } from "lucide-react";
+import { format, differenceInDays } from "date-fns";
 import { id as localeId } from "date-fns/locale";
+import { useSearchParams } from "react-router-dom";
 import { Database } from "@/integrations/supabase/types";
 
 type VendorCost = Database["public"]["Tables"]["vendor_costs"]["Row"];
@@ -33,11 +35,18 @@ const COST_TYPES = [
 
 export default function AdminFinanceAP() {
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "daftar");
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [vendorFilter, setVendorFilter] = useState<string>("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingAP, setEditingAP] = useState<VendorCost | null>(null);
+
+  const handleTabChange = (v: string) => {
+    setActiveTab(v);
+    setSearchParams({ tab: v });
+  };
 
   const [formData, setFormData] = useState({
     vendor_id: "",
@@ -209,6 +218,19 @@ export default function AdminFinanceAP() {
           Tambah Hutang
         </Button>
       </div>
+
+      <Tabs value={activeTab} onValueChange={handleTabChange}>
+        <TabsList>
+          <TabsTrigger value="daftar">Daftar AP</TabsTrigger>
+          <TabsTrigger value="kalender"><CalendarDays className="h-4 w-4 mr-1" />Kalender Jatuh Tempo</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="kalender" className="mt-4">
+          <APKalenderTab costs={apData} formatCurrency={formatCurrency} />
+        </TabsContent>
+
+        <TabsContent value="daftar" className="mt-4">
+          <div className="space-y-6">
 
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-4">
@@ -459,6 +481,114 @@ export default function AdminFinanceAP() {
         <CardContent className="p-4 text-sm text-muted-foreground">
           <p className="font-medium mb-2">ℹ️ Informasi Hutang Vendor</p>
           <p>Halaman ini menampilkan semua hutang ke vendor seperti hotel, maskapai, visa provider, dan lainnya. Anda dapat menambah, mengedit, dan menandai hutang sebagai lunas.</p>
+        </CardContent>
+      </Card>
+          </div>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+// ============ K-08: AP KALENDER TAB ============
+function APKalenderTab({
+  costs,
+  formatCurrency,
+}: {
+  costs: any[];
+  formatCurrency: (n: number) => string;
+}) {
+  const today = new Date();
+  const upcoming = costs.filter((c: any) => c.status !== "paid" && c.due_date);
+  const overdue = upcoming.filter((c: any) => differenceInDays(today, new Date(c.due_date)) > 0);
+  const dueThisWeek = upcoming.filter((c: any) => {
+    const diff = differenceInDays(new Date(c.due_date), today);
+    return diff >= 0 && diff <= 7;
+  });
+  const dueThisMonth = upcoming.filter((c: any) => {
+    const diff = differenceInDays(new Date(c.due_date), today);
+    return diff > 7 && diff <= 30;
+  });
+
+  const groupedByDate = upcoming.reduce((acc: Record<string, any[]>, c: any) => {
+    if (!c.due_date) return acc;
+    acc[c.due_date] = acc[c.due_date] || [];
+    acc[c.due_date].push(c);
+    return acc;
+  }, {});
+  const sortedDates = Object.keys(groupedByDate).sort();
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground font-medium">Jatuh Tempo Terlewat</p>
+            <p className="text-2xl font-bold text-red-700">{overdue.length}</p>
+            <p className="text-sm text-red-600">{formatCurrency(overdue.reduce((s: number, c: any) => s + (c.amount - (c.paid_amount||0)), 0))}</p>
+          </CardContent>
+        </Card>
+        <Card className="border-orange-200 bg-orange-50">
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground font-medium">Jatuh Tempo 7 Hari</p>
+            <p className="text-2xl font-bold text-orange-700">{dueThisWeek.length}</p>
+            <p className="text-sm text-orange-600">{formatCurrency(dueThisWeek.reduce((s: number, c: any) => s + (c.amount - (c.paid_amount||0)), 0))}</p>
+          </CardContent>
+        </Card>
+        <Card className="border-yellow-200 bg-yellow-50">
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground font-medium">Jatuh Tempo 30 Hari</p>
+            <p className="text-2xl font-bold text-yellow-700">{dueThisMonth.length}</p>
+            <p className="text-sm text-yellow-600">{formatCurrency(dueThisMonth.reduce((s: number, c: any) => s + (c.amount - (c.paid_amount||0)), 0))}</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Timeline Jatuh Tempo AP</CardTitle>
+          <CardDescription>Diurutkan berdasarkan tanggal jatuh tempo</CardDescription>
+        </CardHeader>
+        <CardContent className="p-0">
+          {sortedDates.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-8">Tidak ada hutang yang belum lunas</p>
+          ) : (
+            <div className="divide-y">
+              {sortedDates.map(date => {
+                const dayItems = groupedByDate[date];
+                const diffDays = differenceInDays(new Date(date), today);
+                const isOverdue = diffDays < 0;
+                const isToday = diffDays === 0;
+                const isSoon = diffDays >= 0 && diffDays <= 7;
+                return (
+                  <div key={date} className={`p-4 ${isOverdue ? "bg-red-50/50" : isToday ? "bg-orange-50/50" : isSoon ? "bg-yellow-50/30" : ""}`}>
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className={`w-2 h-2 rounded-full flex-shrink-0 ${isOverdue ? "bg-red-500" : isToday ? "bg-orange-500" : isSoon ? "bg-yellow-500" : "bg-blue-400"}`} />
+                      <p className="font-semibold text-sm">
+                        {format(new Date(date), "EEEE, d MMMM yyyy", { locale: localeId })}
+                        {isOverdue && <span className="ml-2 text-xs text-red-600 font-normal">({Math.abs(diffDays)} hari terlewat)</span>}
+                        {isToday && <span className="ml-2 text-xs text-orange-600 font-normal">(Hari ini)</span>}
+                        {!isOverdue && !isToday && <span className="ml-2 text-xs text-muted-foreground font-normal">({diffDays} hari lagi)</span>}
+                      </p>
+                    </div>
+                    <div className="ml-5 space-y-1">
+                      {dayItems.map((item: any, i: number) => (
+                        <div key={i} className="flex justify-between items-center text-sm py-1 px-3 bg-white rounded border border-gray-100">
+                          <div>
+                            <span className="font-medium">{item.vendor?.name || "–"}</span>
+                            <span className="text-muted-foreground ml-2">{item.description}</span>
+                          </div>
+                          <div className="text-right">
+                            <span className={`font-medium ${isOverdue ? "text-red-600" : "text-gray-700"}`}>{formatCurrency(item.amount - (item.paid_amount||0))}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

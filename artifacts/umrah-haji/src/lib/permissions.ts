@@ -133,6 +133,14 @@ export const PERMISSIONS = {
 
   // Akuntansi
   JURNAL_UMUM: 'jurnal-umum',
+  BUKU_BESAR: 'buku-besar',
+  NERACA_SALDO: 'neraca-saldo',
+  LABA_RUGI: 'laba-rugi',
+  NERACA: 'neraca',
+  ARUS_KAS: 'arus-kas',
+  BUDGET: 'budget',
+  REKONSILIASI: 'rekonsiliasi',
+  LAPORAN_PAJAK: 'laporan-pajak',
 
   // Ringkasan AI Otomatis
   AI_SUMMARY: 'ai-summary',

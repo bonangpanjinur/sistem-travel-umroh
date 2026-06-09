@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import { Search, DollarSign, TrendingUp, AlertCircle, Bell, Download, FileSpreadsheet, FileText } from "lucide-react";
-import { format } from "date-fns";
+import { format, differenceInDays } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import * as XLSX from "xlsx";
 
@@ -54,6 +54,13 @@ export default function AdminFinanceAR() {
             : (departure as any).package
           : null;
 
+        const daysSince = b.created_at ? differenceInDays(new Date(), new Date(b.created_at)) : 0;
+        const agingBucket =
+          daysSince <= 30 ? "0-30"
+          : daysSince <= 60 ? "31-60"
+          : daysSince <= 90 ? "61-90"
+          : ">90";
+
         return {
           id: b.id,
           booking_code: b.booking_code,
@@ -66,6 +73,8 @@ export default function AdminFinanceAR() {
           outstanding: (b.total_price || 0) - (b.paid_amount || 0),
           status: b.payment_status,
           created_at: b.created_at,
+          days_since: daysSince,
+          aging_bucket: agingBucket,
         };
       });
     },
@@ -76,7 +85,17 @@ export default function AdminFinanceAR() {
   const totalPaid = arData.reduce((sum, ar) => sum + ar.paid_amount, 0);
   const totalBookings = arData.reduce((sum, ar) => sum + ar.total_amount, 0);
 
+  // Aging buckets for outstanding only
+  const outstanding = arData.filter(ar => ar.outstanding > 0);
+  const aging030 = outstanding.filter(ar => ar.aging_bucket === "0-30").reduce((s, ar) => s + ar.outstanding, 0);
+  const aging3160 = outstanding.filter(ar => ar.aging_bucket === "31-60").reduce((s, ar) => s + ar.outstanding, 0);
+  const aging6190 = outstanding.filter(ar => ar.aging_bucket === "61-90").reduce((s, ar) => s + ar.outstanding, 0);
+  const aging90plus = outstanding.filter(ar => ar.aging_bucket === ">90").reduce((s, ar) => s + ar.outstanding, 0);
+
+  const [agingFilter, setAgingFilter] = useState<string>("all");
+
   const filtered = arData.filter((ar) => {
+    const matchAging = agingFilter === "all" || ar.aging_bucket === agingFilter;
     const matchSearch =
       ar.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       ar.booking_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -85,7 +104,7 @@ export default function AdminFinanceAR() {
       statusFilter === "all" ||
       (statusFilter === "outstanding" && ar.outstanding > 0) ||
       (statusFilter === "paid" && ar.outstanding === 0);
-    return matchSearch && matchStatus;
+    return matchSearch && matchStatus && matchAging;
   });
 
   // ─── Export helpers ────────────────────────────────────────────────────────
@@ -254,6 +273,58 @@ export default function AdminFinanceAR() {
         </Card>
       </div>
 
+      {/* Aging Analysis Cards */}
+      <div>
+        <p className="text-sm font-semibold mb-2 text-muted-foreground uppercase tracking-wide">Analisis Aging Piutang</p>
+        <div className="grid gap-3 grid-cols-2 sm:grid-cols-4">
+          <Card
+            className={`cursor-pointer border-2 transition-colors ${agingFilter === "0-30" ? "border-blue-400 bg-blue-50" : "hover:border-blue-200"}`}
+            onClick={() => setAgingFilter(agingFilter === "0-30" ? "all" : "0-30")}
+          >
+            <CardContent className="p-4">
+              <p className="text-xs text-muted-foreground">0–30 Hari (Lancar)</p>
+              <p className="text-xl font-bold text-blue-600">{formatCurrency(aging030)}</p>
+              <p className="text-xs text-muted-foreground">{outstanding.filter(a => a.aging_bucket === "0-30").length} booking</p>
+            </CardContent>
+          </Card>
+          <Card
+            className={`cursor-pointer border-2 transition-colors ${agingFilter === "31-60" ? "border-yellow-400 bg-yellow-50" : "hover:border-yellow-200"}`}
+            onClick={() => setAgingFilter(agingFilter === "31-60" ? "all" : "31-60")}
+          >
+            <CardContent className="p-4">
+              <p className="text-xs text-muted-foreground">31–60 Hari (Perhatian)</p>
+              <p className="text-xl font-bold text-yellow-600">{formatCurrency(aging3160)}</p>
+              <p className="text-xs text-muted-foreground">{outstanding.filter(a => a.aging_bucket === "31-60").length} booking</p>
+            </CardContent>
+          </Card>
+          <Card
+            className={`cursor-pointer border-2 transition-colors ${agingFilter === "61-90" ? "border-orange-400 bg-orange-50" : "hover:border-orange-200"}`}
+            onClick={() => setAgingFilter(agingFilter === "61-90" ? "all" : "61-90")}
+          >
+            <CardContent className="p-4">
+              <p className="text-xs text-muted-foreground">61–90 Hari (Kritis)</p>
+              <p className="text-xl font-bold text-orange-600">{formatCurrency(aging6190)}</p>
+              <p className="text-xs text-muted-foreground">{outstanding.filter(a => a.aging_bucket === "61-90").length} booking</p>
+            </CardContent>
+          </Card>
+          <Card
+            className={`cursor-pointer border-2 transition-colors ${agingFilter === ">90" ? "border-red-400 bg-red-50" : "hover:border-red-200"}`}
+            onClick={() => setAgingFilter(agingFilter === ">90" ? "all" : ">90")}
+          >
+            <CardContent className="p-4">
+              <p className="text-xs text-muted-foreground">&gt;90 Hari (Macet)</p>
+              <p className="text-xl font-bold text-red-600">{formatCurrency(aging90plus)}</p>
+              <p className="text-xs text-muted-foreground">{outstanding.filter(a => a.aging_bucket === ">90").length} booking</p>
+            </CardContent>
+          </Card>
+        </div>
+        {agingFilter !== "all" && (
+          <button className="text-xs text-blue-600 mt-1 underline" onClick={() => setAgingFilter("all")}>
+            Reset filter aging
+          </button>
+        )}
+      </div>
+
       {/* Toolbar */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
@@ -299,14 +370,18 @@ export default function AdminFinanceAR() {
                 <TableHead className="text-right">Total</TableHead>
                 <TableHead className="text-right">Terbayar</TableHead>
                 <TableHead className="text-right">Sisa</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Aksi</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((ar) => (
-                <TableRow key={ar.id}>
-                  <TableCell className="font-medium">{ar.booking_code}</TableCell>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Aging</TableHead>
+                  <TableHead className="text-right">Aksi</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filtered.map((ar) => (
+                  <TableRow
+                    key={ar.id}
+                    className={ar.outstanding > 0 && ar.aging_bucket === ">90" ? "bg-red-50/40" : ar.outstanding > 0 && ar.aging_bucket === "61-90" ? "bg-orange-50/30" : ""}
+                  >
+                    <TableCell className="font-medium">{ar.booking_code}</TableCell>
                   <TableCell>
                     <div>{ar.customer_name}</div>
                     {ar.customer_phone && (
@@ -331,6 +406,18 @@ export default function AdminFinanceAR() {
                     <Badge variant={ar.outstanding === 0 ? "default" : "secondary"}>
                       {ar.outstanding === 0 ? "Lunas" : "Tertunggak"}
                     </Badge>
+                  </TableCell>
+                  <TableCell>
+                    {ar.outstanding > 0 && (
+                      <Badge className={
+                        ar.aging_bucket === "0-30" ? "bg-blue-100 text-blue-700 text-xs" :
+                        ar.aging_bucket === "31-60" ? "bg-yellow-100 text-yellow-700 text-xs" :
+                        ar.aging_bucket === "61-90" ? "bg-orange-100 text-orange-700 text-xs" :
+                        "bg-red-100 text-red-700 text-xs"
+                      }>
+                        {ar.days_since}h ({ar.aging_bucket})
+                      </Badge>
+                    )}
                   </TableCell>
                   <TableCell className="text-right">
                     {ar.outstanding > 0 && (

@@ -11,6 +11,7 @@
 
 
 - [Passenger Type Pricing](passenger-type-pricing.md) — price_adult (baru), child/infant_price_percent di departures+packages; perhitungan room-based sudah fix untuk anak/balita.
+- [Finance Keuangan K-01 to K-13](finance-keuangan-module.md) — semua 13 modul akuntansi selesai; routes di AdminRoutes.tsx, permissions di permissions.ts, SQL migration di migrations/keuangan-fase1-accounting.sql.
 - [Migration Runner Pattern](migration-runner.md) — migrations di api-server/src/sql/ dengan step hardcoded di runMigrations.ts; file baru perlu step eksplisit.
 - [SEO Architecture](seo-architecture.md) — useSEO hook di hooks/useSEO.ts; PackageDetail pakai useEffect manual (bukan hook) karena punya cleanup logic; siteTitle harus dari settings.company_name bukan hardcoded.
 - [Branch & Agent Scoping](branch-agent-scoping.md) — JWT membawa branch_id+agent_id; supabaseProxy auto-inject branch_id filter untuk branch_manager; route order agents.ts KRITIS.

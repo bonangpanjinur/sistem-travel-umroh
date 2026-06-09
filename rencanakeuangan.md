@@ -4,33 +4,33 @@
 
 ---
 
-## Status Saat Ini
+## Status Saat Ini (Update Juni 2026)
 
-### Halaman yang Sudah Ada
-| Halaman | Route | Status | Catatan |
-|---------|-------|--------|---------|
-| Dashboard Keuangan | `/admin/finance-terpadu` | ✅ Ada | Chart area + bar, ringkasan bulanan |
-| Kas & Bank | `/admin/finance-cash` | ✅ Ada | Transaksi masuk/keluar, saldo |
-| Piutang (AR) | `/admin/finance/ar` | ✅ Ada | Booking belum lunas |
-| Hutang (AP) | `/admin/finance/ap` | ✅ Ada | Vendor costs CRUD |
-| Laporan P&L | `/admin/finance` | ✅ Ada | Per keberangkatan, per vendor |
-| Laporan Keuangan | `/admin/laporan/keuangan` | ✅ Ada | Multi-bulan, chart, export |
-| Chart of Accounts | `/admin/coa` | ✅ Baru | CRUD akun COA (baru ditambahkan) |
+### ✅ Semua Fase Selesai Diimplementasikan
 
-### Yang Belum Ada / Belum Lengkap
-- ❌ Jurnal Umum (General Journal) — pencatatan double-entry
-- ❌ Buku Besar (General Ledger) — history per akun COA
-- ❌ Neraca Saldo (Trial Balance) — debit vs kredit per periode
-- ❌ Laporan Neraca (Balance Sheet) — aset, kewajiban, ekuitas
-- ❌ Laporan Arus Kas (Cash Flow Statement) — operasional/investasi/pendanaan
-- ❌ Laporan Laba Rugi Formal (Income Statement) — per periode, PSAK-style
-- ❌ Budget vs Aktual — perbandingan anggaran dengan realisasi
-- ❌ Rekonsiliasi Bank — sinkronisasi saldo buku vs saldo bank
-- ❌ COA terintegrasi ke transaksi — kas, AP/AR belum pakai kode COA
-- ⚠️  P&L kurang detail — tidak ada breakdown per kategori COA
-- ⚠️  AR tidak ada aging (30/60/90 hari)
-- ⚠️  AP tidak ada kalender jatuh tempo visual
-- ⚠️  Kas tidak ada proyeksi arus kas ke depan
+| K-# | Fitur | Route | File | Status |
+|-----|-------|-------|------|--------|
+| K-01 | Jurnal Umum | `/admin/finance/jurnal` | AdminJurnalUmum.tsx | ✅ DONE |
+| K-02 | Buku Besar | `/admin/finance/buku-besar` | AdminBukuBesar.tsx | ✅ DONE |
+| K-03 | Neraca Saldo | `/admin/finance/neraca-saldo` | AdminNeracaSaldo.tsx | ✅ DONE |
+| K-04 | Laba Rugi Formal | `/admin/finance/laba-rugi` | AdminLabaRugi.tsx | ✅ DONE |
+| K-05 | Neraca (Balance Sheet) | `/admin/finance/neraca` | AdminNeraca.tsx | ✅ DONE |
+| K-06 | Arus Kas | `/admin/finance/arus-kas` | AdminArusKas.tsx | ✅ DONE |
+| K-07 | AR Aging Analysis | `/admin/finance/ar` | AdminFinanceAR.tsx | ✅ DONE (aging cards + filter + kolom) |
+| K-08 | AP Kalender Jatuh Tempo | `/admin/finance/ap` | AdminFinanceAP.tsx | ✅ DONE (tab kalender + timeline) |
+| K-09 | Kas Proyeksi 30 Hari | `/admin/finance-cash` | AdminFinanceCash.tsx | ✅ DONE (tab proyeksi + alert negatif) |
+| K-10 | COA Integrasi Transaksi | — | — | ⚠️ PARTIAL (COA ada, auto-journal not wired) |
+| K-11 | Budget vs Aktual | `/admin/finance/budget` | AdminBudget.tsx | ✅ DONE |
+| K-12 | Rekonsiliasi Bank | `/admin/finance/rekonsiliasi` | AdminRekonsiliasi.tsx | ✅ DONE |
+| K-13 | Laporan Pajak | `/admin/finance/laporan-pajak` | AdminLaporanPajak.tsx | ✅ DONE (PPN + PPh 21/23) |
+
+### SQL Migration
+File: `migrations/keuangan-fase1-accounting.sql`
+Tabel baru: `journal_entries`, `journal_entry_lines`, `finance_budgets`, `bank_reconciliations`, `reconciliation_items`
+
+### Yang Masih Pending (K-10 detail)
+- Auto-posting jurnal otomatis dari transaksi kas/AP/AR (requires event-driven hooks)
+- `account_code` column on `cash_transactions`, `payments` tables (SQL migration terpisah)
 
 ---
 

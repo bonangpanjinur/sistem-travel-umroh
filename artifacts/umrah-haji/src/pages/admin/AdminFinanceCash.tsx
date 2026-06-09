@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,7 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { format } from "date-fns";
+import { format, addDays } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import { exportToExcel, exportToPDF } from "@/lib/export-utils";
 import {
@@ -78,11 +78,15 @@ export default function AdminFinanceCash() {
           <TabsTrigger value="summary" className="gap-2">
             <TrendingUp className="h-4 w-4" /> Ringkasan
           </TabsTrigger>
+          <TabsTrigger value="proyeksi" className="gap-2">
+            <TrendingDown className="h-4 w-4" /> Proyeksi 30 Hari
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="cash"><CashTab userId={user?.id} canEdit={canEdit} /></TabsContent>
         <TabsContent value="salary"><SalaryTab userId={user?.id} /></TabsContent>
         <TabsContent value="summary"><SummaryTab /></TabsContent>
+        <TabsContent value="proyeksi"><ProyeksiTab /></TabsContent>
       </Tabs>
     </div>
   );
@@ -864,6 +868,140 @@ function SummaryTab() {
           </CardContent>
         </Card>
       </div>
+    </div>
+  );
+}
+
+// ============== PROYEKSI TAB (K-09) ==============
+function ProyeksiTab() {
+  const { data: apDue = [] } = useQuery({
+    queryKey: ["proyeksi-ap"],
+    queryFn: async () => {
+      const today = format(new Date(), "yyyy-MM-dd");
+      const in30 = format(addDays(new Date(), 30), "yyyy-MM-dd");
+      const { data } = await supabase
+        .from("vendor_costs")
+        .select("amount, paid_amount, due_date, description, vendor:vendors(name)")
+        .neq("status", "paid")
+        .gte("due_date", today)
+        .lte("due_date", in30)
+        .order("due_date");
+      return (data || []).map((r: any) => ({
+        date: r.due_date,
+        label: `AP: ${r.vendor?.name || "-"} - ${r.description || ""}`,
+        amount: -(r.amount - (r.paid_amount || 0)),
+        type: "out",
+      }));
+    },
+  });
+
+  const { data: cashBalance = 0 } = useQuery({
+    queryKey: ["current-cash"],
+    queryFn: async () => {
+      const { data } = await supabase.from("cash_transactions").select("amount, type");
+      const arr = data || [];
+      const inT = arr.filter((r: any) => r.type === "in").reduce((s: number, r: any) => s + Number(r.amount), 0);
+      const outT = arr.filter((r: any) => r.type === "out").reduce((s: number, r: any) => s + Number(r.amount), 0);
+      return inT - outT;
+    },
+  });
+
+  const formatCurrency = (n: number) =>
+    new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(n);
+
+  // Build 30-day projection
+  const projectionDays = Array.from({ length: 30 }, (_, i) => {
+    const d = addDays(new Date(), i);
+    const dateStr = format(d, "yyyy-MM-dd");
+    const dayEvents = apDue.filter((e: any) => e.date === dateStr);
+    const cashOut = dayEvents.filter((e: any) => e.type === "out").reduce((s: any, e: any) => s + e.amount, 0);
+    return { date: dateStr, label: format(d, "d MMM", { locale: localeId }), cashOut, events: dayEvents };
+  });
+
+  let runningBalance = cashBalance;
+  const withBalance = projectionDays.map(d => {
+    runningBalance += d.cashOut; // cashOut is negative
+    return { ...d, balance: runningBalance };
+  });
+
+  const minBalance = Math.min(...withBalance.map(d => d.balance));
+  const hasNegative = minBalance < 0;
+  const alertDays = withBalance.filter(d => d.balance < 0);
+  const totalCommitment = apDue.reduce((s: any, e: any) => s + Math.abs(e.amount), 0);
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Card className="border-blue-200 bg-blue-50">
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground">Saldo Kas Saat Ini</p>
+            <p className="text-2xl font-bold text-blue-700">{formatCurrency(cashBalance)}</p>
+          </CardContent>
+        </Card>
+        <Card className="border-orange-200 bg-orange-50">
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground">Total Komitmen AP 30 Hari</p>
+            <p className="text-2xl font-bold text-orange-700">{formatCurrency(totalCommitment)}</p>
+          </CardContent>
+        </Card>
+        <Card className={hasNegative ? "border-red-300 bg-red-50" : "border-green-200 bg-green-50"}>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground">Saldo Proyeksi Minimum</p>
+            <p className={`text-2xl font-bold ${hasNegative ? "text-red-600" : "text-green-700"}`}>{formatCurrency(minBalance)}</p>
+            {hasNegative && <p className="text-xs text-red-600 mt-1">⚠️ Proyeksi kas negatif!</p>}
+          </CardContent>
+        </Card>
+      </div>
+
+      {hasNegative && (
+        <div className="flex gap-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+          <div className="text-red-600 text-sm">
+            <p className="font-semibold">⚠️ Peringatan: Proyeksi Kas Negatif</p>
+            <p>Saldo kas diperkirakan negatif pada {alertDays.length} hari dalam 30 hari ke depan. Pertimbangkan menunda pembayaran atau menambah kas masuk.</p>
+          </div>
+        </div>
+      )}
+
+      <Card>
+        <CardContent className="p-4">
+          <p className="text-sm font-semibold mb-3">Komitmen Pembayaran AP — 30 Hari ke Depan</p>
+          {apDue.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6">Tidak ada hutang vendor yang jatuh tempo dalam 30 hari ke depan</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Tanggal</TableHead>
+                  <TableHead>Keterangan</TableHead>
+                  <TableHead className="text-right">Jumlah</TableHead>
+                  <TableHead className="text-right">Proyeksi Saldo</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow className="bg-blue-50/50 font-medium">
+                  <TableCell>Hari Ini</TableCell>
+                  <TableCell>Saldo Awal</TableCell>
+                  <TableCell></TableCell>
+                  <TableCell className="text-right text-blue-700 font-bold">{formatCurrency(cashBalance)}</TableCell>
+                </TableRow>
+                {withBalance.filter(d => d.events.length > 0).map((d, i) => (
+                  d.events.map((e: any, j: number) => (
+                    <TableRow key={`${i}-${j}`} className={d.balance < 0 ? "bg-red-50" : ""}>
+                      <TableCell className="text-sm">{format(new Date(d.date), "d MMM yyyy", { locale: localeId })}</TableCell>
+                      <TableCell className="text-sm">{e.label}</TableCell>
+                      <TableCell className="text-right text-sm text-red-600">{formatCurrency(Math.abs(e.amount))}</TableCell>
+                      <TableCell className={`text-right text-sm font-medium ${d.balance < 0 ? "text-red-600 font-bold" : "text-green-600"}`}>
+                        {formatCurrency(d.balance)}
+                        {d.balance < 0 && " ⚠️"}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

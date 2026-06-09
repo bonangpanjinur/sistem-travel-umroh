@@ -196,6 +196,14 @@ const AdminFinanceAR = lazy(() => import("@/pages/admin/AdminFinanceAR"));
 const AdminFinanceAP = lazy(() => import("@/pages/admin/AdminFinanceAP"));
 const AdminCOA = lazy(() => import("@/pages/admin/AdminCOA"));
 const AdminJurnalUmum = lazy(() => import("@/pages/admin/AdminJurnalUmum"));
+const AdminBukuBesar = lazy(() => import("@/pages/admin/AdminBukuBesar"));
+const AdminNeracaSaldo = lazy(() => import("@/pages/admin/AdminNeracaSaldo"));
+const AdminLabaRugi = lazy(() => import("@/pages/admin/AdminLabaRugi"));
+const AdminNeraca = lazy(() => import("@/pages/admin/AdminNeraca"));
+const AdminArusKas = lazy(() => import("@/pages/admin/AdminArusKas"));
+const AdminBudget = lazy(() => import("@/pages/admin/AdminBudget"));
+const AdminRekonsiliasi = lazy(() => import("@/pages/admin/AdminRekonsiliasi"));
+const AdminLaporanPajak = lazy(() => import("@/pages/admin/AdminLaporanPajak"));
 const AdminPayroll = lazy(() => import("@/pages/admin/AdminPayroll"));
 const AdminManasik = lazy(() => import("@/pages/admin/AdminManasik"));
 const AdminVisaManagement = lazy(
@@ -818,6 +826,86 @@ export default function AdminRoutes() {
           <P k={PERMISSIONS.JURNAL_UMUM}>
             <LazyPage>
               <AdminJurnalUmum />
+            </LazyPage>
+          </P>
+        }
+      />
+      <Route
+        path="finance/buku-besar"
+        element={
+          <P k={PERMISSIONS.BUKU_BESAR}>
+            <LazyPage>
+              <AdminBukuBesar />
+            </LazyPage>
+          </P>
+        }
+      />
+      <Route
+        path="finance/neraca-saldo"
+        element={
+          <P k={PERMISSIONS.NERACA_SALDO}>
+            <LazyPage>
+              <AdminNeracaSaldo />
+            </LazyPage>
+          </P>
+        }
+      />
+      <Route
+        path="finance/laba-rugi"
+        element={
+          <P k={PERMISSIONS.LABA_RUGI}>
+            <LazyPage>
+              <AdminLabaRugi />
+            </LazyPage>
+          </P>
+        }
+      />
+      <Route
+        path="finance/neraca"
+        element={
+          <P k={PERMISSIONS.NERACA}>
+            <LazyPage>
+              <AdminNeraca />
+            </LazyPage>
+          </P>
+        }
+      />
+      <Route
+        path="finance/arus-kas"
+        element={
+          <P k={PERMISSIONS.ARUS_KAS}>
+            <LazyPage>
+              <AdminArusKas />
+            </LazyPage>
+          </P>
+        }
+      />
+      <Route
+        path="finance/budget"
+        element={
+          <P k={PERMISSIONS.BUDGET}>
+            <LazyPage>
+              <AdminBudget />
+            </LazyPage>
+          </P>
+        }
+      />
+      <Route
+        path="finance/rekonsiliasi"
+        element={
+          <P k={PERMISSIONS.REKONSILIASI}>
+            <LazyPage>
+              <AdminRekonsiliasi />
+            </LazyPage>
+          </P>
+        }
+      />
+      <Route
+        path="finance/laporan-pajak"
+        element={
+          <P k={PERMISSIONS.LAPORAN_PAJAK}>
+            <LazyPage>
+              <AdminLaporanPajak />
             </LazyPage>
           </P>
         }
