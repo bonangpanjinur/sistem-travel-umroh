@@ -23,6 +23,7 @@ import cancellationRulesRouter from "./cancellationRules.js";
 import publicPaymentsRouter from "./publicPayments.js";
 import publicBookingStatusRouter from "./publicBookingStatus.js";
 import documentsRouter from "./documents.js";
+import coaRouter from "./coa.js";
 
 const router: IRouter = Router();
 
@@ -50,5 +51,6 @@ router.use("/cancellation-rules", cancellationRulesRouter);
 router.use("/public/payments", publicPaymentsRouter);
 router.use("/public/booking-status", publicBookingStatusRouter);
 router.use("/documents", documentsRouter);
+router.use("/coa", coaRouter);
 
 export default router;

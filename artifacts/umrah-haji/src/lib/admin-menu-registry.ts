@@ -77,6 +77,7 @@ export const RECOMMENDED_MENUS: AdminMenuItem[] = [
   { key: 'cicilan-reminder',    label: 'Reminder Cicilan',      path: '/admin/cicilan-reminder',     icon: 'BellRing',        group_name: 'Keuangan',           sort_order: 509, required_permission: PERMISSIONS.CICILAN_REMINDER },
   { key: 'cicilan-generator',   label: 'Generator Cicilan',     path: '/admin/cicilan-generator',    icon: 'CalendarRange',   group_name: 'Keuangan',           sort_order: 510, required_permission: PERMISSIONS.CICILAN_GENERATOR },
   { key: 'wa-blast-tagihan',    label: 'WA Blast Tagihan',      path: '/admin/wa-blast-tagihan',     icon: 'Wallet',          group_name: 'Keuangan',           sort_order: 511, required_permission: PERMISSIONS.WA_BLAST_TAGIHAN },
+  { key: 'coa',                 label: 'Chart of Accounts',     path: '/admin/coa',                  icon: 'BookOpen',        group_name: 'Keuangan',           sort_order: 512, required_permission: PERMISSIONS.COA },
 
   // ── Laporan (520s) ────────────────────────────────────────────────────────
   { key: 'finance',             label: 'Laporan P&L',           path: '/admin/finance',              icon: 'TrendingUp',      group_name: 'Laporan',            sort_order: 521, required_permission: PERMISSIONS.FINANCE },
@@ -218,6 +219,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
     'laporan-keuangan', 'laporan-agen', 'monitoring-tabungan', 'laporan-reminder',
     'customers', 'document-verification',
     'virtual-account', 'cicilan-reminder', 'cicilan-generator', 'wa-blast-tagihan',
+    'coa',
   ],
 
   sales: [

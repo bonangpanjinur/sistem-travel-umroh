@@ -128,6 +128,9 @@ export const PERMISSIONS = {
   // Keuangan Terpadu
   FINANCE_TERPADU: 'finance-terpadu',
 
+  // COA — Chart of Accounts
+  COA: 'coa',
+
   // Ringkasan AI Otomatis
   AI_SUMMARY: 'ai-summary',
 
