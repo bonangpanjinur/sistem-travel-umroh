@@ -6,8 +6,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
-import { FileText, Send, Mail, Users, Briefcase, Plane, Receipt, Ticket, Award, Package } from 'lucide-react';
+import { FileText, Send, Mail, Users, Briefcase, Plane, Receipt, Ticket, Award, Package, MessageCircle, Loader2 } from 'lucide-react';
 import { useCompanyInfo } from '@/hooks/useCompanyInfo';
 import {
   generateLeaveLetter, generateJamaahLeaveLetter, generatePassportLetter,
@@ -34,6 +35,9 @@ const AdminDocumentGenerator = () => {
   const [activeTab, setActiveTab] = useState('jamaah-leave');
   const [sendDialogOpen, setSendDialogOpen] = useState(false);
   const [sendEmail, setSendEmail] = useState('');
+  const [sendPhone, setSendPhone] = useState('');
+  const [sendChannel, setSendChannel] = useState<'email' | 'wa'>('email');
+  const [sendingWA, setSendingWA] = useState(false);
   const [currentPdfBlob, setCurrentPdfBlob] = useState<Blob | null>(null);
   const [currentFileName, setCurrentFileName] = useState('');
 
@@ -173,6 +177,52 @@ const AdminDocumentGenerator = () => {
     const url = URL.createObjectURL(currentPdfBlob);
     const a = document.createElement('a'); a.href = url; a.download = `${currentFileName}.pdf`; a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const handleSendWA = async () => {
+    if (!sendPhone.trim() || !currentPdfBlob) { toast.error('Nomor HP harus diisi'); return; }
+    setSendingWA(true);
+    try {
+      // Upload PDF ke Supabase storage untuk mendapat URL yang bisa dibagikan
+      const timestamp = Date.now();
+      const path = `temp-wa/${timestamp}_${currentFileName}.pdf`;
+      const { error: upErr } = await supabase.storage
+        .from('customer-documents')
+        .upload(path, currentPdfBlob, { contentType: 'application/pdf', upsert: true });
+
+      let docUrl = '';
+      if (!upErr) {
+        const { data: signedData } = await supabase.storage
+          .from('customer-documents')
+          .createSignedUrl(path, 3600); // 1 jam
+        docUrl = signedData?.signedUrl || '';
+      }
+
+      const message = docUrl
+        ? `Halo, berikut dokumen *${currentFileName}* dari Vinstour Travel:\n\n${docUrl}\n\n_Link aktif selama 1 jam. Silakan download segera._`
+        : `Halo, dokumen *${currentFileName}* Anda dari Vinstour Travel sudah siap. Silakan login ke portal jamaah untuk download: ${window.location.origin}/jamaah/documents`;
+
+      const res = await fetch('/api/documents/send-wa', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}` },
+        body: JSON.stringify({ phone: sendPhone.trim(), message }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        toast.success(`Dokumen berhasil dikirim via WhatsApp ke ${sendPhone}`);
+        setSendDialogOpen(false); setSendPhone('');
+        // Juga auto-download lokal sebagai backup
+        const url = URL.createObjectURL(currentPdfBlob);
+        const a = document.createElement('a'); a.href = url; a.download = `${currentFileName}.pdf`; a.click();
+        URL.revokeObjectURL(url);
+      } else {
+        toast.error(json.error || 'Gagal kirim WhatsApp');
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Gagal kirim WhatsApp');
+    } finally {
+      setSendingWA(false);
+    }
   };
 
   const doGenerate = async (handler: () => { generate: () => Promise<any> } | undefined, filename: string, action: 'download' | 'send') => {
@@ -423,21 +473,65 @@ const AdminDocumentGenerator = () => {
         </TabsContent>
       </Tabs>
 
-      <Dialog open={sendDialogOpen} onOpenChange={setSendDialogOpen}>
-        <DialogContent>
+      {/* ── Send Dialog: Email & WhatsApp ── */}
+      <Dialog open={sendDialogOpen} onOpenChange={(open) => { setSendDialogOpen(open); if (!open) { setSendChannel('email'); setSendEmail(''); setSendPhone(''); } }}>
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><Mail className="h-5 w-5" />Kirim Dokumen via Email</DialogTitle>
+            <DialogTitle className="flex items-center gap-2"><Send className="h-5 w-5" />Kirim Dokumen</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Email Tujuan</Label>
-              <Input type="email" value={sendEmail} onChange={(e) => setSendEmail(e.target.value)} placeholder="email@contoh.com" />
+            <p className="text-sm text-muted-foreground">File: <span className="font-medium text-foreground">{currentFileName}.pdf</span></p>
+
+            {/* Channel tabs */}
+            <div className="flex gap-2 p-1 bg-muted rounded-lg">
+              <button
+                className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-md text-sm font-medium transition-colors ${sendChannel === 'email' ? 'bg-background shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                onClick={() => setSendChannel('email')}
+              >
+                <Mail className="h-4 w-4" />Email
+              </button>
+              <button
+                className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-md text-sm font-medium transition-colors ${sendChannel === 'wa' ? 'bg-background shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                onClick={() => setSendChannel('wa')}
+              >
+                <MessageCircle className="h-4 w-4 text-green-600" />WhatsApp
+              </button>
             </div>
-            <p className="text-sm text-muted-foreground">File: {currentFileName}.pdf</p>
+
+            {sendChannel === 'email' ? (
+              <div className="space-y-2">
+                <Label>Email Tujuan</Label>
+                <Input type="email" value={sendEmail} onChange={(e) => setSendEmail(e.target.value)} placeholder="email@contoh.com" autoFocus />
+                <p className="text-xs text-muted-foreground">PDF akan di-download dan siap dikirim manual via email.</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label>Nomor WhatsApp</Label>
+                <Input
+                  type="tel"
+                  value={sendPhone}
+                  onChange={(e) => setSendPhone(e.target.value)}
+                  placeholder="Contoh: 08123456789"
+                  autoFocus
+                />
+                <p className="text-xs text-muted-foreground">
+                  PDF akan diupload sementara dan link dikirim ke nomor WA jamaah. Pastikan Fonnte sudah dikonfigurasi di Pengaturan API.
+                </p>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setSendDialogOpen(false)}>Batal</Button>
-            <Button onClick={handleSendEmail}><Send className="h-4 w-4 mr-2" />Kirim & Download</Button>
+            {sendChannel === 'email' ? (
+              <Button onClick={handleSendEmail}>
+                <Mail className="h-4 w-4 mr-2" />Kirim & Download
+              </Button>
+            ) : (
+              <Button onClick={handleSendWA} disabled={sendingWA} className="bg-green-600 hover:bg-green-700">
+                {sendingWA ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <MessageCircle className="h-4 w-4 mr-2" />}
+                {sendingWA ? 'Mengirim...' : 'Kirim via WA'}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

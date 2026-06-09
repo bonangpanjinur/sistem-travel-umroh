@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useOfflineCache } from "@/hooks/useOfflineCache";
+import { useCompanyInfo } from "@/hooks/useCompanyInfo";
 import { OfflineBanner } from "@/components/OfflineBanner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -36,6 +37,11 @@ import {
   Eye,
   Loader2,
   ShieldCheck,
+  Download,
+  Ticket,
+  Receipt,
+  Award,
+  Plane,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { format } from "date-fns";
@@ -44,6 +50,8 @@ import { JamaahBottomNav } from "@/components/jamaah/JamaahBottomNav";
 import { LoadingState } from "@/components/shared/LoadingState";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { toast } from "sonner";
+import { generateETicket, generateInvoice, generateUmrahCertificate } from "@/lib/document-generator";
+import { formatCurrency } from "@/lib/format";
 
 type DocumentStatus = "pending" | "verified" | "rejected";
 
@@ -74,11 +82,13 @@ const statusConfig: Record<
 export default function JamaahDocuments() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { company, bankAccount } = useCompanyInfo();
   const [uploadOpen, setUploadOpen] = useState(false);
   const [selectedTypeId, setSelectedTypeId] = useState<string>("");
   const [file, setFile] = useState<File | null>(null);
   const [notes, setNotes] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [downloadingDoc, setDownloadingDoc] = useState<string | null>(null);
 
   const [packageFilter, setPackageFilter] = useState<"all" | "haji" | "umroh">("all");
 
@@ -116,6 +126,125 @@ export default function JamaahDocuments() {
     },
     enabled: !!customer?.id,
   });
+
+  // ── Bookings query (untuk download e-ticket/invoice/sertifikat) ──
+  const { data: bookings } = useQuery({
+    queryKey: ["jamaah-bookings-for-docs", customer?.id],
+    queryFn: async () => {
+      if (!customer?.id) return [];
+      const { data, error } = await supabase
+        .from("bookings")
+        .select(`
+          id, booking_code, booking_status, room_type, total_price, paid_amount,
+          remaining_amount, base_price, discount_amount, payment_status, total_pax,
+          departure:departures(
+            id, departure_date, return_date, flight_number, departure_time,
+            package:packages(name),
+            airline:airlines(name),
+            departure_airport:airports!departures_departure_airport_id_fkey(name, city, code),
+            arrival_airport:airports!departures_arrival_airport_id_fkey(name, city, code),
+            hotel_makkah:hotels!departures_hotel_makkah_id_fkey(name),
+            hotel_madinah:hotels!departures_hotel_madinah_id_fkey(name)
+          )
+        `)
+        .eq("customer_id", customer.id)
+        .in("booking_status", ["confirmed", "processing", "completed"])
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!customer?.id,
+  });
+
+  // ── Download handlers ──
+  const handleDownloadETicket = async (booking: any) => {
+    const key = `eticket-${booking.id}`;
+    setDownloadingDoc(key);
+    try {
+      const dep = booking.departure as any;
+      const doc = await generateETicket({
+        bookingCode: booking.booking_code,
+        passengerName: customer?.full_name || '-',
+        passportNumber: '-',
+        packageName: dep?.package?.name || 'Paket Umrah',
+        departureDate: new Date(dep?.departure_date),
+        returnDate: new Date(dep?.return_date),
+        departureAirport: dep?.departure_airport ? `${dep.departure_airport.name} (${dep.departure_airport.code})` : '-',
+        arrivalAirport: dep?.arrival_airport ? `${dep.arrival_airport.name} (${dep.arrival_airport.code})` : '-',
+        flightNumber: dep?.flight_number,
+        airline: dep?.airline?.name,
+        departureTime: dep?.departure_time,
+        hotelMakkah: dep?.hotel_makkah?.name,
+        hotelMadinah: dep?.hotel_madinah?.name,
+        roomType: ({ quad: 'Quad (4 orang)', triple: 'Triple (3 orang)', double: 'Double (2 orang)', single: 'Single (1 orang)' } as Record<string, string>)[booking.room_type] || booking.room_type,
+      }, company);
+      doc.save(`e-ticket-${booking.booking_code}.pdf`);
+      toast.success("E-Ticket berhasil diunduh");
+    } catch (e: any) {
+      toast.error("Gagal generate e-ticket");
+    } finally {
+      setDownloadingDoc(null);
+    }
+  };
+
+  const handleDownloadInvoice = async (booking: any) => {
+    const key = `invoice-${booking.id}`;
+    setDownloadingDoc(key);
+    try {
+      const dep = booking.departure as any;
+      const pkg = dep?.package as any;
+      const paxCount = booking.total_pax || 1;
+      const pricePerPax = booking.base_price || 0;
+      const doc = await generateInvoice({
+        invoiceNumber: `INV-${booking.booking_code}`,
+        invoiceDate: new Date(),
+        dueDate: new Date(),
+        customer: { name: customer?.full_name || '-', address: '-', phone: '-' },
+        items: [{ description: `Paket ${pkg?.name || 'Umrah'} - Kamar ${booking.room_type}`, quantity: paxCount, unitPrice: pricePerPax, total: pricePerPax * paxCount }],
+        subtotal: pricePerPax * paxCount,
+        discount: booking.discount_amount || 0,
+        total: booking.total_price,
+        paidAmount: booking.paid_amount || 0,
+        remainingAmount: booking.remaining_amount || 0,
+        paymentStatus: (booking.paid_amount || 0) >= booking.total_price ? 'paid' : (booking.paid_amount || 0) > 0 ? 'partial' : 'pending',
+        packageName: pkg?.name,
+        departureDate: dep?.departure_date ? new Date(dep.departure_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : undefined,
+        passengerSummary: { adult: paxCount },
+        notes: 'Terima kasih telah mempercayai Vinstour Travel untuk perjalanan ibadah Anda.',
+        bankInfo: bankAccount ? { bankName: bankAccount.bank_name, accountNumber: bankAccount.account_number, accountName: bankAccount.account_name } : undefined,
+      }, company);
+      doc.save(`invoice-${booking.booking_code}.pdf`);
+      toast.success("Invoice berhasil diunduh");
+    } catch (e: any) {
+      toast.error("Gagal generate invoice");
+    } finally {
+      setDownloadingDoc(null);
+    }
+  };
+
+  const handleDownloadCertificate = async (booking: any) => {
+    const key = `cert-${booking.id}`;
+    setDownloadingDoc(key);
+    try {
+      const dep = booking.departure as any;
+      const doc = await generateUmrahCertificate({
+        participantName: customer?.full_name || '-',
+        passportNumber: '-',
+        birthPlace: '-',
+        birthDate: new Date(),
+        packageName: dep?.package?.name || 'Paket Umrah',
+        departureDate: new Date(dep?.departure_date),
+        returnDate: new Date(dep?.return_date),
+        certificateNumber: `CERT-${booking.booking_code}`,
+      }, company);
+      doc.save(`sertifikat-umrah-${booking.booking_code}.pdf`);
+      toast.success("Sertifikat berhasil diunduh");
+    } catch (e: any) {
+      toast.error("Gagal generate sertifikat");
+    } finally {
+      setDownloadingDoc(null);
+    }
+  };
 
   const { data: documentTypes } = useQuery({
     queryKey: ["document-types"],
@@ -294,6 +423,81 @@ export default function JamaahDocuments() {
 
       <div className="p-4 space-y-4">
         <OfflineBanner />
+
+        {/* ── DOKUMEN PERJALANAN — Download E-Ticket / Invoice / Sertifikat ── */}
+        {bookings && bookings.length > 0 && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Plane className="h-4 w-4 text-primary" />
+                Dokumen Perjalanan
+              </CardTitle>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Download e-ticket, invoice, dan sertifikat langsung dari sini
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {(bookings as any[]).map((booking) => {
+                const dep = booking.departure as any;
+                const pkgName = dep?.package?.name || 'Paket Umrah';
+                const depDate = dep?.departure_date ? format(new Date(dep.departure_date), 'd MMM yyyy', { locale: localeId }) : '-';
+                const retDate = dep?.return_date ? new Date(dep.return_date) : null;
+                const tripEnded = retDate && retDate <= new Date();
+                const eticketKey = `eticket-${booking.id}`;
+                const invoiceKey = `invoice-${booking.id}`;
+                const certKey = `cert-${booking.id}`;
+                return (
+                  <div key={booking.id} className="rounded-lg border p-3 space-y-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="font-medium text-sm">{pkgName}</p>
+                        <p className="text-xs text-muted-foreground">Berangkat: {depDate} · {booking.booking_code}</p>
+                      </div>
+                      <Badge variant="outline" className="text-xs shrink-0">
+                        {booking.booking_status === 'confirmed' ? 'Terkonfirmasi' : booking.booking_status === 'completed' ? 'Selesai' : 'Diproses'}
+                      </Badge>
+                    </div>
+                    <div className="flex gap-2 flex-wrap">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1.5 text-xs"
+                        onClick={() => handleDownloadInvoice(booking)}
+                        disabled={downloadingDoc === invoiceKey}
+                      >
+                        {downloadingDoc === invoiceKey ? <Loader2 className="h-3 w-3 animate-spin" /> : <Receipt className="h-3 w-3" />}
+                        Invoice
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1.5 text-xs"
+                        onClick={() => handleDownloadETicket(booking)}
+                        disabled={downloadingDoc === eticketKey || !dep?.departure_date}
+                      >
+                        {downloadingDoc === eticketKey ? <Loader2 className="h-3 w-3 animate-spin" /> : <Ticket className="h-3 w-3" />}
+                        E-Ticket
+                      </Button>
+                      {tripEnded && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="gap-1.5 text-xs"
+                          onClick={() => handleDownloadCertificate(booking)}
+                          disabled={downloadingDoc === certKey}
+                        >
+                          {downloadingDoc === certKey ? <Loader2 className="h-3 w-3 animate-spin" /> : <Award className="h-3 w-3" />}
+                          Sertifikat
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
+        )}
+
         {/* Package Type Filter */}
         <div className="flex items-center gap-2 flex-wrap">
           {activeBookingPackage && (

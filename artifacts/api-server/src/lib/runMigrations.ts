@@ -673,6 +673,19 @@ export async function runMigrations(): Promise<void> {
       logger.info("runMigrations: 34_push_subscriptions_role_branch_agent — already applied, skipping");
     }
 
+    // ── Step 1z7: document_numbering table + stored function ──────────────
+    const docNumberingApplied = await isApplied(client, "35_document_numbering");
+    if (!docNumberingApplied) {
+      await runSqlFile(
+        client,
+        sqlPath("073_document_numbering.sql"),
+        "35_document_numbering (penomoran surat otomatis + get_next_document_number function)",
+      );
+      await markApplied(client, "35_document_numbering");
+    } else {
+      logger.info("runMigrations: 35_document_numbering — already applied, skipping");
+    }
+
     // ── Step 1z5: departure P&L auto-triggers ────────────────────────────────
     const dplApplied = await isApplied(client, "33_departure_pl_triggers");
     if (!dplApplied) {

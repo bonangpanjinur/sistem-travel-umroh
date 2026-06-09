@@ -22,6 +22,7 @@ import migrationsRouter from "./migrations.js";
 import cancellationRulesRouter from "./cancellationRules.js";
 import publicPaymentsRouter from "./publicPayments.js";
 import publicBookingStatusRouter from "./publicBookingStatus.js";
+import documentsRouter from "./documents.js";
 
 const router: IRouter = Router();
 
@@ -48,5 +49,6 @@ router.use("/admin/migrations", migrationsRouter);
 router.use("/cancellation-rules", cancellationRulesRouter);
 router.use("/public/payments", publicPaymentsRouter);
 router.use("/public/booking-status", publicBookingStatusRouter);
+router.use("/documents", documentsRouter);
 
 export default router;
