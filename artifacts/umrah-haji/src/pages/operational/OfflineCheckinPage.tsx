@@ -86,9 +86,10 @@ export default function OfflineCheckinPage() {
     enabled: isOnline,
   });
 
-  const departureLabel = useCallback((dep: typeof departures extends (infer T)[] | undefined ? (infer T) : never) => {
+  type DepartureItem = { id: string; departure_date: string; package: { name: string } | null };
+  const departureLabel = useCallback((dep: DepartureItem) => {
     if (!dep) return "";
-    return `${(dep as any).package?.name || "?"} — ${format(new Date((dep as any).departure_date), "d MMM yyyy", { locale: idLocale })}`;
+    return `${dep.package?.name || "?"} — ${format(new Date(dep.departure_date), "d MMM yyyy", { locale: idLocale })}`;
   }, []);
 
   async function downloadOfflineData() {

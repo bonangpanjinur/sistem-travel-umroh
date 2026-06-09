@@ -233,7 +233,7 @@ export default function ManifestBusExport({
       ...allGroups.map((g) => [g.name, g.paxs.length]),
     ]);
     XLSX.utils.book_append_sheet(wb, infoWs, "Ringkasan");
-    XLSX.utils.book_move_sheet(wb, "Ringkasan", 0);
+    (XLSX.utils as any).book_move_sheet(wb, "Ringkasan", 0);
 
     const filename = `ManifestBus_${departureName.replace(/\s+/g, "_")}_${departureDate || "nodate"}.xlsx`;
     XLSX.writeFile(wb, filename);
