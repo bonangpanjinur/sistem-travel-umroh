@@ -23,7 +23,7 @@ const STATUS_CFG = {
   none:       { label: "Belum Ada Data",color: "bg-gray-100 text-gray-600 border-gray-200",      icon: AlertCircle },
 } as const;
 
-export function DepartureVisaSummary({ departureId, customerIds }: Props) {
+export function DepartureVisaSummary({ departureId, customerIds, visaDeadline }: Props) {
   const { data: visaData = [], isLoading } = useQuery({
     queryKey: ["departure-visa-summary", departureId],
     queryFn: async () => {

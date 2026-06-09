@@ -10,7 +10,7 @@ import { id } from "date-fns/locale";
 import {
   Plane, Users, Luggage, CheckCircle, BedDouble, Package,
   FileText, DollarSign, ArrowRight, AlertCircle, TrendingUp,
-  Calendar, Clock, ListChecks, Flag, QrCode
+  Calendar, Clock, ListChecks, Flag, QrCode, WifiOff
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { formatCurrency } from "@/lib/format";
@@ -157,6 +157,15 @@ export default function OperationalDashboard() {
       color: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
       stat: `${paymentPct}% lunas`,
       statLabel: `${stats?.paidBookings || 0} dari ${stats?.totalBookings || 0}`,
+    },
+    {
+      title: "Scanner Offline",
+      desc: "QR check-in tanpa internet (IndexedDB)",
+      icon: WifiOff,
+      href: "/operational/offline-checkin",
+      color: "bg-slate-500/10 text-slate-600 dark:text-slate-400",
+      stat: "Offline-first",
+      statLabel: "IndexedDB + sync",
     },
   ];
 

@@ -181,7 +181,7 @@ export default function EquipmentPage() {
         `)
         .eq("booking.departure_id", selectedDeparture);
       if (error) throw error;
-      return (data || []) as Passenger[];
+      return (data || []) as unknown as Passenger[];
     },
     enabled: !!selectedDeparture,
   });

@@ -79,7 +79,6 @@ import {
   RefreshCw,
   BarChart3,
   ClipboardList,
-  Users,
 } from "lucide-react";
 import { DepartureForm } from "@/components/admin/forms/DepartureForm";
 import { LinkItineraryForm } from "@/components/admin/forms/LinkItineraryForm";
@@ -88,6 +87,7 @@ import { EquipmentRealizationTab } from "@/components/operational/equipment/Equi
 import { CheckinQRDialog } from "@/components/admin/departure/CheckinQRDialog";
 import { EditCustomerDialog } from "@/components/admin/EditCustomerDialog";
 import { DepartureRoomingTab } from "@/components/departure/DepartureRoomingTab";
+import { RoomingReconciliationPanel } from "@/components/departure/RoomingReconciliationPanel";
 
 import { DepartureBudgetTab } from "@/components/departure/DepartureBudgetTab";
 import { useDepartureBudget, useDepartureCosts, computeBudgetSummary } from "@/hooks/useDepartureBudget";
@@ -1856,6 +1856,21 @@ export default function AdminDepartureDetail() {
             hotelMakkah={departure.hotel_makkah as any}
             hotelMadinah={departure.hotel_madinah as any}
           />
+          {/* D1: Rekonsiliasi dual rooming system */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <BedDouble className="h-4 w-4 text-emerald-600" />
+                Rekonsiliasi Sistem Kamar (D1)
+              </CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Sinkronisasi antara <code className="bg-muted px-1 rounded">booking_passengers.room_number</code> dan <code className="bg-muted px-1 rounded">room_assignments/room_occupants</code>
+              </p>
+            </CardHeader>
+            <CardContent>
+              <RoomingReconciliationPanel departureId={id || ""} />
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* Tab: Perlengkapan */}

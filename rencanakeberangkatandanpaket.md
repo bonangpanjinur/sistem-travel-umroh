@@ -346,10 +346,10 @@
 
 | Kode | Fitur | Status |
 |---|---|---|
-| D1 | Unifikasi Dual Rooming System (satu sumber kebenaran) | ⚠️ Parsial (sync trigger ada, full unification belum) |
+| D1 | Unifikasi Dual Rooming System (satu sumber kebenaran) | ✅ SELESAI (RoomingReconciliationPanel.tsx di tab Kamar — tampilkan BP vs RA, rekonsiliasi otomatis 1-klik) |
 | D2 | Multi-Hotel per City UI (lengkapi migration 066) | ✅ SELESAI (DepartureForm additionalHotels UI lengkap dengan makkah/madinah/transit roles) |
 | D3 | Live Itinerary Update dari Guide + Notifikasi Jamaah | ✅ SELESAI (fireJamaahPush otomatis di guide.ts saat trip_timeline PATCH, webpush via VAPID) |
-| D4 | Offline Mode QR Scanner (IndexedDB + sync) | ⏳ Belum (complex, butuh IndexedDB + sync worker) |
+| D4 | Offline Mode QR Scanner (IndexedDB + sync) | ✅ SELESAI (OfflineCheckinPage.tsx + offlineCheckinDb.ts — IndexedDB, queue checkin, sync saat online) |
 | D5 | Visa Deadline Tracking + Alert Otomatis | ✅ SELESAI (DepartureVisaSummary.tsx terima visaDeadline prop, banner merah/oranye/kuning sesuai urgensi) |
 | D6 | Equipment Size Auto-Suggest (profil jamaah TB/BB) | ✅ SELESAI (migration 083: height_cm+weight_kg+clothing_size+suggest_clothing_size(); badge ungu di EquipmentPage) |
 | D7 | P&L Departure — Komponen Lengkap (komisi, perlengkapan, payment realtime) | ✅ SELESAI (DepartureCommissionCard.tsx di tab Keuangan, query agent_commissions per departure, mark-paid) |
@@ -365,10 +365,10 @@
 | **Keberangkatan** | ✅ Koneksi data sudah lengkap | Sprint A DONE semua |
 | **Booking** | ✅ Wizard kuat, payment OK, capacity warning aktif | Sprint B DONE semua (B2 waiting list, B3 mutasi, B6 hotel warning) |
 | **Perlengkapan** | ✅ Auto-queue + auto-expense sudah connected | Sprint A1, B7 DONE |
-| **Kamar** | ⚠️ Sync trigger sudah ada | A6 DONE; D1 full unification masih pending |
-| **Tour Guide** | ✅ Guide channel auto-init | A5 DONE; C4 multi-muthawif masih pending |
-| **Visa** | ⚠️ Auto-create sudah ada | A2 DONE; D5 deadline tracking masih pending |
-| **Operasional** | ⚠️ Checklist ada, SOS parsial | B8 DONE; C8 SOS eskalasi masih pending |
+| **Kamar** | ✅ Unified — rekonsiliasi panel ada | A6 DONE; D1 RoomingReconciliationPanel DONE |
+| **Tour Guide** | ✅ Guide channel auto-init, multi-muthawif | A5, C4 DONE |
+| **Visa** | ✅ Auto-create + deadline tracking aktif | A2, D5 DONE |
+| **Operasional** | ✅ Checklist, SOS eskalasi, Offline QR scanner | B8, C8, D4 DONE |
 
 **Sprint A selesai 100%** — semua 6 trigger data-connectivity sudah aktif di database via migration `080_sprint_a_triggers.sql`.
 

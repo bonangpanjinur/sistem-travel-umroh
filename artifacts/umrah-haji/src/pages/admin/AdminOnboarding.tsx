@@ -111,8 +111,6 @@ export default function AdminOnboarding() {
     queryKey: ["onboarding-templates"],
     queryFn: async () => {
 
-      const { data, error } = await (supabase as any)
-
       const { data, error } = await supabaseAny
 
         .from("onboarding_templates")
@@ -129,8 +127,6 @@ export default function AdminOnboarding() {
   const { data: allTasks = [] } = useQuery<OnboardingTask[]>({
     queryKey: ["employee-onboarding-tasks"],
     queryFn: async () => {
-
-      const { data, error } = await (supabase as any)
 
       const { data, error } = await supabaseAny
 
@@ -204,8 +200,6 @@ export default function AdminOnboarding() {
         };
       });
 
-      const { error } = await (supabase as any).from("employee_onboarding_tasks").insert(rows);
-
       const { error } = await supabaseAny.from("employee_onboarding_tasks").insert(rows);
 
       if (error) throw error;
@@ -223,8 +217,6 @@ export default function AdminOnboarding() {
 
   const updateTaskStatusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
-
-      const { error } = await (supabase as any).from("employee_onboarding_tasks").update({ status }).eq("id", id);
 
       const { error } = await supabaseAny.from("employee_onboarding_tasks").update({ status }).eq("id", id);
 

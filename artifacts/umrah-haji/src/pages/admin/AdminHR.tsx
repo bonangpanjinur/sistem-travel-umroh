@@ -1122,6 +1122,12 @@ export default function AdminHR() {
             contractForm={contractForm}
             setContractForm={setContractForm}
             saveContractMutation={saveContractMutation}
+            isTrainingDialogOpen={isTrainingDialogOpen}
+            setIsTrainingDialogOpen={setIsTrainingDialogOpen}
+            editingTrainingId={editingTrainingId}
+            trainingForm={trainingForm}
+            setTrainingForm={setTrainingForm}
+            saveTrainingMutation={saveTrainingMutation}
           />
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
@@ -2957,7 +2963,13 @@ function ManualAttendanceSection({
   editingContractId,
   contractForm,
   setContractForm,
-  saveContractMutation
+  saveContractMutation,
+  isTrainingDialogOpen,
+  setIsTrainingDialogOpen,
+  editingTrainingId,
+  trainingForm,
+  setTrainingForm,
+  saveTrainingMutation,
 }: { 
   employees: Employee[]; 
   queryClient: any;
@@ -2995,6 +3007,12 @@ function ManualAttendanceSection({
   contractForm: any;
   setContractForm: (fn: (f: any) => any) => void;
   saveContractMutation: any;
+  isTrainingDialogOpen: boolean;
+  setIsTrainingDialogOpen: (open: boolean) => void;
+  editingTrainingId: string | null;
+  trainingForm: any;
+  setTrainingForm: (fn: (f: any) => any) => void;
+  saveTrainingMutation: any;
 }) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [manualData, setManualData] = useState({

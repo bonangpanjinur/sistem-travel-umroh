@@ -17,6 +17,7 @@ const DepartureReadinessPage = lazy(() => import("@/pages/operational/DepartureR
 const TripTimelinePage = lazy(() => import("@/pages/operational/TripTimelinePage"));
 const OperationalDocumentPage = lazy(() => import("@/pages/operational/OperationalDocumentPage"));
 const OfficeAssets = lazy(() => import("@/pages/operational/OfficeAssets"));
+const OfflineCheckinPage = lazy(() => import("@/pages/operational/OfflineCheckinPage"));
 const EmployeeAttendance = lazy(() => import("@/pages/hr/EmployeeAttendance"));
 
 /**
@@ -65,6 +66,7 @@ export default function OperationalRoutes() {
         <Route path="timeline" element={<LazyPage><TripTimelinePage /></LazyPage>} />
         <Route path="documents" element={<LazyPage><OperationalDocumentPage /></LazyPage>} />
         <Route path="assets" element={<LazyPage><OfficeAssets /></LazyPage>} />
+        <Route path="offline-checkin" element={<LazyPage><OfflineCheckinPage /></LazyPage>} />
       </Route>
 
       {/* HR — Absensi & Kehadiran Karyawan */}
