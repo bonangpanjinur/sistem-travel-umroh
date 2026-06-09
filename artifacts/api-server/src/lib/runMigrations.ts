@@ -738,6 +738,19 @@ export async function runMigrations(): Promise<void> {
       logger.info("runMigrations: 36_package_view_count — already applied, skipping");
     }
 
+    // ── Step 37: doc deadline reminder log (dedup table) ─────────────────────
+    const ddrApplied = await isApplied(client, "37_doc_deadline_reminder_log");
+    if (!ddrApplied) {
+      await runSqlFile(
+        client,
+        sqlPath("37_doc_deadline_reminder_log.sql"),
+        "37_doc_deadline_reminder_log (dedup table untuk reminder WA deadline dokumen H-3/H-1)",
+      );
+      await markApplied(client, "37_doc_deadline_reminder_log");
+    } else {
+      logger.info("runMigrations: 37_doc_deadline_reminder_log — already applied, skipping");
+    }
+
     // ── Step 2: payment sync trigger (always re-applied each boot) ────────
     // Wrapped in its own try/catch so a missing table on a broken DB state
     // doesn't crash the server — it just logs and continues.

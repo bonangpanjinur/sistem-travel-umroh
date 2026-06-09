@@ -328,6 +328,8 @@ router.post("/run", async (req, res) => {
     if (type === "payment" || type === "all") summary.payment = await runPaymentReminders();
     if (type === "departure" || type === "all") summary.departure_h7 = await runDepartureReminders(7);
     if (type === "departure_h1") summary.departure_h1 = await runDepartureReminders(1);
+    if (type === "doc_deadline_h3" || type === "all") summary.doc_deadline_h3 = await runDocumentDeadlineReminders(3);
+    if (type === "doc_deadline_h1") summary.doc_deadline_h1 = await runDocumentDeadlineReminders(1);
     logger.info({ summary }, "Reminder job complete");
     return res.json({ success: true, summary, ran_at: new Date().toISOString() });
   } catch (err: any) {
@@ -353,16 +355,45 @@ router.get("/status", async (_req, res) => {
     const h1Date = new Date(today); h1Date.setDate(h1Date.getDate() + 1);
     const h1Departures = await dbQuery(`SELECT id FROM departures WHERE departure_date = $1 LIMIT 50`, [h1Date.toISOString().slice(0, 10)]);
 
+    const h3Deadline = new Date(today); h3Deadline.setDate(h3Deadline.getDate() + 3);
+    const h1Deadline = new Date(today); h1Deadline.setDate(h1Deadline.getDate() + 1);
+    const deadlineH3 = await dbQuery(
+      `SELECT id FROM departures WHERE document_deadline IS NOT NULL AND DATE(document_deadline AT TIME ZONE 'Asia/Jakarta') = $1 LIMIT 50`,
+      [h3Deadline.toISOString().slice(0, 10)]
+    );
+    const deadlineH1 = await dbQuery(
+      `SELECT id FROM departures WHERE document_deadline IS NOT NULL AND DATE(document_deadline AT TIME ZONE 'Asia/Jakarta') = $1 LIMIT 50`,
+      [h1Deadline.toISOString().slice(0, 10)]
+    );
+
     return res.json({
       cicilan_settings: settings,
       triggers,
-      upcoming: { cicilan: plans.length, departure_h7: h7Departures.length, departure_h1: h1Departures.length },
+      upcoming: {
+        cicilan: plans.length,
+        departure_h7: h7Departures.length,
+        departure_h1: h1Departures.length,
+        doc_deadline_h3: deadlineH3.length,
+        doc_deadline_h1: deadlineH1.length,
+      },
       next_run: "08:00 WIB (harian)",
       configured: !!(await getFonnteToken()),
       fonnte_token_set: !!(await getFonnteToken()),
     });
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
+  }
+});
+
+router.post("/trigger-doc-deadline", async (req, res) => {
+  const days = Number(req.body?.days) === 1 ? 1 : 3;
+  logger.info({ days }, "Manual doc deadline reminder trigger");
+  try {
+    const result = await runDocumentDeadlineReminders(days as 3 | 1);
+    return res.json({ success: true, result, ran_at: new Date().toISOString() });
+  } catch (err: any) {
+    logger.error({ err }, "Doc deadline reminder trigger failed");
+    return res.status(500).json({ success: false, error: err.message });
   }
 });
 
@@ -376,6 +407,160 @@ router.post("/trigger-departure", async (req, res) => {
     return res.status(500).json({ success: false, error: err.message });
   }
 });
+
+// ─── Document Deadline Reminders (H-3 / H-1) ─────────────────────────────────
+
+const DEFAULT_DOC_DEADLINE_H3_TEMPLATE = `Assalamu'alaikum *{nama}*,
+
+📄 *Pengingat — Batas Upload Dokumen H-3!*
+
+Batas waktu pengumpulan dokumen perjalanan Anda untuk paket *{paket}* tinggal *3 hari lagi* pada *{deadline}*.
+
+📋 Kode Booking: *{kode_booking}*
+
+Dokumen yang perlu disiapkan:
+• ✅ Paspor (scan halaman data diri)
+• ✅ KTP / KK / Akta Lahir
+• ✅ Foto 4x6 background putih
+• ✅ Suntik meningitis (jika ada)
+• ✅ Buku nikah / surat mahram (jika diperlukan)
+
+Segera upload dokumen melalui portal jamaah atau hubungi agen Anda.
+
+Barakallahu fiikum 🤲
+_Tim Vinstour Travel_`;
+
+const DEFAULT_DOC_DEADLINE_H1_TEMPLATE = `Assalamu'alaikum *{nama}*,
+
+⚠️ *SEGERA — Batas Upload Dokumen Besok!*
+
+Batas pengumpulan dokumen perjalanan Anda untuk paket *{paket}* adalah *besok, {deadline}*.
+
+📋 Kode Booking: *{kode_booking}*
+
+Harap segera melengkapi dan mengupload dokumen Anda agar proses perjalanan ibadah tidak terganggu. Hubungi agen Anda jika membutuhkan bantuan.
+
+Barakallahu fiikum 🤲
+_Tim Vinstour Travel_`;
+
+async function runDocumentDeadlineReminders(
+  daysBeforeDeadline: 3 | 1
+): Promise<{ sent: number; failed: number; skipped: number; details: string[] }> {
+  const result = { sent: 0, failed: 0, skipped: 0, details: [] as string[] };
+
+  const triggerId = daysBeforeDeadline === 3 ? "doc_deadline_h3" : "doc_deadline_h1";
+  const triggers = await getWAOtomatisTriggers();
+  if (!triggers[triggerId]) {
+    result.details.push(`Trigger "${triggerId}" tidak aktif — skip`);
+    return result;
+  }
+
+  const FONNTE_TOKEN = await getFonnteToken();
+  if (!FONNTE_TOKEN) {
+    result.details.push("Konfigurasi WhatsApp belum diatur");
+    return result;
+  }
+
+  const defaultTemplate =
+    daysBeforeDeadline === 3 ? DEFAULT_DOC_DEADLINE_H3_TEMPLATE : DEFAULT_DOC_DEADLINE_H1_TEMPLATE;
+  const template = await getWATemplate(`wa_template_${triggerId}`, defaultTemplate);
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+
+  // Ambil departures yang document_deadline-nya jatuh pada hari H-{daysBeforeDeadline}
+  const departures = await dbQuery(
+    `SELECT d.id, d.document_deadline, pkg.name AS package_name
+     FROM departures d
+     LEFT JOIN packages pkg ON pkg.id = d.package_id
+     WHERE d.document_deadline IS NOT NULL
+       AND DATE(d.document_deadline AT TIME ZONE 'Asia/Jakarta')
+           = CURRENT_DATE + INTERVAL '${daysBeforeDeadline} days'`,
+    []
+  );
+
+  if (departures.length === 0) {
+    result.details.push(`Tidak ada keberangkatan dengan deadline H-${daysBeforeDeadline} hari lagi`);
+    return result;
+  }
+
+  for (const dep of departures) {
+    // Cek dedup — jangan kirim ulang di hari yang sama untuk departure + days_before yang sama
+    const alreadySent = await dbQueryOne(
+      `SELECT id FROM doc_deadline_reminder_log
+       WHERE departure_id = $1 AND days_before = $2 AND sent_date = $3`,
+      [dep.id, daysBeforeDeadline, todayStr]
+    );
+    if (alreadySent) {
+      result.details.push(`⏭️ Departure ${dep.package_name || dep.id} — sudah dikirim hari ini, skip`);
+      result.skipped++;
+      continue;
+    }
+
+    // Ambil semua booking aktif untuk departure ini yang belum lengkap dokumennya
+    const bookings = await dbQuery(
+      `SELECT b.id AS booking_id, b.booking_code, c.full_name, c.phone,
+              (SELECT COUNT(*) FROM customer_documents cd
+               WHERE cd.customer_id = c.id AND cd.status IN ('approved','verified')) AS doc_count
+       FROM bookings b
+       INNER JOIN customers c ON c.id = b.customer_id
+       WHERE b.departure_id = $1
+         AND b.booking_status NOT IN ('cancelled', 'refunded')
+         AND c.phone IS NOT NULL`,
+      [dep.id]
+    );
+
+    const deadlineDate = dep.document_deadline ? new Date(dep.document_deadline) : null;
+    const deadlineStr = deadlineDate
+      ? deadlineDate.toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" })
+      : "—";
+
+    let sentThisDep = 0;
+
+    for (const b of bookings) {
+      const phone: string = b.phone || "";
+      const name: string = b.full_name || "Bapak/Ibu";
+      if (!phone) { result.skipped++; continue; }
+
+      const message = template
+        .replace(/{nama}/g, name)
+        .replace(/{paket}/g, dep.package_name || "—")
+        .replace(/{kode_booking}/g, b.booking_code || "—")
+        .replace(/{deadline}/g, deadlineStr)
+        .replace(/\{[a-zA-Z_]\w*\}/g, "");
+
+      const res = await sendWA(phone, message);
+      await logWA({
+        recipient_phone: phone,
+        recipient_name: name,
+        trigger_type: triggerId,
+        message_content: message,
+        status: res.success ? "sent" : "failed",
+        error_message: res.error,
+      });
+
+      if (res.success) {
+        result.sent++;
+        sentThisDep++;
+        result.details.push(`✅ ${name} — deadline ${deadlineStr} (H-${daysBeforeDeadline})`);
+      } else {
+        result.failed++;
+        result.details.push(`❌ ${name} — ${res.error}`);
+      }
+      await new Promise((r) => setTimeout(r, 800));
+    }
+
+    // Catat di log dedup
+    await dbExec(
+      `INSERT INTO doc_deadline_reminder_log (departure_id, days_before, sent_date, sent_count)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (departure_id, days_before, sent_date) DO UPDATE
+         SET sent_count = doc_deadline_reminder_log.sent_count + $4, updated_at = NOW()`,
+      [dep.id, daysBeforeDeadline, todayStr, sentThisDep]
+    );
+  }
+
+  return result;
+}
 
 // ── F-06: Reminder kadaluarsa paspor/visa via WhatsApp ──────────────────
 router.post("/document-expiry", async (req, res) => {
