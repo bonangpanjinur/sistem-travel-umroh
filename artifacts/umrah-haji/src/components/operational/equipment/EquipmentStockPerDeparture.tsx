@@ -14,7 +14,7 @@ import { Progress } from "@/components/ui/progress";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Package, CheckCircle2, RotateCcw, Archive, TrendingDown } from "lucide-react";
+import { Package, CheckCircle2, RotateCcw, Archive, TrendingDown, ListChecks } from "lucide-react";
 
 interface Props {
   departureId: string;
@@ -26,6 +26,7 @@ interface StockRow {
   name: string;
   category: string;
   global_stock: number;
+  queued: number;
   distributed: number;
   confirmed: number;
   returned: number;
@@ -68,6 +69,9 @@ export function EquipmentStockPerDeparture({ departureId, departureName }: Props
         const distributed = itemDists.filter((d: any) => d.status === "distributed").reduce(
           (s: number, d: any) => s + (d.quantity || 1), 0,
         );
+        const queued = itemDists.filter((d: any) => d.status === "queued").reduce(
+          (s: number, d: any) => s + (d.quantity || 1), 0,
+        );
         const confirmed = itemDists.filter((d: any) => d.status === "distributed" && d.confirmed_by_jamaah).reduce(
           (s: number, d: any) => s + (d.quantity || 1), 0,
         );
@@ -80,17 +84,19 @@ export function EquipmentStockPerDeparture({ departureId, departureName }: Props
           category: item.category || "general",
           global_stock: item.stock_quantity || 0,
           distributed,
+          queued,
           confirmed,
           returned,
           remaining_in_stock: item.stock_quantity || 0,
         };
-      }).filter((r: StockRow) => r.distributed > 0 || r.returned > 0);
+      }).filter((r: StockRow) => r.distributed > 0 || r.returned > 0 || r.queued > 0);
 
       return result;
     },
   });
 
   const totalDistributed = rows.reduce((s, r) => s + r.distributed, 0);
+  const totalQueued      = rows.reduce((s, r) => s + r.queued, 0);
   const totalConfirmed   = rows.reduce((s, r) => s + r.confirmed, 0);
   const totalReturned    = rows.reduce((s, r) => s + r.returned, 0);
   const totalItems       = rows.length;
@@ -113,7 +119,7 @@ export function EquipmentStockPerDeparture({ departureId, departureName }: Props
       </div>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <Card>
           <CardContent className="pt-4 pb-3 flex items-center gap-2">
             <div className="p-2 bg-blue-100 rounded-lg"><Package className="h-4 w-4 text-blue-600" /></div>
@@ -123,6 +129,17 @@ export function EquipmentStockPerDeparture({ departureId, departureName }: Props
             </div>
           </CardContent>
         </Card>
+        {totalQueued > 0 && (
+          <Card>
+            <CardContent className="pt-4 pb-3 flex items-center gap-2">
+              <div className="p-2 bg-purple-100 rounded-lg"><ListChecks className="h-4 w-4 text-purple-600" /></div>
+              <div>
+                <p className="text-xl font-bold text-purple-700">{fmt(totalQueued)}</p>
+                <p className="text-xs text-muted-foreground">Antrian</p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
         <Card>
           <CardContent className="pt-4 pb-3 flex items-center gap-2">
             <div className="p-2 bg-green-100 rounded-lg"><Archive className="h-4 w-4 text-green-600" /></div>
@@ -184,6 +201,7 @@ export function EquipmentStockPerDeparture({ departureId, departureName }: Props
               <TableRow>
                 <TableHead>Item</TableHead>
                 <TableHead>Kategori</TableHead>
+                <TableHead className="text-center">Antrian</TableHead>
                 <TableHead className="text-center">Distribusi</TableHead>
                 <TableHead className="text-center">Konfirmasi</TableHead>
                 <TableHead className="text-center">Retur</TableHead>
@@ -202,6 +220,11 @@ export function EquipmentStockPerDeparture({ departureId, departureName }: Props
                       <Badge variant="outline" className="text-xs">
                         {CATEGORY_LABEL[row.category] || row.category}
                       </Badge>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {row.queued > 0 ? (
+                        <span className="text-purple-600 font-medium">{fmt(row.queued)}</span>
+                      ) : "—"}
                     </TableCell>
                     <TableCell className="text-center">{fmt(row.distributed)}</TableCell>
                     <TableCell className="text-center">

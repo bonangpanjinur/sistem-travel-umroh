@@ -928,6 +928,42 @@ export async function runMigrations(): Promise<void> {
       logger.info("runMigrations: 077_guide_subgroups — already applied, skipping");
     }
 
+    // ── Step 079: Fix trigger trg_auto_queue_equipment (kolom 'status' bukan 'booking_status') ─
+    const fixEquipTriggerApplied = await isApplied(client, "079_fix_equipment_queue_trigger");
+    if (!fixEquipTriggerApplied) {
+      try {
+        await runSqlFile(
+          client,
+          sqlPath("079_fix_equipment_queue_trigger.sql"),
+          "079_fix_equipment_queue_trigger (pasang trigger dengan kolom status yang benar)",
+        );
+        await markApplied(client, "079_fix_equipment_queue_trigger");
+      } catch (e: any) {
+        logger.warn({ err: e?.message }, "runMigrations: 079_fix_equipment_queue_trigger — skipping (non-fatal)");
+      }
+    } else {
+      logger.info("runMigrations: 079_fix_equipment_queue_trigger — already applied, skipping");
+    }
+
+    // ── Step 078: Sprint A1 — Auto-queue equipment saat booking dikonfirmasi ───
+    // Trigger otomatis membuat equipment_distributions (status='queued') untuk
+    // setiap jamaah berdasarkan package_type_equipment tipe paket.
+    const autoEquipQueueApplied = await isApplied(client, "078_auto_equipment_queue_on_booking_confirmed");
+    if (!autoEquipQueueApplied) {
+      try {
+        await runSqlFile(
+          client,
+          sqlPath("078_auto_equipment_queue_on_booking_confirmed.sql"),
+          "078_auto_equipment_queue (trigger auto-queue perlengkapan saat booking confirmed + backfill)",
+        );
+        await markApplied(client, "078_auto_equipment_queue_on_booking_confirmed");
+      } catch (e: any) {
+        logger.warn({ err: e?.message }, "runMigrations: 078_auto_equipment_queue — skipping (non-fatal)");
+      }
+    } else {
+      logger.info("runMigrations: 078_auto_equipment_queue — already applied, skipping");
+    }
+
   } catch (err) {
     logger.error({ err }, "runMigrations: unexpected error — server continues");
   } finally {

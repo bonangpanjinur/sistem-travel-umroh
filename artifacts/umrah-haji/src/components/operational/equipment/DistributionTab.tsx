@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Users, Search, Loader2, RotateCcw, Calendar } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Users, Search, Loader2, RotateCcw, Calendar, ListChecks, Info } from "lucide-react";
 import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import { Distribution } from "@/pages/operational/EquipmentPage";
@@ -76,19 +77,19 @@ export function DistributionTab({
     },
   });
 
-  // Fetch existing distributions for selected customer and departure
+  // Fetch existing distributions for selected customer and departure (distributed + queued)
   const { data: customerDistributions } = useQuery({
     queryKey: ["customer-distributions", selectedCustomerId, selectedDeparture],
     queryFn: async () => {
       if (!selectedCustomerId || selectedDeparture === "all") return [];
       const { data, error } = await supabase
         .from("equipment_distributions")
-        .select("equipment_id")
+        .select("equipment_id, status")
         .eq("customer_id", selectedCustomerId)
         .eq("departure_id", selectedDeparture)
-        .eq("status", "distributed");
+        .in("status", ["distributed", "queued"]);
       if (error) throw error;
-      return data;
+      return data as { equipment_id: string; status: string }[];
     },
     enabled: !!selectedCustomerId && selectedDeparture !== "all",
   });
@@ -106,11 +107,19 @@ export function DistributionTab({
     );
   }, [passengers, searchPassenger]);
 
-  // Get distributed items for current departure
+  // Get distributed/queued items for current departure (active distributions)
   const distributedItems = useMemo(() => {
     if (!distributions || selectedDeparture === "all") return [];
     return distributions.filter(
       (d) => d.departure_id === selectedDeparture && d.status !== "returned"
+    );
+  }, [distributions, selectedDeparture]);
+
+  // Get only queued items (auto-created from template, awaiting prep)
+  const queuedItems = useMemo(() => {
+    if (!distributions || selectedDeparture === "all") return [];
+    return distributions.filter(
+      (d) => d.departure_id === selectedDeparture && d.status === "queued"
     );
   }, [distributions, selectedDeparture]);
 
@@ -142,7 +151,7 @@ export function DistributionTab({
   return (
     <div className="space-y-6 animate-in fade-in">
       {/* Tab Selector */}
-      <div className="flex gap-2">
+      <div className="flex gap-2 flex-wrap">
         <Button
           variant={activeTab === "distribution" ? "default" : "outline"}
           onClick={() => setActiveTab("distribution")}
@@ -160,6 +169,18 @@ export function DistributionTab({
           Pengembalian ({returnedItems.length})
         </Button>
       </div>
+
+      {/* Queued items info banner */}
+      {queuedItems.length > 0 && (
+        <Alert className="border-purple-200 bg-purple-50/60">
+          <ListChecks className="h-4 w-4 text-purple-600" />
+          <AlertDescription className="text-purple-800 text-sm">
+            <span className="font-semibold">{queuedItems.length} item perlengkapan</span> dalam antrian otomatis
+            (dijadwalkan saat booking dikonfirmasi).{" "}
+            Pilih jamaah di bawah lalu centang item untuk menandai sebagai <em>Terdistribusi</em>.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Distribution Tab */}
       {activeTab === "distribution" && (

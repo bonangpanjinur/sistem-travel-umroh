@@ -1,13 +1,2 @@
-- [Supabase null vs undefined in types](supabase-null-undefined.md) — Supabase returns null for optional columns; TypeScript interfaces using undefined? must map null→undefined in queryFn.
-- [Passenger Type Pricing](passenger-type-pricing.md) — price_adult (baru), child/infant_price_percent di departures+packages; perhitungan room-based sudah fix untuk anak/balita.
-- [Migration Runner Pattern](migration-runner.md) — migrations di api-server/src/sql/ dengan step hardcoded di runMigrations.ts; file baru perlu step eksplisit.
-- [SEO Architecture](seo-architecture.md) — useSEO hook di hooks/useSEO.ts; PackageDetail pakai useEffect manual (bukan hook) karena punya cleanup logic; siteTitle harus dari settings.company_name bukan hardcoded.
-- [Branch & Agent Scoping](branch-agent-scoping.md) — JWT membawa branch_id+agent_id; supabaseProxy auto-inject branch_id filter untuk branch_manager; route order agents.ts KRITIS.
-- [API server port](api-server-port.md) — API server berjalan di PORT=8080 (workflow "Start API server"); Vite proxy harus target localhost:8080, bukan 3001. `ws` package perlu di-install + di-add ke external[] di build.mjs.
-- [rencanadarurat P1+P2 selesai](rencanadarurat-done.md) — Semua P1+P2 dari rencanadarurat.md selesai di sesi 9 Jun 2026; P3 belum. Migrations 33-35 applied.
-- [SQL migration file placement](sql-migration-placement.md) — SQL files for runner must live in `artifacts/api-server/src/sql/`, not root `sql/migrations/`
-- [Sprint DOC-1 pattern](sprint-doc1-pattern.md) — JamaahDocuments download: useCompanyInfo + bookings query + generateETicket/Invoice/UmrahCertificate; sertifikat hanya muncul setelah tripEnded (returnDate ≤ today).
-- [Sprint DOC-4 agent portal docs](sprint-doc4.md) — SuratLunasData uses totalAmount (NOT totalPrice), departureDate is string|undefined (NOT Date). xlsx missing from api-server → install via pnpm add xlsx.
-- [DOC-5 security features](doc5-security.md) — gen_random_bytes() tidak ada di Neon; gunakan replace(gen_random_uuid()::text||gen_random_uuid()::text,'-','') untuk token. Migration key: "22_doc_security_features".
-- [runMigrations brace bug](runmigrations-brace-bug.md) — Step 22 else block di runMigrations.ts pernah tidak tertutup (missing `}`), menyebabkan semua step 37+ nested di dalamnya. Sudah diperbaiki. Hati-hati saat menambah step baru di area ini.
-- [Live audio WS relay](live-audio-ws.md) — WebSocket audio relay di audioRelay.ts; index.ts harus `createServer(app)` bukan `app.listen()`; Vite proxy `/ws` dengan `ws: true`; routes `/jamaah/siaran`, `/muthawif/siaran`, `/tour-leader/siaran`.
+- [Equipment queued status flow](equipment-queued-status.md) — trigger auto-queue saat booking confirmed; UI harus fetch queued+distributed bersama, bukan hanya distributed
+- [bookings.status vs booking_status alias](bookings-status-column.md) — trigger DB harus pakai `status`, bukan `booking_status` (itu hanya alias di views/RPCs)

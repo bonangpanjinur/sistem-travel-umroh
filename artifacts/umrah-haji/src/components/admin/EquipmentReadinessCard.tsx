@@ -25,6 +25,7 @@ interface EquipmentItemStat {
   name: string;
   category: string;
   photo_url: string | null;
+  queued: number;
   distributed: number;
   pending: number;
   returned: number;
@@ -55,7 +56,7 @@ function getCategoryIcon(name: string, category: string): React.ElementType {
   return Box;
 }
 
-function StatusBadge({ distributed, pending, total }: { distributed: number; pending: number; total: number }) {
+function StatusBadge({ queued, distributed, total }: { queued: number; distributed: number; total: number }) {
   if (total === 0) return null;
   if (distributed === total) {
     return (
@@ -64,16 +65,23 @@ function StatusBadge({ distributed, pending, total }: { distributed: number; pen
       </Badge>
     );
   }
-  if (distributed === 0) {
+  if (distributed > 0) {
     return (
-      <Badge variant="outline" className="text-[9px] py-0 px-1.5 h-4 border-orange-300 text-orange-700 bg-orange-50">
-        Belum Mulai
+      <Badge variant="outline" className="text-[9px] py-0 px-1.5 h-4 border-blue-300 text-blue-700 bg-blue-50">
+        Sebagian
+      </Badge>
+    );
+  }
+  if (queued > 0) {
+    return (
+      <Badge variant="outline" className="text-[9px] py-0 px-1.5 h-4 border-purple-300 text-purple-700 bg-purple-50">
+        Antrian
       </Badge>
     );
   }
   return (
-    <Badge variant="outline" className="text-[9px] py-0 px-1.5 h-4 border-blue-300 text-blue-700 bg-blue-50">
-      Sebagian
+    <Badge variant="outline" className="text-[9px] py-0 px-1.5 h-4 border-orange-300 text-orange-700 bg-orange-50">
+      Belum Ada
     </Badge>
   );
 }
@@ -120,6 +128,7 @@ export function EquipmentReadinessCard({
             name: item.name,
             category: item.category ?? "",
             photo_url: item.photo_url ?? null,
+            queued: 0,
             distributed: 0,
             pending: 0,
             returned: 0,
@@ -132,6 +141,7 @@ export function EquipmentReadinessCard({
 
         if (row.status === "distributed") stat.distributed += 1;
         else if (row.status === "returned") stat.returned += 1;
+        else if (row.status === "queued") stat.queued += 1;
         else stat.pending += 1;
       }
 
@@ -299,8 +309,8 @@ export function EquipmentReadinessCard({
 
                             <div className="flex items-center gap-1 flex-shrink-0">
                               <StatusBadge
+                                queued={item.queued}
                                 distributed={item.distributed}
-                                pending={item.pending}
                                 total={item.total_assigned}
                               />
                               <span className={cn(
@@ -326,15 +336,23 @@ export function EquipmentReadinessCard({
                       </TooltipTrigger>
                       <TooltipContent side="left" className="text-xs max-w-[200px]">
                         <p className="font-semibold mb-1">{item.name}</p>
-                        <div className="flex gap-3 text-[11px]">
+                        <div className="flex gap-3 text-[11px] flex-wrap">
                           <span className="flex items-center gap-1 text-green-600">
                             <CheckCircle2 className="h-3 w-3" />
                             {item.distributed} diterima
                           </span>
-                          <span className="flex items-center gap-1 text-amber-600">
-                            <Clock className="h-3 w-3" />
-                            {item.pending} pending
-                          </span>
+                          {item.queued > 0 && (
+                            <span className="flex items-center gap-1 text-purple-600">
+                              <Clock className="h-3 w-3" />
+                              {item.queued} antrian
+                            </span>
+                          )}
+                          {item.pending > 0 && (
+                            <span className="flex items-center gap-1 text-amber-600">
+                              <Clock className="h-3 w-3" />
+                              {item.pending} pending
+                            </span>
+                          )}
                           {item.returned > 0 && (
                             <span className="flex items-center gap-1 text-gray-500">
                               <XCircle className="h-3 w-3" />
