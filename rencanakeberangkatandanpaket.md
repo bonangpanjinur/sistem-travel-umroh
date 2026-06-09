@@ -147,7 +147,7 @@
 ---
 
 #### R5. Guide Subgroup ↔ Jamaah Belum Ada Auto-Split
-> **STATUS: ⏳ Belum** — Tombol "Auto-Bagi Subgroup" belum ada. Dijadwalkan Sprint B.
+> **STATUS: ✅ SELESAI** — Sprint E1. `AutoSplitSubgroupDialog.tsx` + API endpoint `POST /api/v1/guide/subgroups/auto-split`. 3 strategi: mahram_aware (pasangan mahram satu grup), gender_balanced (interleave L/P), random. Tombol "Bagi Otomatis" di header + empty state `TourLeaderSubgroups.tsx`. Preview sebelum simpan ke DB.
 
 ---
 
@@ -218,80 +218,80 @@
 ---
 
 #### F7. Hotel Contract / Voucher Management
-> **STATUS: ⏳ Belum** — Sprint C7. Belum ada tabel/UI untuk rekam kontrak hotel per departure.
+> **STATUS: ✅ SELESAI** — Sprint C7. `AdminHotelContracts.tsx` (617 baris) + tabel `hotel_contracts` + `hotel_vouchers`. CRUD kontrak, upload voucher, status aktif/expired.
 
 ---
 
 #### F8. Muthawif Rating & Feedback Post-Trip
-> **STATUS: ⏳ Belum** — Sprint C5. Survei pasca-trip belum ada; `muthawifs.rating` belum terakumulasi otomatis.
+> **STATUS: ✅ SELESAI** — Sprint C5. `AdminPostDepartureSurvey.tsx` — survei pasca-trip per departure, akumulasi rating ke `muthawifs.rating`.
 
 ---
 
 #### F9. Departure Capacity Visual (Admin & Publik)
-> **STATUS: ⚠️ Parsial** — `available_seats` total per departure sudah ada. Breakdown per room type (Quad/Triple/Double) dengan progress bar belum ada. Sprint C9.
+> **STATUS: ✅ SELESAI** — Sprint C9. `DepartureCapacityVisual.tsx` di tab Info AdminDepartureDetail — breakdown quad/triple/double dengan progress bar per room type.
 
 ---
 
 #### F10. Multi-Muthawif Assignment per Departure
-> **STATUS: ⏳ Belum** — Sprint C4. Saat ini hanya 1 muthawif per departure (`departures.muthawif_id`).
+> **STATUS: ✅ SELESAI** — Sprint C4. `DepartureMuthawifPanel.tsx` + tabel `departure_muthawifs` (migration 082). Support assign banyak muthawif per departure, role per muthawif.
 
 ---
 
 ### 🟡 Penting — Perlu Ada
 
 #### F11. Booking Line Item: Breakdown Harga Transparan
-> **STATUS: ⏳ Belum** — Sprint C10. Invoice PDF ada tapi tidak breakdown per komponen (supplement, diskon, perlengkapan).
+> **STATUS: ✅ SELESAI** — Sprint C10/D8. Tabel `booking_line_items` + display di `AdminBookingDetail` + `RoomTypeAssignmentDialog` insert line items otomatis saat kamar di-assign.
 
 ---
 
 #### F12. Muthawif Conflict Calendar
-> **STATUS: ⏳ Belum** — Sprint C6. Belum ada cek jadwal overlap saat assign muthawif ke departure.
+> **STATUS: ✅ SELESAI** — Sprint C6. `MuthawifConflictCalendar.tsx` — Gantt-style timeline, conflict detection merah, navigasi prev/next. Tab di AdminMuthawifs + dialog di DepartureMuthawifPanel.
 
 ---
 
 #### F13. SOS Eskalasi Otomatis
-> **STATUS: ⏳ Belum** — Sprint C8. Tabel `sos_alerts` ada, routing ke guide ada, tapi auto-eskalasi ke team leader/admin pusat jika no-response belum ada.
+> **STATUS: ✅ SELESAI** — Sprint C8. `AdminSOSAlerts.tsx` (520 baris) + tabel `sos_escalation_log`. Auto-eskalasi ke team leader/admin pusat jika guide tidak respons dalam threshold waktu.
 
 ---
 
 #### F14. Itinerary Template → Departure Auto-Populate
-> **STATUS: ⚠️ Parsial** — `AdminItineraryTemplates.tsx` + `itinerary_templates` tabel ada. `departure_itineraries` bisa link ke template. Tapi belum ada tombol "Copy Template ke Departure" yang auto-clone hari-per-hari. Sprint C3.
+> **STATUS: ✅ SELESAI** — Sprint C3. `DepartureItineraryEditor.tsx` — salin template ke departure dengan auto-assign tanggal per hari, edit inline per hari/aktivitas.
 
 ---
 
 #### F15. Offline Mode QR Scanner (Check-in Bandara)
-> **STATUS: ⏳ Belum** — Sprint D4. Butuh IndexedDB + sync worker.
+> **STATUS: ✅ SELESAI** — Sprint D4. `OfflineCheckinPage.tsx` + `offlineCheckinDb.ts` — IndexedDB, download data jamaah, queue check-in saat offline, sync saat online. Route `/operational/offline-checkin`.
 
 ---
 
 ## BAGIAN 4 — YANG BELUM SEMPURNA (INCOMPLETE / HALF-BUILT)
 
 ### I1. Dual Rooming System — Sumber Kebenaran Ganda
-> **STATUS: ⚠️ Sebagian diperbaiki** — Trigger `trg_sync_room_number_on_occupant` (migration 080) sekarang sync `room_occupants` → `booking_passengers.room_number_makkah/madinah` otomatis. Tapi unifikasi penuh (D1) masih pending.
+> **STATUS: ✅ SELESAI** — Sprint D1. `RoomingReconciliationPanel.tsx` di tab Kamar AdminDepartureDetail — tampilkan BP vs RA, status Sinkron/Tidak Sinkron/Belum Assign, tombol "Rekonsiliasi Otomatis" 1-klik fix semua mismatch. Trigger `trg_sync_room_number_on_occupant` juga aktif.
 
 ### I2. Multi-Hotel per City — Migration Ada, UI Belum
-> **STATUS: ⏳ Sprint D2** — UI belum diperbarui untuk input hotel ke-2/ke-3.
+> **STATUS: ✅ SELESAI** — Sprint D2. `DepartureForm.tsx` tambahan `additionalHotels` UI lengkap — pilih role (makkah/madinah/transit), nama hotel, tanggal check-in/out. Migration `066_multi_hotel_per_city` sudah aktif.
 
 ### I3. Visa Application System — Tabel Ada, Flow Tidak Lengkap
-> **STATUS: ⚠️ Sebagian diperbaiki** — Auto-create via trigger sudah ada (migration 080). Deadline tracking (D5) belum ada.
+> **STATUS: ✅ SELESAI** — Sprint D5. Auto-create via trigger (migration 080) + `DepartureVisaSummary.tsx` dengan `visaDeadline` prop — banner merah/oranye/kuning sesuai urgensi hari tersisa.
 
 ### I4. P&L Departure — Komponen Belum Lengkap
-> **STATUS: ⚠️ Sebagian diperbaiki** — Auto-recalc P&L via trigger ada (033). Biaya perlengkapan → departure_expenses auto sudah ada (migration 080, trigger B7). Komisi agen di P&L masih belum.
+> **STATUS: ✅ SELESAI** — Sprint D7. `DepartureCommissionCard.tsx` di tab Keuangan — query `agent_commissions` per departure, tampilkan total komisi, tombol mark-paid. Biaya perlengkapan & komisi sudah masuk P&L.
 
 ### I5. SOS System — Tabel Ada, UX Belum Optimal
-> **STATUS: ⏳ Sprint C8** — Eskalasi otomatis belum ada.
+> **STATUS: ✅ SELESAI** — Sprint C8. `AdminSOSAlerts.tsx` (520 baris) + `sos_escalation_log` — auto-eskalasi ke team leader/admin jika guide tidak respons.
 
 ### I6. QR Check-in — Parsial
-> **STATUS: ⏳ Sprint D4** — Scanner mode & offline belum ada.
+> **STATUS: ✅ SELESAI** — Sprint D4. `OfflineCheckinPage.tsx` + `offlineCheckinDb.ts` — IndexedDB, offline scan + queue, sync saat online. Route `/operational/offline-checkin`.
 
 ### I7. Equipment Size — Field Ada, Logic Belum
-> **STATUS: ⏳ Sprint D6** — Profil TB/BB jamaah belum ada.
+> **STATUS: ✅ SELESAI** — Sprint D6. Migration `083_sprint_d_height_clothing_size.sql` — `height_cm`, `weight_kg`, `clothing_size` di `booking_passengers`. Fungsi `suggest_clothing_size()`. Badge ungu di EquipmentPage.
 
 ### I8. Itinerary — Ada Tapi Tidak Tersambung ke Jamaah
-> **STATUS: ⚠️ Parsial** — `TripTimelinePage.tsx` ada untuk live update. Portal jamaah belum menampilkan itinerary pre-departure.
+> **STATUS: ⚠️ Parsial** — `TripTimelinePage.tsx` ada untuk live update guide. Portal jamaah belum menampilkan itinerary pre-departure secara mandiri (panduan ibadah ada di `/jamaah/panduan-ibadah`).
 
 ### I9. Muthawif Assignment di Departure Detail — Input Belum Nyaman
-> **STATUS: ⚠️ Sebagian diperbaiki** — Guide channel auto-init sudah ada (trigger 080). Conflict calendar (C6) belum ada.
+> **STATUS: ✅ SELESAI** — Sprint C4/C6. `DepartureMuthawifPanel.tsx` untuk assign banyak muthawif. `MuthawifConflictCalendar.tsx` untuk deteksi konflik jadwal. Guide channel auto-init via trigger.
 
 ---
 
@@ -355,21 +355,45 @@
 | D7 | P&L Departure — Komponen Lengkap (komisi, perlengkapan, payment realtime) | ✅ SELESAI (DepartureCommissionCard.tsx di tab Keuangan, query agent_commissions per departure, mark-paid) |
 | D8 | Booking Line Item: breakdown transparan | ✅ SELESAI (line items display di AdminBookingDetail + RoomTypeAssignmentDialog insert ke booking_line_items) |
 
+### Sprint E — Optimasi & Fitur Lanjutan ✅ DONE
+
+| Kode | Fitur | Status |
+|---|---|---|
+| E1 | Auto-Split Subgroup per Bus/Grup (R5) | ✅ SELESAI (`AutoSplitSubgroupDialog.tsx` + `POST /api/v1/guide/subgroups/auto-split` — 3 strategi: mahram_aware/gender_balanced/random, preview sebelum simpan) |
+| E2 | Manifest Export per Bus/Subgroup | ✅ SELESAI (`ManifestBusExport.tsx` — PDF multi-halaman per bus dengan header berwarna, Excel multi-sheet per bus. Tombol "Per Bus" di ManifestPage.tsx) |
+
 ---
 
 ## RINGKASAN EKSEKUTIF
 
-| Area | Kondisi | Status Fix |
+> **Diperbarui: 09 Juni 2026** — Sprint A–E semua selesai. Tidak ada item ⏳ Belum yang tersisa kecuali I8 (itinerary portal jamaah, parsial).
+
+| Area | Kondisi | Semua Kode Sprint |
 |---|---|---|
-| **Paket** | ✅ Solid & Lengkap | Sprint A3 DONE |
-| **Keberangkatan** | ✅ Koneksi data sudah lengkap | Sprint A DONE semua |
-| **Booking** | ✅ Wizard kuat, payment OK, capacity warning aktif | Sprint B DONE semua (B2 waiting list, B3 mutasi, B6 hotel warning) |
-| **Perlengkapan** | ✅ Auto-queue + auto-expense sudah connected | Sprint A1, B7 DONE |
-| **Kamar** | ✅ Unified — rekonsiliasi panel ada | A6 DONE; D1 RoomingReconciliationPanel DONE |
-| **Tour Guide** | ✅ Guide channel auto-init, multi-muthawif | A5, C4 DONE |
-| **Visa** | ✅ Auto-create + deadline tracking aktif | A2, D5 DONE |
-| **Operasional** | ✅ Checklist, SOS eskalasi, Offline QR scanner | B8, C8, D4 DONE |
+| **Paket** | ✅ Solid & Lengkap | A3 |
+| **Keberangkatan** | ✅ Koneksi data lengkap, multi-hotel, capacity visual | A1–A6, C9, D2 |
+| **Booking** | ✅ Wizard kuat, capacity warning, mutasi, waiting list | B2, B3, B6, C10, D8 |
+| **Perlengkapan** | ✅ Auto-queue, auto-expense, size suggest | A1, B7, D6 |
+| **Kamar** | ✅ Unified — rekonsiliasi panel + sync trigger | A6, D1 |
+| **Tour Guide** | ✅ Multi-muthawif, conflict calendar, auto-split subgroup | A5, C4, C6, E1 |
+| **Visa** | ✅ Auto-create + deadline tracking banner | A2, D5 |
+| **Operasional** | ✅ Checklist, SOS eskalasi, Offline QR, Manifest per Bus | B8, C8, D4, E2 |
+| **Keuangan** | ✅ P&L lengkap — komisi, perlengkapan, line items | D7, D8 |
+| **Komunikasi** | ✅ Reminder H-60→H-1, WA broadcast, push notif | C2, D3 |
 
-**Sprint A selesai 100%** — semua 6 trigger data-connectivity sudah aktif di database via migration `080_sprint_a_triggers.sql`.
+**Sprint A selesai 6/6** — semua trigger data-connectivity aktif via migration `080_sprint_a_triggers.sql`.
 
-**Sprint B selesai 8/8** — B1 (readiness dashboard), B2 (waiting list), B3 (mutasi booking), B4 (pembatalan + refund), B5 (muthawif profile publik), B6 (hotel capacity warning di wizard), B7 (equipment → departure_expenses auto), B8 (pre-departure checklist). Sprint B ✅ DONE.
+**Sprint B selesai 8/8** — readiness dashboard, waiting list, mutasi booking, refund, muthawif publik, hotel warning, equipment expense, pre-departure checklist.
+
+**Sprint C selesai 10/10** — dokumen jamaah, reminder otomatis, itinerary template, multi-muthawif, post-trip survey, conflict calendar, hotel contract, SOS eskalasi, capacity visual, line item breakdown.
+
+**Sprint D selesai 8/8** — dual rooming rekonsiliasi, multi-hotel UI, live itinerary notif, offline QR scanner, visa deadline, equipment size suggest, P&L komisi, booking line items.
+
+**Sprint E selesai 2/2** — auto-split subgroup (3 strategi + preview), manifest export per bus/grup (PDF multi-halaman + Excel multi-sheet).
+
+### ⚠️ Item Parsial yang Tersisa
+
+| Item | Status | Keterangan |
+|---|---|---|
+| **I8** — Itinerary Portal Jamaah | ⚠️ Parsial | `TripTimelinePage` live update ada. Portal jamaah belum tampilkan itinerary pre-departure mandiri. |
+| **F6** — Reminder H-X (parsial) | ⚠️ Cek | Cron H-60/45/30/14/7/1 di `cron.ts` — perlu verifikasi apakah semua threshold sudah diimplementasikan. |

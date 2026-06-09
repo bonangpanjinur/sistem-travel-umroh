@@ -30,6 +30,7 @@ import { toast } from "sonner";
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
+import ManifestBusExport from "@/components/departure/ManifestBusExport";
 
 export default function ManifestPage() {
   const [selectedDeparture, setSelectedDeparture] = useState<string | null>(null);
@@ -297,6 +298,27 @@ export default function ManifestPage() {
                   Manifest — {(selectedDepartureData?.package as any)?.name}
                 </CardTitle>
                 <div className="flex gap-2 flex-wrap">
+                  {selectedDeparture && (
+                    <ManifestBusExport
+                      departureId={selectedDeparture}
+                      departureName={(selectedDepartureData?.package as any)?.name || ""}
+                      departureDate={selectedDepartureData?.departure_date}
+                      flightNumber={selectedDepartureData?.flight_number || undefined}
+                      passengers={(passengers || []).map(p => ({
+                        customer_id: (p.customer as any)?.id || "",
+                        full_name: (p.customer as any)?.full_name || "",
+                        gender: (p.customer as any)?.gender === "male" ? "L" : "P",
+                        nik: (p.customer as any)?.nik,
+                        passport_number: (p.customer as any)?.passport_number,
+                        passport_expiry: (p.customer as any)?.passport_expiry,
+                        birth_date: (p.customer as any)?.birth_date,
+                        phone: (p.customer as any)?.phone,
+                        room_type: (p.booking as any)?.room_type,
+                        booking_code: (p.booking as any)?.booking_code,
+                        payment_status: (p.booking as any)?.payment_status,
+                      }))}
+                    />
+                  )}
                   <Button size="sm" variant="outline" onClick={exportManifestExcel} disabled={!filteredPassengers.length}>
                     <FileSpreadsheet className="h-3.5 w-3.5 mr-1.5" />
                     Excel
