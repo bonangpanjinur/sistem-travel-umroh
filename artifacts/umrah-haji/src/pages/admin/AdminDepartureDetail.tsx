@@ -79,6 +79,7 @@ import {
   RefreshCw,
   BarChart3,
   ClipboardList,
+  Users,
 } from "lucide-react";
 import { DepartureForm } from "@/components/admin/forms/DepartureForm";
 import { LinkItineraryForm } from "@/components/admin/forms/LinkItineraryForm";
@@ -100,6 +101,8 @@ import { useMarginAlert } from "@/hooks/useMarginAlert";
 import { DeparturePreChecklist } from "@/components/admin/departure/DeparturePreChecklist";
 import { DepartureVisaSummary } from "@/components/admin/departure/DepartureVisaSummary";
 import { BulkChecklistApplyDialog } from "@/components/admin/departure/BulkChecklistApplyDialog";
+import { DepartureReadinessDashboard } from "@/components/departure/DepartureReadinessDashboard";
+import { DepartureWaitingListTab } from "@/components/departure/DepartureWaitingListTab";
 
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -1095,6 +1098,10 @@ export default function AdminDepartureDetail() {
             <TrendingUp className="h-3 w-3" />
             Keuangan
           </TabsTrigger>
+          <TabsTrigger value="daftar-tunggu" className="text-xs flex items-center gap-1">
+            <Users className="h-3 w-3" />
+            Daftar Tunggu
+          </TabsTrigger>
 
         </TabsList>
 
@@ -1464,6 +1471,9 @@ export default function AdminDepartureDetail() {
               </CardContent>
             </Card>
           )}
+
+          {/* Readiness Dashboard */}
+          <DepartureReadinessDashboard departureId={id || ""} />
 
           {/* K1 — Visa Status Summary */}
           {customerIds.length > 0 && (
@@ -2132,6 +2142,13 @@ export default function AdminDepartureDetail() {
           />
           <DepartureExpensesCard departureId={id || ""} />
           <DepartureOtherRevenuesCard departureId={id || ""} />
+        </TabsContent>
+
+        <TabsContent value="daftar-tunggu" className="space-y-4">
+          <DepartureWaitingListTab
+            departureId={id || ""}
+            departureName={departure?.package?.name || "Keberangkatan"}
+          />
         </TabsContent>
       </Tabs>
 

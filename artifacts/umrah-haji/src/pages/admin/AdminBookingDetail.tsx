@@ -71,6 +71,7 @@ import { DocumentPreviewModal } from "@/components/admin/DocumentPreviewModal";
 import { useAuth } from "@/hooks/useAuth";
 import { ManagePaymentModal } from "@/components/admin/ManagePaymentModal";
 import { ChangePackageDialogV2 } from "@/components/admin/ChangePackageDialogV2";
+import { MutasiDepartureDialog } from "@/components/admin/MutasiDepartureDialog";
 import { ChangeRoomTypeDialog } from "@/components/admin/ChangeRoomTypeDialog";
 import { RoomTypeAssignmentDialog } from "@/components/admin/RoomTypeAssignmentDialog";
 import { useWhatsAppNotifierSecure } from "@/hooks/useWhatsAppNotifierSecure";
@@ -186,6 +187,7 @@ export default function AdminBookingDetail() {
   const [showProofDialog, setShowProofDialog] = useState(false);
   const [showManagePaymentModal, setShowManagePaymentModal] = useState(false);
   const [showChangePackageDialog, setShowChangePackageDialog] = useState(false);
+  const [showMutasiDialog, setShowMutasiDialog] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showChangeRoomTypeDialog, setShowChangeRoomTypeDialog] = useState(false);
   const [showRoomTypeAssignmentDialog, setShowRoomTypeAssignmentDialog] = useState(false);
@@ -1607,6 +1609,15 @@ export default function AdminBookingDetail() {
                       >
                         <Pencil className="h-3 w-3" />
                         Pindah Paket
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-[10px] gap-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                        onClick={() => setShowMutasiDialog(true)}
+                      >
+                        <Pencil className="h-3 w-3" />
+                        Pindah Departure
                       </Button>
                       {(isAdmin() || isSuperAdmin()) && (
                         <Button
@@ -3295,6 +3306,19 @@ export default function AdminBookingDetail() {
           currentPackageId={booking?.departure?.package_id || ""}
           currentDepartureId={booking?.departure_id || ""}
           currentDepartureDate={booking?.departure?.departure_date || ""}
+        />
+      )}
+
+      {booking && (
+        <MutasiDepartureDialog
+          isOpen={showMutasiDialog}
+          onClose={() => setShowMutasiDialog(false)}
+          bookingId={id || ""}
+          bookingCode={booking.booking_code || id || ""}
+          currentDepartureId={booking.departure_id || ""}
+          currentPackageId={(booking.departure as any)?.package_id || ""}
+          currentRoomType={booking.room_type || "quad"}
+          totalPrice={Number(booking.total_price || 0)}
         />
       )}
 

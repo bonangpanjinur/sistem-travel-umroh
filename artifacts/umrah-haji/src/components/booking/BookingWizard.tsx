@@ -123,7 +123,7 @@ export function BookingWizard() {
   const { data: departureInfo } = useQuery({
     queryKey: ['departure-info', initialDepartureId],
     queryFn: async () => {
-      const { data, error } = await supabase.from('departures').select('id, departure_date, return_date, flight_number, price_quad, price_triple, price_double, price_single, price_adult, price_child, price_infant, currency').eq('id', initialDepartureId).single();
+      const { data, error } = await supabase.from('departures').select('id, departure_date, return_date, flight_number, price_quad, price_triple, price_double, price_single, price_adult, price_child, price_infant, currency, available_seats').eq('id', initialDepartureId).single();
       if (error) throw error;
       return data as any;
     },
@@ -488,6 +488,7 @@ export function BookingWizard() {
                 single: departureInfo.price_single ?? 0,
               } : { quad: 0, triple: 0, double: 0, single: 0 }}
               onUpdate={updateRoomAllocation}
+              availableSeats={departureInfo?.available_seats ?? undefined}
             />
           )}
           {currentStep === 'passengers' && (

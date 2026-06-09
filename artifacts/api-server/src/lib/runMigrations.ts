@@ -796,6 +796,19 @@ export async function runMigrations(): Promise<void> {
       logger.info("runMigrations: 081_departure_muthawif_id — already applied, skipping");
     }
 
+    // ── Step 38: Sprint B2 — departure_waiting_list ───────────────────────
+    const waitingListApplied = await isApplied(client, "38_waiting_list");
+    if (!waitingListApplied) {
+      await runSqlFile(
+        client,
+        sqlPath("38_waiting_list.sql"),
+        "38_waiting_list (departure_waiting_list table for Sprint B2 waiting list feature)",
+      );
+      await markApplied(client, "38_waiting_list");
+    } else {
+      logger.info("runMigrations: 38_waiting_list — already applied, skipping");
+    }
+
     // ── Step 2: payment sync trigger (always re-applied each boot) ────────
     // Wrapped in its own try/catch so a missing table on a broken DB state
     // doesn't crash the server — it just logs and continues.

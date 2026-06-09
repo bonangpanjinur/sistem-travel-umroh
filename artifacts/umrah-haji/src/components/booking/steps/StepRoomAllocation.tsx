@@ -13,6 +13,7 @@ interface StepRoomAllocationProps {
   allocation: RoomAllocation;
   prices: Record<RoomType, number>;
   onUpdate: (allocation: RoomAllocation) => void;
+  availableSeats?: number;
 }
 
 const ROOM_INFO: Record<RoomType, { label: string; occupancy: number; desc: string }> = {
@@ -22,7 +23,7 @@ const ROOM_INFO: Record<RoomType, { label: string; occupancy: number; desc: stri
   single: { label: 'Single', occupancy: 1, desc: '1 orang/kamar' },
 };
 
-export function StepRoomAllocation({ totalPax, allocation, prices, onUpdate }: StepRoomAllocationProps) {
+export function StepRoomAllocation({ totalPax, allocation, prices, onUpdate, availableSeats }: StepRoomAllocationProps) {
   const currentAllocated = allocation.quad + allocation.triple + allocation.double + allocation.single;
   const remaining = totalPax - currentAllocated;
 
@@ -132,6 +133,15 @@ export function StepRoomAllocation({ totalPax, allocation, prices, onUpdate }: S
           <Info className="h-4 w-4" />
           <AlertDescription>
             Silakan alokasikan sisa {remaining} jamaah ke tipe kamar yang tersedia untuk melanjutkan.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {availableSeats !== undefined && availableSeats <= 10 && availableSeats > 0 && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            <strong>Sisa kursi terbatas!</strong> Hanya tersisa <strong>{availableSeats} kursi</strong> pada keberangkatan ini. Selesaikan pendaftaran sebelum kehabisan.
           </AlertDescription>
         </Alert>
       )}
