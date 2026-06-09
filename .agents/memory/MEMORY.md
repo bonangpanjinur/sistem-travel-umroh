@@ -1,2 +1,3 @@
 - [Equipment queued status flow](equipment-queued-status.md) — trigger auto-queue saat booking confirmed; UI harus fetch queued+distributed bersama, bukan hanya distributed
 - [bookings.status vs booking_status alias](bookings-status-column.md) — trigger DB harus pakai `status`, bukan `booking_status` (itu hanya alias di views/RPCs)
+- [departures muthawif_id column](departures-muthawif-id.md) — kolom muthawif_id di departures TIDAK ADA di skema awal; ditambahkan migration 081. Trigger A5 gagal di 080 karena kolom belum ada.

@@ -1107,7 +1107,40 @@ export default function PackageDetail() {
                                 isOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
                               )}>
                                 <div className="overflow-hidden">
-                                  <div className="p-4 bg-muted/20 border-t grid grid-cols-1 md:grid-cols-3 gap-6">
+                                  <div className="p-4 bg-muted/20 border-t space-y-4">
+                                  {/* Muthawif card (A5) */}
+                                  {pkg.muthawif && (
+                                    <div className="flex items-center gap-3 p-3 rounded-lg bg-amber-50 border border-amber-200">
+                                      <div className="h-10 w-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                                        {(pkg.muthawif as any).photo_url ? (
+                                          <img src={(pkg.muthawif as any).photo_url} alt={(pkg.muthawif as any).name} className="w-full h-full object-cover" />
+                                        ) : (
+                                          <Users className="h-5 w-5 text-amber-600" />
+                                        )}
+                                      </div>
+                                      <div className="min-w-0">
+                                        <p className="text-[10px] font-bold text-amber-700 uppercase tracking-wider">Muthawif / Pembimbing</p>
+                                        <p className="text-sm font-bold text-amber-900 truncate">{(pkg.muthawif as any).name || '-'}</p>
+                                        {(pkg.muthawif as any).certification_number && (
+                                          <p className="text-[10px] text-amber-600 font-mono">Cert: {(pkg.muthawif as any).certification_number}</p>
+                                        )}
+                                      </div>
+                                      {(pkg.muthawif as any).phone && (
+                                        <a
+                                          href={`https://wa.me/${(pkg.muthawif as any).phone.replace(/\D/g, '')}`}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="ml-auto flex-shrink-0"
+                                          onClick={e => e.stopPropagation()}
+                                        >
+                                          <Button size="sm" variant="outline" className="h-7 text-xs border-amber-300 text-amber-700 hover:bg-amber-100">
+                                            <MessageCircle className="h-3 w-3 mr-1" /> WA
+                                          </Button>
+                                        </a>
+                                      )}
+                                    </div>
+                                  )}
+                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                     <div className="space-y-1">
                                       <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Detail Perjalanan</p>
                                       <div className="space-y-2 mt-2">
@@ -1162,6 +1195,7 @@ export default function PackageDetail() {
                                         )}
                                       </div>
                                     </div>
+                                  </div>
                                   </div>
                                 </div>
                               </div>

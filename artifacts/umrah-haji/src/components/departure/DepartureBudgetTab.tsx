@@ -14,8 +14,9 @@ import {
   useDepartureBudget, useDepartureCosts, useSaveBudget,
   computeBudgetSummary, BUDGET_CATEGORIES, BudgetCategory
 } from "@/hooks/useDepartureBudget";
+import { usePackageHPPTemplate } from "@/hooks/usePackageHPPTemplate";
 import { formatCurrency } from "@/lib/format";
-import { Save, Plus, Trash2, TrendingUp, TrendingDown, Info } from "lucide-react";
+import { Save, Plus, Trash2, TrendingUp, TrendingDown, Info, Wand2, RefreshCw } from "lucide-react";
 
 interface Props { departureId: string }
 
@@ -29,6 +30,32 @@ export function DepartureBudgetTab({ departureId }: Props) {
   const [newCat,  setNewCat]  = useState<BudgetCategory>("hotel");
   const [newAmt,  setNewAmt]  = useState("");
   const [newDesc, setNewDesc] = useState("");
+
+  // ── A3: HPP Template Auto-Apply ─────────────────────────────────────────────
+  const { data: departureInfo } = useQuery({
+    queryKey: ["departure-package-id", departureId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("departures")
+        .select("id, package_id")
+        .eq("id", departureId)
+        .single();
+      if (error) throw error;
+      return data as { id: string; package_id: string };
+    },
+  });
+
+  const packageId = departureInfo?.package_id;
+  const { templateItems, hasTemplate, totalHPP, isApplying, applyTemplate } =
+    usePackageHPPTemplate(packageId);
+
+  const handleApplyHPPTemplate = async (mode: "append" | "replace") => {
+    if (!hasTemplate) {
+      toast.info("Tidak ada template HPP tersimpan untuk paket ini. Buat dulu di halaman Paket → HPP.");
+      return;
+    }
+    await applyTemplate({ templateItems, departureId, mode });
+  };
 
   const summary = computeBudgetSummary(budgets, costs);
 
@@ -94,6 +121,40 @@ export function DepartureBudgetTab({ departureId }: Props) {
           </CardContent>
         </Card>
       </div>
+
+      {/* A3: HPP Template Auto-Apply Banner */}
+      {hasTemplate && (
+        <Alert className="border-emerald-200 bg-emerald-50 py-2">
+          <Wand2 className="h-4 w-4 text-emerald-600" />
+          <AlertDescription className="text-xs text-emerald-800 flex items-center justify-between gap-2 flex-wrap">
+            <span>
+              Template HPP paket tersedia: <strong>{templateItems.length} item</strong>
+              {" "}({formatCurrency(totalHPP)} HPP total).
+            </span>
+            <div className="flex gap-2 flex-shrink-0">
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs border-emerald-400 text-emerald-700 hover:bg-emerald-100"
+                onClick={() => handleApplyHPPTemplate("append")}
+                disabled={isApplying}
+              >
+                <Plus className="h-3 w-3 mr-1" />
+                Tambah dari Template
+              </Button>
+              <Button
+                size="sm"
+                className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700"
+                onClick={() => handleApplyHPPTemplate("replace")}
+                disabled={isApplying}
+              >
+                {isApplying ? <RefreshCw className="h-3 w-3 mr-1 animate-spin" /> : <Wand2 className="h-3 w-3 mr-1" />}
+                Terapkan Template (Ganti)
+              </Button>
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
 
       <Alert className="border-blue-200 bg-blue-50 py-2">
         <Info className="h-4 w-4 text-blue-600" />

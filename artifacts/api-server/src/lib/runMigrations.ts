@@ -763,7 +763,37 @@ export async function runMigrations(): Promise<void> {
       await markApplied(client, "37_doc_deadline_reminder_log");
     } else {
       logger.info("runMigrations: 37_doc_deadline_reminder_log — already applied, skipping");
+    }
 
+    // ── Step 080: Sprint A triggers — koneksi data kritis ────────────────────
+    // A2: booking confirmed → visa auto-create
+    // A4: departure status → booking cascade
+    // A5: muthawif assign → guide channel auto-init
+    // A6: room occupants → booking_passengers sync
+    // B7: equipment distributed → departure_expenses auto
+    const sa080Applied = await isApplied(client, "080_sprint_a_triggers");
+    if (!sa080Applied) {
+      await runSqlFile(
+        client,
+        sqlPath("080_sprint_a_triggers.sql"),
+        "080_sprint_a_triggers (A2/A4/A5/A6/B7 — trigger koneksi data kritis)",
+      );
+      await markApplied(client, "080_sprint_a_triggers");
+    } else {
+      logger.info("runMigrations: 080_sprint_a_triggers — already applied, skipping");
+    }
+
+    // ── Step 081: muthawif_id di departures + pasang trigger A5 ──────────────
+    const sa081Applied = await isApplied(client, "081_departure_muthawif_id");
+    if (!sa081Applied) {
+      await runSqlFile(
+        client,
+        sqlPath("081_departure_muthawif_id.sql"),
+        "081_departure_muthawif_id (kolom muthawif_id di departures + trigger A5 guide channel)",
+      );
+      await markApplied(client, "081_departure_muthawif_id");
+    } else {
+      logger.info("runMigrations: 081_departure_muthawif_id — already applied, skipping");
     }
 
     // ── Step 2: payment sync trigger (always re-applied each boot) ────────
