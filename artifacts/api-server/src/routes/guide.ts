@@ -3,6 +3,7 @@ import { pool } from "../lib/db.js";
 import { requireAuth } from "../lib/auth.js";
 import { logger } from "../lib/logger.js";
 import crypto from "crypto";
+import webpush from "web-push";
 
 const router = Router();
 
@@ -10,6 +11,131 @@ const router = Router();
 
 function genQrToken(): string {
   return crypto.randomBytes(24).toString("base64url");
+}
+
+// ── Push notification helpers (Fase 2 — otomatis kirim ke jamaah) ─────────────
+
+function isVapidReady(): boolean {
+  return Boolean(process.env["VAPID_PUBLIC_KEY"] && process.env["VAPID_PRIVATE_KEY"]);
+}
+
+function initWebpush() {
+  const pub   = process.env["VAPID_PUBLIC_KEY"]!;
+  const priv  = process.env["VAPID_PRIVATE_KEY"]!;
+  const email = process.env["VAPID_EMAIL"] || "mailto:admin@vinstour.com";
+  webpush.setVapidDetails(email, pub, priv);
+}
+
+/**
+ * Kirim push notification ke semua jamaah (push_subscriptions via customer_id)
+ * yang memiliki booking aktif di departure_id tersebut.
+ * Fire-and-forget — tidak memblokir response PATCH.
+ */
+async function fireJamaahPush(
+  departureId: string,
+  title: string,
+  body: string,
+  type: string,
+  url: string = "/jamaah/program-live",
+): Promise<void> {
+  if (!isVapidReady()) return;
+  try {
+    initWebpush();
+    const { rows } = await pool.query<{ endpoint: string; p256dh: string; auth_key: string }>(
+      `SELECT DISTINCT ps.endpoint, ps.p256dh, ps.auth_key
+       FROM push_subscriptions ps
+       JOIN bookings b ON b.customer_id = ps.customer_id
+       WHERE b.departure_id = $1
+         AND ps.customer_id IS NOT NULL
+         AND b.booking_status NOT IN ('cancelled')
+       LIMIT 200`,
+      [departureId],
+    );
+    if (!rows.length) return;
+
+    const payload = JSON.stringify({
+      title,
+      body,
+      type,
+      url,
+      tag: `guide-${departureId}-${Date.now()}`,
+      timestamp: Date.now(),
+    });
+
+    const stale: string[] = [];
+    await Promise.allSettled(
+      rows.map(async (sub) => {
+        try {
+          await webpush.sendNotification(
+            { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth_key } },
+            payload,
+            { TTL: 60 * 60 * 4 },
+          );
+        } catch (err: any) {
+          if (err.statusCode === 404 || err.statusCode === 410) stale.push(sub.endpoint);
+        }
+      }),
+    );
+
+    if (stale.length) {
+      pool.query(
+        `DELETE FROM push_subscriptions WHERE endpoint = ANY($1)`,
+        [stale],
+      ).catch(() => {});
+    }
+
+    logger.info({ departureId, sent: rows.length - stale.length, stale: stale.length }, "guide.push.jamaah");
+  } catch (err: any) {
+    logger.warn({ err: err.message, departureId }, "guide.push.jamaah — non-fatal error");
+  }
+}
+
+/** Buat pesan notifikasi berdasarkan perubahan live status / lokasi */
+function buildPushMessage(
+  itemTitle: string,
+  liveStatus?: string,
+  delayMinutes?: number,
+  locationChangedTo?: string,
+  liveNotes?: string,
+): { title: string; body: string; type: string } | null {
+  const parts: string[] = [];
+  let type = "program_update";
+
+  if (liveStatus === "ongoing") {
+    return {
+      title: `▶️ ${itemTitle} — Sedang Berlangsung`,
+      body: liveNotes || "Item program sudah dimulai.",
+      type,
+    };
+  }
+  if (liveStatus === "done") {
+    return {
+      title: `✅ ${itemTitle} — Selesai`,
+      body: liveNotes || "Item program telah selesai.",
+      type,
+    };
+  }
+  if (liveStatus === "delayed") {
+    type = "warning";
+    const delay = delayMinutes && delayMinutes > 0 ? ` (terlambat ${delayMinutes} menit)` : "";
+    return {
+      title: `⚠️ ${itemTitle} — Ditunda${delay}`,
+      body: liveNotes || "Jadwal mengalami keterlambatan.",
+      type,
+    };
+  }
+  if (locationChangedTo) {
+    return {
+      title: `📍 Lokasi Berubah — ${itemTitle}`,
+      body: `Lokasi baru: ${locationChangedTo}${liveNotes ? `\n${liveNotes}` : ""}`,
+      type,
+    };
+  }
+  if (liveNotes) {
+    parts.push(liveNotes);
+  }
+  if (!parts.length) return null;
+  return { title: `📢 Update: ${itemTitle}`, body: parts.join(" · "), type };
 }
 
 // ── Channels ──────────────────────────────────────────────────────────────────
@@ -375,7 +501,21 @@ router.patch("/program/:itemId", requireAuth, async (req: Request, res: Response
       res.status(404).json({ error: "Item tidak ditemukan" });
       return;
     }
-    res.json({ item: rows[0] });
+
+    // ── Otomatis kirim push notification ke jamaah (fire-and-forget) ──────────
+    const updated = rows[0];
+    const msg = buildPushMessage(
+      updated.title,
+      live_status,
+      live_status === "delayed" ? (delay_minutes ?? updated.delay_minutes) : undefined,
+      location_changed_to || undefined,
+      live_notes || undefined,
+    );
+    if (msg && updated.departure_id) {
+      fireJamaahPush(updated.departure_id, msg.title, msg.body, msg.type).catch(() => {});
+    }
+
+    res.json({ item: updated });
   } catch (err: any) {
     logger.error(err, "guide.program.patch");
     res.status(500).json({ error: err.message });
