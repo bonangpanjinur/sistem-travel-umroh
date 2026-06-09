@@ -738,3 +738,134 @@ router.get("/admin/:departureId/overview", requireAuth, async (req: Request, res
     res.status(500).json({ error: err.message });
   }
 });
+
+// ── POST /api/v1/guide/subgroups/auto-split ───────────────────────────────────
+// Body: { departure_id, num_groups, strategy: "mahram_aware"|"gender_balanced"|"random", replace_existing }
+router.post("/subgroups/auto-split", requireAuth, async (req: Request, res: Response): Promise<void> => {
+  const client = await pool.connect();
+  try {
+    const { departure_id, num_groups, strategy = "mahram_aware", replace_existing = false } = req.body;
+    if (!departure_id || !num_groups || num_groups < 1 || num_groups > 50) {
+      res.status(400).json({ error: "departure_id dan num_groups (1–50) wajib diisi" });
+      return;
+    }
+
+    // 1) Ambil semua customer yang punya booking aktif di keberangkatan ini
+    const { rows: bookingRows } = await client.query(
+      `SELECT DISTINCT b.customer_id, c.full_name, c.gender
+       FROM bookings b
+       JOIN customers c ON c.id = b.customer_id
+       WHERE b.departure_id = $1
+         AND b.booking_status NOT IN ('cancelled','refunded')
+       ORDER BY c.full_name`,
+      [departure_id]
+    );
+
+    if (bookingRows.length === 0) {
+      res.status(400).json({ error: "Tidak ada jamaah di keberangkatan ini" });
+      return;
+    }
+
+    // 2) Ambil pasangan mahram (bidirectional)
+    const customerIds = bookingRows.map((r: any) => r.customer_id);
+    const { rows: mahramRows } = await client.query(
+      `SELECT cm.customer_id, cm.mahram_customer_id
+       FROM customer_mahrams cm
+       WHERE cm.customer_id = ANY($1::uuid[])
+         AND cm.mahram_customer_id = ANY($1::uuid[])`,
+      [customerIds]
+    );
+
+    // Build mahram pair map: customerId → mahramId
+    const mahramMap = new Map<string, string>();
+    for (const r of mahramRows) {
+      mahramMap.set(r.customer_id, r.mahram_customer_id);
+    }
+
+    // 3) Algoritma pembagian
+    const n = parseInt(String(num_groups), 10);
+    const groups: { customers: Array<{ customer_id: string; full_name: string; gender: string }> }[] = Array.from({ length: n }, () => ({ customers: [] }));
+    const assigned = new Set<string>();
+    const customerMap = new Map(bookingRows.map((r: any) => [r.customer_id, r]));
+
+    let groupIdx = 0;
+    function assignToGroup(customer: any, targetIdx?: number) {
+      if (assigned.has(customer.customer_id)) return;
+      const idx = targetIdx !== undefined ? targetIdx : groupIdx;
+      groups[idx].customers.push(customer);
+      assigned.add(customer.customer_id);
+      if (targetIdx === undefined) groupIdx = (groupIdx + 1) % n;
+    }
+
+    function assignWithMahram(c: any) {
+      if (assigned.has(c.customer_id)) return;
+      const currentGroup = groupIdx;
+      assignToGroup(c);
+      // Pasangkan mahram ke grup yang sama
+      const partnerId = mahramMap.get(c.customer_id);
+      if (partnerId && !assigned.has(partnerId)) {
+        const partner = customerMap.get(partnerId);
+        if (partner) assignToGroup(partner, currentGroup);
+      }
+    }
+
+    if (strategy === "random") {
+      const shuffled = [...bookingRows].sort(() => Math.random() - 0.5);
+      for (const c of shuffled) assignWithMahram(c);
+    } else if (strategy === "gender_balanced") {
+      // Interleave L/P agar tiap grup gender-balanced, mahram tetap satu grup
+      const males = bookingRows.filter((r: any) => r.gender === "L");
+      const females = bookingRows.filter((r: any) => r.gender === "P");
+      const others = bookingRows.filter((r: any) => r.gender !== "L" && r.gender !== "P");
+      const interleaved: any[] = [];
+      for (let i = 0; i < Math.max(males.length, females.length); i++) {
+        if (i < males.length) interleaved.push(males[i]);
+        if (i < females.length) interleaved.push(females[i]);
+      }
+      interleaved.push(...others);
+      for (const c of interleaved) assignWithMahram(c);
+    } else {
+      // mahram_aware: urut nama, pasangan mahram selalu satu grup
+      for (const c of bookingRows) assignWithMahram(c);
+    }
+
+    // 4) Simpan ke database dalam satu transaksi
+    await client.query("BEGIN");
+
+    if (replace_existing) {
+      await client.query(`DELETE FROM guide_subgroups WHERE departure_id = $1`, [departure_id]);
+    }
+
+    const COLORS = [
+      "#3b82f6","#ef4444","#22c55e","#f59e0b","#8b5cf6",
+      "#ec4899","#14b8a6","#f97316","#6366f1","#84cc16",
+    ];
+
+    const createdGroups: any[] = [];
+    for (let i = 0; i < groups.length; i++) {
+      const { rows: sgRows } = await client.query(
+        `INSERT INTO guide_subgroups (departure_id, name, color, created_by) VALUES ($1,$2,$3,$4) RETURNING *`,
+        [departure_id, `Grup ${i + 1}`, COLORS[i % COLORS.length], req.user!.sub]
+      );
+      const sg = sgRows[0];
+      const members = groups[i].customers;
+      if (members.length > 0) {
+        const vals = members.map((_, j) => `($1, $${j + 2})`).join(", ");
+        await client.query(
+          `INSERT INTO guide_subgroup_members (subgroup_id, customer_id) VALUES ${vals} ON CONFLICT DO NOTHING`,
+          [sg.id, ...members.map(m => m.customer_id)]
+        );
+      }
+      createdGroups.push({ ...sg, member_count: members.length, members });
+    }
+
+    await client.query("COMMIT");
+    res.json({ success: true, groups: createdGroups, total_assigned: assigned.size });
+  } catch (err: any) {
+    await client.query("ROLLBACK").catch(() => {});
+    logger.error(err, "guide.subgroups.autoSplit");
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});

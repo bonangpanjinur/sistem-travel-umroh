@@ -2,15 +2,16 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase as supabaseRaw } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, Edit2, Trash2, Users, UserPlus, UserMinus, Bus } from "lucide-react";
+import { ArrowLeft, Plus, Edit2, Trash2, Users, UserPlus, UserMinus, Bus, Shuffle } from "lucide-react";
 import { Link } from "react-router-dom";
+import AutoSplitSubgroupDialog from "@/components/departure/AutoSplitSubgroupDialog";
 
 const supabase: any = supabaseRaw;
 
@@ -110,6 +111,7 @@ export default function TourLeaderSubgroups() {
   });
 
   const [showCreate, setShowCreate] = useState(false);
+  const [showAutoSplit, setShowAutoSplit] = useState(false);
   const [editTarget, setEditTarget] = useState<any>(null);
   const [manageTarget, setManageTarget] = useState<any>(null);
   const [form, setForm] = useState({ name: "", color: GROUP_COLORS[0] });
@@ -144,6 +146,9 @@ export default function TourLeaderSubgroups() {
           <h1 className="text-xl font-bold">Sub-Grup Rombongan</h1>
           <p className="text-sm text-muted-foreground">{(departure?.package as any)?.name} • {departure?.booked_count ?? 0} jamaah</p>
         </div>
+        <Button size="sm" variant="outline" onClick={() => setShowAutoSplit(true)} className="gap-1 border-emerald-200 text-emerald-700 hover:bg-emerald-50">
+          <Shuffle className="h-4 w-4" />Bagi Otomatis
+        </Button>
         <Button size="sm" onClick={() => setShowCreate(true)} className="gap-1">
           <Plus className="h-4 w-4" />Tambah Grup
         </Button>
@@ -156,7 +161,12 @@ export default function TourLeaderSubgroups() {
           <CardContent className="py-12 text-center">
             <Bus className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
             <p className="text-muted-foreground">Belum ada sub-grup. Buat grup per bus atau kelompok ibadah.</p>
-            <Button className="mt-4" onClick={() => setShowCreate(true)}><Plus className="h-4 w-4 mr-1" />Buat Sub-Grup</Button>
+            <div className="flex justify-center gap-2 mt-4">
+              <Button variant="outline" className="gap-1 border-emerald-200 text-emerald-700 hover:bg-emerald-50" onClick={() => setShowAutoSplit(true)}>
+                <Shuffle className="h-4 w-4" />Bagi Otomatis
+              </Button>
+              <Button onClick={() => setShowCreate(true)}><Plus className="h-4 w-4 mr-1" />Buat Manual</Button>
+            </div>
           </CardContent>
         </Card>
       ) : (
@@ -281,6 +291,17 @@ export default function TourLeaderSubgroups() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Auto-Split Dialog */}
+      {depId && (
+        <AutoSplitSubgroupDialog
+          open={showAutoSplit}
+          onOpenChange={setShowAutoSplit}
+          departureId={depId}
+          totalJamaah={departure?.booked_count ?? 0}
+          onSuccess={() => qc.invalidateQueries({ queryKey: ["tl-subgroups", depId] })}
+        />
+      )}
     </div>
   );
 }
