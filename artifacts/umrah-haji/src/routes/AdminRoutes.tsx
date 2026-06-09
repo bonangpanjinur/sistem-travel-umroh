@@ -76,6 +76,7 @@ const AdminSP = lazy(() => import("@/pages/admin/AdminSP"));
 const AdminHRAnalytics = lazy(() => import("@/pages/admin/AdminHRAnalytics"));
 const AdminRecruitment = lazy(() => import("@/pages/admin/AdminRecruitment"));
 const AdminOnboarding = lazy(() => import("@/pages/admin/AdminOnboarding"));
+const AdminSDMLaporan = lazy(() => import("@/pages/admin/AdminSDMLaporan"));
 const AdminHajiManagement = lazy(() => import("@/pages/admin/AdminHajiManagement"));
 const AdminItineraryTemplates = lazy(() => import("@/pages/admin/AdminItineraryTemplates"));
 const AdminOfflineContent = lazy(() => import("@/pages/admin/AdminOfflineContent"));
@@ -321,6 +322,7 @@ export default function AdminRoutes() {
       <Route path="hr/analytics"   element={<P k={PERMISSIONS.HR}><LazyPage><AdminHRAnalytics /></LazyPage></P>} />
       <Route path="hr/recruitment" element={<P k={PERMISSIONS.HR}><LazyPage><AdminRecruitment /></LazyPage></P>} />
       <Route path="hr/onboarding"  element={<P k={PERMISSIONS.HR}><LazyPage><AdminOnboarding /></LazyPage></P>} />
+      <Route path="hr/laporan"     element={<P k={PERMISSIONS.HR}><LazyPage><AdminSDMLaporan /></LazyPage></P>} />
 
       {/* Support & Komunikasi */}
       <Route path="support" element={<P k={PERMISSIONS.SUPPORT}><AdminSupportTickets /></P>} />
