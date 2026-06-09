@@ -139,7 +139,6 @@ const AdminHRTraining = lazy(() => import("@/pages/admin/AdminHRTraining"));
 const AdminTrainingNotif = lazy(
   () => import("@/pages/admin/AdminTrainingNotif"),
 );
-const AdminSDMLaporan = lazy(() => import("@/pages/admin/AdminSDMLaporan"));
 
 const AdminHajiManagement = lazy(
   () => import("@/pages/admin/AdminHajiManagement"),
@@ -1026,17 +1025,6 @@ export default function AdminRoutes() {
           </P>
         }
       />
-      <Route
-        path="hr/laporan"
-        element={
-          <P k={PERMISSIONS.HR}>
-            <LazyPage>
-              <AdminSDMLaporan />
-            </LazyPage>
-          </P>
-        }
-      />
-
       {/* Support & Komunikasi */}
       <Route
         path="support"

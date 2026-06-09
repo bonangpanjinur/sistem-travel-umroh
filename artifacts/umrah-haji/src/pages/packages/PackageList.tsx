@@ -37,7 +37,13 @@ export default function PackageList() {
   });
 
   const siteTitle = settings?.company_name || "Vinstour Travel";
-  const activePackages = packages.filter((p: any) => p.is_active !== false);
+  const todayStr = new Date().toISOString().split("T")[0];
+  const activePackages = packages.filter((p: any) => {
+    if (p.is_active === false) return false;
+    const deps: any[] = (p as any).departures ?? [];
+    if (!deps.length) return true;
+    return deps.some((d: any) => d.departure_date >= todayStr && d.status !== "cancelled");
+  });
 
   useSEO({
     title: `Paket Umroh & Haji — ${siteTitle}`,

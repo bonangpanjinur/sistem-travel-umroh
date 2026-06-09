@@ -4,3 +4,4 @@
 - [SEO Architecture](seo-architecture.md) — useSEO hook di hooks/useSEO.ts; PackageDetail pakai useEffect manual (bukan hook) karena punya cleanup logic; siteTitle harus dari settings.company_name bukan hardcoded.
 - [Branch & Agent Scoping](branch-agent-scoping.md) — JWT membawa branch_id+agent_id; supabaseProxy auto-inject branch_id filter untuk branch_manager; route order agents.ts KRITIS.
 - [API server port](api-server-port.md) — Port 8080 dipegang Replit platform; API server harus PORT=3001, Vite proxy di vite.config.ts update ke localhost:3001.
+- [rencanadarurat P1+P2 selesai](rencanadarurat-done.md) — Semua P1+P2 dari rencanadarurat.md selesai di sesi 9 Jun 2026; P3 belum. Migrations 33-35 applied.

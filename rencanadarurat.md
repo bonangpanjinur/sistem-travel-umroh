@@ -1,7 +1,24 @@
 # 🚨 RENCANA DARURAT — Gap & Pekerjaan Belum Selesai
 > **Dibuat:** 9 Juni 2026  
+> **Update terakhir:** 9 Juni 2026 — Semua P1 + P2 selesai dikerjakan oleh agent  
 > **Sumber:** Audit menyeluruh terhadap `rencanabookingdetail.md`, `rencanacabangdanagensertasdm.md`, `rencanakeberangkatandanpaket.md`, dan `rencana.md`  
-> **Metode:** Verifikasi langsung ke kode + migration files — bukan hanya dari dokumen rencana  
+> **Metode:** Verifikasi langsung ke kode + migration files — bukan hanya dari dokumen rencana
+
+---
+
+## ✅ STATUS TERKINI (Update 9 Jun 2026)
+
+| Item | Status | Implementasi |
+|------|--------|-------------|
+| P1-A: DB Trigger Auto P&L | ✅ SELESAI | Migration `33_departure_pl_triggers.sql` — trigger on bookings+payments |
+| P1-B: performance_reviews | ✅ SELESAI | Migration `34_performance_reviews.sql` + `AdminHR.tsx` query + saveReviewMutation fix |
+| P1-C: Input Lembur/Overtime | ✅ SELESAI | `AdminPayroll.tsx` — overtimeHours state, formula `(salary/173)×1.5×jam`, kolom tabel + PDF slip |
+| P1-D: Warning Margin Negatif | ✅ SELESAI | `DepartureCostItemsCard.tsx` — banner merah (HPP>harga) / kuning (margin<15%) |
+| P2-A: Commission Triggers | ✅ SELESAI | Migration `33_auto_commission_booking_confirmed` sudah jalan sebelumnya |
+| P2-B: booking_line_items | ✅ SUDAH ADA | `useBookingWizardDynamic.ts` line 472 sudah insert line items saat booking |
+| P2-C: Equipment → HPP | ✅ SELESAI | Migration `35_equipment_unit_cost.sql` + `EquipmentRealizationTab.tsx` tombol "Impor Biaya ke HPP" |
+| P2-D: Auto Expiry Paket | ✅ SELESAI | `PackageList.tsx` filter departures `departure_date >= today && status !== cancelled` |
+| BUG: Duplikat AdminSDMLaporan | ✅ FIXED | `AdminRoutes.tsx` deklarasi ganda di baris 136+142 dihapus + route duplikat dihapus |
 
 ---
 

@@ -219,6 +219,34 @@ export function DepartureCostItemsCard({
           </div>
         </CardHeader>
 
+        {/* ── Margin Warning Banner ─────────────────────────────────────── */}
+        {totalHPP > 0 && paxCount > 0 && (() => {
+          const prices = [priceQuad, priceTriple, priceDouble, priceSingle].filter(p => p > 0);
+          if (!prices.length) return null;
+          const minPrice = Math.min(...prices);
+          const hppPerPax = totalHPP / paxCount;
+          if (hppPerPax > minPrice) return (
+            <div className="mx-4 mb-3 flex items-start gap-2 rounded-lg border border-red-300 bg-red-50 px-3 py-2.5 text-red-800">
+              <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold">Margin Negatif — HPP Melebihi Harga Jual</p>
+                <p className="text-xs mt-0.5">HPP/pax <strong>{fmt(hppPerPax)}</strong> melebihi harga jual termurah <strong>{fmt(minPrice)}</strong>. Keberangkatan ini berpotensi rugi.</p>
+              </div>
+            </div>
+          );
+          const midPrice = priceDouble || priceTriple || minPrice;
+          if (midPrice > 0 && hppPerPax > midPrice * 0.85) return (
+            <div className="mx-4 mb-3 flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2.5 text-amber-800">
+              <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold">Margin Tipis — Periksa Kembali HPP</p>
+                <p className="text-xs mt-0.5">HPP/pax <strong>{fmt(hppPerPax)}</strong> mendekati harga double room <strong>{fmt(midPrice)}</strong>. Margin estimasi di bawah 15%.</p>
+              </div>
+            </div>
+          );
+          return null;
+        })()}
+
         <CardContent className="p-0">
           {isLoading ? (
             <div className="p-4 space-y-2">

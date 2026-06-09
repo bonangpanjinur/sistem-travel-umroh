@@ -673,6 +673,45 @@ export async function runMigrations(): Promise<void> {
       logger.info("runMigrations: 34_push_subscriptions_role_branch_agent — already applied, skipping");
     }
 
+    // ── Step 1z5: departure P&L auto-triggers ────────────────────────────────
+    const dplApplied = await isApplied(client, "33_departure_pl_triggers");
+    if (!dplApplied) {
+      await runSqlFile(
+        client,
+        sqlPath("33_departure_pl_triggers.sql"),
+        "33_departure_pl_triggers (booking+payment → auto P&L recalc)",
+      );
+      await markApplied(client, "33_departure_pl_triggers");
+    } else {
+      logger.info("runMigrations: 33_departure_pl_triggers — already applied, skipping");
+    }
+
+    // ── Step 1z6: performance_reviews table ───────────────────────────────────
+    const prApplied = await isApplied(client, "34_performance_reviews");
+    if (!prApplied) {
+      await runSqlFile(
+        client,
+        sqlPath("34_performance_reviews.sql"),
+        "34_performance_reviews (kinerja karyawan)",
+      );
+      await markApplied(client, "34_performance_reviews");
+    } else {
+      logger.info("runMigrations: 34_performance_reviews — already applied, skipping");
+    }
+
+    // ── Step 1z7: equipment unit_cost column ──────────────────────────────────
+    const eqCostApplied = await isApplied(client, "35_equipment_unit_cost");
+    if (!eqCostApplied) {
+      await runSqlFile(
+        client,
+        sqlPath("35_equipment_unit_cost.sql"),
+        "35_equipment_unit_cost (kolom unit_cost di equipment_items)",
+      );
+      await markApplied(client, "35_equipment_unit_cost");
+    } else {
+      logger.info("runMigrations: 35_equipment_unit_cost — already applied, skipping");
+    }
+
     // ── Step 2: payment sync trigger (always re-applied each boot) ────────
     // Wrapped in its own try/catch so a missing table on a broken DB state
     // doesn't crash the server — it just logs and continues.

@@ -179,6 +179,8 @@ interface PayrollData {
   pph21_monthly: number;
   total_deduction: number;
   net_salary: number;
+  overtime_hours: number;
+  overtime_pay: number;
   status: "pending" | "processed" | "paid";
   ptkp_status: PTKPStatus;
   bpjs: BPJSResult;
@@ -238,6 +240,9 @@ function generatePayrollPDF(payroll: PayrollData, period: string, companyName = 
     head: [["Komponen", "Jumlah"]],
     body: [
       ["Gaji Pokok", formatCurrency(payroll.salary)],
+      ...(payroll.overtime_pay > 0
+        ? [[`Uang Lembur (${payroll.overtime_hours} jam × 1,5×)`, formatCurrency(payroll.overtime_pay)]]
+        : []),
     ],
     styles: { fontSize: 8, cellPadding: 1.5 },
     headStyles: { fillColor: [30, 80, 50], fontSize: 8, fontStyle: "bold" },
@@ -341,6 +346,7 @@ export default function AdminPayroll() {
   const [empCompDialogOpen, setEmpCompDialogOpen] = useState(false);
   const [empCompForm, setEmpCompForm] = useState({ ...EMPTY_EMP_COMP_FORM });
   const [empCompPeriod, setEmpCompPeriod] = useState(format(new Date(), "yyyy-MM"));
+  const [overtimeHours, setOvertimeHours] = useState<Record<string, number>>({});
 
   const { data: employees = [], isLoading: loadingEmployees } = useQuery({
     queryKey: ["employees"],
@@ -528,8 +534,11 @@ export default function AdminPayroll() {
     const bpjs = calculateBPJS(baseSalary);
     const pph21 = calculatePPH21Monthly(baseSalary, ptkpStatus);
 
+    const empOvertimeHours = overtimeHours[emp.id] ?? 0;
+    const overtimePay = Math.round((baseSalary / 173) * 1.5 * empOvertimeHours);
+
     const totalDeduction = Math.round(deductionAttendance) + bpjs.totalEmployee + pph21.pph21Monthly;
-    const netSalary = baseSalary - totalDeduction;
+    const netSalary = baseSalary + overtimePay - totalDeduction;
 
     return {
       employee_id: emp.id,
@@ -545,6 +554,8 @@ export default function AdminPayroll() {
       pph21_monthly: pph21.pph21Monthly,
       total_deduction: totalDeduction,
       net_salary: Math.max(0, netSalary),
+      overtime_hours: empOvertimeHours,
+      overtime_pay: overtimePay,
       status: "pending",
       ptkp_status: ptkpStatus,
       bpjs,
@@ -770,6 +781,8 @@ export default function AdminPayroll() {
                     <TableHead>Jabatan</TableHead>
                     <TableHead>Gaji Kotor</TableHead>
                     <TableHead>Hadir / Absen</TableHead>
+                    <TableHead className="text-orange-700">Lembur (jam)</TableHead>
+                    <TableHead className="text-orange-700">Uang Lembur</TableHead>
                     <TableHead>BPJS Kryw</TableHead>
                     <TableHead>PPh 21</TableHead>
                     <TableHead>Pot. Total</TableHead>
@@ -789,6 +802,23 @@ export default function AdminPayroll() {
                         {" / "}
                         <span className="text-red-600">{payroll.absent_days}h</span>
                         {payroll.late_count > 0 && <span className="text-orange-500 ml-1 text-xs">+{payroll.late_count}tlb</span>}
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          min={0}
+                          max={200}
+                          step={0.5}
+                          className="w-20 h-7 text-sm text-center"
+                          value={overtimeHours[payroll.employee_id] ?? 0}
+                          onChange={(e) => {
+                            const val = parseFloat(e.target.value) || 0;
+                            setOvertimeHours(prev => ({ ...prev, [payroll.employee_id]: val }));
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell className="text-orange-600 text-sm">
+                        {payroll.overtime_pay > 0 ? formatCurrency(payroll.overtime_pay) : "—"}
                       </TableCell>
                       <TableCell className="text-purple-700">{formatCurrency(payroll.bpjs_employee)}</TableCell>
                       <TableCell className="text-blue-700">{formatCurrency(payroll.pph21_monthly)}</TableCell>

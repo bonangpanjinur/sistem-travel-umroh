@@ -308,8 +308,20 @@ export default function AdminHR() {
   // Leave quotas query - table not available, using empty array
   const leaveQuotas: any[] = [];
 
-  // Performance reviews query - table not available, using empty array
-  const performanceReviews: any[] = [];
+  // Performance reviews query — reads from performance_reviews table
+  const { data: performanceReviews = [] } = useQuery({
+    queryKey: ["performance-reviews", reviewPeriod],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("performance_reviews")
+        .select("*, employee:employees(full_name, employee_code, position, department)")
+        .eq("review_period", reviewPeriod)
+        .order("overall_score", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+    staleTime: 1000 * 60 * 2,
+  });
 
   // === MUTATIONS ===
 
@@ -520,24 +532,21 @@ export default function AdminHR() {
       if (!reviewEmployeeId) throw new Error("Pilih karyawan");
       const overall = ((reviewScores.quality + reviewScores.productivity + reviewScores.initiative + reviewScores.teamwork + reviewScores.attendance) / 5);
       const grade = overall >= 4.5 ? "A" : overall >= 3.5 ? "B" : overall >= 2.5 ? "C" : overall >= 1.5 ? "D" : "E";
-      // Note: performance_reviews table not available in current schema
-      // This is a placeholder for future implementation
-      console.log("Review data:", {
-        employee_id: reviewEmployeeId,
-        review_period: reviewPeriod,
-        review_type: "quarterly",
-        score_quality: reviewScores.quality,
-        score_productivity: reviewScores.productivity,
-        score_initiative: reviewScores.initiative,
-        score_teamwork: reviewScores.teamwork,
-        score_attendance: reviewScores.attendance,
-        grade,
-        strengths: reviewStrengths,
-        improvements: reviewImprovements,
-        goals: reviewGoals,
-      });
-      // Simulate success
-      await new Promise(resolve => setTimeout(resolve, 300));
+      const { error } = await (supabase as any)
+        .from("performance_reviews")
+        .upsert({
+          employee_id: reviewEmployeeId,
+          review_period: reviewPeriod,
+          quality: reviewScores.quality,
+          productivity: reviewScores.productivity,
+          initiative: reviewScores.initiative,
+          teamwork: reviewScores.teamwork,
+          attendance: reviewScores.attendance,
+          strengths: reviewStrengths || null,
+          improvements: reviewImprovements || null,
+          goals: reviewGoals || null,
+        }, { onConflict: "employee_id,review_period" });
+      if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["performance-reviews"] });

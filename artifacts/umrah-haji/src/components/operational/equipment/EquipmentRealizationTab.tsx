@@ -1,12 +1,14 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, Package, Users, Box, TrendingUp, Info } from "lucide-react";
+import { Loader2, Package, Users, Box, TrendingUp, Info, ArrowUpFromLine } from "lucide-react";
+import { toast } from "sonner";
 
 interface EquipmentRealizationTabProps {
   selectedPackage?: string;
@@ -17,11 +19,13 @@ interface EquipmentRealizationData {
   equipment_id: string;
   equipment_name: string;
   equipment_category: string;
+  unit_cost: number;
   total_prepared: number; // stok awal + terdistribusi
   distributed_count: number; // jumlah jamaah yang menerima
   distributed_quantity: number; // jumlah item terdistribusi
   remaining_stock: number; // sisa stok
   distribution_percentage: number;
+  total_cost: number; // unit_cost × distributed_quantity
 }
 
 export function EquipmentRealizationTab({
@@ -29,6 +33,8 @@ export function EquipmentRealizationTab({
   selectedDeparture,
 }: EquipmentRealizationTabProps) {
   const [filterCategory, setFilterCategory] = useState<string>("all");
+  const [isImporting, setIsImporting] = useState(false);
+  const queryClient = useQueryClient();
 
   // Fetch realization data
   const { data: realizationData, isLoading, error } = useQuery({
@@ -45,10 +51,10 @@ export function EquipmentRealizationTab({
         throw new Error(`equipment_items: ${tableError.message}`);
       }
 
-      // Get all equipment items
+      // Get all equipment items (including unit_cost for HPP calculation)
       const { data: items, error: itemsError } = await supabase
         .from("equipment_items")
-        .select("id, name, category, stock_quantity")
+        .select("id, name, category, stock_quantity, unit_cost")
         .order("name");
 
       if (itemsError) {
@@ -106,20 +112,65 @@ export function EquipmentRealizationTab({
         const distributionPercentage =
           totalPrepared > 0 ? (distributedQuantity / totalPrepared) * 100 : 0;
 
+        const unitCost = item.unit_cost || 0;
         realizationMap.set(item.id, {
           equipment_id: item.id,
           equipment_name: item.name,
           equipment_category: item.category || "general",
+          unit_cost: unitCost,
           total_prepared: totalPrepared,
           distributed_count: uniqueCustomers,
           distributed_quantity: distributedQuantity,
           remaining_stock: item.stock_quantity || 0,
           distribution_percentage: distributionPercentage,
+          total_cost: unitCost * distributedQuantity,
         });
       });
 
       return Array.from(realizationMap.values());
     },
+  });
+
+  // "Impor ke HPP" mutation — inserts total equipment cost as one HPP cost item
+  const importToHPPMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedDeparture) throw new Error("Pilih keberangkatan terlebih dahulu");
+      const totalEquipmentCost = (realizationData || []).reduce(
+        (sum, item) => sum + item.total_cost,
+        0
+      );
+      if (totalEquipmentCost <= 0) throw new Error("Tidak ada biaya perlengkapan (unit_cost masih 0). Isi harga satuan perlengkapan terlebih dahulu.");
+
+      const db = supabase as any;
+
+      // Delete existing equipment cost item for this departure (avoid duplicates)
+      await db
+        .from("departure_cost_items")
+        .delete()
+        .eq("departure_id", selectedDeparture)
+        .eq("category", "perlengkapan")
+        .like("description", "%Perlengkapan Jamaah%");
+
+      // Insert fresh total
+      const { error } = await db.from("departure_cost_items").insert({
+        departure_id: selectedDeparture,
+        category: "perlengkapan",
+        description: "Biaya Perlengkapan Jamaah (auto-import dari Equipment)",
+        quantity: 1,
+        unit_cost_idr: totalEquipmentCost,
+        total_cost_idr: totalEquipmentCost,
+        sort_order: 99,
+        notes: `Dihitung dari ${(realizationData || []).length} item perlengkapan yang terdistribusi`,
+      });
+      if (error) throw error;
+
+      // Trigger P&L recalculation
+      await db.rpc("recalculate_departure_financial_summary", { p_departure_id: selectedDeparture });
+      queryClient.invalidateQueries({ queryKey: ["departure-cost-items", selectedDeparture] });
+      queryClient.invalidateQueries({ queryKey: ["departure-financial-summary", selectedDeparture] });
+    },
+    onSuccess: () => toast.success("Biaya perlengkapan berhasil diimpor ke HPP keberangkatan"),
+    onError: (e: any) => toast.error(e.message),
   });
 
   // Get unique categories
@@ -267,23 +318,39 @@ export function EquipmentRealizationTab({
         </Card>
       </div>
 
-      {/* Filter */}
+      {/* Filter + Impor ke HPP */}
       <Card>
         <CardContent className="p-4">
-          <div className="flex items-center gap-4">
-            <label className="text-sm font-medium">Filter Kategori:</label>
-            <Select value={filterCategory} onValueChange={setFilterCategory}>
-              <SelectTrigger className="w-64">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {categories.map((cat) => (
-                  <SelectItem key={cat.value} value={cat.value}>
-                    {cat.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <div className="flex items-center gap-4 flex-1">
+              <label className="text-sm font-medium whitespace-nowrap">Filter Kategori:</label>
+              <Select value={filterCategory} onValueChange={setFilterCategory}>
+                <SelectTrigger className="w-64">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((cat) => (
+                    <SelectItem key={cat.value} value={cat.value}>
+                      {cat.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {selectedDeparture && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5 border-primary/50 text-primary hover:bg-primary/5"
+                onClick={() => importToHPPMutation.mutate()}
+                disabled={importToHPPMutation.isPending}
+              >
+                {importToHPPMutation.isPending
+                  ? <Loader2 className="h-4 w-4 animate-spin" />
+                  : <ArrowUpFromLine className="h-4 w-4" />}
+                Impor Biaya ke HPP
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>
