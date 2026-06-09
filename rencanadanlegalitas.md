@@ -213,13 +213,25 @@
          → document-generator.ts render blok agen di PDF (warna amber)
 ```
 
-### Sprint DOC-3 (2 minggu) — Generator Baru & Reminder
+### Sprint DOC-3 (2 minggu) — Generator Baru & Reminder ✅ SELESAI
 ```
-F-06  Auto-reminder kadaluarsa paspor/visa (cron + WA)
-F-07  Auto-reminder upload dokumen
-F-14  Generator Surat Mahram
-F-15  Generator Kontrak/Perjanjian Perjalanan
-F-16  Generator Surat Keterangan Lunas
+✅ F-06  Auto-reminder kadaluarsa paspor/visa via WhatsApp (Fonnte)
+         → Backend: POST /api/reminders/document-expiry (threshold + type filter)
+         → Frontend: WA Reminder Panel di AdminDocumentExpiryTracker
+         → State: reminderThreshold (30/60/90), reminderDocType (all/passport/visa)
+         → Log: whatsapp_logs (trigger_type: document_expiry_*)
+⏸  F-07  Auto-reminder upload dokumen (belum dikerjakan, masuk backlog)
+✅ F-14  Generator Surat Mahram
+         → generateSuratMahram() di document-generator.ts
+         → MahramLetterTab.tsx (form: data jamaah + mahram + info trip)
+         → Tab "Surat Mahram" di AdminDocumentGenerator
+         → Nomor surat otomatis (prefix MAHRAM)
+⏸  F-15  Generator Kontrak/Perjanjian Perjalanan (belum dikerjakan, masuk backlog)
+✅ F-16  Generator Surat Keterangan Lunas
+         → generateSuratLunas() di document-generator.ts (dengan cap LUNAS)
+         → LunasLetterTab.tsx (reuse invoiceBookings, filter paid only)
+         → Tab "Ket. Lunas" di AdminDocumentGenerator
+         → Nomor surat otomatis (prefix LUNAS)
 ```
 
 ### Sprint DOC-4 (2 minggu) — Portal Agen & Distribusi

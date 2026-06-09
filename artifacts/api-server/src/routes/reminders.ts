@@ -377,4 +377,110 @@ router.post("/trigger-departure", async (req, res) => {
   }
 });
 
+// ── F-06: Reminder kadaluarsa paspor/visa via WhatsApp ──────────────────
+router.post("/document-expiry", async (req, res) => {
+  const threshold = Math.min(Math.max(Number(req.body?.threshold) || 90, 1), 365);
+  const docType: string = req.body?.type || "all";
+
+  logger.info({ threshold, docType }, "Document expiry reminder triggered");
+
+  // Fetch company name for WA message
+  const companyRow = await dbQueryOne(
+    `SELECT name, city FROM company_info LIMIT 1`
+  );
+  const companyName = companyRow?.name || "Tim Travel";
+
+  const sent: string[] = [];
+  const failed: string[] = [];
+  let total = 0;
+
+  // Helper to send one reminder
+  async function sendReminder(
+    name: string,
+    phone: string,
+    docLabel: string,
+    expiryDate: string,
+    daysLeft: number
+  ) {
+    const humanDate = (() => {
+      try {
+        return new Date(expiryDate).toLocaleDateString("id-ID", {
+          day: "numeric", month: "long", year: "numeric",
+        });
+      } catch { return expiryDate; }
+    })();
+    const urgencyWord = daysLeft <= 30 ? "segera" : daysLeft <= 60 ? "dalam waktu dekat" : "mendekati";
+    const message =
+      `Assalamu'alaikum, Bapak/Ibu *${name}*,\n\n` +
+      `Kami inforkan bahwa *${docLabel}* Anda akan berakhir masa berlakunya pada *${humanDate}* ` +
+      `(${urgencyWord} *${daysLeft} hari* lagi).\n\n` +
+      `Harap segera memperpanjang dokumen perjalanan Anda agar ibadah berjalan lancar. ` +
+      `Hubungi kami jika memerlukan bantuan pengurusan.\n\n` +
+      `Jazakallahu Khairan,\n${companyName}`;
+    total++;
+    const result = await sendWA(phone, message);
+    await logWA({
+      recipient_phone: phone,
+      recipient_name: name,
+      trigger_type: `document_expiry_${docLabel.toLowerCase().replace(/\s/g, "_")}`,
+      message_content: message,
+      status: result.success ? "sent" : "failed",
+      error_message: result.error,
+    });
+    if (result.success) sent.push(name);
+    else failed.push(`${name} (${result.error})`);
+  }
+
+  try {
+    // Paspor reminder
+    if (docType === "passport" || docType === "all") {
+      const rows = await dbQuery(
+        `SELECT c.full_name, c.phone, c.passport_expiry,
+                (c.passport_expiry::date - CURRENT_DATE) AS days_left
+         FROM customers c
+         WHERE c.passport_expiry IS NOT NULL
+           AND c.phone IS NOT NULL
+           AND c.passport_expiry::date - CURRENT_DATE BETWEEN 0 AND $1
+         ORDER BY c.passport_expiry ASC`,
+        [threshold]
+      );
+      for (const row of rows) {
+        await sendReminder(row.full_name, row.phone, "Paspor", row.passport_expiry, Number(row.days_left));
+      }
+    }
+
+    // Visa reminder
+    if (docType === "visa" || docType === "all") {
+      const rows = await dbQuery(
+        `SELECT DISTINCT ON (va.customer_id)
+                c.full_name, c.phone, va.visa_expiry,
+                (va.visa_expiry::date - CURRENT_DATE) AS days_left
+         FROM visa_applications va
+         JOIN customers c ON c.id = va.customer_id
+         WHERE va.visa_expiry IS NOT NULL
+           AND c.phone IS NOT NULL
+           AND va.visa_expiry::date - CURRENT_DATE BETWEEN 0 AND $1
+         ORDER BY va.customer_id, va.visa_expiry ASC`,
+        [threshold]
+      );
+      for (const row of rows) {
+        await sendReminder(row.full_name, row.phone, "Visa", row.visa_expiry, Number(row.days_left));
+      }
+    }
+
+    logger.info({ sent: sent.length, failed: failed.length, total }, "Document expiry reminders sent");
+    return res.json({
+      success: true,
+      total,
+      sent: sent.length,
+      failed: failed.length,
+      failed_names: failed,
+      ran_at: new Date().toISOString(),
+    });
+  } catch (err: any) {
+    logger.error({ err }, "Document expiry reminder failed");
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 export default router;

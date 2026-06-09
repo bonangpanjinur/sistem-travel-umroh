@@ -16,7 +16,11 @@ import {
   Calendar,
   Users,
   ChevronDown,
+  MessageCircle,
+  Loader2,
+  Send,
 } from "lucide-react";
+import { toast } from "sonner";
 import { differenceInDays, format, parseISO, isValid } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 
@@ -105,6 +109,12 @@ export default function AdminDocumentExpiryTracker() {
   const [urgencyFilter, setUrgencyFilter] = useState<UrgencyFilter>("all");
   const [sortField, setSortField] = useState<"name" | "passport" | "visa" | "urgency">("urgency");
   const [sortAsc, setSortAsc] = useState(true);
+
+  // WA Reminder state (F-06)
+  const [reminderThreshold, setReminderThreshold] = useState<number>(90);
+  const [reminderDocType, setReminderDocType] = useState<"all" | "passport" | "visa">("all");
+  const [sendingReminder, setSendingReminder] = useState(false);
+  const [reminderResult, setReminderResult] = useState<{ sent: number; failed: number; total: number } | null>(null);
 
   const { data: rawData = [], isLoading, refetch } = useQuery({
     queryKey: ["document-expiry-tracker"],
@@ -260,6 +270,29 @@ export default function AdminDocumentExpiryTracker() {
     URL.revokeObjectURL(url);
   }
 
+  async function handleSendReminder() {
+    setSendingReminder(true);
+    setReminderResult(null);
+    try {
+      const apiBase = import.meta.env.VITE_API_BASE_URL || '';
+      const resp = await fetch(`${apiBase}/api/reminders/document-expiry`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ threshold: reminderThreshold, type: reminderDocType }),
+      });
+      const json = await resp.json();
+      if (!resp.ok) throw new Error(json.error || 'Gagal mengirim reminder');
+      setReminderResult({ sent: json.sent, failed: json.failed, total: json.total });
+      if (json.sent > 0) toast.success(`${json.sent} reminder WA berhasil dikirim`);
+      if (json.failed > 0) toast.error(`${json.failed} reminder gagal terkirim`);
+      if (json.total === 0) toast.info('Tidak ada jamaah dengan dokumen kadaluarsa dalam threshold ini');
+    } catch (e: any) {
+      toast.error('Gagal mengirim reminder: ' + e.message);
+    } finally {
+      setSendingReminder(false);
+    }
+  }
+
   const SortIcon = ({ field }: { field: typeof sortField }) =>
     sortField === field ? (
       <ChevronDown className={`inline w-3 h-3 ml-1 transition-transform ${!sortAsc ? "rotate-180" : ""}`} />
@@ -327,6 +360,68 @@ export default function AdminDocumentExpiryTracker() {
             </button>
           );
         })}
+      </div>
+
+      {/* WA Reminder Panel (F-06) */}
+      <div className="rounded-xl border border-green-200 bg-green-50 p-4">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-2">
+            <MessageCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
+            <div>
+              <p className="font-semibold text-green-900 text-sm">Kirim Reminder Kadaluarsa via WhatsApp</p>
+              <p className="text-xs text-green-700 mt-0.5">Kirim notifikasi WA massal ke jamaah dengan dokumen hampir kadaluarsa</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <select
+              value={reminderThreshold}
+              onChange={e => setReminderThreshold(Number(e.target.value))}
+              className="text-sm border border-green-300 rounded-lg px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-green-400"
+            >
+              <option value={30}>Dalam 30 hari</option>
+              <option value={60}>Dalam 60 hari</option>
+              <option value={90}>Dalam 90 hari</option>
+            </select>
+            <select
+              value={reminderDocType}
+              onChange={e => setReminderDocType(e.target.value as any)}
+              className="text-sm border border-green-300 rounded-lg px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-green-400"
+            >
+              <option value="all">Paspor & Visa</option>
+              <option value="passport">Paspor saja</option>
+              <option value="visa">Visa saja</option>
+            </select>
+            <button
+              onClick={handleSendReminder}
+              disabled={sendingReminder}
+              className="flex items-center gap-2 px-4 py-1.5 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-700 disabled:opacity-60 transition"
+            >
+              {sendingReminder ? (
+                <><Loader2 className="w-4 h-4 animate-spin" />Mengirim...</>
+              ) : (
+                <><Send className="w-4 h-4" />Kirim Reminder WA</>
+              )}
+            </button>
+          </div>
+        </div>
+        {reminderResult && (
+          <div className="mt-3 flex gap-3 flex-wrap text-sm">
+            <span className="flex items-center gap-1.5 bg-white border border-green-200 rounded-full px-3 py-0.5">
+              <span className="w-2 h-2 rounded-full bg-gray-400" />
+              Total: <span className="font-bold">{reminderResult.total}</span>
+            </span>
+            <span className="flex items-center gap-1.5 bg-white border border-green-200 rounded-full px-3 py-0.5">
+              <span className="w-2 h-2 rounded-full bg-green-500" />
+              Terkirim: <span className="font-bold text-green-700">{reminderResult.sent}</span>
+            </span>
+            {reminderResult.failed > 0 && (
+              <span className="flex items-center gap-1.5 bg-white border border-red-200 rounded-full px-3 py-0.5">
+                <span className="w-2 h-2 rounded-full bg-red-500" />
+                Gagal: <span className="font-bold text-red-700">{reminderResult.failed}</span>
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Filters */}

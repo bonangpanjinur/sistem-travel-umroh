@@ -1467,3 +1467,243 @@ export async function generateUmrahCertificate(
   
   return doc;
 }
+
+// ── Surat Mahram ──────────────────────────────────────────────────────────
+export interface SuratMahramData {
+  jamaahName: string;
+  jamaahNik: string;
+  jamaahBirthPlace: string;
+  jamaahBirthDate: string;
+  jamaahAddress: string;
+  jamaahPassport?: string;
+  mahramName: string;
+  mahramRelation: string;
+  mahramNik: string;
+  packageName?: string;
+  departureDate?: string;
+  destination?: string;
+}
+
+export async function generateSuratMahram(
+  data: SuratMahramData,
+  letterNumber: string,
+  company: CompanyInfo = defaultCompanyInfo
+): Promise<jsPDF> {
+  if (company.logo && company.logo.startsWith('http')) {
+    try { company.logo = await imageUrlToBase64(company.logo); } catch (_) { /* abaikan */ }
+  }
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const font = company.settings?.pdf_default_font || 'helvetica';
+  doc.setFont(font);
+  let y = addLetterhead(doc, company);
+  const pageWidth = doc.internal.pageSize.width;
+
+  doc.setFontSize(11);
+  doc.text(`Nomor     : ${letterNumber}`, 14, y); y += 6;
+  doc.text(`Tanggal   : ${format(new Date(), 'd MMMM yyyy', { locale: id })}`, 14, y); y += 6;
+  doc.text('Lampiran  : -', 14, y); y += 6;
+  doc.text('Perihal   : Keterangan Mahram untuk Ibadah Umrah', 14, y); y += 15;
+
+  const intro = `Yang bertanda tangan di bawah ini, Pimpinan ${company.name}, dengan ini menerangkan bahwa:`;
+  const introLines = doc.splitTextToSize(intro, pageWidth - 28);
+  doc.text(introLines, 14, y);
+  y += introLines.length * 6 + 8;
+
+  // Jamaah data box
+  doc.setFillColor(249, 250, 251);
+  doc.setDrawColor(209, 213, 219);
+  doc.setLineWidth(0.3);
+  const jamaahBoxH = data.jamaahPassport ? 44 : 38;
+  doc.rect(14, y - 4, pageWidth - 28, jamaahBoxH, 'FD');
+  doc.setFontSize(8.5);
+  doc.setFont(font, 'bold');
+  doc.setTextColor(71, 85, 105);
+  doc.text('DATA JAMAAH', 18, y + 2);
+  doc.setFont(font, 'normal');
+  doc.setTextColor(0, 0, 0);
+  y += 8;
+  doc.setFontSize(10);
+  const birthDateFormatted = data.jamaahBirthDate
+    ? (() => { try { return format(new Date(data.jamaahBirthDate), 'd MMMM yyyy', { locale: id }); } catch { return data.jamaahBirthDate; } })()
+    : '-';
+  const jRows: [string, string][] = [
+    ['Nama Lengkap', data.jamaahName || '-'],
+    ['NIK', data.jamaahNik || '-'],
+    ['Tempat, Tgl Lahir', `${data.jamaahBirthPlace || '-'}, ${birthDateFormatted}`],
+  ];
+  if (data.jamaahPassport) jRows.push(['Nomor Paspor', data.jamaahPassport]);
+  for (const [label, value] of jRows) {
+    doc.text(label, 18, y);
+    doc.text(': ' + value, 70, y);
+    y += 6;
+  }
+  const addrLines = doc.splitTextToSize('Alamat: ' + (data.jamaahAddress || '-'), pageWidth - 40);
+  doc.text(addrLines, 18, y);
+  y += addrLines.length * 6 + 8;
+
+  // Mahram data box
+  doc.setFillColor(240, 253, 244);
+  doc.setDrawColor(134, 239, 172);
+  doc.rect(14, y - 4, pageWidth - 28, 30, 'FD');
+  doc.setFontSize(8.5);
+  doc.setFont(font, 'bold');
+  doc.setTextColor(22, 101, 52);
+  doc.text('DATA MAHRAM', 18, y + 2);
+  doc.setFont(font, 'normal');
+  doc.setTextColor(0, 0, 0);
+  y += 8;
+  doc.setFontSize(10);
+  const mRows: [string, string][] = [
+    ['Nama Mahram', data.mahramName || '-'],
+    ['Hubungan', data.mahramRelation || '-'],
+    ['NIK Mahram', data.mahramNik || '-'],
+  ];
+  for (const [label, value] of mRows) {
+    doc.text(label, 18, y);
+    doc.text(': ' + value, 70, y);
+    y += 6;
+  }
+  y += 8;
+
+  const bodyText = `Bahwa yang bersangkutan akan melaksanakan ibadah Umrah${data.packageName ? ` program ${data.packageName}` : ''}${data.departureDate ? (() => { try { return ` pada tanggal ${format(new Date(data.departureDate), 'd MMMM yyyy', { locale: id })}`; } catch { return ` pada tanggal ${data.departureDate}`; } })() : ''} ke ${data.destination || 'Mekkah, Arab Saudi'}. Surat keterangan mahram ini diberikan agar dapat dipergunakan sebagaimana mestinya dalam proses keberangkatan ibadah.`;
+  const bodyLines = doc.splitTextToSize(bodyText, pageWidth - 28);
+  doc.text(bodyLines, 14, y);
+  y += bodyLines.length * 6 + 12;
+
+  doc.text('Demikian surat keterangan ini kami buat dengan sebenarnya.', 14, y); y += 12;
+  doc.text(`Wassalamu\'alaikum Wr. Wb.`, 14, y); y += 15;
+
+  doc.text(`${company.city || 'Jakarta'}, ${format(new Date(), 'd MMMM yyyy', { locale: id })}`, pageWidth - 60, y);
+  y += 6;
+  doc.text(company.name, pageWidth - 60, y);
+  y += 28;
+  doc.setFont(font, 'bold');
+  doc.text('_______________________', pageWidth - 60, y); y += 6;
+  doc.text('Pimpinan', pageWidth - 60, y);
+
+  addFooter(doc, 1, 1, company);
+  return doc;
+}
+
+// ── Surat Keterangan Lunas ────────────────────────────────────────────────
+export interface SuratLunasData {
+  customerName: string;
+  customerNik?: string;
+  bookingCode: string;
+  packageName: string;
+  departureDate?: string;
+  totalAmount: number;
+  paidAmount: number;
+  notes?: string;
+}
+
+export async function generateSuratLunas(
+  data: SuratLunasData,
+  letterNumber: string,
+  company: CompanyInfo = defaultCompanyInfo
+): Promise<jsPDF> {
+  if (company.logo && company.logo.startsWith('http')) {
+    try { company.logo = await imageUrlToBase64(company.logo); } catch (_) { /* abaikan */ }
+  }
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const font = company.settings?.pdf_default_font || 'helvetica';
+  const accentColor = company.settings?.invoice_accent_color || '#16a34a';
+  const rgb = hexToRgb(accentColor);
+  doc.setFont(font);
+  let y = addLetterhead(doc, company);
+  const pageWidth = doc.internal.pageSize.width;
+
+  // Title block
+  doc.setFontSize(14);
+  doc.setFont(font, 'bold');
+  doc.setTextColor(rgb.r, rgb.g, rgb.b);
+  doc.text('SURAT KETERANGAN LUNAS', pageWidth / 2, y, { align: 'center' }); y += 7;
+  doc.setFontSize(10);
+  doc.setFont(font, 'normal');
+  doc.setTextColor(100, 116, 139);
+  doc.text(`Nomor: ${letterNumber}`, pageWidth / 2, y, { align: 'center' }); y += 6;
+  doc.text(`Tanggal: ${format(new Date(), 'd MMMM yyyy', { locale: id })}`, pageWidth / 2, y, { align: 'center' }); y += 12;
+  doc.setTextColor(0, 0, 0);
+
+  doc.setFontSize(11);
+  const openLines = doc.splitTextToSize(`Yang bertanda tangan di bawah ini, Pimpinan ${company.name}, dengan ini menerangkan bahwa:`, pageWidth - 28);
+  doc.text(openLines, 14, y); y += openLines.length * 6 + 8;
+
+  // Customer info table
+  doc.setFillColor(248, 250, 252);
+  doc.setDrawColor(209, 213, 219);
+  doc.setLineWidth(0.3);
+  const cRows: [string, string][] = [
+    ['Nama', data.customerName],
+    ['No. Booking', data.bookingCode],
+    ['Paket Perjalanan', data.packageName],
+  ];
+  if (data.customerNik) cRows.splice(1, 0, ['NIK', data.customerNik]);
+  if (data.departureDate) {
+    let depStr = data.departureDate;
+    try { depStr = format(new Date(data.departureDate), 'd MMMM yyyy', { locale: id }); } catch { /* keep original */ }
+    cRows.push(['Tanggal Berangkat', depStr]);
+  }
+  const boxH = cRows.length * 7 + 10;
+  doc.rect(14, y - 4, pageWidth - 28, boxH, 'FD');
+  doc.setFontSize(10);
+  for (const [label, value] of cRows) {
+    doc.text(label, 18, y);
+    doc.text(': ' + value, 65, y);
+    y += 7;
+  }
+  y += 8;
+
+  // Payment summary
+  const fmt = (n: number) => 'Rp ' + n.toLocaleString('id-ID');
+  const sisa = Math.max(0, data.totalAmount - data.paidAmount);
+  autoTable(doc, {
+    startY: y,
+    head: [['Keterangan', 'Jumlah']],
+    body: [
+      ['Total Harga Paket', fmt(data.totalAmount)],
+      ['Jumlah yang Telah Dibayarkan', fmt(data.paidAmount)],
+      ['Sisa Tagihan', fmt(sisa)],
+    ],
+    styles: { font: font as any, fontSize: 10, cellPadding: 3 },
+    headStyles: { fillColor: [rgb.r, rgb.g, rgb.b], textColor: [255, 255, 255], fontStyle: 'bold' },
+    bodyStyles: { textColor: [15, 23, 42] },
+    columnStyles: { 1: { halign: 'right' } },
+    margin: { left: 14, right: 14 },
+  });
+  y = (doc as any).lastAutoTable.finalY + 12;
+
+  // LUNAS stamp
+  doc.setFontSize(28);
+  doc.setFont(font, 'bold');
+  doc.setTextColor(22, 163, 74);
+  doc.setDrawColor(22, 163, 74);
+  doc.setLineWidth(1.2);
+  doc.rect(pageWidth / 2 - 28, y - 7, 56, 16, 'S');
+  doc.text('LUNAS', pageWidth / 2, y + 4.5, { align: 'center' });
+  doc.setTextColor(0, 0, 0);
+  doc.setLineWidth(0.2);
+  y += 26;
+
+  // Closing
+  doc.setFontSize(11);
+  doc.setFont(font, 'normal');
+  if (data.notes) {
+    const noteLines = doc.splitTextToSize(data.notes, pageWidth - 28);
+    doc.text(noteLines, 14, y); y += noteLines.length * 6 + 6;
+  }
+  const closingLines = doc.splitTextToSize('Demikian surat keterangan ini dibuat dengan sebenarnya untuk dapat dipergunakan sebagaimana mestinya.', pageWidth - 28);
+  doc.text(closingLines, 14, y); y += closingLines.length * 6 + 14;
+
+  // Signature
+  doc.text(`${company.city || 'Jakarta'}, ${format(new Date(), 'd MMMM yyyy', { locale: id })}`, pageWidth - 60, y);
+  y += 6;
+  doc.text(company.name, pageWidth - 60, y);
+  y += 28;
+  doc.setFont(font, 'bold');
+  doc.text('_______________________', pageWidth - 60, y); y += 6;
+  doc.text('Pimpinan', pageWidth - 60, y);
+
+  addFooter(doc, 1, 1, company);
+  return doc;
+}

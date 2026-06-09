@@ -8,13 +8,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
-import { FileText, Send, Mail, Users, Briefcase, Plane, Receipt, Ticket, Award, Package, MessageCircle, Loader2 } from 'lucide-react';
+import { FileText, Send, Mail, Users, Briefcase, Plane, Receipt, Ticket, Award, Package, MessageCircle, Loader2, Heart, CheckCircle2 } from 'lucide-react';
 import { useCompanyInfo } from '@/hooks/useCompanyInfo';
 import {
   generateLeaveLetter, generateJamaahLeaveLetter, generatePassportLetter,
   generateInvoice, generateGeneralLetter, generateETicket, generateUmrahCertificate,
+  generateSuratMahram, generateSuratLunas,
   type LeaveLetterData, type JamaahLeaveLetterData, type PassportLetterData,
   type InvoiceDataExtended, type ETicketData, type UmrahCertificateData,
+  type SuratMahramData, type SuratLunasData,
 } from '@/lib/document-generator';
 import { BulkDocumentTab } from '@/components/document-generator/BulkDocumentTab';
 import { DepartureInfo } from '@/components/document-generator/shared';
@@ -25,6 +27,8 @@ import { InvoiceTab } from '@/components/document-generator/InvoiceTab';
 import { ETicketTab } from '@/components/document-generator/ETicketTab';
 import { CertificateTab } from '@/components/document-generator/CertificateTab';
 import { GeneralLetterTab } from '@/components/document-generator/GeneralLetterTab';
+import { MahramLetterTab, type MahramForm } from '@/components/document-generator/MahramLetterTab';
+import { LunasLetterTab, type LunasForm } from '@/components/document-generator/LunasLetterTab';
 
 interface Employee {
   id: string; full_name: string; employee_code: string; position: string; department: string; is_active: boolean;
@@ -72,6 +76,12 @@ const AdminDocumentGenerator = () => {
   const [generalForm, setGeneralForm] = useState({ recipientName: '', recipientPosition: '', recipientInstitution: '', recipientAddress: '', subject: '', content: '', signatoryName: '', signatoryPosition: '' });
   const [eticketForm, setEticketForm] = useState({ bookingId: '' });
   const [certificateForm, setCertificateForm] = useState({ bookingId: '' });
+  const [mahramForm, setMahramForm] = useState<MahramForm>({
+    jamaahName: '', jamaahNik: '', jamaahBirthPlace: '', jamaahBirthDate: '',
+    jamaahAddress: '', jamaahPassport: '', mahramName: '', mahramRelation: '',
+    mahramNik: '', packageName: '', departureDate: '',
+  });
+  const [lunasForm, setLunasForm] = useState<LunasForm>({ bookingId: '', notes: '' });
 
   // ── Data queries ──
   const { data: packages } = useQuery({
@@ -355,6 +365,60 @@ const AdminDocumentGenerator = () => {
     return { generate: async () => { const letterNumber = await getLetterNumber('surat_umum', 'SURAT'); return await generateGeneralLetter({ letterNumber, letterDate: new Date(), recipient: { name: generalForm.recipientName, position: generalForm.recipientPosition, institution: generalForm.recipientInstitution, address: generalForm.recipientAddress }, subject: generalForm.subject, content: generalForm.content, signatory: { name: generalForm.signatoryName || 'Direktur Utama', position: generalForm.signatoryPosition || company.name } }, company); } };
   };
 
+  const handleGenerateSuratMahram = () => {
+    if (!mahramForm.jamaahName || !mahramForm.mahramName || !mahramForm.mahramRelation) {
+      toast.error('Nama jamaah, nama mahram, dan hubungan wajib diisi');
+      return undefined;
+    }
+    return {
+      generate: async () => {
+        const letterNumber = await getLetterNumber('surat_mahram', 'MAHRAM');
+        const data: SuratMahramData = {
+          jamaahName: mahramForm.jamaahName,
+          jamaahNik: mahramForm.jamaahNik,
+          jamaahBirthPlace: mahramForm.jamaahBirthPlace,
+          jamaahBirthDate: mahramForm.jamaahBirthDate,
+          jamaahAddress: mahramForm.jamaahAddress,
+          jamaahPassport: mahramForm.jamaahPassport || undefined,
+          mahramName: mahramForm.mahramName,
+          mahramRelation: mahramForm.mahramRelation,
+          mahramNik: mahramForm.mahramNik,
+          packageName: mahramForm.packageName || undefined,
+          departureDate: mahramForm.departureDate || undefined,
+        };
+        return await generateSuratMahram(data, letterNumber, company);
+      }
+    };
+  };
+
+  const handleGenerateSuratLunas = () => {
+    const booking = invoiceBookings.find((b: any) => b.id === lunasForm.bookingId);
+    if (!booking) { toast.error('Pilih booking terlebih dahulu'); return undefined; }
+    if ((booking.paid_amount || 0) < booking.total_price) {
+      toast.error('Booking belum lunas — surat keterangan lunas hanya untuk booking yang sudah selesai dibayar');
+      return undefined;
+    }
+    const customer = booking.customer as any;
+    const departure = booking.departure as any;
+    const pkg = departure?.package as any;
+    return {
+      generate: async () => {
+        const letterNumber = await getLetterNumber('surat_lunas', 'LUNAS');
+        const data: SuratLunasData = {
+          customerName: customer?.full_name || '-',
+          customerNik: customer?.nik || undefined,
+          bookingCode: booking.booking_code,
+          packageName: pkg?.name || 'Paket Umrah',
+          departureDate: departure?.departure_date || undefined,
+          totalAmount: booking.total_price,
+          paidAmount: booking.paid_amount || 0,
+          notes: lunasForm.notes || undefined,
+        };
+        return await generateSuratLunas(data, letterNumber, company);
+      }
+    };
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -388,6 +452,12 @@ const AdminDocumentGenerator = () => {
             </TabsTrigger>
             <TabsTrigger value="general" className="flex items-center gap-1">
               <FileText className="h-4 w-4" /><span className="hidden lg:inline">Surat Umum</span>
+            </TabsTrigger>
+            <TabsTrigger value="mahram" className="flex items-center gap-1">
+              <Heart className="h-4 w-4 text-rose-500" /><span className="hidden lg:inline">Surat Mahram</span>
+            </TabsTrigger>
+            <TabsTrigger value="lunas" className="flex items-center gap-1">
+              <CheckCircle2 className="h-4 w-4 text-green-600" /><span className="hidden lg:inline">Ket. Lunas</span>
             </TabsTrigger>
           </TabsList>
         </div>
@@ -485,6 +555,27 @@ const AdminDocumentGenerator = () => {
           <GeneralLetterTab
             generalForm={generalForm} setGeneralForm={setGeneralForm}
             doGenerate={doGenerate} handleGenerateGeneralLetter={handleGenerateGeneralLetter}
+          />
+        </TabsContent>
+
+        <TabsContent value="mahram">
+          <MahramLetterTab
+            mahramForm={mahramForm} setMahramForm={setMahramForm}
+            doGenerate={doGenerate} handleGenerateSuratMahram={handleGenerateSuratMahram}
+          />
+        </TabsContent>
+
+        <TabsContent value="lunas">
+          <LunasLetterTab
+            invoiceFilterPkg={invoiceFilterPkg} setInvoiceFilterPkg={setInvoiceFilterPkg}
+            invoiceFilterDep={invoiceFilterDep} setInvoiceFilterDep={setInvoiceFilterDep}
+            invoiceYear={invoiceYear} setInvoiceYear={setInvoiceYear}
+            invoiceMonth={invoiceMonth} setInvoiceMonth={setInvoiceMonth}
+            packages={packages || []} allDepartures={allDepartures || []}
+            invoiceBookings={invoiceBookings}
+            lunasForm={lunasForm} setLunasForm={setLunasForm}
+            doGenerate={doGenerate} handleGenerateSuratLunas={handleGenerateSuratLunas}
+            getSelectedDeparture={getSelectedDeparture}
           />
         </TabsContent>
       </Tabs>
