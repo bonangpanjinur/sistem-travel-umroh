@@ -103,6 +103,7 @@ const JamaahPantauKeluarga = lazy(() => import("@/pages/jamaah/JamaahPantauKelua
 
 // Wishlist Paket
 const JamaahWishlist = lazy(() => import("@/pages/jamaah/JamaahWishlist"));
+const JamaahSignaturePage = lazy(() => import("@/pages/jamaah/JamaahSignaturePage"));
 
 // Toko Online / E-Commerce
 const StorePage        = lazy(() => import("@/pages/customer/StorePage"));
@@ -194,6 +195,7 @@ export default function CustomerRoutes() {
       <Route path="/jamaah/kesehatan" element={<JamaahRoute><JamaahKesehatan /></JamaahRoute>} />
       <Route path="/jamaah/sos-status" element={<JamaahRoute><JamaahSOSStatus /></JamaahRoute>} />
       <Route path="/jamaah/pantau-keluarga" element={<JamaahRoute><JamaahPantauKeluarga /></JamaahRoute>} />
+      <Route path="/jamaah/tanda-tangan" element={<JamaahRoute><JamaahSignaturePage /></JamaahRoute>} />
 
       {/* ── Konten Islami & Alat Ibadah — PUBLIK, tidak perlu login ── */}
       <Route path="/jamaah/doa-panduan" element={<LazyPage><JamaahDoaPanduan /></LazyPage>} />

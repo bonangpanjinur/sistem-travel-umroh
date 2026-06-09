@@ -124,41 +124,57 @@ export function BulkSendTab({ packages, allDepartures, company, bankAccount }: P
     let doc: any = null;
     if (docType === "eticket") {
       const data: ETicketData = {
-        bookingCode: booking.booking_code, customerName: customer?.full_name || "-",
-        passportNumber: customer?.passport_number || "-", packageName: pkg?.name || "-",
+        bookingCode: booking.booking_code,
+        passengerName: customer?.full_name || "-",
+        passportNumber: customer?.passport_number || "-",
+        packageName: pkg?.name || "-",
         departureDate: dep?.departure_date ? new Date(dep.departure_date) : new Date(),
-        returnDate: dep?.return_date ? new Date(dep.return_date) : undefined,
+        returnDate: dep?.return_date ? new Date(dep.return_date) : new Date(),
         departureTime: dep?.departure_time || "-",
-        airlineName: (dep?.airline as any)?.name || "-",
+        airline: (dep?.airline as any)?.name || "-",
         flightNumber: dep?.flight_number || "-",
-        departureCity: (dep?.departure_airport as any)?.city || "Jakarta",
-        arrivalCity: (dep?.arrival_airport as any)?.city || "Jeddah",
         departureAirport: (dep?.departure_airport as any)?.name || "-",
         arrivalAirport: (dep?.arrival_airport as any)?.name || "-",
         hotelMakkah: (dep?.hotel_makkah as any)?.name || "-",
         hotelMadinah: (dep?.hotel_madinah as any)?.name || "-",
-        roomType, totalPax: booking.total_pax || 1, itinerary: [],
+        roomType, itinerary: [],
       };
       doc = await generateETicket(data, company);
     } else if (docType === "invoice") {
-      const data: InvoiceDataExtended = {
-        bookingCode: booking.booking_code, customerName: customer?.full_name || "-",
-        customerAddress: customer?.address || "-", customerPhone: customer?.phone || "-",
-        customerEmail: customer?.email || "-", customerNik: customer?.nik || "-",
-        packageName: pkg?.name || "-",
-        departureDate: dep?.departure_date ? new Date(dep.departure_date) : new Date(),
-        returnDate: dep?.return_date ? new Date(dep.return_date) : undefined,
-        roomType: roomMap[roomType] || roomType,
-        totalPax: booking.total_pax || 1, pricePerPax: priceMap[roomType],
-        totalPrice: booking.total_price || 0, paidAmount: booking.paid_amount || 0,
-        remainingAmount: booking.remaining_amount || 0, paymentStatus: booking.payment_status || "pending",
-        items: [{ description: `Paket ${pkg?.name || ""} - ${roomMap[roomType] || roomType}`, qty: booking.total_pax || 1, unitPrice: priceMap[roomType], total: booking.total_price || 0 }],
-        dueDate: undefined, notes: "",
-      };
       const d = new Date();
       const ROMAN = ["I","II","III","IV","V","VI","VII","VIII","IX","X","XI","XII"];
       const num = `${Math.floor(Math.random()*900+100)}/INV/UHT/${ROMAN[d.getMonth()]}/${d.getFullYear()}`;
-      doc = await generateInvoice(data, num, company, bankAccount);
+      const data: InvoiceDataExtended = {
+        invoiceNumber: num,
+        invoiceDate: d,
+        dueDate: d,
+        customer: {
+          name: customer?.full_name || "-",
+          address: customer?.address || "-",
+          phone: customer?.phone || "-",
+          email: customer?.email || undefined,
+        },
+        items: [{
+          description: `Paket ${pkg?.name || ""} - ${roomMap[roomType] || roomType}`,
+          quantity: booking.total_pax || 1,
+          unitPrice: priceMap[roomType],
+          total: booking.total_price || 0,
+        }],
+        subtotal: booking.total_price || 0,
+        total: booking.total_price || 0,
+        notes: "",
+        bankInfo: bankAccount ? {
+          bankName: bankAccount.bank_name || bankAccount.bankName || "-",
+          accountNumber: bankAccount.account_number || bankAccount.accountNumber || "-",
+          accountName: bankAccount.account_name || bankAccount.accountName || "-",
+        } : undefined,
+        packageName: pkg?.name || "-",
+        departureDate: dep?.departure_date || undefined,
+        paidAmount: booking.paid_amount || 0,
+        remainingAmount: booking.remaining_amount || 0,
+        paymentStatus: booking.payment_status || "pending",
+      };
+      doc = await generateInvoice(data, company);
     }
 
     return doc ? (doc.output("blob") as Blob) : null;

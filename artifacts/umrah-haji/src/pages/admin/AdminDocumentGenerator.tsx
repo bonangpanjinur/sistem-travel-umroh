@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
-import { FileText, Send, Mail, Users, Briefcase, Plane, Receipt, Ticket, Award, Package, MessageCircle, Loader2, Heart, CheckCircle2, Calendar } from 'lucide-react';
+import { FileText, Send, Mail, Users, Briefcase, Plane, Receipt, Ticket, Award, Package, MessageCircle, Loader2, Heart, CheckCircle2, Calendar, Map } from 'lucide-react';
 import { useCompanyInfo } from '@/hooks/useCompanyInfo';
 import {
   generateLeaveLetter, generateJamaahLeaveLetter, generatePassportLetter,
@@ -31,6 +31,7 @@ import { CertificateTab } from '@/components/document-generator/CertificateTab';
 import { GeneralLetterTab } from '@/components/document-generator/GeneralLetterTab';
 import { MahramLetterTab, type MahramForm } from '@/components/document-generator/MahramLetterTab';
 import { LunasLetterTab, type LunasForm } from '@/components/document-generator/LunasLetterTab';
+import { ItineraryPDFTab } from '@/components/document-generator/ItineraryPDFTab';
 
 interface Employee {
   id: string; full_name: string; employee_code: string; position: string; department: string; is_active: boolean;
@@ -467,6 +468,9 @@ const AdminDocumentGenerator = () => {
             <TabsTrigger value="lunas" className="flex items-center gap-1">
               <CheckCircle2 className="h-4 w-4 text-green-600" /><span className="hidden lg:inline">Ket. Lunas</span>
             </TabsTrigger>
+            <TabsTrigger value="itinerary" className="flex items-center gap-1">
+              <Map className="h-4 w-4 text-teal-600" /><span className="hidden lg:inline">Itinerary</span>
+            </TabsTrigger>
           </TabsList>
         </div>
 
@@ -598,6 +602,10 @@ const AdminDocumentGenerator = () => {
             doGenerate={doGenerate} handleGenerateSuratLunas={handleGenerateSuratLunas}
             getSelectedDeparture={getSelectedDeparture}
           />
+        </TabsContent>
+
+        <TabsContent value="itinerary">
+          <ItineraryPDFTab allDepartures={allDepartures || []} packages={packages || []} />
         </TabsContent>
       </Tabs>
 

@@ -50,6 +50,7 @@ const TasbihDigital = lazy(() => import("@/pages/public/TasbihDigital"));
 const TokoOnline = lazy(() => import("@/pages/public/TokoOnline"));
 const PanduanManasikUmroh = lazy(() => import("@/pages/public/PanduanManasikUmroh"));
 const DaftarSubAgen = lazy(() => import("@/pages/public/DaftarSubAgen"));
+const DocVerifyPage = lazy(() => import("@/pages/public/DocVerifyPage"));
 
 function LazyPage({ children }: { children: React.ReactNode }) {
   return <Suspense fallback={<LoadingState />}>{children}</Suspense>;
@@ -106,6 +107,7 @@ export default function PublicRoutes() {
       <Route path="/tasbih" element={<LazyPage><TasbihDigital /></LazyPage>} />
       <Route path="/panduan-manasik" element={<LazyPage><PanduanManasikUmroh /></LazyPage>} />
       <Route path="/daftar-sub-agen" element={<LazyPage><DaftarSubAgen /></LazyPage>} />
+      <Route path="/verify/doc/:token" element={<LazyPage><DocVerifyPage /></LazyPage>} />
       <Route path="/toko" element={<Navigate to="/store" replace />} />
       <Route path="/toko/*" element={<Navigate to="/store" replace />} />
       <Route path="/access-denied" element={<LazyPage><AccessDenied /></LazyPage>} />

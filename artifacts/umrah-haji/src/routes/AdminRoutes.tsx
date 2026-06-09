@@ -270,6 +270,7 @@ const AdminAnnouncements = lazy(
   () => import("@/pages/admin/AdminAnnouncements"),
 );
 const AdminApiConnect = lazy(() => import("@/pages/admin/AdminApiConnect"));
+const AdminDocumentAudit = lazy(() => import("@/pages/admin/AdminDocumentAudit"));
 const AdminSupabaseSetup = lazy(
   () => import("@/pages/admin/AdminSupabaseSetup"),
 );
@@ -1101,6 +1102,16 @@ export default function AdminRoutes() {
           <P k={PERMISSIONS.DOCUMENT_EXPIRY_TRACKER}>
             <LazyPage>
               <AdminDocumentExpiryTracker />
+            </LazyPage>
+          </P>
+        }
+      />
+      <Route
+        path="document-audit"
+        element={
+          <P k="super_admin,admin,manager">
+            <LazyPage>
+              <AdminDocumentAudit />
             </LazyPage>
           </P>
         }

@@ -234,22 +234,57 @@
          → Nomor surat otomatis (prefix LUNAS)
 ```
 
-### Sprint DOC-4 (2 minggu) — Portal Agen & Distribusi
+### Sprint DOC-4 (2 minggu) — Portal Agen & Distribusi ✅ SELESAI
 ```
-F-11  Portal agen: generate dokumen
-F-13  Bulk send per keberangkatan
-F-17  Admin upload dokumen atas nama jamaah
-F-19  Deadline upload + notifikasi
-F-20  Sub-agen tracking dokumen jamaah
+✅ F-11  Portal agen: generate dokumen
+         → AgentDocuments.tsx: portal agen generate surat izin, paspor, invoice, e-ticket, sertifikat, mahram, lunas
+         → Agen bisa pilih jamaah, generate PDF, download, dan kirim WA
+✅ F-13  Bulk send per keberangkatan
+         → BulkSendTab.tsx: kirim dokumen massal via WA atau email per keberangkatan
+         → Pilih jenis dokumen, filter per keberangkatan, kirim semua jamaah sekaligus
+✅ F-17  Admin upload dokumen atas nama jamaah
+         → AdminUploadForJamaah.tsx: admin bisa upload dokumen ke akun jamaah mana saja
+         → Pilih jamaah, pilih jenis dokumen, upload file (drag & drop)
+✅ F-19  Deadline upload + notifikasi
+         → DocumentDeadlinePanel.tsx: set deadline per keberangkatan, lihat status jamaah
+         → Tab "Deadline Upload" di AdminDocumentGenerator
+         → Kolom document_deadline di tabel departures
+✅ F-20  Sub-agen tracking dokumen jamaah
+         → AgentSubAgentDocTracker.tsx: agen bisa lihat status dokumen jamaah mereka
+         → Filter per sub-agen, lihat persentase kelengkapan dokumen
 ```
 
-### Sprint DOC-5 (3 minggu) — Keamanan & Fitur Lanjutan
+### Sprint DOC-5 (3 minggu) — Keamanan & Fitur Lanjutan ✅ SELESAI
 ```
-F-21  QR code verifikasi keaslian
-F-22  E-signature jamaah
-F-23  Audit trail dokumen
-F-24  Kompresi file otomatis
-F-27  Generator Itinerary PDF
+✅ F-21  QR code verifikasi keaslian
+         → DocVerifyPage.tsx: halaman publik /verify/doc/:token
+         → Backend: GET /api/documents/verify/:token (no auth)
+         → Backend: POST /api/documents/verify-tokens (issue token)
+         → Tabel: document_verify_tokens (token unik per booking+doc_type)
+         → QR code bisa di-embed di PDF yang digenerate
+✅ F-22  E-signature jamaah
+         → SignaturePad.tsx: komponen canvas draw tanda tangan (mouse + touch)
+         → JamaahSignaturePage.tsx: halaman /jamaah/tanda-tangan
+         → Backend: GET/POST /api/documents/signature/:customerId
+         → Tabel: customer_signatures (signature_base64, signed_at, ip_address)
+✅ F-23  Audit trail dokumen
+         → AdminDocumentAudit.tsx: halaman /admin/document-audit
+         → Backend: POST /api/documents/audit + GET /api/documents/audit
+         → Tabel: document_audit_logs (event_type, doc_type, booking_id, performed_by)
+         → Filter: cari jamaah, filter event type, filter doc type
+         → Stats: total log, generate, kirim, verifikasi
+✅ F-24  Kompresi file otomatis
+         → imageCompression.ts: utility compressImage() menggunakan Canvas API
+         → Tidak perlu library eksternal — pure browser canvas
+         → Mendukung JPEG, PNG, WebP; skip non-image (PDF, dll)
+         → compressFiles() untuk batch processing, formatBytes() helper
+         → Bisa dipakai di semua form upload dokumen
+✅ F-27  Generator Itinerary PDF
+         → ItineraryPDFTab.tsx: tab baru di AdminDocumentGenerator
+         → generateItineraryPDF(): PDF dengan header hijau+emas, per-hari, per-aktivitas
+         → Ambil data dari itinerary_templates.days atau packages.itinerary
+         → Pratinjau itinerary day-by-day sebelum download
+         → Fallback: generate itinerary default jika template belum ada
 ```
 
 ---

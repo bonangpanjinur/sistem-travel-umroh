@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase as supabaseRaw } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,8 @@ import {
   FileStack, Plus, Pencil, Trash2, CheckCircle2, Loader2, Star, Building2, Globe,
   Receipt, Ticket, Award, Users, Plane, FileText, Briefcase,
 } from "lucide-react";
+
+const supabase: any = supabaseRaw;
 
 const DOC_TYPES = [
   { value: "invoice",         label: "Invoice Pembayaran", icon: Receipt },

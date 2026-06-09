@@ -738,6 +738,19 @@ export async function runMigrations(): Promise<void> {
       logger.info("runMigrations: 36_package_view_count — already applied, skipping");
     }
 
+    // ── Step 1z9: doc security features (F-21 verify tokens, F-22 signature, F-23 audit) ──
+    const docSecApplied = await isApplied(client, "22_doc_security_features");
+    if (!docSecApplied) {
+      await runSqlFile(
+        client,
+        sqlPath("22_doc_security_features.sql"),
+        "22_doc_security_features (verify tokens, customer signatures, audit logs)",
+      );
+      await markApplied(client, "22_doc_security_features");
+    } else {
+      logger.info("runMigrations: 22_doc_security_features — already applied, skipping");
+    }
+
     // ── Step 2: payment sync trigger (always re-applied each boot) ────────
     // Wrapped in its own try/catch so a missing table on a broken DB state
     // doesn't crash the server — it just logs and continues.

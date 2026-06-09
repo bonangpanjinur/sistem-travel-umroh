@@ -8,3 +8,4 @@
 - [SQL migration file placement](sql-migration-placement.md) — SQL files for runner must live in `artifacts/api-server/src/sql/`, not root `sql/migrations/`
 - [Sprint DOC-1 pattern](sprint-doc1-pattern.md) — JamaahDocuments download: useCompanyInfo + bookings query + generateETicket/Invoice/UmrahCertificate; sertifikat hanya muncul setelah tripEnded (returnDate ≤ today).
 - [Sprint DOC-4 agent portal docs](sprint-doc4.md) — SuratLunasData uses totalAmount (NOT totalPrice), departureDate is string|undefined (NOT Date). xlsx missing from api-server → install via pnpm add xlsx.
+- [DOC-5 security features](doc5-security.md) — gen_random_bytes() tidak ada di Neon; gunakan replace(gen_random_uuid()::text||gen_random_uuid()::text,'-','') untuk token. Migration key: "22_doc_security_features".

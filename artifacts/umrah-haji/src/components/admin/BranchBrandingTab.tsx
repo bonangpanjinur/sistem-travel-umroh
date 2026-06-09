@@ -48,7 +48,7 @@ export function BranchBrandingTab({ branch }: BranchBrandingTabProps) {
 
   const updateMutation = useMutation({
     mutationFn: async (payload: Record<string, any>) => {
-      const { error } = await supabase.from("branches").update(payload).eq("id", branchId);
+      const { error } = await supabase.from("branches").update(payload as any).eq("id", branchId);
       if (error) throw error;
     },
     onSuccess: () => {
