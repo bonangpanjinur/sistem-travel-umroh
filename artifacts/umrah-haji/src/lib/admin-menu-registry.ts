@@ -78,7 +78,17 @@ export const RECOMMENDED_MENUS: AdminMenuItem[] = [
   { key: 'cicilan-generator',   label: 'Generator Cicilan',     path: '/admin/cicilan-generator',    icon: 'CalendarRange',   group_name: 'Keuangan',           sort_order: 510, required_permission: PERMISSIONS.CICILAN_GENERATOR },
   { key: 'wa-blast-tagihan',    label: 'WA Blast Tagihan',      path: '/admin/wa-blast-tagihan',     icon: 'Wallet',          group_name: 'Keuangan',           sort_order: 511, required_permission: PERMISSIONS.WA_BLAST_TAGIHAN },
   { key: 'coa',                 label: 'Chart of Accounts',     path: '/admin/coa',                  icon: 'BookOpen',        group_name: 'Keuangan',           sort_order: 512, required_permission: PERMISSIONS.COA },
-  { key: 'jurnal-umum',         label: 'Jurnal Umum',           path: '/admin/finance/jurnal',        icon: 'BookText',        group_name: 'Keuangan',           sort_order: 513, required_permission: PERMISSIONS.JURNAL_UMUM },
+
+  // ── Akuntansi — Pembukuan & Laporan Keuangan (540s) ──────────────────────
+  { key: 'jurnal-umum',         label: 'K-01 Jurnal Umum',      path: '/admin/finance/jurnal',        icon: 'BookText',        group_name: 'Akuntansi',          sort_order: 541, required_permission: PERMISSIONS.JURNAL_UMUM },
+  { key: 'buku-besar',          label: 'K-02 Buku Besar',       path: '/admin/finance/buku-besar',    icon: 'FileBarChart',    group_name: 'Akuntansi',          sort_order: 542, required_permission: PERMISSIONS.BUKU_BESAR },
+  { key: 'neraca-saldo',        label: 'K-03 Neraca Saldo',     path: '/admin/finance/neraca-saldo',  icon: 'BarChart2',       group_name: 'Akuntansi',          sort_order: 543, required_permission: PERMISSIONS.NERACA_SALDO },
+  { key: 'laba-rugi',           label: 'K-04 Laba Rugi',        path: '/admin/finance/laba-rugi',     icon: 'TrendingUp',      group_name: 'Akuntansi',          sort_order: 544, required_permission: PERMISSIONS.LABA_RUGI },
+  { key: 'neraca',              label: 'K-05 Neraca',           path: '/admin/finance/neraca',        icon: 'Scale',           group_name: 'Akuntansi',          sort_order: 545, required_permission: PERMISSIONS.NERACA },
+  { key: 'arus-kas',            label: 'K-06 Arus Kas',         path: '/admin/finance/arus-kas',      icon: 'Layers',          group_name: 'Akuntansi',          sort_order: 546, required_permission: PERMISSIONS.ARUS_KAS },
+  { key: 'budget',              label: 'K-11 Anggaran & Budget', path: '/admin/finance/budget',       icon: 'Target',          group_name: 'Akuntansi',          sort_order: 547, required_permission: PERMISSIONS.BUDGET },
+  { key: 'rekonsiliasi',        label: 'K-12 Rekonsiliasi Bank', path: '/admin/finance/rekonsiliasi', icon: 'ClipboardCheck',  group_name: 'Akuntansi',          sort_order: 548, required_permission: PERMISSIONS.REKONSILIASI },
+  { key: 'laporan-pajak',       label: 'K-13 Laporan Pajak',    path: '/admin/finance/laporan-pajak', icon: 'Receipt',         group_name: 'Akuntansi',          sort_order: 549, required_permission: PERMISSIONS.LAPORAN_PAJAK },
 
   // ── Laporan (520s) ────────────────────────────────────────────────────────
   { key: 'finance',             label: 'Laporan P&L',           path: '/admin/finance',              icon: 'TrendingUp',      group_name: 'Laporan',            sort_order: 521, required_permission: PERMISSIONS.FINANCE },
@@ -220,7 +230,9 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
     'laporan-keuangan', 'laporan-agen', 'monitoring-tabungan', 'laporan-reminder',
     'customers', 'document-verification',
     'virtual-account', 'cicilan-reminder', 'cicilan-generator', 'wa-blast-tagihan',
-    'coa', 'jurnal-umum',
+    'coa',
+    'jurnal-umum', 'buku-besar', 'neraca-saldo', 'laba-rugi', 'neraca',
+    'arus-kas', 'budget', 'rekonsiliasi', 'laporan-pajak',
   ],
 
   sales: [

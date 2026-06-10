@@ -6,12 +6,12 @@
 
 import {
   LayoutDashboard, BarChart3, BarChart2, Package, CalendarDays, CalendarClock,
-  BookOpen, BookMarked, Backpack, Map, MapPin, Wallet, BedDouble,
+  BookOpen, BookMarked, BookText, Backpack, Map, MapPin, Wallet, BedDouble,
   Users, Users2, UserSquare2, User, UserCheck, UserCog, UserPlus,
   Network, Gift, Share2, Star, Award, GraduationCap, StickyNote,
   CreditCard, Coins, PiggyBank, TrendingUp, TrendingDown, PieChart,
   Ticket, Globe, Contact2, Banknote,
-  FileCheck, FileText, FileCog, FileBarChart, FileSearch,
+  FileCheck, FileText, FileCog, FileBarChart, FileSearch, FileOutput,
   Plane, Building, Hotel, Bus, Store,
   LifeBuoy, MessageSquare, Megaphone, HelpCircle,
   ShieldAlert, ShieldCheck, KeyRound, Palette, ScanSearch,
@@ -20,7 +20,7 @@ import {
   Webhook, Target, Navigation, Plug, Database, Crown,
   PackageOpen, ClipboardCheck, ArrowDownToLine, ArrowUpFromLine,
   Radio, Mail, Bell, BellRing, MessagesSquare, WifiOff, Image,
-  Trophy, Landmark, Smile, Sparkles,
+  Trophy, Landmark, Smile, Sparkles, Scale, Calculator, Receipt,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -36,12 +36,12 @@ const BrainCircuit = Sparkles;
 
 export const ADMIN_MENU_ICONS: Record<string, LucideIcon> = {
   LayoutDashboard, BarChart3, BarChart2, Package, CalendarDays, CalendarClock,
-  BookOpen, BookMarked, Backpack, Map, MapPin, Wallet, BedDouble,
+  BookOpen, BookMarked, BookText, Backpack, Map, MapPin, Wallet, BedDouble,
   Users, Users2, UserSquare2, User, UserCheck, UserCog, UserPlus,
   Network, Gift, Share2, Star, Award, GraduationCap, StickyNote,
   CreditCard, Coins, PiggyBank, TrendingUp, TrendingDown, PieChart,
   Ticket, Globe, Contact2, Banknote,
-  FileCheck, FileText, FileCog, FileBarChart, FileSearch,
+  FileCheck, FileText, FileCog, FileBarChart, FileSearch, FileOutput,
   Plane, Building, Hotel, Bus, Store,
   LifeBuoy, MessageSquare, Megaphone, HelpCircle,
   ShieldAlert, ShieldCheck, ShieldQuestion, KeyRound, Palette, ScanSearch,
@@ -51,7 +51,7 @@ export const ADMIN_MENU_ICONS: Record<string, LucideIcon> = {
   Webhook, Target, Navigation, Plug, Database, Crown,
   PackageOpen, ClipboardCheck, ArrowDownToLine, ArrowUpFromLine,
   Radio, Mail, Bell, BellRing, MessagesSquare, WifiOff, Image,
-  Trophy, Landmark, Smile, Sparkles,
+  Trophy, Landmark, Smile, Sparkles, Scale, Calculator, Receipt,
   MessageSquareDot, BrainCircuit,
 };
 
