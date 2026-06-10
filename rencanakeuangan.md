@@ -429,9 +429,17 @@ Di `DepartureBudgetTab.tsx`, ditambahkan fitur lengkap:
 
 ---
 
-#### INT-07: Equipment Cost Auto-flow ke departure_cost_items
+#### ✅ INT-07: Equipment Cost Auto-flow ke departure_cost_items — SELESAI
 **Prioritas:** PENTING | **Effort:** S
 **Dependensi:** Tidak ada
+**Status:** ✅ EquipmentRealizationTab.tsx diperbarui (2026-07-09):
+- Fetch `departures.booked_count` sebagai `paxCount` — digunakan untuk HPP Rencana = `unit_cost × paxCount`
+- Panel HPP Comparison: HPP Direncanakan vs HPP Realisasi vs Tersimpan di departure_cost_items
+- Drift detection: warning amber jika selisih > Rp 1.000 antara tersimpan vs rencana
+- Tombol **"Sync HPP Rencana"** — upsert `unit_cost × pax_count` ke departure_cost_items (hapus dulu, insert baru)
+- Tombol **"Impor HPP Realisasi"** — upsert `unit_cost × distributed_quantity` (alternatif)
+- Tabel realisasi diperluas dengan kolom HPP Rencana & HPP Realisasi per item, footer totals + selisih under/over
+- SQL: `departure_cost_items.notes` kolom ditambah via `20260709_finance_integration.sql`
 
 Di `EquipmentRealizationTab.tsx`, sudah ada insert ke `departure_cost_items`. Perlu diperkuat:
 1. Saat equipment set di-approve untuk keberangkatan → auto-calculate: `equipment_items.unit_cost × jumlah_jamaah`
@@ -492,10 +500,18 @@ const { data: departureBudgets } = useQuery({
 
 ---
 
-#### INT-09: Payroll → Laporan Pajak (AdminLaporanPajak) Integration ✅ SELESAI
+#### ✅ INT-09: Payroll → Laporan Pajak (AdminLaporanPajak) Integration — SELESAI PENUH
 **Prioritas:** PENTING | **Effort:** S
 **Dependensi:** Tidak ada
-**Status:** ✅ AdminLaporanPajak.tsx sekarang query payroll_records per tahun (status=paid). PPh21: jika payroll ada, prioritaskan pph21_amount langsung atau estimasi 5% × gross_salary dari payroll; fallback ke cash_transactions.salary. Badge "Data Payroll Tersedia" + tampilan kondisional di tab PPh21.
+**Status:** ✅ AdminLaporanPajak.tsx query payroll_records (pph21_amount, gross_salary, net_salary per tahun, status=paid).
+  PPh21 logic: pph21_amount aktual (dari Finalize Payroll) → fallback estimasi 5% × gross → fallback cash_transactions.salary.
+  Badge "Data Payroll Tersedia" + tampilan kondisional.
+**Data layer fix (2026-07-09):**
+  - SQL migration `20260709_finance_integration.sql` menambah `pph21_amount NUMERIC DEFAULT 0` & `pph21_annual NUMERIC DEFAULT 0` ke `payroll_records`
+  - AdminPayroll.tsx diperkuat dengan **"Finalize Payroll"** button di Overview tab:
+    - upsert per karyawan ke `payroll_records` (employee_id, period_year, period_month, gross_salary, net_salary, pph21_amount, pph21_annual, status='paid')
+    - konflik key `(employee_id, period_year, period_month)` → update
+    - setelah Finalize → AdminLaporanPajak.tsx otomatis baca pph21_amount aktual (bukan estimasi)
 
 Pastikan `AdminLaporanPajak.tsx` pull PPh21 dari `payroll_records`:
 ```typescript

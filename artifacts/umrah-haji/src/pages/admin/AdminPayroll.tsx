@@ -15,7 +15,7 @@ import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Download, Eye, Banknote, Users, TrendingUp, Search, FileText, Info, Plus, Edit, Trash2, PlusCircle, Gift } from "lucide-react";
+import { Download, Eye, Banknote, Users, TrendingUp, Search, FileText, Info, Plus, Edit, Trash2, PlusCircle, Gift, Save, CheckCircle2, Loader2 } from "lucide-react";
 
 const supabaseAny = supabase as any;
 import { format } from "date-fns";
@@ -577,6 +577,38 @@ export default function AdminPayroll() {
   const totalPPH21 = filtered.reduce((s, p) => s + p.pph21_monthly, 0);
   const totalBPJS = filtered.reduce((s, p) => s + p.bpjs_employee, 0);
 
+  // INT-09: Finalize Payroll — upsert payroll_records per karyawan termasuk pph21_amount
+  const finalizePayrollMutation = useMutation({
+    mutationFn: async () => {
+      if (payrollData.length === 0) throw new Error("Tidak ada data karyawan untuk diproses");
+      const [year, month] = selectedMonth.split("-");
+      const periodYear = parseInt(year);
+      const periodMonth = parseInt(month);
+
+      const records = payrollData.map((p) => ({
+        employee_id:    p.employee_id,
+        period_year:    periodYear,
+        period_month:   periodMonth,
+        gross_salary:   p.salary,
+        net_salary:     p.net_salary,
+        pph21_amount:   p.pph21_monthly,
+        pph21_annual:   p.pph21_monthly * 12,
+        status:         "paid",
+        created_at:     new Date().toISOString(),
+        updated_at:     new Date().toISOString(),
+      }));
+
+      const { error } = await supabaseAny
+        .from("payroll_records")
+        .upsert(records, { onConflict: "employee_id,period_year,period_month" });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success(`Rekap payroll ${selectedMonth} berhasil disimpan — PPh 21 aktual sudah tersedia di Laporan Pajak`);
+    },
+    onError: (e: any) => toast.error(`Gagal simpan payroll: ${e.message}`),
+  });
+
   const handleViewDetail = (payroll: PayrollData) => {
     setSelectedPayroll(payroll);
     setDetailDialogOpen(true);
@@ -752,6 +784,37 @@ export default function AdminPayroll() {
               </CardContent>
             </Card>
           </div>
+
+          {/* INT-09: Finalize Payroll — simpan pph21_amount ke payroll_records agar Laporan Pajak bisa baca data akrual */}
+          <Card className="border-blue-200 bg-blue-50/30 dark:bg-blue-950/20">
+            <CardContent className="p-4 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+              <div className="flex-1">
+                <p className="font-semibold text-blue-900 dark:text-blue-300 text-sm">Finalize Payroll {selectedMonth}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Simpan rekap penggajian ke database (payroll_records) termasuk PPh 21 aktual per karyawan.
+                  Data ini digunakan oleh Laporan Pajak untuk menghitung kewajiban PPh 21 yang akurat.
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="text-right">
+                  <p className="text-xs text-muted-foreground">Total PPh 21 bulan ini</p>
+                  <p className="font-bold text-blue-700">{new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(totalPPH21)}</p>
+                </div>
+                <Button
+                  onClick={() => finalizePayrollMutation.mutate()}
+                  disabled={finalizePayrollMutation.isPending || payrollData.length === 0}
+                  className="gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  {finalizePayrollMutation.isPending
+                    ? <Loader2 className="h-4 w-4 animate-spin" />
+                    : finalizePayrollMutation.isSuccess
+                      ? <CheckCircle2 className="h-4 w-4" />
+                      : <Save className="h-4 w-4" />}
+                  {finalizePayrollMutation.isPending ? "Menyimpan..." : "Finalize Payroll"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* ─── Slips Tab ─── */}
