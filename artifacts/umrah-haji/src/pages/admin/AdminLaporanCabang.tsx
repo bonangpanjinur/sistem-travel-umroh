@@ -52,6 +52,18 @@ const MONTHS = Array.from({ length: 12 }, (_, i) => {
 
 // ── Export Functions ───────────────────────────────────────────────────────────
 
+interface KonsolRow {
+  branchId: string;
+  branchName: string;
+  city?: string;
+  revenue: number;
+  expenses: number;
+  netProfit: number;
+  marginPct: number | null;
+  arTotal: number;
+  apTotal: number;
+}
+
 interface ExportData {
   branchLabel: string;
   period: string;
@@ -75,6 +87,8 @@ interface ExportData {
   // AP
   apData: any[];
   totalAP: number;
+  // Konsolidasi (only when isConsolidation)
+  konsolidasiRows?: KonsolRow[];
 }
 
 function buildPDF(d: ExportData): void {
@@ -234,6 +248,56 @@ function buildPDF(d: ExportData): void {
     },
   });
 
+  // ── Konsolidasi Semua Cabang (hanya jika ada data) ────────────────────────
+  if (d.konsolidasiRows && d.konsolidasiRows.length > 0) {
+    if (y > 190) { doc.addPage(); y = 20; }
+    sectionTitle("E. Konsolidasi Semua Cabang");
+    const rows = d.konsolidasiRows;
+    const totalRev = rows.reduce((s, r) => s + r.revenue, 0);
+    autoTable(doc, {
+      startY: y,
+      margin: { left: margin, right: margin },
+      head: [["Cabang", "Kota", "Revenue", "Biaya", "Laba Bersih", "Margin", "Kontrib.", "AR", "AP"]],
+      body: rows.map(r => [
+        r.branchName,
+        r.city || "—",
+        fmt(r.revenue),
+        fmt(r.expenses),
+        r.netProfit < 0 ? `(${fmt(Math.abs(r.netProfit))})` : fmt(r.netProfit),
+        r.marginPct != null ? `${r.marginPct.toFixed(1)}%` : "—",
+        totalRev > 0 ? `${(r.revenue / totalRev * 100).toFixed(0)}%` : "—",
+        fmt(r.arTotal),
+        fmt(r.apTotal),
+      ]),
+      foot: [[
+        `Total (${rows.length} cabang)`, "",
+        fmt(rows.reduce((s,r)=>s+r.revenue,0)),
+        fmt(rows.reduce((s,r)=>s+r.expenses,0)),
+        fmt(rows.reduce((s,r)=>s+r.netProfit,0)),
+        totalRev > 0 ? `${(rows.reduce((s,r)=>s+r.netProfit,0)/totalRev*100).toFixed(1)}%` : "—",
+        "100%",
+        fmt(rows.reduce((s,r)=>s+r.arTotal,0)),
+        fmt(rows.reduce((s,r)=>s+r.apTotal,0)),
+      ]],
+      styles: { fontSize: 6.5, cellPadding: 1.8 },
+      headStyles: { fillColor: [16, 100, 73], textColor: 255, fontStyle: "bold", fontSize: 7 },
+      footStyles: { fillColor: [243, 244, 246], fontStyle: "bold", fontSize: 7 },
+      columnStyles: {
+        2: { halign: "right" }, 3: { halign: "right" },
+        4: { halign: "right" }, 5: { halign: "center" },
+        6: { halign: "center" }, 7: { halign: "right" },
+        8: { halign: "right" },
+      },
+      didParseCell: (hookData: any) => {
+        if (hookData.section === "body" && hookData.column.index === 4) {
+          const r = rows[hookData.row.index];
+          if (r?.netProfit < 0) hookData.cell.styles.textColor = [185, 28, 28];
+          else hookData.cell.styles.textColor = [4, 120, 87];
+        }
+      },
+    });
+  }
+
   // ── Footer on all pages ────────────────────────────────────────────────────
   const totalPages = (doc as any).internal.getNumberOfPages();
   for (let i = 1; i <= totalPages; i++) {
@@ -336,6 +400,61 @@ function buildExcel(d: ExportData): void {
   ]);
   wsAP["!cols"] = [{ wch: 28 }, { wch: 18 }, { wch: 20 }, { wch: 16 }, { wch: 14 }];
   XLSX.utils.book_append_sheet(wb, wsAP, "Hutang (AP)");
+
+  // ── Sheet 5: Konsolidasi (hanya saat mode Semua Cabang) ──────────────────
+  if (d.konsolidasiRows && d.konsolidasiRows.length > 0) {
+    const rows = d.konsolidasiRows;
+    const totalRev = rows.reduce((s, r) => s + r.revenue, 0);
+    const totalExp = rows.reduce((s, r) => s + r.expenses, 0);
+    const totalNet = rows.reduce((s, r) => s + r.netProfit, 0);
+    const totalAR  = rows.reduce((s, r) => s + r.arTotal, 0);
+    const totalAP  = rows.reduce((s, r) => s + r.apTotal, 0);
+
+    const header = [
+      "Cabang", "Kota",
+      "Revenue (IDR)", "Biaya (IDR)", "Laba Bersih (IDR)",
+      "Margin (%)", "Kontribusi Rev (%)",
+      "Piutang AR (IDR)", "Hutang AP (IDR)",
+    ];
+    const body = rows.map(r => {
+      const pct = totalRev > 0 ? ((r.revenue / totalRev) * 100).toFixed(1) + "%" : "—";
+      return [
+        r.branchName,
+        r.city || "—",
+        fmtNum(r.revenue),
+        fmtNum(r.expenses),
+        fmtNum(r.netProfit),
+        r.marginPct != null ? r.marginPct.toFixed(1) + "%" : "—",
+        pct,
+        fmtNum(r.arTotal),
+        fmtNum(r.apTotal),
+      ];
+    });
+    const footer = [
+      `TOTAL (${rows.length} cabang)`, "",
+      fmtNum(totalRev), fmtNum(totalExp), fmtNum(totalNet),
+      totalRev > 0 ? (totalNet / totalRev * 100).toFixed(1) + "%" : "—",
+      "100%",
+      fmtNum(totalAR), fmtNum(totalAP),
+    ];
+
+    const wsKonsol = XLSX.utils.aoa_to_sheet([
+      [`KONSOLIDASI SEMUA CABANG — PERBANDINGAN KEUANGAN`],
+      [`Periode: ${d.period}  |  Dibuat: ${format(new Date(), "dd MMMM yyyy HH:mm", { locale: localeId })}`],
+      [],
+      header,
+      ...body,
+      [],
+      footer,
+    ]);
+    wsKonsol["!cols"] = [
+      { wch: 28 }, { wch: 16 },
+      { wch: 22 }, { wch: 22 }, { wch: 22 },
+      { wch: 12 }, { wch: 20 },
+      { wch: 22 }, { wch: 22 },
+    ];
+    XLSX.utils.book_append_sheet(wb, wsKonsol, "Konsolidasi Cabang");
+  }
 
   const filename = `Laporan_Cabang_${d.branchLabel.replace(/\s+/g, "_")}_${d.period}_${format(new Date(), "yyyyMMdd_HHmmss")}.xlsx`;
   XLSX.writeFile(wb, filename);
@@ -1024,6 +1143,41 @@ export default function AdminLaporanCabang() {
   const branchLabel = isConsolidation ? "Semua Cabang" : (activeBranch?.name || selectedBranch);
   const periodLabel = format(new Date(dateFrom), "MMMM yyyy", { locale: localeId });
 
+  // ── Konsolidasi queries — same keys as KonsolidasiGrid, shares cache ─────
+  const branchIds = branches.map(b => b.id).join(",");
+  const { data: konsolPayments = {} } = useQuery({
+    queryKey: ["konsol-payments", dateFrom, dateTo, branchIds],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("payments").select("amount, bookings(branch_id)")
+        .eq("status", "verified").gte("payment_date", dateFrom).lte("payment_date", dateTo);
+      const map: Record<string, number> = {};
+      for (const p of data || []) {
+        const bid = p.bookings?.branch_id || "unknown";
+        map[bid] = (map[bid] || 0) + (Number(p.amount) || 0);
+      }
+      return map;
+    },
+    enabled: isConsolidation && branches.length > 0,
+    staleTime: 60_000,
+  });
+  const { data: konsolExpenses = {} } = useQuery({
+    queryKey: ["konsol-expenses", dateFrom, dateTo],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("expenses").select("amount, branch_id")
+        .gte("expense_date", dateFrom).lte("expense_date", dateTo);
+      const map: Record<string, number> = {};
+      for (const e of data || []) {
+        const bid = e.branch_id || "unknown";
+        map[bid] = (map[bid] || 0) + (Number(e.amount) || 0);
+      }
+      return map;
+    },
+    enabled: isConsolidation && branches.length > 0,
+    staleTime: 60_000,
+  });
+
   // ── Export data queries — same keys as tab queries, shares React Query cache ──
   const { data: expPayments = [] } = useQuery({
     queryKey: ["cabang-payments", selectedBranch, dateFrom, dateTo],
@@ -1145,6 +1299,40 @@ export default function AdminLaporanCabang() {
     const totalAR = expAR.reduce((s: number, b: any) => s + b.remaining, 0);
     const totalAP = expAP.reduce((s: number, v: any) => s + (Number(v.amount) || 0), 0);
 
+    // ── AR per branch (group by branch_id) ───────────────────────────────────
+    const arByBranch: Record<string, number> = {};
+    expAR.forEach((b: any) => {
+      const bid = b.branch_id || "unknown";
+      arByBranch[bid] = (arByBranch[bid] || 0) + (b.remaining || 0);
+    });
+
+    // ── AP per branch (via departures.branch_id) ──────────────────────────────
+    const apByBranch: Record<string, number> = {};
+    expAP.forEach((v: any) => {
+      const bid = v.departures?.branch_id || "unknown";
+      apByBranch[bid] = (apByBranch[bid] || 0) + (Number(v.amount) || 0);
+    });
+
+    // ── Konsolidasi rows — only when isConsolidation ──────────────────────────
+    const konsolidasiRows: KonsolRow[] = isConsolidation && branches.length > 0
+      ? branches.map(b => {
+          const rev  = (konsolPayments as any)[b.id] || 0;
+          const exp  = (konsolExpenses as any)[b.id] || 0;
+          const net  = rev - exp;
+          return {
+            branchId:   b.id,
+            branchName: b.name,
+            city:       b.city,
+            revenue:    rev,
+            expenses:   exp,
+            netProfit:  net,
+            marginPct:  rev > 0 ? (net / rev) * 100 : null,
+            arTotal:    arByBranch[b.id] || 0,
+            apTotal:    apByBranch[b.id] || 0,
+          };
+        }).sort((a, b) => b.revenue - a.revenue)
+      : undefined;
+
     return {
       branchLabel,
       period: periodLabel,
@@ -1164,8 +1352,14 @@ export default function AdminLaporanCabang() {
       totalAR,
       apData: expAP,
       totalAP,
+      konsolidasiRows,
     };
-  }, [expPayments, expExpenses, expCashOut, expPayroll, expCashIn, expCashOut2, expAR, expAP, branchLabel, periodLabel, dateFrom, dateTo]);
+  }, [
+    expPayments, expExpenses, expCashOut, expPayroll,
+    expCashIn, expCashOut2, expAR, expAP,
+    branchLabel, periodLabel, dateFrom, dateTo,
+    isConsolidation, branches, konsolPayments, konsolExpenses,
+  ]);
 
   const handleExport = useCallback(async (type: "pdf" | "excel") => {
     setExporting(type);
@@ -1228,7 +1422,9 @@ export default function AdminLaporanCabang() {
                 <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
                 <div>
                   <div className="font-medium text-sm">Download Excel</div>
-                  <div className="text-[10px] text-muted-foreground">4 sheet: Laba Rugi, Arus Kas, AR, AP</div>
+                  <div className="text-[10px] text-muted-foreground">
+                    {isConsolidation ? "5 sheet: Laba Rugi, Arus Kas, AR, AP + Konsolidasi" : "4 sheet: Laba Rugi, Arus Kas, AR, AP"}
+                  </div>
                 </div>
               </DropdownMenuItem>
             </DropdownMenuContent>
