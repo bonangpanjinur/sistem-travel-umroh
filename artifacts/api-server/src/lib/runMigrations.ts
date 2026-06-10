@@ -1118,6 +1118,40 @@ export async function runMigrations(): Promise<void> {
       logger.info("runMigrations: 084_v_financial_summary_v2 — already applied, skipping");
     }
 
+    // ── Step 085: departure_expenses approval workflow — INT-14 ──────────────
+    const migration085Applied = await isApplied(client, "085_departure_expense_approval");
+    if (!migration085Applied) {
+      try {
+        await runSqlFile(
+          client,
+          sqlPath("085_departure_expense_approval.sql"),
+          "085_departure_expense_approval (INT-14: approval_status + approved_by + approved_at pada departure_expenses)",
+        );
+        await markApplied(client, "085_departure_expense_approval");
+      } catch (e: any) {
+        logger.warn({ err: e?.message }, "runMigrations: 085_departure_expense_approval — skipping (non-fatal)");
+      }
+    } else {
+      logger.info("runMigrations: 085_departure_expense_approval — already applied, skipping");
+    }
+
+    // ── Step 086: AR reminder log index — INT-13 ─────────────────────────────
+    const migration086Applied = await isApplied(client, "086_ar_reminder_log");
+    if (!migration086Applied) {
+      try {
+        await runSqlFile(
+          client,
+          sqlPath("086_ar_reminder_log.sql"),
+          "086_ar_reminder_log (INT-13: index wa_logs untuk AR overdue reminder cron)",
+        );
+        await markApplied(client, "086_ar_reminder_log");
+      } catch (e: any) {
+        logger.warn({ err: e?.message }, "runMigrations: 086_ar_reminder_log — skipping (non-fatal)");
+      }
+    } else {
+      logger.info("runMigrations: 086_ar_reminder_log — already applied, skipping");
+    }
+
   } catch (err) {
     logger.error({ err }, "runMigrations: unexpected error — server continues");
   } finally {

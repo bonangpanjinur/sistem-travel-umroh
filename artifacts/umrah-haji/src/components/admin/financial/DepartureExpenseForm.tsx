@@ -90,22 +90,23 @@ export function DepartureExpenseForm({ departureId, item, onSuccess, onCancel }:
     mutationFn: async (data: FormData) => {
       const db = supabase as any;
       const payload = {
-        departure_id:   departureId,
-        expense_date:   data.expense_date,
-        category:       data.category,
-        location:       data.location || null,
-        description:    data.description,
-        amount:         data.amount,
-        currency:       data.currency,
-        exchange_rate:  data.exchange_rate,
-        payment_method: data.payment_method,
-        notes:          data.notes || null,
+        departure_id:    departureId,
+        expense_date:    data.expense_date,
+        category:        data.category,
+        location:        data.location || null,
+        description:     data.description,
+        amount:          data.amount,
+        currency:        data.currency,
+        exchange_rate:   data.exchange_rate,
+        payment_method:  data.payment_method,
+        notes:           data.notes || null,
       };
       if (isEdit) {
         const { error } = await db.from("departure_expenses").update(payload).eq("id", item.id);
         if (error) throw error;
       } else {
-        const { error } = await db.from("departure_expenses").insert(payload);
+        const insertPayload = { ...payload, approval_status: "pending_approval" };
+        const { error } = await db.from("departure_expenses").insert(insertPayload);
         if (error) throw error;
       }
     },

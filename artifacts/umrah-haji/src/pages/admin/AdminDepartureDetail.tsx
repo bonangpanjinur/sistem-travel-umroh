@@ -79,6 +79,7 @@ import {
   RefreshCw,
   BarChart3,
   ClipboardList,
+  Wallet,
 } from "lucide-react";
 import { DepartureForm } from "@/components/admin/forms/DepartureForm";
 import { LinkItineraryForm } from "@/components/admin/forms/LinkItineraryForm";
@@ -95,6 +96,7 @@ import { DepartureCertificateGenerator } from "@/components/departure/DepartureC
 import { PriceHistoryCard } from "@/components/admin/PriceHistoryCard";
 import { DepartureMarginCalculator } from "@/components/admin/financial/DepartureMarginCalculator";
 import { DeparturePLSummaryCard } from "@/components/admin/financial/DeparturePLSummaryCard";
+import { DepartureCashTimingTab } from "@/components/departure/DepartureCashTimingTab";
 import { DepartureCostItemsCard } from "@/components/admin/financial/DepartureCostItemsCard";
 import { DepartureExpensesCard } from "@/components/admin/financial/DepartureExpensesCard";
 import { DepartureOtherRevenuesCard } from "@/components/admin/financial/DepartureOtherRevenuesCard";
@@ -1102,6 +1104,10 @@ export default function AdminDepartureDetail() {
           <TabsTrigger value="keuangan" className="text-xs flex items-center gap-1">
             <TrendingUp className="h-3 w-3" />
             Keuangan
+          </TabsTrigger>
+          <TabsTrigger value="cash-timing" className="text-xs flex items-center gap-1">
+            <Wallet className="h-3 w-3" />
+            Cash Timing
           </TabsTrigger>
           <TabsTrigger value="daftar-tunggu" className="text-xs flex items-center gap-1">
             <Users className="h-3 w-3" />
@@ -2159,6 +2165,13 @@ export default function AdminDepartureDetail() {
           <DepartureOtherRevenuesCard departureId={id || ""} />
           {/* D7 — Komisi Agen */}
           <DepartureCommissionCard departureId={id || ""} />
+        </TabsContent>
+
+        <TabsContent value="cash-timing" className="p-4">
+          <DepartureCashTimingTab
+            departureId={id || ""}
+            departureDate={departure?.departure_date || undefined}
+          />
         </TabsContent>
 
         <TabsContent value="daftar-tunggu" className="space-y-4">

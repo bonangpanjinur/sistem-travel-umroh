@@ -204,6 +204,7 @@ const AdminArusKas = lazy(() => import("@/pages/admin/AdminArusKas"));
 const AdminBudget = lazy(() => import("@/pages/admin/AdminBudget"));
 const AdminRekonsiliasi = lazy(() => import("@/pages/admin/AdminRekonsiliasi"));
 const AdminLaporanPajak = lazy(() => import("@/pages/admin/AdminLaporanPajak"));
+const AdminHPPTerpadu = lazy(() => import("@/pages/admin/AdminHPPTerpadu"));
 const AdminPayroll = lazy(() => import("@/pages/admin/AdminPayroll"));
 const AdminManasik = lazy(() => import("@/pages/admin/AdminManasik"));
 const AdminVisaManagement = lazy(
@@ -906,6 +907,16 @@ export default function AdminRoutes() {
           <P k={PERMISSIONS.LAPORAN_PAJAK}>
             <LazyPage>
               <AdminLaporanPajak />
+            </LazyPage>
+          </P>
+        }
+      />
+      <Route
+        path="finance/hpp-terpadu"
+        element={
+          <P k={PERMISSIONS.FINANCE_PL}>
+            <LazyPage>
+              <AdminHPPTerpadu />
             </LazyPage>
           </P>
         }

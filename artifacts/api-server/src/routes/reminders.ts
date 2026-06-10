@@ -396,6 +396,78 @@ async function runDepartureReminders(days: number = 7): Promise<{ sent: number; 
   return result;
 }
 
+// ─── INT-13: Auto AR Reminder ─────────────────────────────────────────────────
+
+async function runAROverdueReminders(): Promise<{ sent: number; failed: number; skipped: number; details: string[] }> {
+  const result = { sent: 0, failed: 0, skipped: 0, details: [] as string[] };
+  const triggers = await getWAOtomatisTriggers();
+  if (!triggers["ar_reminder"]) { result.details.push("AR reminder WA trigger tidak aktif"); return result; }
+
+  const today = new Date();
+  const todayStr = today.toISOString().slice(0, 10);
+
+  // Hitung tanggal H-7 dari sekarang (deadline mendekati)
+  const h7Date = new Date(today);
+  h7Date.setDate(h7Date.getDate() + 7);
+  const h7Str = h7Date.toISOString().slice(0, 10);
+
+  // H+1, H+3, H+7 overdue (deadline sudah lewat 1/3/7 hari lalu)
+  const overdueDates = [1, 3, 7].map(d => {
+    const dt = new Date(today);
+    dt.setDate(dt.getDate() - d);
+    return dt.toISOString().slice(0, 10);
+  });
+
+  const bookings = await dbQuery(
+    `SELECT b.id, b.booking_code, b.remaining_amount, b.payment_deadline,
+            c.full_name, c.phone
+     FROM bookings b
+     LEFT JOIN customers c ON c.id = b.customer_id
+     WHERE b.remaining_amount > 0
+       AND b.booking_status NOT IN ('cancelled','refunded')
+       AND (
+         b.payment_deadline = $1
+         OR b.payment_deadline = ANY($2::date[])
+       )
+     LIMIT 200`,
+    [h7Str, overdueDates]
+  );
+
+  for (const bk of bookings) {
+    const phone: string = bk.phone || "";
+    const name:  string = bk.full_name || "Bapak/Ibu";
+    if (!phone) { result.skipped++; continue; }
+
+    const deadline  = bk.payment_deadline ? new Date(bk.payment_deadline) : null;
+    const isOverdue = deadline && deadline < today;
+    const daysAgo   = isOverdue && deadline ? Math.ceil((today.getTime() - deadline.getTime()) / 86400000) : null;
+    const daysLeft  = !isOverdue && deadline ? Math.ceil((deadline.getTime() - today.getTime()) / 86400000) : null;
+
+    const remaining = Math.round(bk.remaining_amount || 0);
+    const deadlineStr = deadline ? deadline.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" }) : "—";
+
+    let message: string;
+    if (isOverdue) {
+      message = `Assalamu'alaikum *${name}*,\n\n⚠️ *PIUTANG JATUH TEMPO — Booking ${bk.booking_code || bk.id.slice(0, 8)}*\n\nTagihan Anda sudah *${daysAgo} hari* melewati batas pembayaran (${deadlineStr}).\n\nSisa pembayaran: *Rp ${remaining.toLocaleString("id-ID")}*\n\nMohon segera lakukan pembayaran untuk menghindari pembatalan booking.\n\nBarakallahu fiikum 🤲\n_Tim Vinstour Travel_`;
+    } else {
+      message = `Assalamu'alaikum *${name}*,\n\n⏰ *Pengingat Pelunasan — Booking ${bk.booking_code || bk.id.slice(0, 8)}*\n\nBatas pelunasan booking Anda: *${deadlineStr}* (${daysLeft} hari lagi)\n\nSisa pembayaran: *Rp ${remaining.toLocaleString("id-ID")}*\n\nSilakan lakukan pelunasan sebelum batas waktu agar booking tidak dibatalkan.\n\nBarakallahu fiikum 🤲\n_Tim Vinstour Travel_`;
+    }
+
+    const res = await sendWA(phone, message);
+    await logWA({ recipient_phone: phone, recipient_name: name, trigger_type: "ar_reminder", message_content: message, status: res.success ? "sent" : "failed", error_message: res.error });
+
+    if (res.success) {
+      result.sent++;
+      result.details.push(`✅ ${name} — sisa Rp ${remaining.toLocaleString("id-ID")} (${isOverdue ? `H+${daysAgo} overdue` : `H-${daysLeft}`})`);
+    } else {
+      result.failed++;
+      result.details.push(`❌ ${name} — ${res.error}`);
+    }
+    await new Promise((r) => setTimeout(r, 1200));
+  }
+  return result;
+}
+
 // ─── Routes ──────────────────────────────────────────────────────────────────
 
 router.post("/run", async (req, res) => {
@@ -409,6 +481,7 @@ router.post("/run", async (req, res) => {
     if (type === "departure_h1") summary.departure_h1 = await runDepartureReminders(1);
     if (type === "doc_deadline_h3" || type === "all") summary.doc_deadline_h3 = await runDocumentDeadlineReminders(3);
     if (type === "doc_deadline_h1") summary.doc_deadline_h1 = await runDocumentDeadlineReminders(1);
+    if (type === "ar_overdue") summary.ar_overdue = await runAROverdueReminders();
     logger.info({ summary }, "Reminder job complete");
     return res.json({ success: true, summary, ran_at: new Date().toISOString() });
   } catch (err: any) {

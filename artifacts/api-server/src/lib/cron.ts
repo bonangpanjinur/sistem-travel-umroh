@@ -143,7 +143,13 @@ export function startCronJobs() {
     }
   }, { timezone: "UTC" });
 
+  // Setiap hari jam 09:30 WIB (02:30 UTC) — AR overdue reminder otomatis
+  cron.schedule("30 2 * * *", () => {
+    logger.info("Cron: running AR overdue reminders");
+    triggerReminders("ar_overdue");
+  }, { timezone: "UTC" });
+
   logger.info(
-    "Cron jobs registered: cicilan+payment @08:00 WIB, doc-deadline-H3 @09:00 WIB, doc-deadline-H1 @06:30 WIB, H-60/45/30/14/7 @07:00-07:20 WIB, H-1 @06:00 WIB, integration-health @every hour, wa-scheduled @every 5min, agent-tier-refresh @02:00 WIB, training-notif @09:00 WIB",
+    "Cron jobs registered: cicilan+payment @08:00 WIB, doc-deadline-H3 @09:00 WIB, doc-deadline-H1 @06:30 WIB, H-60/45/30/14/7 @07:00-07:20 WIB, H-1 @06:00 WIB, integration-health @every hour, wa-scheduled @every 5min, agent-tier-refresh @02:00 WIB, training-notif @09:00 WIB, AR-overdue @09:30 WIB",
   );
 }
