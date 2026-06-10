@@ -1,3 +1,5 @@
+import { apiFetch } from '@/lib/api';
+
 // ─── Snap (semua metode via popup Midtrans) ───────────────────────────────────
 
 export interface MidtransPaymentPayload {
@@ -18,7 +20,7 @@ export interface MidtransSnapResult {
 export async function createMidtransPaymentToken(
   payload: MidtransPaymentPayload
 ): Promise<MidtransSnapResult> {
-  const response = await fetch('/api/midtrans/create-transaction', {
+  const response = await apiFetch('/api/midtrans/create-transaction', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -92,14 +94,10 @@ export interface QrisStatusResult {
   settlement_time?: string;
 }
 
-/**
- * Membuat transaksi QRIS via Midtrans Core API.
- * Mengembalikan QR code URL + order_id untuk polling status.
- */
 export async function createQrisPayment(
   payload: QrisPaymentPayload
 ): Promise<QrisCreateResult> {
-  const response = await fetch('/api/midtrans/create-qris', {
+  const response = await apiFetch('/api/midtrans/create-qris', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -118,12 +116,8 @@ export async function createQrisPayment(
   return response.json();
 }
 
-/**
- * Cek status pembayaran QRIS via Midtrans.
- * Panggil setiap 5 detik sampai status 'settlement' atau 'expire'.
- */
 export async function checkQrisStatus(orderId: string): Promise<QrisStatusResult> {
-  const response = await fetch(`/api/midtrans/qris-status/${encodeURIComponent(orderId)}`);
+  const response = await apiFetch(`/api/midtrans/qris-status/${encodeURIComponent(orderId)}`);
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
     throw new Error(err.error || 'Gagal cek status QRIS');
@@ -131,23 +125,16 @@ export async function checkQrisStatus(orderId: string): Promise<QrisStatusResult
   return response.json();
 }
 
-/** True jika status menandakan pembayaran berhasil */
 export function isQrisPaid(status: string): boolean {
   return status === 'settlement' || status === 'capture';
 }
 
-/** True jika status menandakan transaksi kedaluwarsa/dibatalkan */
 export function isQrisExpired(status: string): boolean {
   return status === 'expire' || status === 'cancel' || status === 'deny';
 }
 
-/**
- * Hitung sisa detik dari expiry_time Midtrans.
- * expiry_time format: "2024-01-15 14:30:00" (local +7)
- */
 export function getQrisSecondsLeft(expiryTime: string | null): number {
-  if (!expiryTime) return 15 * 60; // default 15 menit
-  // Midtrans expiry_time dalam WIB (UTC+7)
+  if (!expiryTime) return 15 * 60;
   const expiry = new Date(expiryTime.replace(' ', 'T') + '+07:00');
   const diff = Math.floor((expiry.getTime() - Date.now()) / 1000);
   return Math.max(0, diff);
@@ -185,7 +172,7 @@ export interface XenditConfigStatus {
 export async function createXenditInvoice(
   payload: XenditInvoicePayload
 ): Promise<XenditInvoiceResult> {
-  const response = await fetch('/api/xendit/create-invoice', {
+  const response = await apiFetch('/api/xendit/create-invoice', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -207,7 +194,7 @@ export async function createXenditInvoice(
 
 export async function getXenditConfigStatus(): Promise<XenditConfigStatus | null> {
   try {
-    const response = await fetch('/api/xendit/config-status');
+    const response = await apiFetch('/api/xendit/config-status');
     if (!response.ok) return null;
     return response.json();
   } catch {

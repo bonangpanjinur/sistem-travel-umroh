@@ -287,6 +287,9 @@ const AdminDocumentAudit = lazy(() => import("@/pages/admin/AdminDocumentAudit")
 const AdminSupabaseSetup = lazy(
   () => import("@/pages/admin/AdminSupabaseSetup"),
 );
+const AdminRailwayGuide = lazy(
+  () => import("@/pages/admin/AdminRailwayGuide"),
+);
 const AdminMemberships = lazy(() => import("@/pages/admin/AdminMemberships"));
 const AdminBranchCommissions = lazy(
   () => import("@/pages/admin/AdminBranchCommissions"),
@@ -1571,6 +1574,14 @@ export default function AdminRoutes() {
         element={
           <P k={PERMISSIONS.SUPABASE_SETUP}>
             <AdminSupabaseSetup />
+          </P>
+        }
+      />
+      <Route
+        path="railway-guide"
+        element={
+          <P k={PERMISSIONS.SUPABASE_SETUP}>
+            <AdminRailwayGuide />
           </P>
         }
       />

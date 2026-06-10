@@ -1,3 +1,5 @@
+import { apiFetch } from '@/lib/api';
+
 export type EmailTemplate =
   | 'booking_confirmation'
   | 'payment_verified'
@@ -22,7 +24,7 @@ export interface EmailResult {
 }
 
 export async function sendEmail(payload: EmailPayload): Promise<EmailResult> {
-  const response = await fetch('/api/email/send', {
+  const response = await apiFetch('/api/email/send', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
