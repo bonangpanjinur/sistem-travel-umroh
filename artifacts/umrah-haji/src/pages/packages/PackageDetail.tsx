@@ -54,7 +54,10 @@ export default function PackageDetail() {
         .eq('id', id)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('[package-detail] query error:', error);
+        throw error;
+      }
       return data;
     },
     enabled: !!id,

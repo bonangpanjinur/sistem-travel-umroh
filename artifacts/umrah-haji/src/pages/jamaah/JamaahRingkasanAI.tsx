@@ -133,7 +133,7 @@ export default function JamaahRingkasanAI() {
             hotel_makkah:hotels!departures_hotel_makkah_id_fkey(name, star_rating),
             hotel_madinah:hotels!departures_hotel_madinah_id_fkey(name, star_rating),
             airline:airlines(name),
-            package:packages(name, package_type:package_types(name))
+            package:packages(name, package_type)
           ),
           customer:profiles(full_name)
         `)

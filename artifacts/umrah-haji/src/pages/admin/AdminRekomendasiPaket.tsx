@@ -91,7 +91,7 @@ export default function AdminRekomendasiPaket() {
         .from("packages")
         .select(`
           id, name, description, base_price, status, duration_days,
-          package_type:package_types(name),
+          package_type,
           departures(id, quota, departure_date,
             bookings(id, booking_status)
           )

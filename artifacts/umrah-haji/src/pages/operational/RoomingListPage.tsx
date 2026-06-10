@@ -86,7 +86,10 @@ export default function RoomingListPage() {
         `)
         .gte("departure_date", new Date().toISOString().split("T")[0])
         .order("departure_date");
-      if (error) throw error;
+      if (error) {
+        console.error('[rooming-departures] query error:', error);
+        throw error;
+      }
       return data as ExtendedDeparture[]; // Explicit cast
     },
   });
@@ -291,7 +294,10 @@ export default function RoomingListPage() {
         `)
         .eq("id", selectedDepartureId)
         .single();
-      if (error) throw error;
+      if (error) {
+        console.error('[rooming-export-departure] query error:', error);
+        throw error;
+      }
       return data as any;
     },
   });

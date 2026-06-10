@@ -73,12 +73,14 @@ export default function AdminPackageDetail() {
           airline:airlines(id, name, code),
           hotel_makkah:hotels!packages_hotel_makkah_id_fkey(id, name, star_rating),
           hotel_madinah:hotels!packages_hotel_madinah_id_fkey(id, name, star_rating),
-          muthawif:muthawifs(id, name),
-          package_type_ref:package_types(name)
+          muthawif:muthawifs(id, name)
         `)
         .eq('id', id)
         .single();
-      if (error) throw error;
+      if (error) {
+        console.error('[admin-package-detail] query error:', error);
+        throw error;
+      }
       return data;
     },
     enabled: !!id,

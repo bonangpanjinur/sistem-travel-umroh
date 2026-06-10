@@ -39,11 +39,11 @@ export default function AdminProposalGenerator() {
   const { data: packages = [], isLoading: pkgLoading } = useQuery({
     queryKey: ["proposal-packages"],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("packages")
         .select(`
           id, name, description, price, duration_days, is_featured,
-          package_type:package_types(name),
+          package_type,
           hotel_makkah:hotels!packages_hotel_makkah_id_fkey(name, star_rating),
           hotel_madinah:hotels!packages_hotel_madinah_id_fkey(name, star_rating),
           airline:airlines(name),
@@ -51,6 +51,7 @@ export default function AdminProposalGenerator() {
         `)
         .eq("is_active", true)
         .order("name");
+      if (error) console.error('[proposal-packages] query error:', error);
       return data || [];
     },
   });

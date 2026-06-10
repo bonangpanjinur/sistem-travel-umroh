@@ -184,7 +184,10 @@ export default function AdminDepartureDetail() {
         .eq("id", id)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('[admin-departure-detail] query error:', error);
+        throw error;
+      }
       return data;
     },
     enabled: !!id,

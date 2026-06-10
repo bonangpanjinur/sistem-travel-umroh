@@ -19,14 +19,16 @@ export function usePackages() {
             hotel_makkah:hotels!departures_hotel_makkah_id_fkey(*),
             hotel_madinah:hotels!departures_hotel_madinah_id_fkey(*)
           ),
-          package_type_ref:package_types(*),
           package_group:package_groups(id,name,color,slug)
         `)
         .eq('is_active', true)
         .order('is_featured', { ascending: false })
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('[usePackages] query error:', error);
+        throw error;
+      }
       return data as Package[];
     },
   });
@@ -48,14 +50,16 @@ export function useFeaturedPackages() {
             airline:airlines(*),
             hotel_makkah:hotels!departures_hotel_makkah_id_fkey(*),
             hotel_madinah:hotels!departures_hotel_madinah_id_fkey(*)
-          ),
-          package_type_ref:package_types(*)
+          )
         `)
         .eq('is_active', true)
         .eq('is_featured', true)
         .limit(6);
 
-      if (error) throw error;
+      if (error) {
+        console.error('[useFeaturedPackages] query error:', error);
+        throw error;
+      }
       return data as Package[];
     },
   });
@@ -79,14 +83,16 @@ export function usePackage(packageId: string | undefined) {
             airline:airlines(*),
             hotel_makkah:hotels!departures_hotel_makkah_id_fkey(*),
             hotel_madinah:hotels!departures_hotel_madinah_id_fkey(*)
-          ),
-          package_type_ref:package_types(*)
+          )
         `)
         .eq('id', packageId)
         .eq('is_active', true)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('[usePackage] query error:', error);
+        throw error;
+      }
       return data as Package;
     },
     enabled: !!packageId,
@@ -136,7 +142,6 @@ export function useUpcomingDepartures() {
 
       if (error) throw error;
       
-      // Filter out departures where package is inactive (double check since PostgREST join filter might not exclude the root record)
       const filteredData = (data || []).filter((d: any) => d.package && d.package.is_active !== false);
 
       return filteredData.map(d => ({
@@ -163,8 +168,7 @@ export function useSearchPackages(searchTerm: string, packageType?: string) {
             airline:airlines(*),
             hotel_makkah:hotels!departures_hotel_makkah_id_fkey(*),
             hotel_madinah:hotels!departures_hotel_madinah_id_fkey(*)
-          ),
-          package_type_ref:package_types(*)
+          )
         `)
         .eq('is_active', true);
 
@@ -178,7 +182,10 @@ export function useSearchPackages(searchTerm: string, packageType?: string) {
 
       const { data, error } = await query.order('is_featured', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('[useSearchPackages] query error:', error);
+        throw error;
+      }
       return data as Package[];
     },
     enabled: true,

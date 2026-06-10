@@ -102,7 +102,10 @@ export default function RoomingListPageImproved() {
         `)
         .gte("departure_date", new Date(Date.now() - 30 * 86400000).toISOString().split("T")[0])
         .order("departure_date");
-      if (error) throw error;
+      if (error) {
+        console.error('[rooming-improved-departures] query error:', error);
+        throw error;
+      }
       return data as ExtendedDeparture[];
     },
   });

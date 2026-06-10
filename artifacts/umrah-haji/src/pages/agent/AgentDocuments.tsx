@@ -98,7 +98,10 @@ export default function AgentDocuments() {
         .eq("agent_id", agentData!.id)
         .not("booking_status", "eq", "cancelled")
         .order("created_at", { ascending: false });
-      if (error) throw error;
+      if (error) {
+        console.error('[agent-documents] query error:', error);
+        throw error;
+      }
       return data || [];
     },
   });

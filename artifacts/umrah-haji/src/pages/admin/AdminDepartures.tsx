@@ -302,7 +302,10 @@ export default function AdminDepartures() {
         .order('departure_date', { ascending: true })
         .range(from, to);
 
-      if (error) throw error;
+      if (error) {
+        console.error('[admin-departures] query error:', error);
+        throw error;
+      }
       return { data, count };
     },
   });

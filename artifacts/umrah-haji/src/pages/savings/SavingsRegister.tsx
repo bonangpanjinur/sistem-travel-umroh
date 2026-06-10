@@ -52,7 +52,10 @@ export default function SavingsRegister() {
         .eq('id', packageId)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('[savings-register-package] query error:', error);
+        throw error;
+      }
       return data;
     },
     enabled: !!packageId,

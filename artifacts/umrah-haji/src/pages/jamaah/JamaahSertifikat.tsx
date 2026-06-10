@@ -30,7 +30,7 @@ export default function JamaahSertifikat() {
           id, booking_code, booking_status,
           departure:departures(
             departure_date, return_date, flight_number,
-            package:packages(name, package_type:package_types(name))
+            package:packages(name, package_type)
           ),
           customer:profiles(full_name, gender)
         `)

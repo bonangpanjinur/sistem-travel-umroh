@@ -207,7 +207,10 @@ export default function AdminRoomAssignmentsImproved() {
         )
         .eq("id", selectedDeparture)
         .maybeSingle();
-      if (error) throw error;
+      if (error) {
+        console.error('[room-assignments-meta] query error:', error);
+        throw error;
+      }
       return data as any;
     },
   });

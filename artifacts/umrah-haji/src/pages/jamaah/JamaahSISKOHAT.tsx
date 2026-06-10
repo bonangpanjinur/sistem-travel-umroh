@@ -66,7 +66,7 @@ export default function JamaahSISKOHAT() {
         .from("bookings")
         .select(`
           id, booking_code,
-          departure:departures(departure_date, package:packages(name, package_type:package_types(name))),
+          departure:departures(departure_date, package:packages(name, package_type)),
           customer:profiles(full_name, nik)
         `)
         .eq("customer_id", user!.id)
