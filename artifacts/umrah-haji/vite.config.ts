@@ -97,13 +97,9 @@ export default defineConfig({
         secure: false,
         ws: true,
       },
-      // Block realtime WebSocket at Vite level — we have no WS realtime server
-      "/realtime": {
-        target: "http://localhost:3001",
-        changeOrigin: true,
-        secure: false,
-        ws: false,
-      },
+      // /realtime is intentionally NOT proxied — the Supabase client uses a
+      // no-op WebSocket transport (DisabledWebSocket in client.ts) so no
+      // actual WS connection is ever attempted.
     },
   },
   preview: {

@@ -12,7 +12,7 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
-// Use http.createServer so we can attach the WebSocket audio relay
+// Use http.createServer so we can attach WebSocket servers
 // to the same port as Express (no separate WS port needed).
 const httpServer = createServer(app);
 
