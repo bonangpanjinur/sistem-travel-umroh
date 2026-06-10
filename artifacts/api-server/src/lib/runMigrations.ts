@@ -1101,6 +1101,23 @@ export async function runMigrations(): Promise<void> {
       logger.info("runMigrations: 083_sprint_d — already applied, skipping");
     }
 
+    // ── Step 084: v_financial_summary v2 — HPP planned + realisasi + vendor ──
+    const migration084Applied = await isApplied(client, "084_v_financial_summary_v2");
+    if (!migration084Applied) {
+      try {
+        await runSqlFile(
+          client,
+          sqlPath("084_v_financial_summary_v2.sql"),
+          "084_v_financial_summary_v2 (VIEW upgrade: departure_cost_items + departure_expenses + net_margin_pct + hpp_variance)",
+        );
+        await markApplied(client, "084_v_financial_summary_v2");
+      } catch (e: any) {
+        logger.warn({ err: e?.message }, "runMigrations: 084_v_financial_summary_v2 — skipping (non-fatal)");
+      }
+    } else {
+      logger.info("runMigrations: 084_v_financial_summary_v2 — already applied, skipping");
+    }
+
   } catch (err) {
     logger.error({ err }, "runMigrations: unexpected error — server continues");
   } finally {

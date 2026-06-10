@@ -2,21 +2,34 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { format, subMonths } from "date-fns";
+import { format, subMonths, startOfMonth, endOfMonth } from "date-fns";
 import { id as localeId } from "date-fns/locale";
-import { PiggyBank, Plus, Edit, Trash2, AlertTriangle, CheckCircle2, TrendingUp } from "lucide-react";
+import { PiggyBank, Plus, Edit, Trash2, AlertTriangle, CheckCircle2, TrendingUp, Plane } from "lucide-react";
+
+const DEP_BUDGET_LABELS: Record<string, string> = {
+  hotel: "Akomodasi Hotel",
+  tiket: "Tiket Penerbangan",
+  visa: "Biaya Visa",
+  katering: "Katering / Konsumsi",
+  transportasi: "Transportasi",
+  handling: "Handling Bandara",
+  manasik: "Biaya Manasik",
+  perlengkapan: "Perlengkapan Jamaah",
+  other: "Lainnya",
+};
 
 const fmt = (n: number) =>
   new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(n);
@@ -61,6 +74,60 @@ export default function AdminBudget() {
   const dateFrom = `${periodYear}-${String(periodMonth).padStart(2, "0")}-01`;
   const dateToObj = new Date(periodYear, periodMonth, 0);
   const dateTo = format(dateToObj, "yyyy-MM-dd");
+
+  // Budget Keberangkatan — departure_budgets digroup per kategori untuk bulan ini
+  const { data: departureBudgets = [], isLoading: loadDepBudget } = useQuery({
+    queryKey: ["departure-budgets-monthly", periodYear, periodMonth],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("departure_budgets")
+        .select("category, budgeted_amount, departure_id, departures!inner(id, departure_date, packages!inner(name, code))")
+        .gte("departures.departure_date", dateFrom)
+        .lte("departures.departure_date", dateTo);
+      return data || [];
+    },
+  });
+
+  // Realisasi vendor_costs per keberangkatan bulan ini
+  const { data: depVendorCosts = [], isLoading: loadDepVC } = useQuery({
+    queryKey: ["dep-vendor-costs-monthly", periodYear, periodMonth],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("vendor_costs")
+        .select("amount, cost_type, departure_id")
+        .gte("created_at", dateFrom)
+        .lte("created_at", dateTo)
+        .not("departure_id", "is", null);
+      return data || [];
+    },
+  });
+
+  // Aggregasi departure_budgets per kategori
+  const depBudgetByCategory = (departureBudgets as any[]).reduce((acc: Record<string, number>, b: any) => {
+    const k = b.category || "other";
+    acc[k] = (acc[k] || 0) + (b.budgeted_amount || 0);
+    return acc;
+  }, {});
+
+  // Aggregasi vendor_costs per departure sebagai realisasi
+  const depActualByCategory = (depVendorCosts as any[]).reduce((acc: Record<string, number>, v: any) => {
+    const k = (v.cost_type || "other").toLowerCase();
+    acc[k] = (acc[k] || 0) + (v.amount || 0);
+    return acc;
+  }, {});
+
+  const totalDepBudget = Object.values(depBudgetByCategory).reduce((s: number, v: any) => s + v, 0);
+  const totalDepActual = Object.values(depActualByCategory).reduce((s: number, v: any) => s + v, 0);
+
+  // Departures dalam bulan ini
+  const departuresThisMonth = Array.from(
+    new Map(
+      (departureBudgets as any[]).map((b: any) => [
+        b.departure_id,
+        { id: b.departure_id, departure_date: b.departures?.departure_date, name: b.departures?.packages?.name, code: b.departures?.packages?.code }
+      ])
+    ).values()
+  );
 
   const { data: actuals = [] } = useQuery({
     queryKey: ["budget-actuals", periodYear, periodMonth],
@@ -185,7 +252,19 @@ export default function AdminBudget() {
         </div>
       )}
 
-      {/* Table */}
+      {/* Main Tabs */}
+      <Tabs defaultValue="operasional">
+        <TabsList className="w-full sm:w-auto">
+          <TabsTrigger value="operasional" className="flex-1 sm:flex-none">
+            <PiggyBank className="h-4 w-4 mr-1.5" /> Budget Operasional
+          </TabsTrigger>
+          <TabsTrigger value="keberangkatan" className="flex-1 sm:flex-none">
+            <Plane className="h-4 w-4 mr-1.5" /> Budget Keberangkatan
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Tab: Budget Operasional (COA) */}
+        <TabsContent value="operasional">
       <Card>
         <CardContent className="p-0">
           {isLoading ? (
@@ -250,6 +329,112 @@ export default function AdminBudget() {
           )}
         </CardContent>
       </Card>
+        </TabsContent>
+
+        {/* Tab: Budget Keberangkatan */}
+        <TabsContent value="keberangkatan">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Budget Keberangkatan Periode Ini</CardTitle>
+              <CardDescription>
+                Sumber: <code className="text-xs">departure_budgets</code> — per kategori biaya, keberangkatan yang berada di periode {selectedMonth}.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loadDepBudget || loadDepVC ? (
+                <div className="space-y-2">{Array(4).fill(0).map((_, i) => <Skeleton key={i} className="h-12" />)}</div>
+              ) : departuresThisMonth.length === 0 ? (
+                <div className="text-center py-8">
+                  <Plane className="h-10 w-10 mx-auto text-muted-foreground/30 mb-3" />
+                  <p className="text-muted-foreground text-sm">Tidak ada keberangkatan di periode ini</p>
+                  <p className="text-xs text-muted-foreground mt-1">Atau tabel departure_budgets belum diisi</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* KPI row */}
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="p-3 bg-orange-50 rounded-lg text-center">
+                      <p className="text-xs text-muted-foreground">Total Budget</p>
+                      <p className="font-bold text-orange-700">{fmt(totalDepBudget)}</p>
+                    </div>
+                    <div className="p-3 bg-red-50 rounded-lg text-center">
+                      <p className="text-xs text-muted-foreground">Realisasi (AP)</p>
+                      <p className="font-bold text-red-700">{fmt(totalDepActual)}</p>
+                    </div>
+                    <div className={`p-3 rounded-lg text-center ${totalDepBudget - totalDepActual >= 0 ? "bg-green-50" : "bg-red-50"}`}>
+                      <p className="text-xs text-muted-foreground">Sisa Budget</p>
+                      <p className={`font-bold ${totalDepBudget - totalDepActual >= 0 ? "text-green-700" : "text-red-600"}`}>
+                        {fmt(totalDepBudget - totalDepActual)}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Progress bar */}
+                  {totalDepBudget > 0 && (
+                    <div>
+                      <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                        <span>Penyerapan Budget Keberangkatan</span>
+                        <span>{Math.min((totalDepActual / totalDepBudget) * 100, 100).toFixed(1)}%</span>
+                      </div>
+                      <Progress value={Math.min((totalDepActual / totalDepBudget) * 100, 100)} className={`h-2 ${totalDepActual > totalDepBudget ? "[&>div]:bg-red-500" : ""}`} />
+                    </div>
+                  )}
+
+                  {/* Per category breakdown */}
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Kategori Biaya</TableHead>
+                        <TableHead className="text-right">Budget</TableHead>
+                        <TableHead className="text-right">Realisasi AP</TableHead>
+                        <TableHead className="text-right">Selisih</TableHead>
+                        <TableHead>Serapan</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {Object.keys({ ...depBudgetByCategory, ...depActualByCategory }).map(cat => {
+                        const budget = (depBudgetByCategory as any)[cat] || 0;
+                        const actual = (depActualByCategory as any)[cat] || 0;
+                        const sisa = budget - actual;
+                        const pct = budget > 0 ? (actual / budget) * 100 : 0;
+                        return (
+                          <TableRow key={cat}>
+                            <TableCell className="text-sm">{DEP_BUDGET_LABELS[cat] || cat}</TableCell>
+                            <TableCell className="text-right text-sm">{fmt(budget)}</TableCell>
+                            <TableCell className={`text-right text-sm font-medium ${actual > budget ? "text-red-600" : ""}`}>{fmt(actual)}</TableCell>
+                            <TableCell className={`text-right text-sm ${sisa < 0 ? "text-red-600 font-semibold" : "text-green-600"}`}>{fmt(sisa)}</TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <Progress value={Math.min(pct, 100)} className={`h-1.5 flex-1 ${pct > 100 ? "[&>div]:bg-red-500" : ""}`} />
+                                <span className="text-xs w-10 text-right">{pct.toFixed(0)}%</span>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+
+                  {/* Departures list */}
+                  {departuresThisMonth.length > 0 && (
+                    <div className="mt-2">
+                      <p className="text-xs font-semibold text-muted-foreground mb-1.5">Keberangkatan dalam periode ini:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {departuresThisMonth.map((dep: any) => (
+                          <Badge key={dep.id} variant="outline" className="text-xs">
+                            <Plane className="h-3 w-3 mr-1" />
+                            {dep.code} — {dep.departure_date ? dep.departure_date.slice(0, 10) : ""}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>

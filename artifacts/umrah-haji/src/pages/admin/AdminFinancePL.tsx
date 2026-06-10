@@ -45,7 +45,7 @@ import { id as localeId } from "date-fns/locale";
 import { 
   TrendingUp, TrendingDown, DollarSign, Receipt, 
   Plane, Plus, AlertTriangle, CheckCircle2,
-  FileText, Loader2
+  FileText, Loader2, BarChart2
 } from "lucide-react";
 import { exportToPDF } from "@/lib/export-utils";
 
@@ -59,6 +59,39 @@ const COST_TYPES = [
 ];
 
 
+
+const HPP_CATEGORY_LABELS: Record<string, string> = {
+  airline: "Tiket Penerbangan",
+  hotel: "Akomodasi Hotel",
+  land_transport: "Transportasi Darat",
+  visa: "Biaya Visa",
+  handling: "Handling Bandara",
+  muthawif: "Pemandu / Muthawif",
+  equipment: "Perlengkapan Jamaah",
+  manasik: "Biaya Manasik",
+  insurance: "Asuransi",
+  document: "Pengurusan Dokumen",
+  marketing: "Marketing",
+  pic_fee: "Biaya PIC",
+  overhead: "Overhead",
+  other: "Lainnya",
+};
+
+const DEP_EXP_LABELS: Record<string, string> = {
+  airline_ticket: "Tiket Penerbangan",
+  hotel: "Akomodasi Hotel",
+  transport: "Transportasi",
+  visa_fee: "Biaya Visa",
+  guide: "Pemandu / Muthawif",
+  meals: "Konsumsi / Katering",
+  tips: "Tips & Gratifikasi",
+  souvenir: "Souvenir Jamaah",
+  printing: "Cetak & ATK",
+  refund: "Refund Jamaah",
+  medical: "Kesehatan / Medis",
+  operational: "Operasional Lapangan",
+  other: "Biaya Lainnya",
+};
 
 export default function AdminFinancePL() {
   const queryClient = useQueryClient();
@@ -161,6 +194,50 @@ export default function AdminFinancePL() {
       return data;
     },
   });
+
+  // HPP Planned — departure_cost_items untuk keberangkatan yang dipilih
+  const { data: hppItems = [] } = useQuery({
+    queryKey: ['hpp-items', selectedDeparture?.id],
+    enabled: !!selectedDeparture?.id,
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from('departure_cost_items')
+        .select('category, description, total_cost_idr, unit, quantity, unit_cost')
+        .eq('departure_id', selectedDeparture!.id)
+        .order('category');
+      return data || [];
+    },
+  });
+
+  // Realisasi Lapangan — departure_expenses untuk keberangkatan yang dipilih
+  const { data: depExpItems = [] } = useQuery({
+    queryKey: ['dep-expenses', selectedDeparture?.id],
+    enabled: !!selectedDeparture?.id,
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from('departure_expenses')
+        .select('category, description, amount_idr, expense_date')
+        .eq('departure_id', selectedDeparture!.id)
+        .order('expense_date', { ascending: false });
+      return data || [];
+    },
+  });
+
+  // Aggregasi HPP planned per kategori
+  const hppByCategory = (hppItems as any[]).reduce((acc: Record<string, number>, item: any) => {
+    const k = item.category || 'other';
+    acc[k] = (acc[k] || 0) + (item.total_cost_idr || 0);
+    return acc;
+  }, {});
+  const totalHPPPlanned = Object.values(hppByCategory).reduce((s: number, v: any) => s + v, 0);
+
+  // Aggregasi realisasi per kategori
+  const expByCategory = (depExpItems as any[]).reduce((acc: Record<string, number>, item: any) => {
+    const k = item.category || 'other';
+    acc[k] = (acc[k] || 0) + (item.amount_idr || 0);
+    return acc;
+  }, {});
+  const totalRealisasi = Object.values(expByCategory).reduce((s: number, v: any) => s + v, 0);
 
   const addCostMutation = useMutation({
     mutationFn: async (data: { departure_id: string } & typeof costFormData) => {
@@ -497,38 +574,152 @@ export default function AdminFinancePL() {
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-base">Detail Biaya</CardTitle>
+                  <CardTitle className="text-base">Detail Biaya — {selectedDeparture.package?.code}</CardTitle>
                   <Button size="sm" onClick={() => setCostDialogOpen(true)}>
                     <Plus className="h-4 w-4 mr-1" />
-                    Tambah
+                    Tambah AP
                   </Button>
                 </div>
               </CardHeader>
               <CardContent>
-                {selectedDeparture.costs.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-4">
-                    Belum ada biaya vendor
-                  </p>
-                ) : (
-                  <div className="space-y-2">
-                    {selectedDeparture.costs.map((cost) => (
-                      <div key={cost.id} className="flex items-center justify-between p-2 border rounded">
-                        <div>
-                          <p className="font-medium text-sm">{cost.vendor?.name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {COST_TYPES.find(t => t.value === cost.cost_type)?.label}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-semibold text-sm">{formatCurrency(cost.amount)}</p>
-                          <Badge variant={cost.status === 'paid' ? 'default' : 'secondary'} className="text-xs">
-                            {cost.status === 'paid' ? 'Lunas' : 'Pending'}
-                          </Badge>
+                <Tabs defaultValue="vendor">
+                  <TabsList className="w-full mb-3">
+                    <TabsTrigger value="vendor" className="flex-1 text-xs">Vendor AP</TabsTrigger>
+                    <TabsTrigger value="hpp" className="flex-1 text-xs">HPP Plan</TabsTrigger>
+                    <TabsTrigger value="realisasi" className="flex-1 text-xs">Realisasi</TabsTrigger>
+                    <TabsTrigger value="compare" className="flex-1 text-xs">Perbandingan</TabsTrigger>
+                  </TabsList>
+
+                  {/* Tab: Vendor AP */}
+                  <TabsContent value="vendor">
+                    {selectedDeparture.costs.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-4">Belum ada biaya vendor</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {selectedDeparture.costs.map((cost) => (
+                          <div key={cost.id} className="flex items-center justify-between p-2 border rounded">
+                            <div>
+                              <p className="font-medium text-sm">{cost.vendor?.name}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {COST_TYPES.find(t => t.value === cost.cost_type)?.label}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <p className="font-semibold text-sm">{formatCurrency(cost.amount)}</p>
+                              <Badge variant={cost.status === 'paid' ? 'default' : 'secondary'} className="text-xs">
+                                {cost.status === 'paid' ? 'Lunas' : 'Pending'}
+                              </Badge>
+                            </div>
+                          </div>
+                        ))}
+                        <div className="border-t pt-2 flex justify-between font-semibold text-sm">
+                          <span>Total AP</span>
+                          <span>{formatCurrency(selectedDeparture.totalCost)}</span>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                )}
+                    )}
+                  </TabsContent>
+
+                  {/* Tab: HPP Planned */}
+                  <TabsContent value="hpp">
+                    {(hppItems as any[]).length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-4">
+                        Belum ada HPP. Isi via tab Budget di detail keberangkatan.
+                      </p>
+                    ) : (
+                      <div className="space-y-1.5">
+                        {Object.entries(hppByCategory).map(([cat, total]: [string, any]) => (
+                          <div key={cat} className="flex justify-between text-sm py-1 border-b last:border-0">
+                            <span className="text-muted-foreground">{HPP_CATEGORY_LABELS[cat] || cat}</span>
+                            <span className="font-medium">{formatCurrency(total)}</span>
+                          </div>
+                        ))}
+                        <div className="pt-1 flex justify-between font-bold text-sm">
+                          <span>Total HPP Plan</span>
+                          <span className="text-orange-700">{formatCurrency(totalHPPPlanned)}</span>
+                        </div>
+                      </div>
+                    )}
+                  </TabsContent>
+
+                  {/* Tab: Realisasi Lapangan */}
+                  <TabsContent value="realisasi">
+                    {(depExpItems as any[]).length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-4">
+                        Belum ada realisasi pengeluaran lapangan.
+                      </p>
+                    ) : (
+                      <div className="space-y-1.5">
+                        {Object.entries(expByCategory).map(([cat, total]: [string, any]) => (
+                          <div key={cat} className="flex justify-between text-sm py-1 border-b last:border-0">
+                            <span className="text-muted-foreground">{DEP_EXP_LABELS[cat] || cat}</span>
+                            <span className="font-medium">{formatCurrency(total)}</span>
+                          </div>
+                        ))}
+                        <div className="pt-1 flex justify-between font-bold text-sm">
+                          <span>Total Realisasi</span>
+                          <span className="text-red-700">{formatCurrency(totalRealisasi)}</span>
+                        </div>
+                      </div>
+                    )}
+                  </TabsContent>
+
+                  {/* Tab: Perbandingan HPP Plan vs Realisasi vs AP */}
+                  <TabsContent value="compare">
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-3 gap-2 text-center">
+                        <div className="p-2 bg-orange-50 rounded-lg">
+                          <p className="text-xs text-muted-foreground">HPP Plan</p>
+                          <p className="font-bold text-sm text-orange-700">{formatCurrency(totalHPPPlanned)}</p>
+                        </div>
+                        <div className="p-2 bg-red-50 rounded-lg">
+                          <p className="text-xs text-muted-foreground">Realisasi</p>
+                          <p className="font-bold text-sm text-red-700">{formatCurrency(totalRealisasi)}</p>
+                        </div>
+                        <div className="p-2 bg-blue-50 rounded-lg">
+                          <p className="text-xs text-muted-foreground">AP Vendor</p>
+                          <p className="font-bold text-sm text-blue-700">{formatCurrency(selectedDeparture.totalCost)}</p>
+                        </div>
+                      </div>
+                      {totalHPPPlanned > 0 && (
+                        <div className="space-y-1.5">
+                          <p className="text-xs font-semibold text-muted-foreground uppercase">Selisih Plan vs Realisasi</p>
+                          {Object.keys({ ...hppByCategory, ...expByCategory }).map(cat => {
+                            const plan = (hppByCategory as any)[cat] || 0;
+                            const real = (expByCategory as any)[cat] || 0;
+                            const diff = plan - real;
+                            return (
+                              <div key={cat} className="flex items-center justify-between text-xs p-1.5 border rounded">
+                                <span>{HPP_CATEGORY_LABELS[cat] || DEP_EXP_LABELS[cat] || cat}</span>
+                                <div className="flex gap-3 text-right">
+                                  <span className="text-orange-600 w-20 text-right">{formatCurrency(plan)}</span>
+                                  <span className="text-red-600 w-20 text-right">{formatCurrency(real)}</span>
+                                  <span className={`w-20 text-right font-semibold ${diff >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                    {diff >= 0 ? '+' : ''}{formatCurrency(diff)}
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                      <div className="p-3 bg-muted/50 rounded-lg">
+                        <div className="flex justify-between text-sm font-semibold">
+                          <span>Revenue</span>
+                          <span className="text-green-600">{formatCurrency(selectedDeparture.totalRevenue)}</span>
+                        </div>
+                        <div className="flex justify-between text-sm text-muted-foreground mt-1">
+                          <span>Total Biaya (Realisasi + AP)</span>
+                          <span className="text-red-600">{formatCurrency(totalRealisasi + selectedDeparture.totalCost)}</span>
+                        </div>
+                        <div className={`flex justify-between text-sm font-bold mt-1 pt-1 border-t ${selectedDeparture.totalRevenue - totalRealisasi - selectedDeparture.totalCost >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                          <span>Estimasi Profit</span>
+                          <span>{formatCurrency(selectedDeparture.totalRevenue - totalRealisasi - selectedDeparture.totalCost)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </TabsContent>
+                </Tabs>
               </CardContent>
             </Card>
           )}

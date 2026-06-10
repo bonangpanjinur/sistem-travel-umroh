@@ -17,4 +17,4 @@
 - [Branch & Agent Scoping](branch-agent-scoping.md) — JWT membawa branch_id+agent_id; supabaseProxy auto-inject branch_id filter untuk branch_manager; route order agents.ts KRITIS.
 - [API server port](api-server-port.md) — Port 8080 dipegang Replit platform; API server harus PORT=3001, Vite proxy di vite.config.ts update ke localhost:3001.
 - [SDM Implementation Status](sdm-status.md) — SDM-1-01(payroll)✅ SDM-1-02(training tab)✅ SDM-1-03(SP)✅ SDM-1-04(karir)✅ SDM-2-02(kontrak)✅ — ESS portal(SDM-2-01) & Analytics(SDM-2-03) belum diimplementasi; unknown tables pakai `(supabase as any).from()`.
-
+- [Finance module cross-integration](finance-cross-integration.md) — departure_expenses+departure_cost_items+payroll_records harus masuk ke semua laporan; anti-double-count salary: skip cash_transactions.salary jika payroll_records.status=paid tersedia. Migration 084 = v_financial_summary v2 (hpp_planned+hpp_realized+net_margin_pct+hpp_variance).

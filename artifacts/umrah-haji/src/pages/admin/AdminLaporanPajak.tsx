@@ -81,7 +81,7 @@ export default function AdminLaporanPajak() {
     },
   });
 
-  // Salary costs (PPh 21)
+  // Salary costs (PPh 21) — dari cash_transactions.salary sebagai fallback
   const { data: salaryCosts = [] } = useQuery({
     queryKey: ["tax-salary", selectedYear],
     queryFn: async () => {
@@ -95,6 +95,20 @@ export default function AdminLaporanPajak() {
       return data || [];
     },
   });
+
+  // PPh 21 lebih akurat — dari payroll_records (penggajian terproses resmi)
+  const { data: payrollRecords = [] } = useQuery({
+    queryKey: ["tax-payroll", selectedYear],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("payroll_records")
+        .select("net_salary, gross_salary, pph21_amount, period_month, period_year, status")
+        .eq("period_year", Number(selectedYear))
+        .eq("status", "paid");
+      return data || [];
+    },
+  });
+  const hasPayrollData = (payrollRecords as any[]).length > 0;
 
   // Monthly breakdown
   const months = eachMonthOfInterval({
@@ -141,9 +155,16 @@ export default function AdminLaporanPajak() {
   const totalVendor = monthlyData.reduce((s, m) => s + m.vendor_costs, 0);
   const totalSalary = salaryCosts.reduce((s: number, r: any) => s + Number(r.amount), 0);
 
-  // PPh 21 (salary tax ~5% above threshold)
+  // PPh 21 — lebih akurat jika ada payroll_records (langsung dari modul payroll)
   const PPH21_RATE = 0.05;
-  const totalPPH21 = totalSalary * PPH21_RATE;
+  // Jika payroll_records punya kolom pph21_amount, gunakan itu; fallback ke estimasi 5% × gross
+  const payrollPPH21Direct = (payrollRecords as any[]).reduce((s: number, r: any) => s + (r.pph21_amount || 0), 0);
+  const payrollGross = (payrollRecords as any[]).reduce((s: number, r: any) => s + (r.gross_salary || 0), 0);
+  const payrollPPH21Estimated = payrollGross * PPH21_RATE;
+  // Jika ada payroll data, prioritaskan
+  const totalPPH21 = hasPayrollData
+    ? (payrollPPH21Direct > 0 ? payrollPPH21Direct : payrollPPH21Estimated)
+    : (totalSalary * PPH21_RATE);
   const totalTaxObligation = totalPPN + totalPPH23 + totalPPH21;
 
   const handleExportPDF = () => {
@@ -343,29 +364,76 @@ export default function AdminLaporanPajak() {
           <div className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">PPh 21 — Pajak Penghasilan Karyawan</CardTitle>
-                <CardDescription>Berdasarkan total pengeluaran gaji. Tarif estimasi 5% untuk simulasi.</CardDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-base">PPh 21 — Pajak Penghasilan Karyawan</CardTitle>
+                    <CardDescription>
+                      {hasPayrollData
+                        ? "Sumber data: Modul Payroll (lebih akurat dari entri kas manual)"
+                        : "Sumber: transaksi kas kategori \"salary\". Tarif estimasi 5%."}
+                    </CardDescription>
+                  </div>
+                  {hasPayrollData && (
+                    <Badge className="bg-green-100 text-green-700 border-green-300 text-xs">
+                      Data Payroll Tersedia
+                    </Badge>
+                  )}
+                </div>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="flex justify-between items-center p-4 bg-gray-50 rounded-lg border">
-                  <div>
-                    <p className="font-medium">Total Biaya Gaji {selectedYear}</p>
-                    <p className="text-sm text-muted-foreground">Sumber: transaksi kas kategori "salary"</p>
-                  </div>
-                  <p className="text-xl font-bold">{formatCurrency(totalSalary)}</p>
-                </div>
-                <div className="flex justify-between items-center p-4 bg-orange-50 rounded-lg border border-orange-200">
-                  <div>
-                    <p className="font-medium text-orange-800">Estimasi PPh 21 (5%)</p>
-                    <p className="text-xs text-orange-600">Tarif sebenarnya bergantung pada PTKP & penghasilan per karyawan</p>
-                  </div>
-                  <p className="text-xl font-bold text-orange-700">{formatCurrency(totalPPH21)}</p>
-                </div>
+                {hasPayrollData ? (
+                  <>
+                    <div className="flex justify-between items-center p-4 bg-green-50 rounded-lg border border-green-200">
+                      <div>
+                        <p className="font-medium text-green-800">Total Gross Gaji {selectedYear} (Payroll)</p>
+                        <p className="text-sm text-green-600">{(payrollRecords as any[]).length} slip gaji yang sudah dibayar</p>
+                      </div>
+                      <p className="text-xl font-bold text-green-700">{formatCurrency(payrollGross)}</p>
+                    </div>
+                    {payrollPPH21Direct > 0 && (
+                      <div className="flex justify-between items-center p-4 bg-orange-50 rounded-lg border border-orange-200">
+                        <div>
+                          <p className="font-medium text-orange-800">PPh 21 Aktual (dari slip gaji)</p>
+                          <p className="text-xs text-orange-600">Dihitung per karyawan berdasarkan PTKP & tarif progresif</p>
+                        </div>
+                        <p className="text-xl font-bold text-orange-700">{formatCurrency(payrollPPH21Direct)}</p>
+                      </div>
+                    )}
+                    {payrollPPH21Direct === 0 && (
+                      <div className="flex justify-between items-center p-4 bg-orange-50 rounded-lg border border-orange-200">
+                        <div>
+                          <p className="font-medium text-orange-800">Estimasi PPh 21 (5% × Gross)</p>
+                          <p className="text-xs text-orange-600">Kolom pph21_amount belum diisi di payroll_records</p>
+                        </div>
+                        <p className="text-xl font-bold text-orange-700">{formatCurrency(payrollPPH21Estimated)}</p>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <div className="flex justify-between items-center p-4 bg-gray-50 rounded-lg border">
+                      <div>
+                        <p className="font-medium">Total Biaya Gaji {selectedYear}</p>
+                        <p className="text-sm text-muted-foreground">Sumber: transaksi kas kategori "salary"</p>
+                      </div>
+                      <p className="text-xl font-bold">{formatCurrency(totalSalary)}</p>
+                    </div>
+                    <div className="flex justify-between items-center p-4 bg-orange-50 rounded-lg border border-orange-200">
+                      <div>
+                        <p className="font-medium text-orange-800">Estimasi PPh 21 (5%)</p>
+                        <p className="text-xs text-orange-600">Tarif sebenarnya bergantung pada PTKP & penghasilan per karyawan</p>
+                      </div>
+                      <p className="text-xl font-bold text-orange-700">{formatCurrency(totalPPH21)}</p>
+                    </div>
+                  </>
+                )}
                 <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg flex gap-2">
                   <AlertCircle className="h-4 w-4 text-yellow-600 flex-shrink-0 mt-0.5" />
                   <p className="text-xs text-yellow-700">
-                    Angka PPh 21 di atas adalah ESTIMASI. PPh 21 yang sebenarnya harus dihitung per karyawan
-                    berdasarkan PTKP (Penghasilan Tidak Kena Pajak) dan tarif progresif.
+                    PPh 21 yang sebenarnya harus dihitung per karyawan berdasarkan PTKP dan tarif progresif.
+                    {hasPayrollData
+                      ? " Isi kolom pph21_amount di setiap payroll_record untuk akurasi penuh."
+                      : " Aktifkan Modul Payroll untuk data yang lebih akurat."}
                   </p>
                 </div>
               </CardContent>

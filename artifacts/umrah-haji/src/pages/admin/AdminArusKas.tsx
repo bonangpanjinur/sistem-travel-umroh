@@ -74,6 +74,19 @@ export default function AdminArusKas() {
     },
   });
 
+  // Pengeluaran lapangan keberangkatan (departure_expenses — realisasi biaya perjalanan)
+  const { data: depExpOut = 0, isLoading: l6 } = useQuery({
+    queryKey: ["cf-dep-expenses", dateFrom, dateTo],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("departure_expenses")
+        .select("amount_idr")
+        .gte("expense_date", dateFrom)
+        .lte("expense_date", dateTo);
+      return ((data || []) as any[]).reduce((s, e) => s + (e.amount_idr || 0), 0);
+    },
+  });
+
   // 6-month trend for chart
   const { data: trendData = [], isLoading: l5 } = useQuery({
     queryKey: ["cf-trend"],
@@ -97,14 +110,14 @@ export default function AdminArusKas() {
     },
   });
 
-  const isLoading = l1 || l2 || l3 || l4;
+  const isLoading = l1 || l2 || l3 || l4 || l6;
 
   const totalCashOut = cashOutData.reduce((s: number, c: any) => s + (c.amount || 0), 0);
   const salary = cashOutData.filter((c: any) => c.category === "salary").reduce((s: number, c: any) => s + c.amount, 0);
   const operational = cashOutData.filter((c: any) => c.category === "operational").reduce((s: number, c: any) => s + c.amount, 0);
   const otherOut = totalCashOut - salary - operational;
 
-  const operasionalNet = bookingIn + cashIn - vendorOut - totalCashOut;
+  const operasionalNet = bookingIn + cashIn - vendorOut - totalCashOut - (depExpOut as number);
   const investasiNet = 0;
   const pendanaanNet = 0;
   const netCF = operasionalNet + investasiNet + pendanaanNet;
@@ -177,6 +190,9 @@ export default function AdminArusKas() {
                 <Row label="Penerimaan dari Jamaah (booking)" value={bookingIn} indent />
                 <Row label="Pendapatan Kas Lainnya" value={cashIn} indent />
                 <Row label="Pembayaran ke Vendor" value={-vendorOut} indent />
+                {(depExpOut as number) > 0 && (
+                  <Row label="Pengeluaran Keberangkatan (Lapangan)" value={-(depExpOut as number)} indent />
+                )}
                 <Row label="Biaya Gaji & Upah" value={-salary} indent />
                 <Row label="Biaya Operasional Kantor" value={-operational} indent />
                 <Row label="Biaya Lainnya" value={-otherOut} indent />

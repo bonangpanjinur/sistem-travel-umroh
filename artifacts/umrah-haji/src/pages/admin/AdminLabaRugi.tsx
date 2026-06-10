@@ -7,8 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { TrendingUp, TrendingDown, Download, RefreshCw } from "lucide-react";
+import { TrendingUp, TrendingDown, Download, RefreshCw, Info } from "lucide-react";
 import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import { useQueryClient } from "@tanstack/react-query";
@@ -43,7 +44,7 @@ export default function AdminLabaRugi() {
     },
   });
 
-  // HPP — biaya operasional vendor per keberangkatan
+  // HPP — biaya vendor (AP) per keberangkatan
   const { data: vendorCosts = [], isLoading: loadVC } = useQuery({
     queryKey: ["pl-vendor-costs", dateFrom, dateTo],
     queryFn: async () => {
@@ -52,6 +53,34 @@ export default function AdminLabaRugi() {
         .select("amount, cost_type, created_at")
         .gte("created_at", dateFrom)
         .lte("created_at", dateTo);
+      return data || [];
+    },
+  });
+
+  // HPP Realisasi — dari departure_expenses (biaya lapangan aktual)
+  const { data: depExpenses = [], isLoading: loadDepExp } = useQuery({
+    queryKey: ["pl-departure-expenses", dateFrom, dateTo],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("departure_expenses")
+        .select("amount_idr, category, expense_date")
+        .gte("expense_date", dateFrom)
+        .lte("expense_date", dateTo);
+      return data || [];
+    },
+  });
+
+  // Biaya SDM — dari payroll_records (penggajian terproses)
+  const [periodYear2, periodMonth2] = period.split("-").map(Number);
+  const { data: payrollData = [], isLoading: loadPayroll } = useQuery({
+    queryKey: ["pl-payroll", periodYear2, periodMonth2],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("payroll_records")
+        .select("net_salary, gross_salary, period_month, period_year, status")
+        .eq("period_year", periodYear2)
+        .eq("period_month", periodMonth2)
+        .eq("status", "paid");
       return data || [];
     },
   });
@@ -84,34 +113,76 @@ export default function AdminLabaRugi() {
     },
   });
 
-  const isLoading = loadPay || loadVC || loadCash || loadCashIn;
+  const isLoading = loadPay || loadVC || loadCash || loadCashIn || loadDepExp || loadPayroll;
 
   // Calculate P&L
   const revenue = payments.reduce((s: number, p: any) => s + (p.amount || 0), 0);
   const otherIncome = cashIn.reduce((s: number, c: any) => s + (c.amount || 0), 0);
   const totalRevenue = revenue + otherIncome;
 
-  const hpp = vendorCosts.reduce((s: number, v: any) => s + (v.amount || 0), 0);
-  const grossProfit = totalRevenue - hpp;
+  // HPP Vendor (AP terdaftar ke vendor)
+  const hppVendor = vendorCosts.reduce((s: number, v: any) => s + (v.amount || 0), 0);
+
+  // HPP Realisasi Lapangan (dari departure_expenses)
+  const hppLapangan = depExpenses.reduce((s: number, e: any) => s + (e.amount_idr || 0), 0);
+
+  // Group departure_expenses by category
+  const depExpByCategory = depExpenses.reduce((acc: Record<string, number>, e: any) => {
+    const key = e.category || "other";
+    acc[key] = (acc[key] || 0) + (e.amount_idr || 0);
+    return acc;
+  }, {});
+
+  const totalHPP = hppVendor + hppLapangan;
+  const grossProfit = totalRevenue - totalHPP;
   const grossMargin = totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0;
 
-  // Group expenses by category
+  // Payroll data (dari modul payroll)
+  const payrollTotal = payrollData.reduce((s: number, r: any) => s + (r.net_salary || 0), 0);
+  const hasPayrollData = payrollData.length > 0;
+
+  // Group cash_out by category — exclude 'salary' jika payroll data tersedia
   const expenseByCategory = cashOut.reduce((acc: Record<string, number>, c: any) => {
     const key = c.category || "other_expense";
+    // Jika ada data payroll, skip entri 'salary' dari cash_transactions (hindari double count)
+    if (hasPayrollData && key === "salary") return acc;
     acc[key] = (acc[key] || 0) + (c.amount || 0);
     return acc;
   }, {});
-  const totalExpenses = Object.values(expenseByCategory).reduce((s: number, v: any) => s + v, 0);
+
+  const totalCashExpenses = Object.values(expenseByCategory).reduce((s: number, v: any) => s + v, 0);
+  // Biaya gaji: dari payroll jika ada, fallback ke cash_transactions.salary
+  const salaryCashOnly = hasPayrollData ? 0 : cashOut
+    .filter((c: any) => c.category === "salary")
+    .reduce((s: number, c: any) => s + (c.amount || 0), 0);
+  const totalGajiBeban = hasPayrollData ? payrollTotal : salaryCashOnly;
+  const totalExpenses = totalCashExpenses + (hasPayrollData ? payrollTotal : 0);
   const netProfit = grossProfit - totalExpenses;
   const netMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
 
   const CATEGORY_LABELS: Record<string, string> = {
-    operational: "Biaya Operasional",
+    operational: "Biaya Operasional Kantor",
     marketing: "Marketing & Promosi",
     salary: "Gaji & Tunjangan",
     utilities: "Utilitas & Listrik",
     rent: "Sewa Kantor",
     other_expense: "Biaya Lainnya",
+  };
+
+  const DEP_EXP_LABELS: Record<string, string> = {
+    airline_ticket: "Tiket Penerbangan",
+    hotel: "Akomodasi Hotel",
+    transport: "Transportasi",
+    visa_fee: "Biaya Visa",
+    guide: "Pemandu / Muthawif",
+    meals: "Konsumsi / Katering",
+    tips: "Tips & Gratifikasi",
+    souvenir: "Souvenir Jamaah",
+    printing: "Cetak & ATK",
+    refund: "Refund Jamaah",
+    medical: "Kesehatan / Medis",
+    operational: "Operasional Lapangan",
+    other: "Biaya Lainnya",
   };
 
   const Row = ({ label, value, indent = false, bold = false, highlight = "" }: any) => (
@@ -155,7 +226,8 @@ export default function AdminLabaRugi() {
         <Card className="border-orange-200 bg-orange-50">
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground">HPP + Beban</p>
-            <p className="text-xl font-bold text-orange-700">{fmt(hpp + totalExpenses)}</p>
+            <p className="text-xl font-bold text-orange-700">{fmt(totalHPP + totalExpenses)}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Vendor + Lapangan + Overhead</p>
           </CardContent>
         </Card>
         <Card className={netProfit >= 0 ? "border-green-200 bg-green-50" : "border-red-200 bg-red-50"}>
@@ -198,9 +270,18 @@ export default function AdminLabaRugi() {
               {/* HPP */}
               <div className="py-3">
                 <p className="text-xs font-bold uppercase text-muted-foreground mb-2">B. HARGA POKOK PENJUALAN (HPP)</p>
-                <Row label="Biaya Operasional Perjalanan (Vendor)" value={hpp} indent />
+                <p className="text-xs text-muted-foreground pl-1 mb-1.5">B.1 — Biaya Vendor (AP Terdaftar)</p>
+                <Row label="Biaya Operasional Perjalanan (Vendor)" value={hppVendor} indent />
+                {hppLapangan > 0 && (
+                  <>
+                    <p className="text-xs text-muted-foreground pl-1 mt-2 mb-1.5">B.2 — Realisasi Biaya Lapangan</p>
+                    {Object.entries(depExpByCategory).map(([key, val]: any) => (
+                      <Row key={key} label={DEP_EXP_LABELS[key] || key} value={val} indent />
+                    ))}
+                  </>
+                )}
                 <Separator className="my-1" />
-                <Row label="Total HPP" value={hpp} bold />
+                <Row label="Total HPP (Vendor + Lapangan)" value={totalHPP} bold />
                 <div className="flex justify-between py-1.5 font-bold">
                   <span className="text-sm">Laba Kotor (Gross Profit)</span>
                   <span className={`text-sm tabular-nums ${grossProfit >= 0 ? "text-green-600" : "text-red-600"}`}>
@@ -211,11 +292,27 @@ export default function AdminLabaRugi() {
 
               {/* Biaya Operasional */}
               <div className="py-3">
-                <p className="text-xs font-bold uppercase text-muted-foreground mb-2">C. BEBAN OPERASIONAL</p>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-bold uppercase text-muted-foreground">C. BEBAN OPERASIONAL</p>
+                  {hasPayrollData && (
+                    <Badge variant="outline" className="text-xs text-green-700 border-green-300">
+                      <Info className="h-3 w-3 mr-1" />
+                      Gaji dari Modul Payroll
+                    </Badge>
+                  )}
+                </div>
+                {/* Gaji dari payroll jika ada, atau dari cash_transactions */}
+                {(totalGajiBeban > 0) && (
+                  <Row
+                    label={hasPayrollData ? "Gaji Karyawan (Modul Payroll — Net)" : "Gaji & Tunjangan"}
+                    value={totalGajiBeban}
+                    indent
+                  />
+                )}
                 {Object.entries(expenseByCategory).map(([key, val]: any) => (
                   <Row key={key} label={CATEGORY_LABELS[key] || key} value={val} indent />
                 ))}
-                {Object.keys(expenseByCategory).length === 0 && (
+                {(Object.keys(expenseByCategory).length === 0 && !hasPayrollData) && (
                   <p className="text-sm text-muted-foreground pl-6 py-1">Tidak ada beban operasional periode ini</p>
                 )}
                 <Separator className="my-1" />
