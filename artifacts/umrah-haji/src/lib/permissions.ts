@@ -171,6 +171,7 @@ export const PERMISSIONS = {
   WA_TEMPLATE_BROADCAST: 'wa-template-broadcast',
   WA_SCHEDULED_BROADCAST: 'wa-scheduled-broadcast',
   MIDTRANS: 'midtrans',
+  XENDIT: 'xendit',
   CICILAN_REMINDER: 'cicilan-reminder',
   PEMBAYARAN_REMINDER: 'pembayaran-reminder',
   VIRTUAL_ACCOUNT: 'virtual-account',

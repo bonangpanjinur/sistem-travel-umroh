@@ -172,8 +172,9 @@ export const RECOMMENDED_MENUS: AdminMenuItem[] = [
 
   // ── Integrasi (550s) ──────────────────────────────────────────────────────
   { key: 'midtrans',            label: 'Midtrans Payment',      path: '/admin/midtrans',             icon: 'CreditCard',      group_name: 'Integrasi',          sort_order: 551, required_permission: PERMISSIONS.MIDTRANS },
-  { key: 'api-connect',         label: 'Integrasi & API',       path: '/admin/api-connect',          icon: 'Plug',            group_name: 'Integrasi',          sort_order: 552, required_permission: PERMISSIONS.API_CONNECT },
-  { key: 'system-health',       label: 'System Health',         path: '/admin/system-health',        icon: 'Activity',        group_name: 'Integrasi',          sort_order: 553, required_permission: PERMISSIONS.API_CONNECT },
+  { key: 'xendit',              label: 'Xendit Payment',        path: '/admin/xendit',               icon: 'Wallet',          group_name: 'Integrasi',          sort_order: 552, required_permission: PERMISSIONS.XENDIT },
+  { key: 'api-connect',         label: 'Integrasi & API',       path: '/admin/api-connect',          icon: 'Plug',            group_name: 'Integrasi',          sort_order: 553, required_permission: PERMISSIONS.API_CONNECT },
+  { key: 'system-health',       label: 'System Health',         path: '/admin/system-health',        icon: 'Activity',        group_name: 'Integrasi',          sort_order: 554, required_permission: PERMISSIONS.API_CONNECT },
 
   // ── Pengaturan (1000s) ────────────────────────────────────────────────────
   { key: 'settings',            label: 'Pengaturan Umum',       path: '/admin/settings',             icon: 'Settings',        group_name: 'Pengaturan',         sort_order: 1001, required_permission: PERMISSIONS.SETTINGS },

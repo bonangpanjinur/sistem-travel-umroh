@@ -380,6 +380,7 @@ const AdminWABroadcast = lazy(() => import("@/pages/admin/AdminWABroadcast"));
 // Fase 9 — Integrasi & Otomasi
 const AdminWAOtomatis = lazy(() => import("@/pages/admin/AdminWAOtomatis"));
 const AdminMidtrans = lazy(() => import("@/pages/admin/AdminMidtrans"));
+const AdminXendit = lazy(() => import("@/pages/admin/AdminXendit"));
 const AdminCicilanReminder = lazy(
   () => import("@/pages/admin/AdminCicilanReminder"),
 );
@@ -2136,6 +2137,14 @@ export default function AdminRoutes() {
         element={
           <P k={PERMISSIONS.MIDTRANS}>
             <AdminMidtrans />
+          </P>
+        }
+      />
+      <Route
+        path="xendit"
+        element={
+          <P k={PERMISSIONS.XENDIT}>
+            <AdminXendit />
           </P>
         }
       />
