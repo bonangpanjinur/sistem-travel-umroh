@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Users, AlertTriangle, Megaphone, Calendar, ChevronRight,
   CheckCircle2, Radio, Map, Send, X, BookOpen, Loader2, Clock, History,
+  ClipboardList, UserCheck, XCircle, ChevronDown, Plus, ArrowRight,
 } from "lucide-react";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
@@ -15,6 +16,21 @@ import { useTodayItinerary } from "@/hooks/useTodayItinerary";
 import type { PortalContext } from "@/hooks/usePortalContext";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+
+async function getToken(): Promise<string> {
+  return (await supabase.auth.getSession()).data.session?.access_token ?? "";
+}
+
+const SESSION_TYPES = [
+  { value: "bus_boarding",  emoji: "🚌", label: "Naik Bus"          },
+  { value: "sholat",        emoji: "🕌", label: "Sholat Berjamaah"  },
+  { value: "ziarah",        emoji: "🕋", label: "Ziarah"            },
+  { value: "makan",         emoji: "🍽️", label: "Makan Bersama"    },
+  { value: "hotel_checkin", emoji: "🏨", label: "Check-in Hotel"    },
+  { value: "airport",       emoji: "✈️", label: "Bandara"           },
+  { value: "briefing",      emoji: "📋", label: "Briefing"          },
+  { value: "custom",        emoji: "📌", label: "Lainnya"           },
+];
 
 const MAKKAH = { lat: 21.3891, lng: 39.8579 };
 
@@ -256,6 +272,374 @@ function BroadcastHistoryLog({ departureId }: { departureId: string }) {
   );
 }
 
+// ── Attendance Panel — inline check-in / session management ───────────────
+function AttendancePanel({
+  departureId,
+  onClose,
+}: {
+  departureId: string;
+  onClose: () => void;
+}) {
+  const qc = useQueryClient();
+  const [view, setView] = useState<"sessions" | "attendees">("sessions");
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [activeSessionTitle, setActiveSessionTitle] = useState("");
+  const [showCreate, setShowCreate] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [sessionType, setSessionType] = useState("bus_boarding");
+  const [sessionTitle, setSessionTitle] = useState("");
+  const [sessionLocation, setSessionLocation] = useState("");
+  const [markingId, setMarkingId] = useState<string | null>(null);
+
+  // ── Today's sessions ───────────────────────────────────────────────────
+  const { data: sessions = [], isLoading: sessionsLoading, refetch: refetchSessions } = useQuery({
+    queryKey: ["tl-panel-sessions", departureId],
+    queryFn: async () => {
+      const token = await getToken();
+      const res = await fetch(`/api/v1/guide/sessions/${departureId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const json = await res.json();
+      return (json.sessions ?? []).filter((s: any) => {
+        return new Date(s.created_at).toDateString() === new Date().toDateString();
+      });
+    },
+    enabled: !!departureId,
+    refetchInterval: 15_000,
+  });
+
+  // ── Attendee list for selected session ────────────────────────────────
+  const { data: attendees = [], isLoading: attendeesLoading, refetch: refetchAttendees } = useQuery({
+    queryKey: ["tl-panel-attendance", activeSessionId],
+    queryFn: async () => {
+      const token = await getToken();
+      const res = await fetch(`/api/v1/guide/sessions/${activeSessionId}/attendance`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const json = await res.json();
+      return json.attendance ?? [];
+    },
+    enabled: !!activeSessionId,
+    refetchInterval: 8_000,
+  });
+
+  // ── Create a session ──────────────────────────────────────────────────
+  const handleCreate = async () => {
+    const title = sessionTitle.trim() ||
+      (SESSION_TYPES.find(t => t.value === sessionType)?.label ?? "Sesi Baru");
+    setCreating(true);
+    try {
+      const token = await getToken();
+      const res = await fetch("/api/v1/guide/sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ departure_id: departureId, session_type: sessionType, title, location: sessionLocation }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      toast.success(`Sesi "${title}" dibuat`);
+      setShowCreate(false);
+      setSessionTitle("");
+      setSessionLocation("");
+      refetchSessions();
+      // Go straight to attendee list
+      setActiveSessionId(data.session.id);
+      setActiveSessionTitle(title);
+      setView("attendees");
+    } catch (err: any) {
+      toast.error(err.message || "Gagal membuat sesi");
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  // ── Mark attendance ───────────────────────────────────────────────────
+  const markAttendance = async (customerId: string, status: "present" | "late" | "absent") => {
+    if (!activeSessionId) return;
+    setMarkingId(customerId);
+    try {
+      const token = await getToken();
+      await fetch(`/api/v1/guide/sessions/${activeSessionId}/attendance/${customerId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ status }),
+      });
+      qc.invalidateQueries({ queryKey: ["tl-panel-attendance", activeSessionId] });
+    } catch {
+      toast.error("Gagal update kehadiran");
+    } finally {
+      setMarkingId(null);
+    }
+  };
+
+  // ── counts ────────────────────────────────────────────────────────────
+  const present = attendees.filter((a: any) => a.status === "present").length;
+  const late    = attendees.filter((a: any) => a.status === "late").length;
+  const absent  = attendees.filter((a: any) => a.status === "absent").length;
+  const unmarked = attendees.filter((a: any) => !a.status).length;
+
+  const selectedType = SESSION_TYPES.find(t => t.value === sessionType)!;
+
+  return (
+    <div className="rounded-2xl border bg-card overflow-hidden">
+      {/* Panel header */}
+      <div className="flex items-center justify-between px-4 py-3 bg-green-600 text-white">
+        <div className="flex items-center gap-2">
+          {view === "attendees" ? (
+            <button onClick={() => setView("sessions")} className="p-1 -ml-1 rounded-lg hover:bg-white/20">
+              <ChevronDown className="h-4 w-4 rotate-90" />
+            </button>
+          ) : (
+            <ClipboardList className="h-4 w-4" />
+          )}
+          <p className="font-semibold text-sm">
+            {view === "sessions" ? "Absensi Sesi" : activeSessionTitle}
+          </p>
+        </div>
+        <button onClick={onClose} className="p-1 rounded-lg hover:bg-white/20">
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+
+      {/* ── SESSIONS VIEW ──────────────────────────────────────────────── */}
+      {view === "sessions" && (
+        <div className="p-4 space-y-3">
+          {/* Quick session type selector */}
+          {showCreate ? (
+            <div className="space-y-2.5 border rounded-xl p-3 bg-muted/30">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Sesi Baru</p>
+              {/* Type chips */}
+              <div className="flex flex-wrap gap-1.5">
+                {SESSION_TYPES.map(t => (
+                  <button
+                    key={t.value}
+                    onClick={() => setSessionType(t.value)}
+                    className={cn(
+                      "flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold transition-colors",
+                      sessionType === t.value
+                        ? "bg-green-600 text-white"
+                        : "bg-muted text-muted-foreground hover:bg-muted/80",
+                    )}
+                  >
+                    <span>{t.emoji}</span> {t.label}
+                  </button>
+                ))}
+              </div>
+              {/* Custom title (optional) */}
+              <input
+                type="text"
+                placeholder={`Nama sesi (opsional, default: ${selectedType.label})`}
+                value={sessionTitle}
+                onChange={e => setSessionTitle(e.target.value)}
+                className="w-full rounded-xl border bg-background px-3 py-2 text-[12px] focus:outline-none focus:ring-2 focus:ring-green-500/40"
+              />
+              <input
+                type="text"
+                placeholder="Lokasi (opsional, cth: Bus 1, Masjidil Haram)"
+                value={sessionLocation}
+                onChange={e => setSessionLocation(e.target.value)}
+                className="w-full rounded-xl border bg-background px-3 py-2 text-[12px] focus:outline-none focus:ring-2 focus:ring-green-500/40"
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowCreate(false)}
+                  className="flex-1 py-2 rounded-xl border text-xs font-semibold text-muted-foreground hover:bg-muted transition-colors"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={handleCreate}
+                  disabled={creating}
+                  className="flex-1 py-2 rounded-xl bg-green-600 text-white text-xs font-semibold hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-1.5"
+                >
+                  {creating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+                  {creating ? "Membuat..." : "Buat & Mulai"}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowCreate(true)}
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-dashed border-green-300 dark:border-green-700 text-green-700 dark:text-green-400 text-xs font-semibold hover:bg-green-50 dark:hover:bg-green-950/30 transition-colors"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Buat Sesi Baru
+            </button>
+          )}
+
+          {/* Today's session list */}
+          {sessionsLoading && (
+            <div className="text-center py-4 text-xs text-muted-foreground">Memuat sesi...</div>
+          )}
+          {!sessionsLoading && sessions.length === 0 && !showCreate && (
+            <p className="text-xs text-muted-foreground text-center py-2">Belum ada sesi hari ini.</p>
+          )}
+          <div className="space-y-2">
+            {sessions.map((s: any) => (
+              <button
+                key={s.id}
+                onClick={() => {
+                  setActiveSessionId(s.id);
+                  setActiveSessionTitle(s.title);
+                  setView("attendees");
+                }}
+                className="w-full flex items-center gap-3 p-3 rounded-xl border bg-muted/30 hover:bg-muted/60 text-left transition-colors"
+              >
+                <span className="text-lg">{SESSION_TYPES.find(t => t.value === s.session_type)?.emoji ?? "📌"}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[12px] font-semibold truncate">{s.title}</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {s.location ? `${s.location} · ` : ""}
+                    {s.present_count ?? 0}/{s.total_count ?? "?"} hadir
+                    {s.ended_at ? " · Selesai" : " · Aktif"}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1">
+                  {!s.ended_at && <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />}
+                  <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
+                </div>
+              </button>
+            ))}
+          </div>
+
+          {/* Link to full page */}
+          <Link
+            to="/tour-leader/attendance"
+            className="flex items-center justify-center gap-1.5 pt-1 text-[11px] text-green-700 dark:text-green-400 font-semibold hover:underline"
+          >
+            Buka halaman absensi lengkap <ArrowRight className="h-3 w-3" />
+          </Link>
+        </div>
+      )}
+
+      {/* ── ATTENDEES VIEW ─────────────────────────────────────────────── */}
+      {view === "attendees" && activeSessionId && (
+        <div className="p-4 space-y-3">
+          {/* Summary bar */}
+          <div className="flex gap-2">
+            {[
+              { label: "Hadir",     count: present,  color: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400"  },
+              { label: "Terlambat", count: late,     color: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400"  },
+              { label: "Absen",     count: absent,   color: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400"          },
+              { label: "Belum",     count: unmarked, color: "bg-muted/60 text-muted-foreground"                                     },
+            ].map(s => (
+              <div key={s.label} className={`flex-1 text-center py-1.5 rounded-xl ${s.color}`}>
+                <p className="text-base font-bold leading-none">{s.count}</p>
+                <p className="text-[9px] font-medium mt-0.5">{s.label}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Attendee list */}
+          {attendeesLoading && (
+            <div className="text-center py-4 text-xs text-muted-foreground">Memuat daftar jamaah...</div>
+          )}
+          <div className="space-y-1.5 max-h-80 overflow-y-auto pr-0.5">
+            {attendees.map((a: any) => {
+              const isMarking = markingId === a.customer_id;
+              return (
+                <div
+                  key={a.customer_id ?? a.id}
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors",
+                    a.status === "present" ? "bg-green-50 dark:bg-green-950/20"
+                    : a.status === "late"  ? "bg-amber-50 dark:bg-amber-950/20"
+                    : a.status === "absent"? "bg-red-50 dark:bg-red-950/20"
+                    : "bg-muted/30",
+                  )}
+                >
+                  {/* Status dot */}
+                  <div className={cn(
+                    "w-2.5 h-2.5 rounded-full shrink-0",
+                    a.status === "present" ? "bg-green-500"
+                    : a.status === "late"  ? "bg-amber-500"
+                    : a.status === "absent"? "bg-red-500"
+                    : "bg-muted-foreground/30",
+                  )} />
+                  {/* Name */}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[12px] font-semibold truncate">{a.customer_name || "Jamaah"}</p>
+                    {a.customer_phone && (
+                      <p className="text-[10px] text-muted-foreground">{a.customer_phone}</p>
+                    )}
+                  </div>
+                  {/* Action buttons */}
+                  <div className="flex items-center gap-1 shrink-0">
+                    {isMarking ? (
+                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => markAttendance(a.customer_id, "present")}
+                          title="Hadir"
+                          className={cn(
+                            "p-1.5 rounded-lg transition-colors",
+                            a.status === "present"
+                              ? "bg-green-500 text-white"
+                              : "hover:bg-green-100 dark:hover:bg-green-900/40 text-muted-foreground hover:text-green-600",
+                          )}
+                        >
+                          <CheckCircle2 className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => markAttendance(a.customer_id, "late")}
+                          title="Terlambat"
+                          className={cn(
+                            "p-1.5 rounded-lg transition-colors",
+                            a.status === "late"
+                              ? "bg-amber-500 text-white"
+                              : "hover:bg-amber-100 dark:hover:bg-amber-900/40 text-muted-foreground hover:text-amber-600",
+                          )}
+                        >
+                          <Clock className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => markAttendance(a.customer_id, "absent")}
+                          title="Absen"
+                          className={cn(
+                            "p-1.5 rounded-lg transition-colors",
+                            a.status === "absent"
+                              ? "bg-red-500 text-white"
+                              : "hover:bg-red-100 dark:hover:bg-red-900/40 text-muted-foreground hover:text-red-500",
+                          )}
+                        >
+                          <XCircle className="h-4 w-4" />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {attendees.length === 0 && !attendeesLoading && (
+            <p className="text-xs text-muted-foreground text-center py-3">
+              Daftar jamaah belum tersedia. Jamaah akan muncul setelah mereka scan QR atau TL menambahkan manual.
+            </p>
+          )}
+
+          {/* Refresh + full page */}
+          <div className="flex items-center justify-between pt-1">
+            <button
+              onClick={() => refetchAttendees()}
+              className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-1"
+            >
+              <UserCheck className="h-3 w-3" /> Refresh daftar
+            </button>
+            <Link
+              to="/tour-leader/attendance"
+              className="text-[11px] text-green-700 dark:text-green-400 font-semibold flex items-center gap-1 hover:underline"
+            >
+              Halaman lengkap <ArrowRight className="h-3 w-3" />
+            </Link>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── S19-05: Contextual ibadah guide based on today's itinerary ────────────
 function ContextualGuideCard({ guideKey }: { guideKey: string }) {
   const { data: guide } = useQuery({
@@ -299,6 +683,7 @@ export function TourLeaderActiveView({ ctx }: Props) {
   const dep = ctx.activeDeparture!;
   const queryClient = useQueryClient();
   const [showBroadcastForm, setShowBroadcastForm] = useState(false);
+  const [showAttendancePanel, setShowAttendancePanel] = useState(false);
 
   const { data: itinerary = [], isLoading: itinLoading } = useTodayItinerary(
     dep?.id, dep?.departure_date,
@@ -415,18 +800,18 @@ export function TourLeaderActiveView({ ctx }: Props) {
         {/* Quick actions */}
         <div className="grid grid-cols-3 gap-2">
           {[
-            { to: "/jamaah/rombongan",    icon: Users,         label: "Jamaah",     color: "text-blue-600",   bg: "bg-blue-50 dark:bg-blue-950/40"     },
-            { action: "broadcast",        icon: Megaphone,     label: "Broadcast",  color: "text-violet-600", bg: "bg-violet-50 dark:bg-violet-950/40" },
-            { to: "/jamaah/sos-status",   icon: AlertTriangle, label: "SOS",        color: "text-red-600",    bg: "bg-red-50 dark:bg-red-950/40"       },
-            { to: "/jamaah/transmisi",    icon: CheckCircle2,  label: "Absensi",    color: "text-green-600",  bg: "bg-green-50 dark:bg-green-950/40"   },
-            { to: "/jamaah/itinerary",    icon: Calendar,      label: "Itinerary",  color: "text-amber-600",  bg: "bg-amber-50 dark:bg-amber-950/40"   },
-            { to: "/jamaah/peta-lokasi",  icon: Map,           label: "Peta",       color: "text-teal-600",   bg: "bg-teal-50 dark:bg-teal-950/40"     },
+            { to: "/jamaah/rombongan",   icon: Users,         label: "Jamaah",    color: "text-blue-600",   bg: "bg-blue-50 dark:bg-blue-950/40"     },
+            { action: "broadcast",       icon: Megaphone,     label: "Broadcast", color: "text-violet-600", bg: "bg-violet-50 dark:bg-violet-950/40" },
+            { to: "/jamaah/sos-status",  icon: AlertTriangle, label: "SOS",       color: "text-red-600",    bg: "bg-red-50 dark:bg-red-950/40"       },
+            { action: "attendance",      icon: ClipboardList, label: "Absensi",   color: "text-green-600",  bg: "bg-green-50 dark:bg-green-950/40"   },
+            { to: "/jamaah/itinerary",   icon: Calendar,      label: "Itinerary", color: "text-amber-600",  bg: "bg-amber-50 dark:bg-amber-950/40"   },
+            { to: "/jamaah/peta-lokasi", icon: Map,           label: "Peta",      color: "text-teal-600",   bg: "bg-teal-50 dark:bg-teal-950/40"     },
           ].map((item: any) => {
             if (item.action === "broadcast") {
               return (
                 <button
                   key="broadcast"
-                  onClick={() => setShowBroadcastForm(v => !v)}
+                  onClick={() => { setShowBroadcastForm(v => !v); setShowAttendancePanel(false); }}
                   className={cn(
                     "flex flex-col items-center gap-1.5 p-3 rounded-2xl transition-all active:scale-95",
                     showBroadcastForm
@@ -437,6 +822,25 @@ export function TourLeaderActiveView({ ctx }: Props) {
                   <item.icon className={cn("h-5 w-5", showBroadcastForm ? "text-white" : "text-violet-600")} />
                   <p className={cn("text-[11px] font-semibold", showBroadcastForm ? "text-white" : "text-violet-600")}>
                     Broadcast
+                  </p>
+                </button>
+              );
+            }
+            if (item.action === "attendance") {
+              return (
+                <button
+                  key="attendance"
+                  onClick={() => { setShowAttendancePanel(v => !v); setShowBroadcastForm(false); }}
+                  className={cn(
+                    "flex flex-col items-center gap-1.5 p-3 rounded-2xl transition-all active:scale-95",
+                    showAttendancePanel
+                      ? "bg-green-600 text-white ring-2 ring-green-400"
+                      : "bg-green-50 dark:bg-green-950/40",
+                  )}
+                >
+                  <item.icon className={cn("h-5 w-5", showAttendancePanel ? "text-white" : "text-green-600")} />
+                  <p className={cn("text-[11px] font-semibold", showAttendancePanel ? "text-white" : "text-green-600")}>
+                    Absensi
                   </p>
                 </button>
               );
@@ -462,6 +866,14 @@ export function TourLeaderActiveView({ ctx }: Props) {
           <BroadcastForm
             departureId={dep.id}
             onClose={() => setShowBroadcastForm(false)}
+          />
+        )}
+
+        {/* Attendance panel (inline, toggle) */}
+        {showAttendancePanel && dep?.id && (
+          <AttendancePanel
+            departureId={dep.id}
+            onClose={() => setShowAttendancePanel(false)}
           />
         )}
 
