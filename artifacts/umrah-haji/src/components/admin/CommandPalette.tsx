@@ -46,6 +46,7 @@ const keywordMap: Record<string, string> = {
   'finance/budget': 'budget anggaran vs aktual realisasi',
   'finance/rekonsiliasi': 'rekonsiliasi bank reconciliation',
   'finance/laporan-pajak': 'laporan pajak ppn pph tax report',
+  'finance/hpp-terpadu': 'hpp terpadu harga pokok penjualan biaya keberangkatan margin paket',
   'leads': 'prospek calon pelanggan crm',
   'coupons': 'diskon promo kupon',
   'landing-pages': 'landing page website',

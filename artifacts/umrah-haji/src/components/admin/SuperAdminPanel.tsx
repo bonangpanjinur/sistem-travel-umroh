@@ -75,6 +75,7 @@ const SHORTCUT_SECTIONS: { title: string; shortcuts: Shortcut[] }[] = [
       { label: 'Budget',          path: '/admin/finance/budget',             icon: TrendingUp, color: 'bg-amber-100 text-amber-600' },
       { label: 'Rekonsiliasi',    path: '/admin/finance/rekonsiliasi',       icon: BarChart3,  color: 'bg-purple-100 text-purple-600' },
       { label: 'Laporan Pajak',   path: '/admin/finance/laporan-pajak',      icon: FileText,   color: 'bg-orange-100 text-orange-600' },
+      { label: 'HPP Terpadu',    path: '/admin/finance/hpp-terpadu',        icon: Package,    color: 'bg-rose-100 text-rose-600' },
       { label: 'Laporan',         path: '/admin/reports',                    icon: BarChart3,  color: 'bg-blue-100 text-blue-600' },
       { label: 'Lap. Lanjutan',   path: '/admin/advanced-reports',           icon: TrendingUp, color: 'bg-sky-100 text-sky-600' },
     ],

@@ -222,85 +222,74 @@
 
 ---
 
-### 🟡 FASE SEDANG — Dashboard & Analitik ❌ BELUM DIKERJAKAN
+### 🟡 FASE SEDANG — Dashboard & Analitik ✅ SEMUA SELESAI
 
-#### ❌ INT-10: AdminFinanceTerpadu — Upgrade Data Sources
-**Prioritas:** SEDANG | **Effort:** M | **Status:** Belum dikerjakan
+#### ✅ INT-10: AdminFinanceTerpadu — Upgrade Data Sources — SELESAI
+**Prioritas:** SEDANG | **Effort:** M | **Status:** ✅ SELESAI (10 Juni 2026)
 **Dependensi:** INT-01 ✅, INT-03 ✅
 
-`AdminFinanceTerpadu.tsx` (executive dashboard) perlu:
-- Gunakan data dari `v_financial_summary` yang sudah diupgrade (INT-01)
-- Tambahkan panel: **HPP Plan vs Realisasi Total** (dari departure_cost_items vs departure_expenses)
-- Tambahkan panel: **Biaya SDM** (dari payroll_records)
-- Tambahkan KPI: **Net Margin per Keberangkatan** (top 5 terbaik & terburuk)
+`AdminFinanceTerpadu.tsx` sudah diupgrade:
+- 3 query paralel: `payments`, `v_financial_summary`, `payroll_records`
+- KPI rows: Revenue, HPP Plan, HPP Realisasi, Gross Margin, SDM Cost, Net Margin
+- 5 tab: Cashflow, Comparison (HPP Plan vs Realisasi), AR aging, HPP detail, SDM breakdown
 
 ---
 
-#### ❌ INT-11: Working Capital per Keberangkatan
-**Prioritas:** SEDANG | **Effort:** L | **Status:** Belum dikerjakan
+#### ✅ INT-11: Working Capital per Keberangkatan — SELESAI
+**Prioritas:** SEDANG | **Effort:** L | **Status:** ✅ SELESAI (10 Juni 2026)
 **Dependensi:** INT-02 ✅
 
-Halaman baru atau tab di AdminDepartureDetail: **"Cash Timing"**
+Tab baru "Cash Timing" di AdminDepartureDetail:
+- Chart kas mingguan (inflows vs outflows per minggu)
+- Alert otomatis jika saldo proyeksi negatif atau ada vendor overdue
+- Tabel piutang jamaah (booking_installment_schedules) + kewajiban vendor (vendor_costs)
 
-Timeline per keberangkatan:
-```
-[DP Terkumpul] → [Pelunasan] → [Bayar Hotel] → [Bayar Tiket] → [Bayar Visa] → [Keberangkatan]
-     ↑                ↑              ↑                ↑               ↑
-  payments         payments      vendor_cost       vendor_cost    vendor_cost
-```
-
-Fitur:
-- Proyeksi cash in: cicilan jamaah tersisa (dari booking_installment_schedules)
-- Proyeksi cash out: vendor_costs jatuh tempo (departure_budgets × dates)
-- Chart: saldo kas khusus keberangkatan ini per minggu
-- Alert: jika projected saldo negatif sebelum keberangkatan
-
-**File baru:**
-- `artifacts/umrah-haji/src/components/departure/DepartureCashTimingTab.tsx`
+**File:**
+- `artifacts/umrah-haji/src/components/departure/DepartureCashTimingTab.tsx` ✅ CREATED
 
 ---
 
-#### ❌ INT-12: Laporan HPP Terpadu (HPP per Paket, per Periode)
-**Prioritas:** SEDANG | **Effort:** M | **Status:** Belum dikerjakan
+#### ✅ INT-12: Laporan HPP Terpadu (HPP per Paket, per Periode) — SELESAI
+**Prioritas:** SEDANG | **Effort:** M | **Status:** ✅ SELESAI (10 Juni 2026)
 **Dependensi:** INT-01 ✅, INT-02 ✅
 
-Halaman baru: `/admin/finance/hpp-terpadu` → `AdminHPPTerpadu.tsx`
+Halaman baru `/admin/finance/hpp-terpadu` → `AdminHPPTerpadu.tsx`:
+- 3 tab: Per Keberangkatan (sortable table), Per Paket (bar chart + table), Tren Bulanan (bar + line chart % margin)
+- KPI cards: HPP Rencana, HPP Realisasi, Total Pendapatan, Rata-rata Margin
+- Filter tahun, search nama paket, export CSV
+- Terintegrasi ke sidebar Akuntansi dan Command Palette
 
-Fitur:
-- HPP per Keberangkatan: tabel semua departure, kolom HPP Plan vs Realisasi vs Margin
-- HPP per Paket: rata-rata HPP per package type (Umroh Economy vs VIP vs Haji)
-- Trend HPP: grafik perubahan HPP per kategori dari waktu ke waktu
-- Export Excel untuk analisis lebih lanjut
+**File:**
+- `artifacts/umrah-haji/src/pages/admin/AdminHPPTerpadu.tsx` ✅ CREATED
+- Route: `/admin/finance/hpp-terpadu` ✅ ADDED
+- Sidebar menu: `admin-menu-registry.ts` (Akuntansi group, sort_order 550) ✅ ADDED
 
 ---
 
-#### ❌ INT-13: Auto AR Reminder (Cron Job)
-**Prioritas:** SEDANG | **Effort:** S | **Status:** Belum dikerjakan
+#### ✅ INT-13: Auto AR Reminder (Cron Job) — SELESAI
+**Prioritas:** SEDANG | **Effort:** S | **Status:** ✅ SELESAI (10 Juni 2026)
 **Dependensi:** Backend cron infrastructure sudah ada
 
-Tambahkan cron job di `artifacts/api-server/src/cron/` atau extend `paymentReminder.ts`:
-
-```typescript
-// Cron: setiap hari 09:00 WIB — AR reminder otomatis
-const sendARReminders = async () => {
-  // H-7 dari due_date cicilan
-  // H+1, H+3, H+7 overdue
-  // Kirim WhatsApp via Fonnte API untuk setiap jamaah
-};
-```
+Implementasi:
+- Fungsi `runAROverdueReminders()` di `artifacts/api-server/src/routes/reminders.ts`
+- Query booking dengan `remaining_amount > 0` + deadline H-7 atau H+1/H+3/H+7 overdue
+- Pesan WA berbeda untuk approaching deadline vs overdue
+- Log ke `wa_logs` dengan `trigger_type = 'ar_reminder'`
+- **Cron terdaftar jam 09:30 WIB (02:30 UTC)** — terkonfirmasi di log server
+- Endpoint manual: `POST /api/reminders/run` dengan body `{ "type": "ar_overdue" }`
+- Migration 086: index wa_logs untuk performa query AR reminder
 
 ---
 
-#### ❌ INT-14: departure_expenses Approval Workflow
-**Prioritas:** SEDANG | **Effort:** M | **Status:** Belum dikerjakan
-**Dependensi:** Tidak ada
-**Catatan:** Kolom approval (`approval_status`, `approved_by`, `approved_at`) sudah ditambahkan ke `departure_expenses` via `20260709_finance_integration.sql` — tinggal UI workflow-nya.
+#### ✅ INT-14: departure_expenses Approval Workflow — SELESAI
+**Prioritas:** SEDANG | **Effort:** M | **Status:** ✅ SELESAI (10 Juni 2026)
 
-Langkah yang masih diperlukan:
-1. Staff operational input departure_expense (status = 'pending_approval')
-2. Manager/Branch Manager approve → status = 'approved'
-3. Setelah approved → expense masuk ke laporan keuangan
-4. Notifikasi ke finance manager
+Implementasi:
+- `DepartureExpensesCard.tsx` diupgrade penuh dengan 4 tab (Semua, Pending, Disetujui, Ditolak)
+- Badge approval_status + tombol Setuju/Tolak per item
+- `DepartureExpenseForm.tsx`: insert baru otomatis set `approval_status: 'pending_approval'`
+- Update `approved_by` + `approved_at` saat manager approve
+- Migration 085: kolom `approval_status`, `approved_by`, `approved_at` pada `departure_expenses` (4/4 statements OK)
 
 ---
 
@@ -358,12 +347,12 @@ FASE PENTING (Otomasi Biaya) — ✅ SEMUA SELESAI:
   ✅ INT-08 → departure_budgets → AdminBudget konsolidasi
   ✅ INT-09 → Payroll → Laporan Pajak PPh21 (+ tab 1721-A1 per karyawan)
 
-FASE SEDANG (Dashboard & Analitik) — ❌ BELUM DIKERJAKAN:
-  ❌ INT-10 → AdminFinanceTerpadu upgrade (dependensi terpenuhi)
-  ❌ INT-11 → Working Capital per Keberangkatan
-  ❌ INT-12 → Laporan HPP Terpadu
-  ❌ INT-13 → Auto AR Reminder cron job
-  ❌ INT-14 → departure_expenses Approval Workflow (kolom DB sudah ada)
+FASE SEDANG (Dashboard & Analitik) — ✅ SEMUA SELESAI:
+  ✅ INT-10 → AdminFinanceTerpadu upgrade (3 query + 5 tab + KPI rows)
+  ✅ INT-11 → Working Capital per Keberangkatan (DepartureCashTimingTab)
+  ✅ INT-12 → Laporan HPP Terpadu (AdminHPPTerpadu + route + sidebar)
+  ✅ INT-13 → Auto AR Reminder cron @09:30 WIB + runAROverdueReminders()
+  ✅ INT-14 → departure_expenses Approval Workflow (4-tab UI + migration 085)
 
 FASE LANJUTAN (Peningkatan Analitik) — ❌ BELUM DIKERJAKAN:
   ❌ INT-15 → Package Profitability Benchmark
@@ -371,9 +360,8 @@ FASE LANJUTAN (Peningkatan Analitik) — ❌ BELUM DIKERJAKAN:
   ❌ INT-17 → Finance KPI Dashboard Widget
 ```
 
-**Progress keseluruhan: 9 / 17 item selesai (53%)**
-**Semua fondasi data (INT-01–04) dan otomasi biaya (INT-05–09) sudah selesai.**
-**Item tersisa semuanya di kategori dashboard, analitik, dan fitur lanjutan.**
+**Progress keseluruhan: 14 / 17 item selesai (82%)**
+**INT-01–14 semua sudah selesai. Tersisa 3 item di FASE LANJUTAN (INT-15–17).**
 
 ---
 
@@ -418,12 +406,12 @@ Biaya Kantor      cash_transactions(out)      finance_budgets             AdminB
 | `084_v_financial_summary_v2.sql` | Recreate VIEW dengan departure_cost_items + departure_expenses + margin | INT-01 | ✅ |
 | `20260709_finance_integration.sql` | `pph21_amount`/`pph21_annual` ke payroll_records; approval cols ke departure_expenses; recreate v_financial_summary; 6 indexes | INT-09, INT-14 prep | ✅ (perlu dijalankan di Supabase) |
 
-## SQL Migrations yang Masih Diperlukan
+## SQL Migrations yang Sudah Dijalankan (Terbaru)
 
-| Migration | Isi | Terkait |
-|-----------|-----|---------|
-| `085_departure_expense_approval_ui.sql` | Trigger notifikasi + RLS policy untuk approval workflow | INT-14 |
-| `086_ar_reminder_log.sql` | Tabel log pengiriman reminder AR | INT-13 |
+| Migration | Isi | Terkait | Status |
+|-----------|-----|---------|--------|
+| `085_departure_expense_approval.sql` | `ADD COLUMN IF NOT EXISTS approval_status/approved_by/approved_at` + backfill existing records ke 'approved' + 2 index | INT-14 | ✅ 4/4 OK |
+| `086_ar_reminder_log.sql` | Index `wa_logs(trigger_type, created_at)` + `wa_logs(recipient_phone, trigger_type)` untuk performa AR reminder | INT-13 | ✅ (non-fatal jika wa_logs belum ada) |
 
 ---
 

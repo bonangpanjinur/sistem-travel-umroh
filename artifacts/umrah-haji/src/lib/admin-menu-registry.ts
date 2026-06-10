@@ -89,6 +89,7 @@ export const RECOMMENDED_MENUS: AdminMenuItem[] = [
   { key: 'budget',              label: 'K-11 Anggaran & Budget', path: '/admin/finance/budget',       icon: 'Target',          group_name: 'Akuntansi',          sort_order: 547, required_permission: PERMISSIONS.BUDGET },
   { key: 'rekonsiliasi',        label: 'K-12 Rekonsiliasi Bank', path: '/admin/finance/rekonsiliasi', icon: 'ClipboardCheck',  group_name: 'Akuntansi',          sort_order: 548, required_permission: PERMISSIONS.REKONSILIASI },
   { key: 'laporan-pajak',       label: 'K-13 Laporan Pajak',    path: '/admin/finance/laporan-pajak', icon: 'Receipt',         group_name: 'Akuntansi',          sort_order: 549, required_permission: PERMISSIONS.LAPORAN_PAJAK },
+  { key: 'hpp-terpadu',         label: 'HPP Terpadu',           path: '/admin/finance/hpp-terpadu',   icon: 'Package',         group_name: 'Akuntansi',          sort_order: 550, required_permission: PERMISSIONS.LAPORAN_PAJAK },
 
   // ── Laporan (520s) ────────────────────────────────────────────────────────
   { key: 'finance',             label: 'Laporan P&L',           path: '/admin/finance',              icon: 'TrendingUp',      group_name: 'Laporan',            sort_order: 521, required_permission: PERMISSIONS.FINANCE },
@@ -232,7 +233,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
     'virtual-account', 'cicilan-reminder', 'cicilan-generator', 'wa-blast-tagihan',
     'coa',
     'jurnal-umum', 'buku-besar', 'neraca-saldo', 'laba-rugi', 'neraca',
-    'arus-kas', 'budget', 'rekonsiliasi', 'laporan-pajak',
+    'arus-kas', 'budget', 'rekonsiliasi', 'laporan-pajak', 'hpp-terpadu',
   ],
 
   sales: [

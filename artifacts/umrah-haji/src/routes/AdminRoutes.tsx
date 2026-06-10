@@ -914,7 +914,7 @@ export default function AdminRoutes() {
       <Route
         path="finance/hpp-terpadu"
         element={
-          <P k={PERMISSIONS.FINANCE_PL}>
+          <P k={PERMISSIONS.LAPORAN_PAJAK}>
             <LazyPage>
               <AdminHPPTerpadu />
             </LazyPage>
