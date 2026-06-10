@@ -15,7 +15,6 @@ import { useTodayItinerary } from "@/hooks/useTodayItinerary";
 import type { PortalContext } from "@/hooks/usePortalContext";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { useAuth } from "@/hooks/useAuth";
 
 const MAKKAH = { lat: 21.3891, lng: 39.8579 };
 
@@ -29,41 +28,11 @@ function BroadcastForm({
   departureId: string;
   onClose: () => void;
 }) {
-  const { user } = useAuth();
   const queryClient = useQueryClient();
   const [message, setMessage] = useState("");
 
   const broadcast = useMutation({
-    mutationFn: async (msg: string) => {
-      // 1. Get all customer_ids in this departure
-      const { data: bookings, error: bErr } = await (supabase as any)
-        .from("bookings")
-        .select("customer_id, customers(id, user_id)")
-        .eq("departure_id", departureId)
-        .eq("booking_status", "confirmed");
-      if (bErr) throw bErr;
-
-      if (!bookings?.length) throw new Error("Tidak ada jamaah aktif");
-
-      // 2. Insert customer_notifications for each jamaah
-      const notifs = bookings
-        .filter((b: any) => b.customers?.id)
-        .map((b: any) => ({
-          customer_id: b.customers.id,
-          title: "📢 Pengumuman Tour Leader",
-          message: msg,
-          type: "announcement",
-          is_read: false,
-          created_at: new Date().toISOString(),
-        }));
-
-      const { error: nErr } = await (supabase as any)
-        .from("customer_notifications")
-        .insert(notifs);
-      if (nErr) throw nErr;
-
-      return notifs.length;
-    },
+    mutationFn: (msg: string) => sendBroadcast(departureId, msg),
     onSuccess: (count) => {
       toast.success(`✅ Pesan terkirim ke ${count} jamaah`);
       setMessage("");
@@ -117,12 +86,42 @@ function BroadcastForm({
   );
 }
 
+// ── Shared broadcast sender — used by BroadcastForm and resend ────────────
+async function sendBroadcast(departureId: string, msg: string): Promise<number> {
+  const { data: bookings, error: bErr } = await (supabase as any)
+    .from("bookings")
+    .select("customer_id, customers(id)")
+    .eq("departure_id", departureId)
+    .eq("booking_status", "confirmed");
+  if (bErr) throw bErr;
+  if (!bookings?.length) throw new Error("Tidak ada jamaah aktif");
+
+  const notifs = bookings
+    .filter((b: any) => b.customers?.id)
+    .map((b: any) => ({
+      customer_id: b.customers.id,
+      title: "📢 Pengumuman Tour Leader",
+      message: msg,
+      type: "announcement",
+      is_read: false,
+      created_at: new Date().toISOString(),
+    }));
+
+  const { error: nErr } = await (supabase as any)
+    .from("customer_notifications")
+    .insert(notifs);
+  if (nErr) throw nErr;
+  return notifs.length;
+}
+
 // ── Broadcast History Log — last 5 unique announcements ───────────────────
 function BroadcastHistoryLog({ departureId }: { departureId: string }) {
+  const queryClient = useQueryClient();
+  const [resendingId, setResendingId] = useState<string | null>(null);
+
   const { data: history = [], isLoading } = useQuery({
     queryKey: ["broadcast-history", departureId],
     queryFn: async () => {
-      // Fetch recent announcements for any jamaah in this departure
       const { data: bookings } = await (supabase as any)
         .from("bookings")
         .select("customer_id")
@@ -144,12 +143,10 @@ function BroadcastHistoryLog({ departureId }: { departureId: string }) {
 
       if (!notifs?.length) return [];
 
-      // Deduplicate: same message sent to multiple jamaah at ~same time
-      // Keep first occurrence of each unique (message + minute bucket)
       const seen = new Set<string>();
       const unique: Array<{ id: string; message: string; created_at: string }> = [];
       for (const n of notifs) {
-        const minute = n.created_at?.slice(0, 16); // "2025-01-15T08:30"
+        const minute = n.created_at?.slice(0, 16);
         const key = `${minute}::${n.message}`;
         if (!seen.has(key)) {
           seen.add(key);
@@ -161,6 +158,21 @@ function BroadcastHistoryLog({ departureId }: { departureId: string }) {
     },
     staleTime: 30_000,
     enabled: !!departureId,
+  });
+
+  const resend = useMutation({
+    mutationFn: ({ id, message }: { id: string; message: string }) => {
+      setResendingId(id);
+      return sendBroadcast(departureId, message);
+    },
+    onSuccess: (count) => {
+      toast.success(`✅ Pesan dikirim ulang ke ${count} jamaah`);
+      queryClient.invalidateQueries({ queryKey: ["broadcast-history", departureId] });
+    },
+    onError: (err: any) => {
+      toast.error(err.message || "Gagal mengirim ulang");
+    },
+    onSettled: () => setResendingId(null),
   });
 
   if (isLoading) return null;
@@ -200,24 +212,43 @@ function BroadcastHistoryLog({ departureId }: { departureId: string }) {
             }`}
           >
             <div className="mt-0.5 shrink-0">
-              <div className={`w-2 h-2 rounded-full ${idx === 0 ? "bg-violet-500" : "bg-muted-foreground/40"}`} />
+              <div className={`w-2 h-2 rounded-full mt-1.5 ${idx === 0 ? "bg-violet-500" : "bg-muted-foreground/40"}`} />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-[12px] leading-relaxed text-foreground line-clamp-2">
                 {item.message}
               </p>
-              <div className="flex items-center gap-1 mt-1">
+              <div className="flex items-center gap-1 mt-1.5 flex-wrap">
                 <Clock className="h-3 w-3 text-muted-foreground" />
                 <p className="text-[10px] text-muted-foreground">
                   {format(new Date(item.created_at), "d MMM, HH:mm", { locale: id })}
                 </p>
                 {idx === 0 && (
-                  <span className="ml-1 px-1.5 py-0.5 rounded-full bg-violet-100 dark:bg-violet-900/50 text-[9px] font-semibold text-violet-700 dark:text-violet-300">
+                  <span className="ml-0.5 px-1.5 py-0.5 rounded-full bg-violet-100 dark:bg-violet-900/50 text-[9px] font-semibold text-violet-700 dark:text-violet-300">
                     Terbaru
                   </span>
                 )}
               </div>
             </div>
+            {/* Resend button */}
+            <button
+              onClick={() => resend.mutate({ id: item.id, message: item.message })}
+              disabled={resend.isPending}
+              title="Kirim ulang ke semua jamaah"
+              className={cn(
+                "shrink-0 self-center flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] font-semibold transition-all active:scale-95",
+                resendingId === item.id
+                  ? "bg-violet-200 dark:bg-violet-800 text-violet-700 dark:text-violet-300 cursor-wait"
+                  : "bg-violet-100 dark:bg-violet-900/60 text-violet-700 dark:text-violet-300 hover:bg-violet-200 dark:hover:bg-violet-800",
+              )}
+            >
+              {resendingId === item.id ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <Send className="h-3 w-3" />
+              )}
+              {resendingId === item.id ? "" : "Kirim"}
+            </button>
           </div>
         ))}
       </div>
