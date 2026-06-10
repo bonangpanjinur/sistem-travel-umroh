@@ -19,7 +19,7 @@
 | K-07 | AR Aging Analysis | `/admin/finance/ar` | AdminFinanceAR.tsx | ✅ DONE (aging cards + filter + kolom) |
 | K-08 | AP Kalender Jatuh Tempo | `/admin/finance/ap` | AdminFinanceAP.tsx | ✅ DONE (tab kalender + timeline) |
 | K-09 | Kas Proyeksi 30 Hari | `/admin/finance-cash` | AdminFinanceCash.tsx | ✅ DONE (tab proyeksi + alert negatif) |
-| K-10 | COA Integrasi Transaksi | — | `40_accounting_tables.sql` | ✅ DONE (account_code di cash_transactions, payments, vendor_costs) |
+| K-10 | COA Integrasi Transaksi | — | `40_accounting_tables.sql` + `41_auto_journal_triggers.sql` | ✅ DONE PENUH (account_code + DB triggers auto-journal double-entry) |
 | K-11 | Budget vs Aktual | `/admin/finance/budget` | AdminBudget.tsx | ✅ DONE |
 | K-12 | Rekonsiliasi Bank | `/admin/finance/rekonsiliasi` | AdminRekonsiliasi.tsx | ✅ DONE |
 | K-13 | Laporan Pajak | `/admin/finance/laporan-pajak` | AdminLaporanPajak.tsx | ✅ DONE (PPN + PPh 21/23) |

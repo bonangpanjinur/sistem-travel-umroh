@@ -839,6 +839,23 @@ export async function runMigrations(): Promise<void> {
       logger.info("runMigrations: 40_accounting_tables — already applied, skipping");
     }
 
+    // ── Step 41: Auto-journal triggers — double-entry posting dari payments, cash_transactions, vendor_costs ──
+    const autoJournalTriggersApplied = await isApplied(client, "41_auto_journal_triggers");
+    if (!autoJournalTriggersApplied) {
+      try {
+        await runSqlFile(
+          client,
+          sqlPath("41_auto_journal_triggers.sql"),
+          "41_auto_journal_triggers (auto double-entry journal dari payments/cash_transactions/vendor_costs + backfill)",
+        );
+        await markApplied(client, "41_auto_journal_triggers");
+      } catch (e: any) {
+        logger.warn({ err: e?.message }, "runMigrations: 41_auto_journal_triggers — skipping (non-fatal)");
+      }
+    } else {
+      logger.info("runMigrations: 41_auto_journal_triggers — already applied, skipping");
+    }
+
     // ── Step 1g: trip_timeline v2 schema (add day_number, activity_type, etc) ─
     const tripTimelineV2Applied = await isApplied(client, "07_trip_timeline_v2");
     if (!tripTimelineV2Applied) {
