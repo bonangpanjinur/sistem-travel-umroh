@@ -136,16 +136,14 @@ export default function AdminPackages() {
         .from('packages')
         .select(`
           *,
-          airline:airlines(name),
-          hotel_makkah:hotels!packages_hotel_makkah_id_fkey(name, star_rating),
-          hotel_madinah:hotels!packages_hotel_madinah_id_fkey(name, star_rating),
-          package_type_ref:package_types(name),
-          package_group:package_groups(id, name, color, slug),
           departures(id, departure_date, quota, booked_count, status, price_quad, price_triple, price_double, price_single)
         `)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('[admin-packages] query error:', error);
+        throw error;
+      }
       return data;
     },
   });
