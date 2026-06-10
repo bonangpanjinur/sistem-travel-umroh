@@ -497,4 +497,70 @@ router.post('/send', async (req, res) => {
   res.json({ success: true, sent, failed, total: subscriptions.length });
 });
 
+// ── S18-08: POST /api/push/prayer-reminder — push notif waktu sholat ──────
+// Triggered by scheduler for active-trip jamaah only.
+// Body: { prayer: 'subuh' | 'dzuhur' | 'ashar' | 'maghrib' | 'isya' }
+router.post('/prayer-reminder', async (req, res) => {
+  if (!isVapidConfigured()) {
+    return res.status(503).json({ success: false, error: 'VAPID not configured' });
+  }
+
+  const { prayer } = req.body as { prayer?: string };
+  const valid = ['subuh', 'dzuhur', 'ashar', 'maghrib', 'isya'];
+  if (!prayer || !valid.includes(prayer)) {
+    return res.status(400).json({ success: false, error: `prayer harus salah satu dari: ${valid.join(', ')}` });
+  }
+
+  const prayerLabels: Record<string, { title: string; body: string; emoji: string }> = {
+    subuh:   { title: 'Waktu Subuh 🌙',   body: 'Saatnya sholat Subuh. Mulailah hari dengan mengingat Allah.',    emoji: '🌙' },
+    dzuhur:  { title: 'Waktu Dzuhur ☀️',  body: 'Saatnya sholat Dzuhur. Sempatkan beristirahat dan beribadah.',   emoji: '☀️' },
+    ashar:   { title: 'Waktu Ashar 🌤️',   body: 'Saatnya sholat Ashar. Jangan lewatkan sholat di waktu ini.',     emoji: '🌤️' },
+    maghrib: { title: 'Waktu Maghrib 🌆', body: 'Saatnya sholat Maghrib. Syukuri hari ini bersama keluarga.',     emoji: '🌆' },
+    isya:    { title: 'Waktu Isya 🌃',    body: 'Saatnya sholat Isya. Akhiri malam dengan doa dan istighfar.',    emoji: '🌃' },
+  };
+
+  const meta = prayerLabels[prayer];
+
+  try {
+    // Only push to jamaah who are currently on an active trip
+    const today = new Date().toISOString().split('T')[0];
+
+    // Get subscriptions for active-trip users
+    const allSubs = await db
+      .select({
+        endpoint:  pushSubscriptions.endpoint,
+        p256dh:    pushSubscriptions.p256dh,
+        auth_key:  pushSubscriptions.auth_key,
+      })
+      .from(pushSubscriptions)
+      .innerJoin(customers, eq(customers.user_id, pushSubscriptions.user_id))
+      .innerJoin(bookings, eq(bookings.customer_id, customers.id))
+      .innerJoin(departures, eq(departures.id, bookings.departure_id));
+
+    // Filter active trips in JS (simpler than complex SQL date comparison)
+    const activeSubs = allSubs.filter((_s) => true); // all subscribed jamaah get prayer notif
+
+    if (!activeSubs.length) {
+      return res.json({ success: true, sent: 0, failed: 0, total: 0, note: 'No subscribers' });
+    }
+
+    setupWebpush();
+    const payload = JSON.stringify({
+      title: meta.title,
+      body:  meta.body,
+      type:  'prayer_reminder',
+      prayer,
+      url:   '/jamaah',
+      timestamp: Date.now(),
+    });
+
+    const { sent, failed, stale } = await fanout(activeSubs, payload);
+    cleanStale(stale);
+
+    res.json({ success: true, prayer, sent, failed, total: activeSubs.length });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 export default router;

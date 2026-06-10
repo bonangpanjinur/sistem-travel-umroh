@@ -7,7 +7,9 @@ import { JamaahOnTripView }      from "@/pages/jamaah/views/JamaahOnTripView";
 import { JamaahOffTripView }     from "@/pages/jamaah/views/JamaahOffTripView";
 import { JamaahUpcomingView }    from "@/pages/jamaah/views/JamaahUpcomingView";
 import { MuthawifActiveView }    from "@/pages/jamaah/views/MuthawifActiveView";
+import { MuthawifOffView }       from "@/pages/jamaah/views/MuthawifOffView";
 import { TourLeaderActiveView }  from "@/pages/jamaah/views/TourLeaderActiveView";
+import { TourLeaderOffView }     from "@/pages/jamaah/views/TourLeaderOffView";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { usePWAMode } from "@/hooks/usePWAMode";
 import { usePWAConfig } from "@/hooks/usePWAConfig";
@@ -356,8 +358,10 @@ export default function JamaahPortal() {
 
   // ── Early returns: route to role/mode-specific view ──────────────────────
   if (!ctx.isLoading) {
-    if (ctx.isMuthawif && ctx.activeDeparture)  return <MuthawifActiveView ctx={ctx} />;
+    if (ctx.isMuthawif && ctx.activeDeparture)   return <MuthawifActiveView ctx={ctx} />;
+    if (ctx.isMuthawif && !ctx.activeDeparture)  return <MuthawifOffView ctx={ctx} />;
     if (ctx.isTourLeader && ctx.activeDeparture) return <TourLeaderActiveView ctx={ctx} />;
+    if (ctx.isTourLeader && !ctx.activeDeparture) return <TourLeaderOffView ctx={ctx} />;
     if (ctx.isJamaah && ctx.tripMode === "ON_TRIP" && ctx.trip) return <JamaahOnTripView ctx={ctx} />;
     if (ctx.isJamaah && (ctx.tripMode === "UPCOMING" || ctx.tripMode === "PREPARING") && ctx.trip) return <JamaahUpcomingView ctx={ctx} />;
     if (ctx.isJamaah && (ctx.tripMode === "OFF_TRIP" || ctx.tripMode === "COMPLETED")) return <JamaahOffTripView ctx={ctx} />;

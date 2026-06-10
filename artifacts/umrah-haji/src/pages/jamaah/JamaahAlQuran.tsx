@@ -9,18 +9,54 @@ import { BookOpen, Search, Heart, Play, Pause } from "lucide-react";
 import { JamaahAppShell } from "@/components/jamaah/shell/JamaahAppShell";
 import { JamaahPageHeader } from "@/components/jamaah/shell/JamaahPageHeader";
 
-// Data surah pendek yang populer (hardcoded untuk offline support)
+// Data surah lengkap: populer + seluruh Juz 30 (S18-06: offline support)
 const SURAH_LIST = [
-  { id: 1, name: "Al-Fatihah", arabic: "الفاتحة", verses: 7, category: "Makkiyah", meaning: "Pembuka" },
-  { id: 36, name: "Yasin", arabic: "يس", verses: 83, category: "Makkiyah", meaning: "Yasin" },
-  { id: 55, name: "Ar-Rahman", arabic: "الرحمن", verses: 78, category: "Makkiyah", meaning: "Yang Maha Pengasih" },
-  { id: 67, name: "Al-Mulk", arabic: "الملك", verses: 30, category: "Makkiyah", meaning: "Kerajaan" },
-  { id: 112, name: "Al-Ikhlas", arabic: "الإخلاص", verses: 4, category: "Makkiyah", meaning: "Ikhlas" },
-  { id: 113, name: "Al-Falaq", arabic: "الفلق", verses: 5, category: "Makkiyah", meaning: "Waktu Shubuh" },
-  { id: 114, name: "An-Nas", arabic: "الناس", verses: 6, category: "Makkiyah", meaning: "Manusia" },
-  { id: 18, name: "Al-Kahf", arabic: "الكهف", verses: 110, category: "Makkiyah", meaning: "Gua" },
-  { id: 2, name: "Al-Baqarah", arabic: "البقرة", verses: 286, category: "Madaniyah", meaning: "Sapi Betina" },
-  { id: 32, name: "As-Sajdah", arabic: "السجدة", verses: 30, category: "Makkiyah", meaning: "Sujud" },
+  // ── Populer ────────────────────────────────────────────────────────────────
+  { id: 1,   name: "Al-Fatihah",   arabic: "الفاتحة",  verses: 7,   category: "Makkiyah",  meaning: "Pembuka",            juz: 1  },
+  { id: 2,   name: "Al-Baqarah",   arabic: "البقرة",   verses: 286, category: "Madaniyah", meaning: "Sapi Betina",        juz: 1  },
+  { id: 18,  name: "Al-Kahf",      arabic: "الكهف",    verses: 110, category: "Makkiyah",  meaning: "Gua",                juz: 15 },
+  { id: 32,  name: "As-Sajdah",    arabic: "السجدة",   verses: 30,  category: "Makkiyah",  meaning: "Sujud",              juz: 21 },
+  { id: 36,  name: "Yasin",        arabic: "يس",       verses: 83,  category: "Makkiyah",  meaning: "Yasin",              juz: 22 },
+  { id: 55,  name: "Ar-Rahman",    arabic: "الرحمن",   verses: 78,  category: "Makkiyah",  meaning: "Yang Maha Pengasih", juz: 27 },
+  { id: 67,  name: "Al-Mulk",      arabic: "الملك",    verses: 30,  category: "Makkiyah",  meaning: "Kerajaan",           juz: 29 },
+  // ── Juz 30 — lengkap (S18-06) ─────────────────────────────────────────────
+  { id: 78,  name: "An-Naba",      arabic: "النبأ",    verses: 40,  category: "Makkiyah",  meaning: "Berita Besar",       juz: 30 },
+  { id: 79,  name: "An-Nazi'at",   arabic: "النازعات", verses: 46,  category: "Makkiyah",  meaning: "Malaikat Pencabut",  juz: 30 },
+  { id: 80,  name: "'Abasa",       arabic: "عبس",      verses: 42,  category: "Makkiyah",  meaning: "Dia Bermuka Masam",  juz: 30 },
+  { id: 81,  name: "At-Takwir",    arabic: "التكوير",  verses: 29,  category: "Makkiyah",  meaning: "Menggulung",         juz: 30 },
+  { id: 82,  name: "Al-Infitar",   arabic: "الانفطار", verses: 19,  category: "Makkiyah",  meaning: "Terbelah",           juz: 30 },
+  { id: 83,  name: "Al-Mutaffifin",arabic: "المطففين", verses: 36,  category: "Makkiyah",  meaning: "Orang Curang",       juz: 30 },
+  { id: 84,  name: "Al-Insyiqaq",  arabic: "الانشقاق", verses: 25,  category: "Makkiyah",  meaning: "Terbelah",           juz: 30 },
+  { id: 85,  name: "Al-Buruj",     arabic: "البروج",   verses: 22,  category: "Makkiyah",  meaning: "Gugusan Bintang",    juz: 30 },
+  { id: 86,  name: "At-Tariq",     arabic: "الطارق",   verses: 17,  category: "Makkiyah",  meaning: "Yang Datang Malam",  juz: 30 },
+  { id: 87,  name: "Al-A'la",      arabic: "الأعلى",   verses: 19,  category: "Makkiyah",  meaning: "Yang Paling Tinggi", juz: 30 },
+  { id: 88,  name: "Al-Ghasyiyah", arabic: "الغاشية",  verses: 26,  category: "Makkiyah",  meaning: "Hari Pembalasan",    juz: 30 },
+  { id: 89,  name: "Al-Fajr",      arabic: "الفجر",    verses: 30,  category: "Makkiyah",  meaning: "Fajar",              juz: 30 },
+  { id: 90,  name: "Al-Balad",     arabic: "البلد",    verses: 20,  category: "Makkiyah",  meaning: "Negeri",             juz: 30 },
+  { id: 91,  name: "Asy-Syams",    arabic: "الشمس",    verses: 15,  category: "Makkiyah",  meaning: "Matahari",           juz: 30 },
+  { id: 92,  name: "Al-Lail",      arabic: "الليل",    verses: 21,  category: "Makkiyah",  meaning: "Malam",              juz: 30 },
+  { id: 93,  name: "Adh-Dhuha",    arabic: "الضحى",    verses: 11,  category: "Makkiyah",  meaning: "Waktu Dhuha",        juz: 30 },
+  { id: 94,  name: "Al-Insyirah",  arabic: "الشرح",    verses: 8,   category: "Makkiyah",  meaning: "Kelapangan",         juz: 30 },
+  { id: 95,  name: "At-Tin",       arabic: "التين",    verses: 8,   category: "Makkiyah",  meaning: "Buah Tin",           juz: 30 },
+  { id: 96,  name: "Al-'Alaq",     arabic: "العلق",    verses: 19,  category: "Makkiyah",  meaning: "Segumpal Darah",     juz: 30 },
+  { id: 97,  name: "Al-Qadr",      arabic: "القدر",    verses: 5,   category: "Makkiyah",  meaning: "Kemuliaan",          juz: 30 },
+  { id: 98,  name: "Al-Bayyinah",  arabic: "البينة",   verses: 8,   category: "Madaniyah", meaning: "Bukti Nyata",        juz: 30 },
+  { id: 99,  name: "Az-Zalzalah",  arabic: "الزلزلة",  verses: 8,   category: "Madaniyah", meaning: "Kegoncangan",        juz: 30 },
+  { id: 100, name: "Al-'Adiyat",   arabic: "العاديات", verses: 11,  category: "Makkiyah",  meaning: "Kuda Perang",        juz: 30 },
+  { id: 101, name: "Al-Qari'ah",   arabic: "القارعة",  verses: 11,  category: "Makkiyah",  meaning: "Hari Kiamat",        juz: 30 },
+  { id: 102, name: "At-Takatsur",  arabic: "التكاثر",  verses: 8,   category: "Makkiyah",  meaning: "Bermegah-megahan",   juz: 30 },
+  { id: 103, name: "Al-'Ashr",     arabic: "العصر",    verses: 3,   category: "Makkiyah",  meaning: "Masa",               juz: 30 },
+  { id: 104, name: "Al-Humazah",   arabic: "الهمزة",   verses: 9,   category: "Makkiyah",  meaning: "Pengumpat",          juz: 30 },
+  { id: 105, name: "Al-Fil",       arabic: "الفيل",    verses: 5,   category: "Makkiyah",  meaning: "Gajah",              juz: 30 },
+  { id: 106, name: "Quraisy",      arabic: "قريش",     verses: 4,   category: "Makkiyah",  meaning: "Suku Quraisy",       juz: 30 },
+  { id: 107, name: "Al-Ma'un",     arabic: "الماعون",  verses: 7,   category: "Makkiyah",  meaning: "Barang Berguna",     juz: 30 },
+  { id: 108, name: "Al-Kautsar",   arabic: "الكوثر",   verses: 3,   category: "Makkiyah",  meaning: "Nikmat yang Banyak", juz: 30 },
+  { id: 109, name: "Al-Kafirun",   arabic: "الكافرون", verses: 6,   category: "Makkiyah",  meaning: "Orang Kafir",        juz: 30 },
+  { id: 110, name: "An-Nasr",      arabic: "النصر",    verses: 3,   category: "Madaniyah", meaning: "Pertolongan",        juz: 30 },
+  { id: 111, name: "Al-Masad",     arabic: "المسد",    verses: 5,   category: "Makkiyah",  meaning: "Gaz Sabut",          juz: 30 },
+  { id: 112, name: "Al-Ikhlas",    arabic: "الإخلاص",  verses: 4,   category: "Makkiyah",  meaning: "Ikhlas",             juz: 30 },
+  { id: 113, name: "Al-Falaq",     arabic: "الفلق",    verses: 5,   category: "Makkiyah",  meaning: "Waktu Shubuh",       juz: 30 },
+  { id: 114, name: "An-Nas",       arabic: "الناس",    verses: 6,   category: "Makkiyah",  meaning: "Manusia",            juz: 30 },
 ];
 
 // Ayat-ayat untuk surah-surah pendek (demo data)
@@ -60,9 +96,12 @@ const VERSE_DATA: Record<number, { arabic: string; latin: string; translation: s
   ],
 };
 
+type FilterTab = "all" | "juz30" | "favorites";
+
 export default function JamaahAlQuran() {
   const [selectedSurah, setSelectedSurah] = useState<number | null>(null);
   const [search, setSearch] = useState("");
+  const [filterTab, setFilterTab] = useState<FilterTab>("all");
   const [favorites, setFavorites] = useState<number[]>(() => {
     try { return JSON.parse(localStorage.getItem("quran_favorites") || "[]"); } catch { return []; }
   });
@@ -71,12 +110,16 @@ export default function JamaahAlQuran() {
   });
   const [isPlaying, setIsPlaying] = useState(false);
 
-  const filteredSurah = SURAH_LIST.filter(
-    (s) =>
+  const filteredSurah = SURAH_LIST.filter((s) => {
+    const matchSearch =
       s.name.toLowerCase().includes(search.toLowerCase()) ||
       s.meaning.toLowerCase().includes(search.toLowerCase()) ||
-      s.arabic.includes(search)
-  );
+      s.arabic.includes(search);
+    if (!matchSearch) return false;
+    if (filterTab === "juz30") return (s as any).juz === 30;
+    if (filterTab === "favorites") return favorites.includes(s.id);
+    return true;
+  });
 
   const toggleFavorite = (id: number) => {
     const next = favorites.includes(id) ? favorites.filter((f) => f !== id) : [...favorites, id];
@@ -199,6 +242,23 @@ export default function JamaahAlQuran() {
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
           />
+        </div>
+
+        {/* S18-06: Filter tabs — Semua / Juz 30 / Favorit */}
+        <div className="flex gap-1.5">
+          {(["all", "juz30", "favorites"] as FilterTab[]).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setFilterTab(tab)}
+              className={`flex-1 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
+                filterTab === tab
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted/60 text-muted-foreground hover:bg-muted"
+              }`}
+            >
+              {tab === "all" ? "Semua" : tab === "juz30" ? "Juz 30" : `Favorit ${favorites.length > 0 ? `(${favorites.length})` : ""}`}
+            </button>
+          ))}
         </div>
 
         {/* Progress */}
