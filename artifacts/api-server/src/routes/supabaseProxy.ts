@@ -107,16 +107,128 @@ function buildOrder(orderStr?: string): string {
   return "ORDER BY " + clauses.join(", ");
 }
 
-/** Very basic select parser: strips joins / computed columns to plain col names. */
-function parseSelect(selectStr?: string): string {
-  if (!selectStr || selectStr === "*") return "*";
-  // If there are join expansions like "*, profiles(*)" just return *
-  if (selectStr.includes("(")) return "*";
-  const cols = selectStr.split(",").map((c) => {
-    const name = c.trim().split(":")[0].trim(); // strip aliases
-    return name === "*" ? "*" : qi(name);
+interface JoinClause {
+  resultKey: string;   // key in the output object, e.g. "profiles"
+  joinTable: string;   // table to join, e.g. "profiles"
+  fkColumn: string;    // FK column on the main table, e.g. "manager_user_id"
+  cols: string[];      // columns to select from the joined table
+  isArray: boolean;    // true = reverse FK (many), false = forward FK (one)
+}
+
+/**
+ * Split a PostgREST select string by top-level commas
+ * (i.e., commas not nested inside parentheses).
+ */
+function splitSelectParts(s: string): string[] {
+  const parts: string[] = [];
+  let depth = 0;
+  let cur = "";
+  for (const ch of s) {
+    if (ch === "(") { depth++; cur += ch; }
+    else if (ch === ")") { depth--; cur += ch; }
+    else if (ch === "," && depth === 0) { parts.push(cur.trim()); cur = ""; }
+    else { cur += ch; }
+  }
+  if (cur.trim()) parts.push(cur.trim());
+  return parts;
+}
+
+/**
+ * Parse a PostgREST select string into plain columns + join clauses.
+ *
+ * Supported patterns:
+ *   table:fk_col(col1,col2)  – forward FK: main.fk_col → table.id
+ *   table(col1,col2)         – auto-detect FK as table_id (forward) or
+ *                               main_table_singular_id (reverse array)
+ *   alias:table!fk(cols)     – explicit hint with !
+ */
+function parseSelectAdvanced(selectStr: string | undefined, mainTable: string): {
+  plainCols: string;
+  joins: JoinClause[];
+} {
+  if (!selectStr || selectStr === "*") return { plainCols: "t.*", joins: [] };
+
+  const parts = splitSelectParts(selectStr);
+  const plainParts: string[] = [];
+  const joins: JoinClause[] = [];
+
+  for (const part of parts) {
+    const parenIdx = part.indexOf("(");
+    if (parenIdx === -1) {
+      // Plain column
+      const name = part.split(":")[0].trim();
+      plainParts.push(name === "*" ? "t.*" : `t.${qi(name)}`);
+      continue;
+    }
+
+    const prefix = part.slice(0, parenIdx).trim();
+    const inner = part.slice(parenIdx + 1, part.lastIndexOf(")")).trim();
+    // Strip nested joins inside inner (only use top-level cols from nested joins)
+    const cols = splitSelectParts(inner)
+      .map((c) => c.split(":")[0].split("(")[0].trim())
+      .filter((c) => c && !c.includes(")"));
+
+    if (prefix.includes(":")) {
+      // "resultKey:fkColOrTableHint(cols)"
+      const colonIdx = prefix.indexOf(":");
+      const resultKey = prefix.slice(0, colonIdx).trim();
+      const hint = prefix.slice(colonIdx + 1).replace("!", "").trim();
+      // hint is the FK column on the main table pointing to resultKey table
+      joins.push({ resultKey, joinTable: resultKey, fkColumn: hint, cols, isArray: false });
+    } else if (prefix.includes("!")) {
+      // "table!fk_col(cols)"
+      const bangIdx = prefix.indexOf("!");
+      const tbl = prefix.slice(0, bangIdx).trim();
+      const fkHint = prefix.slice(bangIdx + 1).trim();
+      joins.push({ resultKey: tbl, joinTable: tbl, fkColumn: fkHint, cols, isArray: false });
+    } else {
+      // "table(cols)" — auto-detect FK
+      const tbl = prefix.trim();
+      // Try forward FK: main table has tbl_id or tbl_singular_id
+      const fkGuess = tbl.replace(/s$/, "") + "_id"; // e.g. branches → branch_id
+      // Heuristic: if tbl is a "parent" resource it's usually forward FK
+      // For now always emit forward FK and fall back to NULL if col missing
+      joins.push({ resultKey: tbl, joinTable: tbl, fkColumn: fkGuess, cols, isArray: false });
+    }
+  }
+
+  const base = plainParts.length ? plainParts.join(", ") : "t.*";
+  return { plainCols: base, joins };
+}
+
+/**
+ * Build a SELECT that includes forward-FK joins as correlated subqueries.
+ * Each join returns a JSON object (or null) nested under the result key.
+ */
+function buildSelectWithJoins(
+  mainTable: string,
+  selectStr: string | undefined,
+): string {
+  const { plainCols, joins } = parseSelectAdvanced(selectStr, mainTable);
+  if (!joins.length) {
+    // No joins — fall back to plain select
+    if (!selectStr || selectStr === "*") return "*";
+    if (selectStr.includes("(")) return "t.*";
+    const cols = splitSelectParts(selectStr).map((c) => {
+      const name = c.split(":")[0].trim();
+      return name === "*" ? "*" : qi(name);
+    });
+    return cols.join(", ");
+  }
+
+  const subqueries = joins.map(({ resultKey, joinTable, fkColumn, cols }) => {
+    const jsonCols = cols
+      .map((c) => `'${c}', __j.${qi(c)}`)
+      .join(", ");
+    return (
+      `(SELECT json_build_object(${jsonCols}) ` +
+      `FROM ${qi(joinTable)} __j ` +
+      `WHERE __j.id = t.${qi(fkColumn)} ` +
+      `LIMIT 1) AS ${qi(resultKey)}`
+    );
   });
-  return cols.join(", ");
+
+  return [plainCols, ...subqueries].join(", ");
 }
 
 // ── Auth compatibility (/auth/v1/*) ──────────────────────────────────────────
@@ -354,19 +466,17 @@ supabaseProxyRouter.get("/rest/v1/:table", async (req, res) => {
   }
 
   const params: unknown[] = [];
-  const selectCols = parseSelect(q.select);
+  const hasJoins = q.select?.includes("(");
   const filters = parseFilters(q);
 
   // Branch data scoping: branch_manager can only see their own branch's data
   const caller = await getCallerPayload(req.headers["authorization"]);
   if (caller?.role === "branch_manager" && caller?.branch_id && BRANCH_SCOPED_TABLES.has(table)) {
-    // Inject branch_id filter — overrides any existing branch_id sent by the client
     const idx = filters.findIndex((f) => f.col === "branch_id");
     if (idx >= 0) filters.splice(idx, 1);
     filters.push({ col: "branch_id", op: "eq", raw: caller.branch_id as string });
   }
 
-  const where = buildWhere(filters, params);
   const order = buildOrder(q.order);
   const limitVal = q.limit ? Math.min(parseInt(q.limit, 10), 1000) : 1000;
   const offsetVal = q.offset ? parseInt(q.offset, 10) : 0;
@@ -374,14 +484,30 @@ supabaseProxyRouter.get("/rest/v1/:table", async (req, res) => {
   try {
     const countExact = prefer.includes("count=exact");
 
-    let sql = `SELECT ${selectCols} FROM ${qi(table)} ${where} ${order} LIMIT ${limitVal} OFFSET ${offsetVal}`;
+    let sql: string;
+    if (hasJoins) {
+      // Build select with correlated subqueries for join syntax
+      const selectCols = buildSelectWithJoins(table, q.select);
+      // For joins we alias the main table as "t" so subqueries can reference it
+      const whereJoin = buildWhere(filters, params).replace(
+        /WHERE (.*)/,
+        (_, conds) => `WHERE ${conds.replace(/"(\w+)"/g, "t.$1")}`,
+      );
+      sql = `SELECT ${selectCols} FROM ${qi(table)} t ${whereJoin} ${order} LIMIT ${limitVal} OFFSET ${offsetVal}`;
+    } else {
+      const selectCols = buildSelectWithJoins(table, q.select);
+      const where = buildWhere(filters, params);
+      sql = `SELECT ${selectCols} FROM ${qi(table)} ${where} ${order} LIMIT ${limitVal} OFFSET ${offsetVal}`;
+    }
 
     const result = await pool.query(sql, params);
 
     if (countExact) {
+      const countParams: unknown[] = [];
+      const countWhere = buildWhere(filters, countParams);
       const countRes = await pool.query(
-        `SELECT COUNT(*)::int AS n FROM ${qi(table)} ${where}`,
-        params,
+        `SELECT COUNT(*)::int AS n FROM ${qi(table)} ${countWhere}`,
+        countParams,
       );
       const total = countRes.rows[0]?.n ?? 0;
       res.setHeader("Content-Range", `0-${result.rowCount ?? 0}/${total}`);

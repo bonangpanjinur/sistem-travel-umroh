@@ -1,74 +1,44 @@
 /**
- * Supabase client — migrated to use local Express proxy.
+ * Supabase client — always routes through the local Express proxy.
  *
- * The client now points to the same origin as the frontend.
- * Vite proxies /auth/v1/* and /rest/v1/* to the Express API server (port 8080)
+ * The client uses window.location.origin as the base URL so all requests
+ * go through the Vite dev-server proxy → Express API server (port 3001)
  * which implements a Supabase-compatible interface backed by Neon Postgres.
  *
- * Original Supabase credentials are kept as fallback for environments where
- * the local proxy is not running (e.g., a standalone Supabase deployment).
+ * VITE_SUPABASE_URL is intentionally ignored so the app never talks to an
+ * external Supabase project — all data lives in the Replit Neon database.
  */
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const env = import.meta.env as Record<string, string | undefined>;
-
-// In the browser, window.location.origin gives us the Vite dev-server origin
-// (e.g. https://xxx.repl.co). Combined with the Vite proxy, this routes
-// Supabase client calls through the Express API server.
+// Always use the current page origin — Vite proxies /auth/v1/* and /rest/v1/*
+// to the local Express API server regardless of build environment.
 const localOrigin =
   typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5000';
 
-// Prefer the real Supabase URL if configured (existing deployments).
-// Fall back to local proxy origin so the app works without Supabase credentials.
-const SUPABASE_URL =
-  env.VITE_SUPABASE_URL ||
-  env.VITE_SUPABASE_PROJECT_URL ||
-  env.VITE_SUPABASE_API_URL ||
-  localOrigin;
+// Any non-empty key works — the proxy validates via JWT, not Supabase anon key.
+const LOCAL_KEY = 'local-dev-anon-key';
 
-const SUPABASE_KEY =
-  env.VITE_SUPABASE_PUBLISHABLE_KEY ||
-  env.VITE_SUPABASE_ANON_KEY ||
-  env.VITE_SUPABASE_KEY ||
-  // Local dev key — accepted by the proxy (any non-empty string works)
-  'local-dev-anon-key';
-
-function isValidUrl(value: string): boolean {
-  if (!value) return false;
-  try {
-    const u = new URL(value);
-    return u.protocol === 'https:' || u.protocol === 'http:';
-  } catch {
-    return false;
-  }
-}
-
-const resolvedUrl = isValidUrl(SUPABASE_URL) ? SUPABASE_URL : localOrigin;
-const resolvedKey = SUPABASE_KEY || 'local-dev-anon-key';
-
-// Expose source for diagnostics (used by EnvDiagnostic component).
 export const supabaseConfigSource = {
-  url: resolvedUrl,
-  urlSource: env.VITE_SUPABASE_URL ? 'env' : 'local-proxy',
-  keySource: env.VITE_SUPABASE_PUBLISHABLE_KEY ? 'env' : 'local-proxy',
-  envKeysSeen: Object.keys(env).filter((k) => k.startsWith('VITE_SUPABASE')),
+  url: localOrigin,
+  urlSource: 'local-proxy',
+  keySource: 'local-proxy',
+  envKeysSeen: [] as string[],
 } as const;
 
-export const supabase = createClient<Database>(resolvedUrl, resolvedKey, {
+export const supabase = createClient<Database>(localOrigin, LOCAL_KEY, {
   auth: {
-    storage: localStorage,
+    storage: typeof window !== 'undefined' ? localStorage : undefined,
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
   },
-  // Disable realtime — the backend uses its own cron/polling; no WS server exists.
+  // Disable realtime — no WS server; backend uses cron/polling.
   realtime: {
     params: { eventsPerSecond: 0 },
   },
   global: {
     headers: {
-      // Identify requests from the local proxy client
       'x-client-info': 'vinstour-local-proxy/1.0',
     },
   },
