@@ -381,14 +381,15 @@ const depExpTotal = depExpData?.reduce((s: number, e: any) => s + e.amount_idr, 
 
 ### 🟠 FASE PENTING — Otomasi Biaya Operasional
 
-#### INT-05: Auto-create vendor_cost dari Visa Batch
+#### ✅ INT-05: Auto-create vendor_cost dari Visa Batch — SELESAI
 **Prioritas:** PENTING | **Effort:** M
 **Dependensi:** Tidak ada
 
-Di `AdminVisaManagement.tsx`, tambahkan flow:
-1. Saat admin mark visa batch sebagai "submitted" → popup konfirmasi biaya visa
-2. Input total biaya visa (biaya konsulat + jasa) → auto-create `vendor_costs` entry
-3. Link ke departure_id + auto-set category = "visa", account_code = "6200"
+Di `AdminVisaManagement.tsx`, saat admin ubah status visa ke **"submitted"**:
+1. Dialog update status kini menampilkan section **"Catat Biaya Visa ke Hutang Dagang"** (toggle on/off)
+2. Admin pilih vendor/konsulat + input biaya IDR → auto-create `vendor_costs` entry (cost_type=VISA, status=pending)
+3. Link ke departure_id — warning tampil jika visa tidak terhubung ke keberangkatan
+4. Biaya otomatis masuk ke AP dan invalidate query `vendor-costs` + `finance-ap`
 
 ```typescript
 // Saat visa batch submitted/approved, trigger:

@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -14,9 +15,12 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { useMutation } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Plus, FileCheck, Clock, CheckCircle2, XCircle, Send, Search, Wifi, WifiOff, History, RefreshCcw } from "lucide-react";
+import { Plus, FileCheck, Clock, CheckCircle2, XCircle, Send, Search, Wifi, WifiOff, History, RefreshCcw, Receipt, Info } from "lucide-react";
 import { useVisaStatusUpdate } from "@/hooks/useVisaStatusUpdate";
 import { useAuth } from "@/hooks/useAuth";
+
+const fmt = (n: number) =>
+  new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(n);
 
 const VISA_STATUS: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   pending:              { label: "Menunggu",         variant: "outline" },
@@ -42,12 +46,33 @@ export default function AdminVisaManagement() {
   const [form, setForm]                       = useState({ customer_id: "", departure_id: "", visa_type: "umrah", notes: "" });
   const [statusForm, setStatusForm]           = useState({ status: "", visa_number: "", visa_expiry: "", rejection_reason: "" });
 
+  // Form biaya visa — diisi saat status → submitted, untuk auto-create vendor_cost (AP)
+  const [visaCostForm, setVisaCostForm] = useState({
+    vendor_id: "",
+    amount: "",
+    notes: "",
+    createAP: true,
+  });
+
   const visaStatusUpdate = useVisaStatusUpdate();
 
   const { data: customers } = useQuery({
     queryKey: ["customers-for-visa"],
     queryFn: async () => {
       const { data } = await supabase.from("customers").select("id, full_name, passport_number, passport_expiry").order("full_name");
+      return data || [];
+    },
+  });
+
+  // Vendors list — untuk pilih vendor saat auto-create AP
+  const { data: vendors = [] } = useQuery({
+    queryKey: ["vendors-visa"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("vendors")
+        .select("id, name, vendor_type")
+        .eq("is_active", true)
+        .order("name");
       return data || [];
     },
   });
@@ -130,8 +155,41 @@ export default function AdminVisaManagement() {
     onError: (e: any) => toast.error("Gagal: " + e.message),
   });
 
+  // Mutation: auto-create vendor_cost (AP) dari biaya visa
+  const createVendorCostMutation = useMutation({
+    mutationFn: async (payload: {
+      departure_id: string;
+      vendor_id: string;
+      amount: number;
+      description: string;
+      notes?: string;
+    }) => {
+      const { error } = await (supabase as any).from("vendor_costs").insert({
+        departure_id: payload.departure_id,
+        vendor_id:    payload.vendor_id,
+        cost_type:    "VISA",
+        amount:       payload.amount,
+        description:  payload.description,
+        notes:        payload.notes || null,
+        status:       "pending",
+        currency:     "IDR",
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["vendor-costs"] });
+      queryClient.invalidateQueries({ queryKey: ["finance-ap"] });
+      toast.success("Biaya visa berhasil dicatat ke Hutang Dagang (AP)");
+    },
+    onError: (e: any) => {
+      toast.error("Status visa diperbarui, tapi gagal catat biaya AP: " + e.message);
+    },
+  });
+
   const handleUpdateStatus = async () => {
     if (!selectedVisa) return;
+
+    // Update status visa (+ notifikasi jamaah)
     await visaStatusUpdate.mutateAsync({
       visaId:           selectedVisa.id,
       customerId:       selectedVisa.customer_id,
@@ -142,7 +200,32 @@ export default function AdminVisaManagement() {
       rejectionReason:  statusForm.rejection_reason,
       changedBy:        user?.id,
     });
+
+    // INT-05: Auto-create vendor_cost saat status → submitted DAN biaya visa diisi
+    if (
+      statusForm.status === "submitted" &&
+      visaCostForm.createAP &&
+      visaCostForm.vendor_id &&
+      visaCostForm.amount &&
+      Number(visaCostForm.amount) > 0
+    ) {
+      if (!selectedVisa.departure_id) {
+        toast.warning("Biaya visa tidak dicatat: visa ini tidak terhubung ke keberangkatan manapun.");
+      } else {
+        const vendorName = (vendors as any[]).find(v => v.id === visaCostForm.vendor_id)?.name || "Vendor Visa";
+        await createVendorCostMutation.mutateAsync({
+          departure_id: selectedVisa.departure_id,
+          vendor_id:    visaCostForm.vendor_id,
+          amount:       Number(visaCostForm.amount),
+          description:  `Biaya visa ${selectedVisa.visa_type} — ${selectedVisa.customer?.full_name} via ${vendorName}`,
+          notes:        visaCostForm.notes,
+        });
+      }
+    }
+
     setStatusDialogOpen(false);
+    // Reset form biaya visa
+    setVisaCostForm({ vendor_id: "", amount: "", notes: "", createAP: true });
   };
 
   const filteredVisas = visas?.filter((v: any) =>
@@ -312,19 +395,31 @@ export default function AdminVisaManagement() {
       </Card>
 
       {/* Update Status Dialog */}
-      <Dialog open={statusDialogOpen} onOpenChange={setStatusDialogOpen}>
-        <DialogContent>
+      <Dialog open={statusDialogOpen} onOpenChange={(open) => {
+        setStatusDialogOpen(open);
+        if (!open) setVisaCostForm({ vendor_id: "", amount: "", notes: "", createAP: true });
+      }}>
+        <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>Update Status Visa</DialogTitle></DialogHeader>
-          <div className="space-y-4">
+          <div className="space-y-4 max-h-[75vh] overflow-y-auto pr-1">
+            {/* Jamaah info */}
             <div className="bg-muted p-3 rounded-lg">
               <p className="text-sm font-medium">{selectedVisa?.customer?.full_name}</p>
               <p className="text-xs text-muted-foreground">Paspor: {selectedVisa?.passport_number || "-"}</p>
+              {selectedVisa?.departure_id ? (
+                <p className="text-xs text-green-700 mt-0.5">✓ Terhubung ke keberangkatan</p>
+              ) : (
+                <p className="text-xs text-amber-600 mt-0.5">⚠ Tidak terhubung ke keberangkatan — biaya AP tidak bisa dicatat</p>
+              )}
             </div>
+
             <Alert className="border-blue-200 bg-blue-50 py-2">
               <AlertDescription className="text-xs text-blue-800">
                 Jamaah akan mendapat notifikasi otomatis saat status diperbarui.
               </AlertDescription>
             </Alert>
+
+            {/* Status selector */}
             <div>
               <Label>Status</Label>
               <Select value={statusForm.status} onValueChange={v => setStatusForm(f => ({ ...f, status: v }))}>
@@ -336,6 +431,7 @@ export default function AdminVisaManagement() {
                 </SelectContent>
               </Select>
             </div>
+
             {statusForm.status === "approved" && (
               <>
                 <div><Label>Nomor Visa</Label><Input value={statusForm.visa_number} onChange={e => setStatusForm(f => ({ ...f, visa_number: e.target.value }))} /></div>
@@ -345,8 +441,112 @@ export default function AdminVisaManagement() {
             {statusForm.status === "rejected" && (
               <div><Label>Alasan Penolakan</Label><Textarea value={statusForm.rejection_reason} onChange={e => setStatusForm(f => ({ ...f, rejection_reason: e.target.value }))} /></div>
             )}
-            <Button className="w-full" onClick={handleUpdateStatus} disabled={visaStatusUpdate.isPending || !statusForm.status}>
-              {visaStatusUpdate.isPending ? "Menyimpan & Mengirim Notif..." : "Simpan + Kirim Notifikasi Jamaah"}
+
+            {/* ── INT-05: Biaya Visa → Hutang Dagang (AP) ── */}
+            {statusForm.status === "submitted" && (
+              <>
+                <Separator />
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Receipt className="h-4 w-4 text-emerald-600" />
+                    <p className="text-sm font-semibold text-emerald-800">Catat Biaya Visa ke Hutang Dagang</p>
+                    <Badge variant="outline" className="text-xs text-emerald-700 border-emerald-300">Opsional</Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Isi form di bawah agar biaya visa otomatis masuk ke Akun Payable (AP) dan terkoneksi ke laporan keuangan keberangkatan.
+                  </p>
+
+                  {/* Toggle buat AP */}
+                  <div className="flex items-center gap-3 p-2 bg-emerald-50 rounded-lg border border-emerald-200">
+                    <button
+                      type="button"
+                      onClick={() => setVisaCostForm(f => ({ ...f, createAP: !f.createAP }))}
+                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors focus-visible:outline-none ${visaCostForm.createAP ? "bg-emerald-600" : "bg-gray-200"}`}
+                    >
+                      <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition-transform mt-0.5 ${visaCostForm.createAP ? "translate-x-4" : "translate-x-0.5"}`} />
+                    </button>
+                    <Label className="text-sm cursor-pointer" onClick={() => setVisaCostForm(f => ({ ...f, createAP: !f.createAP }))}>
+                      Otomatis buat entri Hutang Dagang (AP)
+                    </Label>
+                  </div>
+
+                  {visaCostForm.createAP && (
+                    <div className="space-y-3 pl-1">
+                      {/* Vendor / Konsulat */}
+                      <div>
+                        <Label className="text-xs">Vendor / Konsulat / Agen Visa *</Label>
+                        <Select
+                          value={visaCostForm.vendor_id}
+                          onValueChange={v => setVisaCostForm(f => ({ ...f, vendor_id: v }))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Pilih vendor…" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(vendors as any[]).length === 0 ? (
+                              <SelectItem value="__none" disabled>
+                                Belum ada vendor — tambah di menu Vendor
+                              </SelectItem>
+                            ) : (
+                              (vendors as any[]).map((v: any) => (
+                                <SelectItem key={v.id} value={v.id}>
+                                  {v.name}
+                                  <span className="text-xs text-muted-foreground ml-1">({v.vendor_type})</span>
+                                </SelectItem>
+                              ))
+                            )}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Biaya visa */}
+                      <div>
+                        <Label className="text-xs">Biaya Visa (IDR) *</Label>
+                        <Input
+                          type="number"
+                          placeholder="Misal: 1500000"
+                          value={visaCostForm.amount}
+                          onChange={e => setVisaCostForm(f => ({ ...f, amount: e.target.value }))}
+                        />
+                        {visaCostForm.amount && Number(visaCostForm.amount) > 0 && (
+                          <p className="text-xs text-emerald-600 mt-0.5">{fmt(Number(visaCostForm.amount))}</p>
+                        )}
+                      </div>
+
+                      {/* Catatan */}
+                      <div>
+                        <Label className="text-xs">Catatan (opsional)</Label>
+                        <Input
+                          placeholder="Misal: Visa umrah batch Januari 2026"
+                          value={visaCostForm.notes}
+                          onChange={e => setVisaCostForm(f => ({ ...f, notes: e.target.value }))}
+                        />
+                      </div>
+
+                      {/* Info jika tidak ada departure_id */}
+                      {!selectedVisa?.departure_id && (
+                        <div className="flex items-start gap-2 p-2 bg-amber-50 border border-amber-200 rounded text-xs text-amber-800">
+                          <Info className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
+                          <span>Visa ini tidak terhubung ke keberangkatan — biaya AP tidak akan dibuat. Hubungkan dulu ke keberangkatan.</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+
+            <Button
+              className="w-full"
+              onClick={handleUpdateStatus}
+              disabled={visaStatusUpdate.isPending || createVendorCostMutation.isPending || !statusForm.status}
+            >
+              {(visaStatusUpdate.isPending || createVendorCostMutation.isPending)
+                ? "Menyimpan..."
+                : statusForm.status === "submitted" && visaCostForm.createAP && visaCostForm.vendor_id && visaCostForm.amount
+                  ? "Simpan + Catat Biaya AP + Kirim Notif"
+                  : "Simpan + Kirim Notifikasi Jamaah"
+              }
             </Button>
           </div>
         </DialogContent>
