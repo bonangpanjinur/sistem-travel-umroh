@@ -1073,7 +1073,8 @@ export default function AdminPackageProfitabilityComparison() {
       )}
 
       {/* Controls — only shown in comparison mode */}
-      {viewMode === "comparison" && <div className="flex flex-wrap items-center gap-3">
+      {viewMode === "comparison" && (
+        <div className="flex flex-wrap items-center gap-3">
         {/* Search */}
         <Input
           placeholder="Cari nama paket..."
@@ -1127,8 +1128,10 @@ export default function AdminPackageProfitabilityComparison() {
           </Button>
         </div>
       </div>
+      )}
 
-      {viewMode === "comparison" && <>
+      {viewMode === "comparison" && (
+        <>
       {/* Legend */}
       <div className="flex items-center gap-4 text-xs text-muted-foreground">
         <div className="flex items-center gap-1">
@@ -1473,7 +1476,8 @@ export default function AdminPackageProfitabilityComparison() {
         Margin = (Harga − HPP/pax) / Harga × 100. Occupancy = jamaah confirmed / kuota.
         Data diperbarui setiap 1 menit.
       </p>
-      </>}
+        </>
+      )}
     </div>
   );
 }
