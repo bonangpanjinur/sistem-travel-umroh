@@ -36,6 +36,25 @@ const leadsLimiter = rateLimit({
   skip: (req) => req.method === "OPTIONS",
 });
 
+// Explicit CORS config — allows all origins with full method list so browser
+// preflight (OPTIONS) is handled correctly for /auth/v1/* and /rest/v1/*
+const corsOptions = {
+  origin: true,                   // reflect request origin
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization",
+    "apikey",
+    "x-client-info",
+    "Prefer",
+    "Range",
+    "Accept",
+  ],
+  exposedHeaders: ["Content-Range", "X-Total-Count"],
+  credentials: true,
+  maxAge: 86400,                  // 24h preflight cache
+};
+
 app.use(
   pinoHttp({
     logger,
@@ -55,7 +74,9 @@ app.use(
     },
   }),
 );
-app.use(cors());
+// cors() with preflightContinue:false (default) automatically responds 204
+// to OPTIONS preflight requests — no separate app.options() needed.
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

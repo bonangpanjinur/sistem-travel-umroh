@@ -63,23 +63,46 @@ export default defineConfig({
       "/api": {
         target: "http://localhost:3001",
         changeOrigin: true,
+        secure: false,
       },
       "/auth/v1": {
         target: "http://localhost:3001",
         changeOrigin: true,
+        secure: false,
+        // Forward all methods including OPTIONS preflight
+        configure: (proxy) => {
+          proxy.on("error", (err) => {
+            console.error("[proxy /auth/v1 error]", err.message);
+          });
+        },
       },
       "/rest/v1": {
         target: "http://localhost:3001",
         changeOrigin: true,
+        secure: false,
+        configure: (proxy) => {
+          proxy.on("error", (err) => {
+            console.error("[proxy /rest/v1 error]", err.message);
+          });
+        },
       },
       "/sitemap.xml": {
         target: "http://localhost:3001",
         changeOrigin: true,
+        secure: false,
       },
       "/ws": {
         target: "http://localhost:3001",
         changeOrigin: true,
+        secure: false,
         ws: true,
+      },
+      // Block realtime WebSocket at Vite level — we have no WS realtime server
+      "/realtime": {
+        target: "http://localhost:3001",
+        changeOrigin: true,
+        secure: false,
+        ws: false,
       },
     },
   },

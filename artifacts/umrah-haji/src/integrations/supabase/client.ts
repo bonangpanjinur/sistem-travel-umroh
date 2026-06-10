@@ -33,9 +33,10 @@ export const supabase = createClient<Database>(localOrigin, LOCAL_KEY, {
     autoRefreshToken: true,
     detectSessionInUrl: true,
   },
-  // Disable realtime — no WS server; backend uses cron/polling.
+  // Realtime disabled — no WS server; backend uses cron/polling.
   realtime: {
     params: { eventsPerSecond: 0 },
+    timeout: 1,   // minimal timeout so retries are instant-fail
   },
   global: {
     headers: {
@@ -43,3 +44,9 @@ export const supabase = createClient<Database>(localOrigin, LOCAL_KEY, {
     },
   },
 });
+
+// Disconnect realtime immediately — prevents WebSocket connection attempts
+// to /realtime/v1/websocket which we do not support.
+if (typeof window !== 'undefined') {
+  supabase.realtime.disconnect();
+}
