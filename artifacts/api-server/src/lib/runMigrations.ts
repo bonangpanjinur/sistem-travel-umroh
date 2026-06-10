@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import bcrypt from "bcryptjs";
 import { pool } from "./db";
 import { logger } from "./logger";
 
@@ -1173,6 +1174,43 @@ export async function runMigrations(): Promise<void> {
       }
     } else {
       logger.info("runMigrations: 086_ar_reminder_log — already applied, skipping");
+    }
+
+    // ── Seed: default super_admin user ───────────────────────────────────────
+    // Creates admin@vinstour.com if not already present.
+    // Idempotent — safe to run on every startup.
+    try {
+      const { rows: existing } = await client.query(
+        `SELECT id FROM auth.users WHERE email = 'admin@vinstour.com' LIMIT 1`
+      );
+      if (existing.length === 0) {
+        const hash = await bcrypt.hash("Admin@Vinstour2024!", 10);
+        const { rows: inserted } = await client.query<{ id: string }>(
+          `INSERT INTO auth.users (email, encrypted_password, raw_user_meta_data, email_confirmed_at, is_super_admin)
+           VALUES ('admin@vinstour.com', $1, $2, NOW(), TRUE)
+           RETURNING id`,
+          [hash, JSON.stringify({ full_name: "Super Admin Vinstour", phone: null })]
+        );
+        const adminId = inserted[0]!.id;
+
+        await client.query(
+          `INSERT INTO profiles (id, full_name, email, phone)
+           VALUES ($1, 'Super Admin Vinstour', 'admin@vinstour.com', NULL)
+           ON CONFLICT (id) DO NOTHING`,
+          [adminId]
+        );
+        await client.query(
+          `INSERT INTO user_roles (user_id, role)
+           VALUES ($1, 'super_admin')
+           ON CONFLICT DO NOTHING`,
+          [adminId]
+        );
+        logger.info("runMigrations: seed — admin@vinstour.com created (super_admin)");
+      } else {
+        logger.info("runMigrations: seed — admin@vinstour.com already exists, skipping");
+      }
+    } catch (e: any) {
+      logger.warn({ err: e?.message }, "runMigrations: seed admin user — skipping (non-fatal)");
     }
 
   } catch (err) {
