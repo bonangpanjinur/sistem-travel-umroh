@@ -24,7 +24,7 @@ import { id as localeId } from "date-fns/locale";
 import {
   Plus, Search, BookText, ChevronDown, ChevronRight,
   RefreshCw, Trash2, AlertCircle, CheckCircle2,
-  Download, Eye, Layers, X,
+  Download, Eye, X, Zap, Pencil, Info,
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { formatCurrency } from "@/lib/format";
@@ -90,6 +90,42 @@ const STATUS_BADGE: Record<string, { label: string; variant: "default" | "second
   draft:  { label: "Draft",   variant: "secondary" },
   voided: { label: "Batal",   variant: "destructive" },
 };
+
+// Ref types yang di-generate otomatis oleh DB trigger
+const AUTO_TRIGGER_REF_TYPES = new Set([
+  "payment",
+  "cash_transaction",
+  "vendor_cost_hutang",
+  "vendor_cost_bayar",
+]);
+
+const AUTO_REF_LABEL: Record<string, string> = {
+  payment:             "Pembayaran",
+  cash_transaction:    "Transaksi Kas",
+  vendor_cost_hutang:  "Hutang Vendor",
+  vendor_cost_bayar:   "Lunasi Vendor",
+};
+
+function isAutoJournal(refType: string | null): boolean {
+  return !!refType && AUTO_TRIGGER_REF_TYPES.has(refType);
+}
+
+function SourceBadge({ refType }: { refType: string | null }) {
+  if (isAutoJournal(refType)) {
+    return (
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-violet-100 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300 whitespace-nowrap border border-violet-200 dark:border-violet-800">
+        <Zap className="h-2.5 w-2.5" />
+        {AUTO_REF_LABEL[refType!] ?? "Auto-Trigger"}
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 whitespace-nowrap border border-slate-200 dark:border-slate-700">
+      <Pencil className="h-2.5 w-2.5" />
+      Manual
+    </span>
+  );
+}
 
 const REF_TYPE_OPTIONS = [
   { value: "manual",      label: "Manual / Jurnal Koreksi" },
@@ -217,6 +253,7 @@ export default function AdminJurnalUmum() {
   // list filters
   const [search, setSearch]         = useState("");
   const [filterStatus, setFilter]   = useState("all");
+  const [filterSource, setSource]   = useState("all"); // all | auto | manual
   const [dateStart, setDateStart]   = useState("");
   const [dateEnd, setDateEnd]       = useState("");
   const [expandedIds, setExpanded]  = useState<Set<string>>(new Set());
@@ -253,7 +290,14 @@ export default function AdminJurnalUmum() {
     },
   });
 
-  const entries: JournalEntry[] = data?.data ?? [];
+  const allEntries: JournalEntry[] = data?.data ?? [];
+
+  // Filter sumber di client (karena API tidak support filter source)
+  const entries = useMemo(() => {
+    if (filterSource === "auto")   return allEntries.filter(e => isAutoJournal(e.ref_type));
+    if (filterSource === "manual") return allEntries.filter(e => !isAutoJournal(e.ref_type));
+    return allEntries;
+  }, [allEntries, filterSource]);
 
   // ── computed balance ────────────────────────────────────────
   const totalDebit  = useMemo(() => lines.reduce((s, l) => s + (parseFloat(String(l.debit))  || 0), 0), [lines]);
@@ -336,22 +380,28 @@ export default function AdminJurnalUmum() {
     setExpanded(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
   // ── stats ───────────────────────────────────────────────────
-  const statsPosted = entries.filter(e => e.status === "posted");
+  const statsPosted      = entries.filter(e => e.status === "posted");
+  const statsAuto        = allEntries.filter(e => isAutoJournal(e.ref_type));
   const totalPostedDebit = statsPosted.reduce((s, e) => s + Number(e.total_debit), 0);
 
   // ── export ──────────────────────────────────────────────────
   const exportExcel = () => {
     const rows = entries.flatMap(e =>
       e.lines.map(l => ({
-        "No Jurnal": e.entry_number,
-        "Tanggal": fmtDate(e.entry_date),
+        "No Jurnal":  e.entry_number,
+        "Tanggal":    fmtDate(e.entry_date),
         "Keterangan": e.description,
-        "Status": e.status,
-        "Kode Akun": l.account_code,
-        "Nama Akun": l.account_name,
+        "Sumber":     isAutoJournal(e.ref_type)
+                        ? `Auto-Trigger (${AUTO_REF_LABEL[e.ref_type!] ?? e.ref_type})`
+                        : "Manual",
+        "Ref Type":   e.ref_type ?? "—",
+        "Ref Code":   e.ref_code ?? "—",
+        "Status":     e.status,
+        "Kode Akun":  l.account_code,
+        "Nama Akun":  l.account_name,
         "Ket. Baris": l.description,
-        "Debit": l.debit,
-        "Kredit": l.credit,
+        "Debit":      l.debit,
+        "Kredit":     l.credit,
       }))
     );
     const ws = XLSX.utils.json_to_sheet(rows);
@@ -391,15 +441,15 @@ export default function AdminJurnalUmum() {
       {/* stat cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: "Total Entri",  value: entries.length,                         sub: "semua status" },
-          { label: "Terposting",   value: statsPosted.length,                     sub: "status posted" },
-          { label: "Total Debit",  value: formatCurrency(totalPostedDebit),       sub: "posted" },
-          { label: "Dibatalkan",   value: entries.filter(e=>e.status==="voided").length, sub: "void" },
+          { label: "Total Entri",  value: allEntries.length,                         sub: "semua status",    color: "" },
+          { label: "Terposting",   value: statsPosted.length,                        sub: "status posted",   color: "" },
+          { label: "Auto-Trigger", value: statsAuto.length,                          sub: "dari DB trigger", color: "text-violet-600 dark:text-violet-400" },
+          { label: "Total Debit",  value: formatCurrency(totalPostedDebit),          sub: "posted",          color: "" },
         ].map(s => (
           <Card key={s.label}>
             <CardContent className="pt-4 pb-3">
               <p className="text-xs text-muted-foreground">{s.label}</p>
-              <p className="text-xl font-bold mt-1 truncate">{s.value}</p>
+              <p className={`text-xl font-bold mt-1 truncate ${s.color}`}>{s.value}</p>
               <p className="text-xs text-muted-foreground">{s.sub}</p>
             </CardContent>
           </Card>
@@ -418,10 +468,26 @@ export default function AdminJurnalUmum() {
             <Select value={filterStatus} onValueChange={setFilter}>
               <SelectTrigger className="w-32 h-9"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Semua</SelectItem>
+                <SelectItem value="all">Semua Status</SelectItem>
                 <SelectItem value="posted">Posted</SelectItem>
                 <SelectItem value="draft">Draft</SelectItem>
                 <SelectItem value="voided">Batal</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={filterSource} onValueChange={setSource}>
+              <SelectTrigger className="w-38 h-9"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Sumber</SelectItem>
+                <SelectItem value="auto">
+                  <span className="flex items-center gap-1.5">
+                    <Zap className="h-3 w-3 text-violet-500" /> Auto-Trigger
+                  </span>
+                </SelectItem>
+                <SelectItem value="manual">
+                  <span className="flex items-center gap-1.5">
+                    <Pencil className="h-3 w-3 text-slate-500" /> Manual
+                  </span>
+                </SelectItem>
               </SelectContent>
             </Select>
             <Input type="date" className="w-36 h-9" value={dateStart} onChange={e => setDateStart(e.target.value)} />
@@ -455,6 +521,7 @@ export default function AdminJurnalUmum() {
                     <TableHead className="w-36">No. Jurnal</TableHead>
                     <TableHead className="w-28">Tanggal</TableHead>
                     <TableHead>Keterangan</TableHead>
+                    <TableHead className="w-32">Sumber</TableHead>
                     <TableHead className="w-28">Referensi</TableHead>
                     <TableHead className="w-24">Status</TableHead>
                     <TableHead className="w-32 text-right">Debit</TableHead>
@@ -479,7 +546,8 @@ export default function AdminJurnalUmum() {
                         </TableCell>
                         <TableCell className="font-mono text-sm font-semibold text-primary">{entry.entry_number}</TableCell>
                         <TableCell className="text-sm">{fmtDate(entry.entry_date)}</TableCell>
-                        <TableCell className="text-sm max-w-[240px] truncate">{entry.description}</TableCell>
+                        <TableCell className="text-sm max-w-[220px] truncate">{entry.description}</TableCell>
+                        <TableCell><SourceBadge refType={entry.ref_type} /></TableCell>
                         <TableCell className="text-xs text-muted-foreground">{entry.ref_code || entry.ref_type || "—"}</TableCell>
                         <TableCell><Badge variant={sb.variant}>{sb.label}</Badge></TableCell>
                         <TableCell className="text-right font-mono text-sm">{formatCurrency(entry.total_debit)}</TableCell>
@@ -503,7 +571,7 @@ export default function AdminJurnalUmum() {
                       </TableRow>,
                       isExpanded && (
                         <TableRow key={`${entry.id}-lines`}>
-                          <TableCell colSpan={9} className="bg-muted/30 p-0">
+                          <TableCell colSpan={10} className="bg-muted/30 p-0">
                             <div className="px-12 py-3">
                               <table className="w-full text-sm">
                                 <thead>
@@ -538,11 +606,35 @@ export default function AdminJurnalUmum() {
                                   </tr>
                                 </tbody>
                               </table>
-                              {entry.created_by_name && (
-                                <p className="text-xs text-muted-foreground mt-2">
-                                  Dibuat oleh: {entry.created_by_name}
-                                </p>
-                              )}
+                              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2">
+                                {/* sumber info */}
+                                <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                  {isAutoJournal(entry.ref_type) ? (
+                                    <>
+                                      <Zap className="h-3 w-3 text-violet-500" />
+                                      <span className="text-violet-600 dark:text-violet-400 font-medium">
+                                        Auto-Trigger — {AUTO_REF_LABEL[entry.ref_type!] ?? entry.ref_type}
+                                      </span>
+                                      <Info className="h-3 w-3 text-muted-foreground ml-0.5" title="Jurnal ini di-generate otomatis oleh database trigger" />
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Pencil className="h-3 w-3 text-slate-400" />
+                                      <span>Jurnal Manual</span>
+                                    </>
+                                  )}
+                                </span>
+                                {entry.ref_code && (
+                                  <span className="text-xs text-muted-foreground font-mono">
+                                    Ref: {entry.ref_code}
+                                  </span>
+                                )}
+                                {entry.created_by_name && (
+                                  <span className="text-xs text-muted-foreground">
+                                    Dibuat oleh: {entry.created_by_name}
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </TableCell>
                         </TableRow>
