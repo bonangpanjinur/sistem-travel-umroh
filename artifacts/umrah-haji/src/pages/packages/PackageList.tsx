@@ -28,8 +28,8 @@ export default function PackageList() {
     queryKey: ['public-package-groups'],
     queryFn: async () => {
       const { data, error } = await (supabase as any)
-        .from('package_groups')
-        .select('id,name,slug,color,display_order')
+        .from('package_types')
+        .select('id,name,color,display_order')
         .order('display_order', { ascending: true });
       if (error) throw error;
       return data || [];

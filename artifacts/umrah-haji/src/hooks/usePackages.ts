@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Package, Departure } from '@/types/database';
+import type { Package, Departure } from '@/types/database';
 
 export function usePackages() {
   return useQuery({
@@ -18,8 +18,7 @@ export function usePackages() {
             airline:airlines(*),
             hotel_makkah:hotels!departures_hotel_makkah_id_fkey(*),
             hotel_madinah:hotels!departures_hotel_madinah_id_fkey(*)
-          ),
-          package_group:package_groups(id,name,color,slug)
+          )
         `)
         .eq('is_active', true)
         .order('is_featured', { ascending: false })

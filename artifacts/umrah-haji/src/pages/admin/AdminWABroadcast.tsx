@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format, parseISO } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
@@ -117,8 +117,15 @@ export default function AdminWABroadcast() {
     return filteredRecipients.filter((r: any) => r.customer?.phone);
   }, [filteredRecipients]);
 
+  // Auto-select all when filter changes — use a ref to compare IDs so we
+  // don't trigger a second render when nothing actually changed.
+  const prevWithPhoneKey = useRef<string>("");
   useEffect(() => {
-    setSelectedRecipients(new Set(withPhone.map((r: any) => r.id)));
+    const key = withPhone.map((r: any) => r.id).join(",");
+    if (key !== prevWithPhoneKey.current) {
+      prevWithPhoneKey.current = key;
+      setSelectedRecipients(new Set(withPhone.map((r: any) => r.id)));
+    }
   }, [withPhone]);
 
   function buildMessage(recipient: any) {

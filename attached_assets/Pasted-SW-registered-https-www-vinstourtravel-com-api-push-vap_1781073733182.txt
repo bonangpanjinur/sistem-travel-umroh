@@ -1,0 +1,55 @@
+SW registered: https://www.vinstourtravel.com/
+/api/push/vapid-public-key:1  Failed to load resource: the server responded with a status of 404 ()Understand this error
+/api/v1/settings/integrations/alerts:1  Failed to load resource: the server responded with a status of 404 ()Understand this error
+/api/v1/settings/integrations/alerts:1  Failed to load resource: the server responded with a status of 404 ()Understand this error
+/api/v1/settings/integrations/alerts:1  Failed to load resource: the server responded with a status of 404 ()Understand this error
+vtaqwkpnvtazcnvcfmyy.supabase.co/rest/v1/booking_passengers?select=id%2Cfull_name%2Cgender%2Cbirth_date%2Cnationality%2Cpassport_number%2Cpassport_expiry%2Cphone%2Cemail%2Croom_number%2Croom_type%2Croom_preference%2Cpassenger_type%2Cseat_number%2Cspecial_requests%2Cis_main_passenger%2Ccustomer_id%2Cbooking%3Abookings%21booking_passengers_booking_id_fkey%28id%2Cbooking_code%2Cbooking_status%2Cdeparture_id%29&booking.departure_id=eq.a4e0f3d1-243b-4ff8-9bfe-f27f11bdf66f:1  Failed to load resource: the server responded with a status of 400 ()Understand this error
+vtaqwkpnvtazcnvcfmyy.supabase.co/rest/v1/bookings?select=id%2Cbooking_code%2Cbooking_status%2Ccustomer%3Acustomers%28id%2Cfull_name%2Cphone%2Cemail%2Cgender%2Cbirth_date%2Cnationality%2Cpassport_number%2Cpassport_expiry%29&departure_id=eq.a4e0f3d1-243b-4ff8-9bfe-f27f11bdf66f&booking_status=not.in.%28cancelled%2Crefunded%29:1  Failed to load resource: the server responded with a status of 400 ()Understand this error
+/api/v1/settings/integrations/alerts:1  Failed to load resource: the server responded with a status of 404 ()Understand this error
+/api/v1/settings/integrations/alerts:1  Failed to load resource: the server responded with a status of 404 ()Understand this error
+/api/v1/settings/integrations/alerts:1  Failed to load resource: the server responded with a status of 404 ()Understand this error
+/api/v1/settings/integrations/alerts:1  Failed to load resource: the server responded with a status of 404 ()Understand this error
+/api/v1/settings/integrations/alerts:1  Failed to load resource: the server responded with a status of 404 ()Understand this error
+/api/v1/settings/integrations/alerts:1  Failed to load resource: the server responded with a status of 404 ()Understand this error
+/api/v1/settings/integrations/alerts:1  Failed to load resource: the server responded with a status of 404 ()Understand this error
+/api/v1/settings/integrations/alerts:1  Failed to load resource: the server responded with a status of 404 ()Understand this error
+vtaqwkpnvtazcnvcfmyy.supabase.co/rest/v1/sos_alerts?select=*%2Ccustomer%3Acustomers%28full_name%2Cphone%29&order=created_at.desc&limit=200:1  Failed to load resource: the server responded with a status of 404 ()Understand this error
+vtaqwkpnvtazcnvcfmyy.supabase.co/rest/v1/sos_alerts?select=*%2Ccustomer%3Acustomers%28full_name%2Cphone%29&order=created_at.desc&limit=200:1  Failed to load resource: the server responded with a status of 404 ()Understand this error
+/api/v1/settings/integrations/alerts:1  Failed to load resource: the server responded with a status of 404 ()Understand this error
+/api/v1/settings/integrations/alerts:1  Failed to load resource: the server responded with a status of 404 ()Understand this error
+/api/v1/guide/admin/overview:1  Failed to load resource: the server responded with a status of 404 ()Understand this error
+/api/v1/guide/admin/overview:1  Failed to load resource: the server responded with a status of 404 ()Understand this error
+/api/v1/settings/integrations/alerts:1  Failed to load resource: the server responded with a status of 404 ()Understand this error
+/api/v1/settings/integrations/alerts:1  Failed to load resource: the server responded with a status of 404 ()Understand this error
+/api/v1/whatsapp/status:1  Failed to load resource: the server responded with a status of 404 ()Understand this error
+/api/v1/whatsapp/settings:1  Failed to load resource: the server responded with a status of 404 ()Understand this error
+/api/v1/whatsapp/logs?pageSize=200:1  Failed to load resource: the server responded with a status of 404 ()Understand this error
+/api/v1/whatsapp/templates:1  Failed to load resource: the server responded with a status of 404 ()Understand this error
+/api/v1/settings/integrations/alerts:1  Failed to load resource: the server responded with a status of 404 ()Understand this error
+index-CgtpuI7c.js:9 Error: Minified React error #185; visit https://react.dev/errors/185 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+    at Ll (index-CgtpuI7c.js:9:21307)
+    at gd (index-CgtpuI7c.js:9:20832)
+    at lo (index-CgtpuI7c.js:9:44882)
+    at $g (index-CgtpuI7c.js:9:44519)
+    at scroll-area-DOJLhAbC.js:1:600
+    at Zy (index-CgtpuI7c.js:10:36076)
+    at index-CgtpuI7c.js:10:36168
+    at Array.map (<anonymous>)
+    at index-CgtpuI7c.js:10:36152
+    at sr (index-CgtpuI7c.js:9:84652)
+n_ @ index-CgtpuI7c.js:9Understand this error
+index-CgtpuI7c.js:64 ErrorBoundary caught: Error: Minified React error #185; visit https://react.dev/errors/185 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+    at Ll (index-CgtpuI7c.js:9:21307)
+    at gd (index-CgtpuI7c.js:9:20832)
+    at lo (index-CgtpuI7c.js:9:44882)
+    at $g (index-CgtpuI7c.js:9:44519)
+    at scroll-area-DOJLhAbC.js:1:600
+    at Zy (index-CgtpuI7c.js:10:36076)
+    at index-CgtpuI7c.js:10:36168
+    at Array.map (<anonymous>)
+    at index-CgtpuI7c.js:10:36152
+    at sr (index-CgtpuI7c.js:9:84652) Object
+componentDidCatch @ index-CgtpuI7c.js:64Understand this error
+vtaqwkpnvtazcnvcfmyy.supabase.co/rest/v1/bookings?select=id%2Cbooking_code%2Cpayment_status%2Cbooking_status%2Ccustomer%3Acustomers%28full_name%2Cphone%29%2Cpackage%3Apackages%28name%29%2Cdeparture%3Adepartures%28departure_date%29&order=created_at.desc:1  Failed to load resource: the server responded with a status of 400 ()Understand this error
+The FetchEvent for "https://www.vinstourtravel.com/admin/wa-broadcast" resulted in a network error response: the promise was rejected.Understand this warning
+2sw.js:1 Uncaught (in promise) TypeError: Failed to convert value to 'Response'.
