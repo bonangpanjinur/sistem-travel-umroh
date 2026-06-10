@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Users, AlertTriangle, Megaphone, Calendar, ChevronRight,
-  CheckCircle2, Radio, Map, Send, X, BookOpen, Loader2,
+  CheckCircle2, Radio, Map, Send, X, BookOpen, Loader2, Clock, History,
 } from "lucide-react";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
@@ -112,6 +112,114 @@ function BroadcastForm({
           )}
           Kirim ke Semua Jamaah
         </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Broadcast History Log — last 5 unique announcements ───────────────────
+function BroadcastHistoryLog({ departureId }: { departureId: string }) {
+  const { data: history = [], isLoading } = useQuery({
+    queryKey: ["broadcast-history", departureId],
+    queryFn: async () => {
+      // Fetch recent announcements for any jamaah in this departure
+      const { data: bookings } = await (supabase as any)
+        .from("bookings")
+        .select("customer_id")
+        .eq("departure_id", departureId)
+        .eq("booking_status", "confirmed")
+        .limit(200);
+
+      if (!bookings?.length) return [];
+
+      const customerIds = bookings.map((b: any) => b.customer_id).filter(Boolean);
+
+      const { data: notifs } = await (supabase as any)
+        .from("customer_notifications")
+        .select("id, message, created_at")
+        .in("customer_id", customerIds)
+        .eq("type", "announcement")
+        .order("created_at", { ascending: false })
+        .limit(100);
+
+      if (!notifs?.length) return [];
+
+      // Deduplicate: same message sent to multiple jamaah at ~same time
+      // Keep first occurrence of each unique (message + minute bucket)
+      const seen = new Set<string>();
+      const unique: Array<{ id: string; message: string; created_at: string }> = [];
+      for (const n of notifs) {
+        const minute = n.created_at?.slice(0, 16); // "2025-01-15T08:30"
+        const key = `${minute}::${n.message}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          unique.push(n);
+          if (unique.length === 5) break;
+        }
+      }
+      return unique;
+    },
+    staleTime: 30_000,
+    enabled: !!departureId,
+  });
+
+  if (isLoading) return null;
+  if (!history.length) return (
+    <div className="rounded-2xl border bg-card p-4">
+      <div className="flex items-center gap-2 mb-2">
+        <History className="h-4 w-4 text-muted-foreground" />
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+          Riwayat Broadcast
+        </p>
+      </div>
+      <p className="text-xs text-muted-foreground text-center py-3">
+        Belum ada pengumuman yang dikirim.
+      </p>
+    </div>
+  );
+
+  return (
+    <div className="rounded-2xl border bg-card p-4">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <History className="h-4 w-4 text-violet-600" />
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+            Riwayat Broadcast
+          </p>
+        </div>
+        <span className="text-[10px] text-muted-foreground">{history.length} terakhir</span>
+      </div>
+      <div className="space-y-2.5">
+        {history.map((item, idx) => (
+          <div
+            key={item.id}
+            className={`flex gap-3 p-3 rounded-xl ${
+              idx === 0
+                ? "bg-violet-50 dark:bg-violet-950/30 border border-violet-100 dark:border-violet-800/50"
+                : "bg-muted/40"
+            }`}
+          >
+            <div className="mt-0.5 shrink-0">
+              <div className={`w-2 h-2 rounded-full ${idx === 0 ? "bg-violet-500" : "bg-muted-foreground/40"}`} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[12px] leading-relaxed text-foreground line-clamp-2">
+                {item.message}
+              </p>
+              <div className="flex items-center gap-1 mt-1">
+                <Clock className="h-3 w-3 text-muted-foreground" />
+                <p className="text-[10px] text-muted-foreground">
+                  {format(new Date(item.created_at), "d MMM, HH:mm", { locale: id })}
+                </p>
+                {idx === 0 && (
+                  <span className="ml-1 px-1.5 py-0.5 rounded-full bg-violet-100 dark:bg-violet-900/50 text-[9px] font-semibold text-violet-700 dark:text-violet-300">
+                    Terbaru
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -325,6 +433,9 @@ export function TourLeaderActiveView({ ctx }: Props) {
             onClose={() => setShowBroadcastForm(false)}
           />
         )}
+
+        {/* Broadcast history log — last 5 unique announcements */}
+        {dep?.id && <BroadcastHistoryLog departureId={dep.id} />}
 
         {/* Today's itinerary */}
         <TodayItineraryCard items={itinerary} dayNumber={dep.dayNumber} isLoading={itinLoading} />
