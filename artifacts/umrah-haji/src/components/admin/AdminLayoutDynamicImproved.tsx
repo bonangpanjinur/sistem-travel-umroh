@@ -360,9 +360,12 @@ function AdminLayoutDynamicImproved() {
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
             <Input
-              type="search"
+              type="text"
               name="sidebar-menu-search"
-              autoComplete="off"
+              autoComplete="new-password"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
               placeholder="Cari menu... (Ctrl+K)"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}

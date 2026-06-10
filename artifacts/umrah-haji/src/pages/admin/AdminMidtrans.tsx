@@ -336,6 +336,7 @@ export default function AdminMidtrans() {
                 <div className="relative mt-1">
                   <Input
                     type={showServerKey ? "text" : "password"}
+                    autoComplete="new-password"
                     placeholder="SB-Mid-server-xxxx (hanya untuk test, tidak disimpan)"
                     value={testKey}
                     onChange={e => setTestKey(e.target.value)}
@@ -400,6 +401,7 @@ export default function AdminMidtrans() {
                 <div className="relative">
                   <Input
                     type={showClientKey ? "text" : "password"}
+                    autoComplete="new-password"
                     placeholder={sandboxMode ? "SB-Mid-client-xxxx" : "Mid-client-xxxx"}
                     value={uiConfig.client_key}
                     onChange={e => setUiConfig(c => ({ ...c, client_key: e.target.value }))}
