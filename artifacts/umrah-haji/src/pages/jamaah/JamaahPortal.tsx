@@ -2,6 +2,12 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { usePortalContext } from "@/hooks/usePortalContext";
+import { JamaahOnTripView }      from "@/pages/jamaah/views/JamaahOnTripView";
+import { JamaahOffTripView }     from "@/pages/jamaah/views/JamaahOffTripView";
+import { JamaahUpcomingView }    from "@/pages/jamaah/views/JamaahUpcomingView";
+import { MuthawifActiveView }    from "@/pages/jamaah/views/MuthawifActiveView";
+import { TourLeaderActiveView }  from "@/pages/jamaah/views/TourLeaderActiveView";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { usePWAMode } from "@/hooks/usePWAMode";
 import { usePWAConfig } from "@/hooks/usePWAConfig";
@@ -102,6 +108,11 @@ function getRoomTypeLabel(type?: string): string {
 export default function JamaahPortal() {
   const navigate = useNavigate();
   const { user } = useAuth();
+
+  // ── Role-based routing (Sprint 16) ──────────────────────────────────────
+  // Must be called unconditionally (Rules of Hooks), but early-return
+  // is done AFTER all hooks have been called below.
+  const ctx = usePortalContext();
   const { notifications, unreadCount, markAsRead } = useNotifications();
   const { isDark, toggle: toggleDark } = useDarkMode();
   const { getSetting } = useCompanySettings();
@@ -343,6 +354,16 @@ export default function JamaahPortal() {
 
   const firstName = customer?.full_name?.split(' ')[0] || (user ? 'Jamaah' : 'Tamu');
 
+  // ── Early returns: route to role/mode-specific view ──────────────────────
+  if (!ctx.isLoading) {
+    if (ctx.isMuthawif && ctx.activeDeparture)  return <MuthawifActiveView ctx={ctx} />;
+    if (ctx.isTourLeader && ctx.activeDeparture) return <TourLeaderActiveView ctx={ctx} />;
+    if (ctx.isJamaah && ctx.tripMode === "ON_TRIP" && ctx.trip) return <JamaahOnTripView ctx={ctx} />;
+    if (ctx.isJamaah && (ctx.tripMode === "UPCOMING" || ctx.tripMode === "PREPARING") && ctx.trip) return <JamaahUpcomingView ctx={ctx} />;
+    if (ctx.isJamaah && (ctx.tripMode === "OFF_TRIP" || ctx.tripMode === "COMPLETED")) return <JamaahOffTripView ctx={ctx} />;
+  }
+
+  // ── Default: existing full portal (guest + loading + admin staff) ────────
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-background pb-24 md:pb-6">
       {/* ── MODERN HEADER ── */}

@@ -7,13 +7,15 @@ import {
   BellRing, Moon, Sun, UsersRound, Trophy, Search,
   Package, Compass, Calculator, DollarSign, PiggyBank, Phone,
   Cloud, Target, ShoppingBag, Calendar, MapPin, Mic, Navigation,
-  Bookmark, Award, Globe, Info, Headphones
+  Bookmark, Award, Globe, Info, Headphones,
+  AlertTriangle, CheckCircle2, Megaphone, Radio,
 } from "lucide-react";
 import { useDarkMode } from "@/hooks/useDarkMode";
 import { cn } from "@/lib/utils";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useState, useEffect, useMemo } from "react";
 import { usePWAConfig } from "@/hooks/usePWAConfig";
+import { usePortalContext } from "@/hooks/usePortalContext";
 
 const DEFAULT_MOBILE_ITEMS = [
   { to: "/jamaah",               icon: Home,       label: "Beranda" },
@@ -21,6 +23,52 @@ const DEFAULT_MOBILE_ITEMS = [
   { to: "/jamaah/payment",       icon: CreditCard,  label: "Bayar" },
   { to: "/jamaah/profil",        icon: User,        label: "Profil" },
 ];
+
+// Role × Mode → Mobile tab config
+const ROLE_NAV_ITEMS: Record<string, Array<{ to: string; icon: React.ElementType; label: string; urgent?: boolean }>> = {
+  jamaah_ON_TRIP: [
+    { to: "/jamaah",                  icon: Home,          label: "Hari Ini"  },
+    { to: "/jamaah/waktu-sholat",     icon: Moon,          label: "Sholat"    },
+    { to: "/jamaah/rombongan",        icon: Users,         label: "Rombongan" },
+    { to: "/jamaah/sos-status",       icon: AlertTriangle, label: "SOS", urgent: true },
+  ],
+  jamaah_UPCOMING: [
+    { to: "/jamaah",                  icon: Home,          label: "Beranda"  },
+    { to: "/jamaah/waktu-sholat",     icon: Moon,          label: "Sholat"   },
+    { to: "/jamaah/manasik",          icon: GraduationCap, label: "Manasik"  },
+    { to: "/jamaah/documents",        icon: FileText,      label: "Dokumen"  },
+  ],
+  jamaah_PREPARING: [
+    { to: "/jamaah",                  icon: Home,          label: "Beranda"   },
+    { to: "/jamaah/waktu-sholat",     icon: Moon,          label: "Sholat"    },
+    { to: "/jamaah/al-quran",         icon: BookMarked,    label: "Al-Quran"  },
+    { to: "/jamaah/tracker-ibadah",   icon: Star,          label: "Tracker"   },
+  ],
+  jamaah_OFF_TRIP: [
+    { to: "/jamaah",                  icon: Home,          label: "Beranda"   },
+    { to: "/jamaah/waktu-sholat",     icon: Moon,          label: "Sholat"    },
+    { to: "/jamaah/al-quran",         icon: BookMarked,    label: "Al-Quran"  },
+    { to: "/jamaah/tracker-ibadah",   icon: Star,          label: "Tracker"   },
+  ],
+  jamaah_COMPLETED: [
+    { to: "/jamaah",                  icon: Home,          label: "Beranda"   },
+    { to: "/jamaah/waktu-sholat",     icon: Moon,          label: "Sholat"    },
+    { to: "/jamaah/al-quran",         icon: BookMarked,    label: "Al-Quran"  },
+    { to: "/jamaah/sertifikat",       icon: Trophy,        label: "Sertifikat"},
+  ],
+  muthawif_ON_TRIP: [
+    { to: "/jamaah",                  icon: Home,          label: "Beranda"    },
+    { to: "/jamaah/transmisi",        icon: CheckCircle2,  label: "Absensi"    },
+    { to: "/jamaah/rombongan",        icon: Users,         label: "Jamaah"     },
+    { to: "/jamaah/sos-status",       icon: AlertTriangle, label: "SOS", urgent: true },
+  ],
+  tour_leader_ON_TRIP: [
+    { to: "/jamaah",                  icon: Radio,         label: "Overview"   },
+    { to: "/jamaah/rombongan",        icon: Users,         label: "Jamaah"     },
+    { to: "/jamaah/chat",             icon: Megaphone,     label: "Broadcast"  },
+    { to: "/jamaah/sos-status",       icon: AlertTriangle, label: "SOS", urgent: true },
+  ],
+};
 
 const ICON_MAP: Record<string, any> = {
   Home, QrCode, Shield, Bell, LayoutGrid, FileText, Luggage, LogIn,
@@ -135,8 +183,23 @@ export function JamaahBottomNav({ noSidebar = false }: JamaahBottomNavProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState<typeof CATEGORIES[number]>("Semua");
   const { activeItems: pwaActiveItems } = usePWAConfig();
+  const portalCtx = usePortalContext();
+
+  // Derive a role×mode key, e.g. "jamaah_ON_TRIP" / "muthawif_ON_TRIP"
+  const roleNavKey = useMemo(() => {
+    if (portalCtx.isLoading) return null;
+    if (portalCtx.isMuthawif && portalCtx.activeDeparture)   return "muthawif_ON_TRIP";
+    if (portalCtx.isTourLeader && portalCtx.activeDeparture) return "tour_leader_ON_TRIP";
+    if (portalCtx.isJamaah && portalCtx.tripMode)            return `jamaah_${portalCtx.tripMode}`;
+    return null;
+  }, [portalCtx]);
 
   const mobileNavItems = useMemo(() => {
+    // Role-based override takes priority
+    if (roleNavKey && ROLE_NAV_ITEMS[roleNavKey]) {
+      return ROLE_NAV_ITEMS[roleNavKey];
+    }
+    // Fall back to PWA-admin config
     if (!pwaActiveItems?.length) return DEFAULT_MOBILE_ITEMS;
     return pwaActiveItems.slice(0, 4).map((it) => ({
       to: it.path,
@@ -144,7 +207,7 @@ export function JamaahBottomNav({ noSidebar = false }: JamaahBottomNavProps) {
       label: it.label,
       showBadge: it.path === "/jamaah/notifications",
     }));
-  }, [pwaActiveItems]);
+  }, [roleNavKey, pwaActiveItems]);
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "true";

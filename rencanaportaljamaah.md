@@ -1,6 +1,7 @@
 # Rencana Portal Jamaah — Dokumen Arsitektur & Implementasi
 
-> **Status:** Dokumen Aktif · Versi 2.0 · Diperbarui: Mei 2025
+> **Status:** Dokumen Aktif · Versi 2.1 · Diperbarui: Juni 2025  
+> **Sprint Aktif:** Sprint 17 (Sprint 16 selesai ✅)
 > **Scope:** Arsitektur teknis, integrasi sistem, roadmap implementasi Portal `/jamaah`
 > **Dibaca oleh:** Engineer, Product Owner, QA
 
@@ -1128,50 +1129,51 @@ useEffect(() => {
 
 ## 11. Roadmap Sprint
 
-### Sprint 16 — Fondasi Role-Based Portal *(2 minggu)*
+### Sprint 16 — Fondasi Role-Based Portal *(SELESAI ✅)*
 **Goal: `/jamaah` punya tampilan berbeda per role dan per mode perjalanan.**
 
-| ID | Task | File | Estimasi |
-|----|------|------|----------|
-| S16-01 | Buat `hooks/useActiveTrip.ts` | Baru | 1 hari |
-| S16-02 | Buat `hooks/useTodayItinerary.ts` | Baru | 0.5 hari |
-| S16-03 | Buat `hooks/useActiveDeparture.ts` | Baru | 0.5 hari |
-| S16-04 | Buat `hooks/usePortalContext.ts` | Baru | 1 hari |
-| S16-05 | Refactor `JamaahPortal.tsx` → role switch | Ubah | 1 hari |
-| S16-06 | Buat `JamaahOnTripView.tsx` (skeleton) | Baru | 1 hari |
-| S16-07 | Buat `JamaahOffTripView.tsx` (skeleton) | Baru | 1 hari |
-| S16-08 | Ubah `JamaahBottomNav.tsx` → dynamic tabs | Ubah | 1 hari |
-| S16-09 | SQL migration 046 | Baru | 0.5 hari |
-| S16-10 | Sembunyikan promosi saat ON_TRIP | Ubah | 0.5 hari |
+| ID | Status | Task | File |
+|----|--------|------|------|
+| S16-01 | ✅ | Buat `hooks/useActiveTrip.ts` | `src/hooks/useActiveTrip.ts` |
+| S16-02 | ✅ | Buat `hooks/useTodayItinerary.ts` | `src/hooks/useTodayItinerary.ts` |
+| S16-03 | ✅ | Buat `hooks/useActiveDeparture.ts` | `src/hooks/useActiveDeparture.ts` |
+| S16-04 | ✅ | Buat `hooks/usePortalContext.ts` | `src/hooks/usePortalContext.ts` |
+| S16-05 | ✅ | Refactor `JamaahPortal.tsx` → role switch + early returns | `src/pages/jamaah/JamaahPortal.tsx` |
+| S16-06 | ✅ | Buat `JamaahOnTripView.tsx` | `src/pages/jamaah/views/JamaahOnTripView.tsx` |
+| S16-07 | ✅ | Buat `JamaahOffTripView.tsx` | `src/pages/jamaah/views/JamaahOffTripView.tsx` |
+| S16-08 | ✅ | Ubah `JamaahBottomNav.tsx` → dynamic tabs per role×mode | `src/components/jamaah/JamaahBottomNav.tsx` |
+| S16-09 | ✅ | SQL migration 046 (`ibadah_guides` + `jamaah_journals` + kolom `departure_itineraries`) | `supabase/migrations/20260610_046_portal_jamaah_enhancements.sql` |
+| S16-10 | ✅ | Promosi otomatis tersembunyi saat ON_TRIP (routing ke view terpisah) | via `JamaahOnTripView` |
 
 **Acceptance Criteria Sprint 16:**
-- [ ] Login sebagai jamaah dengan trip aktif hari ini → muncul itinerary hari ini
-- [ ] Login sebagai jamaah tanpa trip aktif → muncul view ibadah harian
-- [ ] Login sebagai muthawif → muncul view operasional muthawif
-- [ ] Login sebagai tour_leader → muncul view command center TL
-- [ ] Bottom nav berubah sesuai mode
-- [ ] Promosi tidak muncul saat ON_TRIP
+- [x] Login sebagai jamaah dengan trip aktif hari ini → muncul itinerary hari ini
+- [x] Login sebagai jamaah tanpa trip aktif → muncul view ibadah harian
+- [x] Login sebagai muthawif → muncul view operasional muthawif
+- [x] Login sebagai tour_leader → muncul view command center TL
+- [x] Bottom nav berubah sesuai mode (role×mode key → ROLE_NAV_ITEMS)
+- [x] Promosi tidak muncul saat ON_TRIP (dedicated view, no BannerCarousel/FeaturedPackages)
 
 ---
 
-### Sprint 17 — Fitur Kritis ON_TRIP *(2 minggu)*
+### Sprint 17 — Fitur Kritis ON_TRIP *(Sprint Aktif 🔄)*
 **Goal: Pengalaman ON_TRIP lengkap dan bisa dipakai di Tanah Suci.**
 
-| ID | Task | File | Estimasi |
-|----|------|------|----------|
-| S17-01 | `TripStatusHeader` component | Baru | 1 hari |
-| S17-02 | `TodayItineraryCard` + highlight aktif | Baru | 2 hari |
-| S17-03 | `EmergencyContactBar` + SOS FAB | Baru | 1 hari |
-| S17-04 | `HotelInfoCard` (nama hotel, lantai, kamar) | Baru | 0.5 hari |
-| S17-05 | Sholat override lokasi Makkah/Madinah | Ubah | 1 hari |
-| S17-06 | `SholatCountdownWidget` standalone | Baru | 1 hari |
-| S17-07 | Realtime: subscribe itinerary update | Ubah | 1 hari |
-| S17-08 | Offline cache: itinerary + rombongan | Ubah | 1 hari |
-| S17-09 | `IbadahShortcutsGrid` component | Baru | 0.5 hari |
-| S17-10 | `WeatherWidget` terintegrasi di ON_TRIP | Ubah | 0.5 hari |
+| ID | Status | Task | File |
+|----|--------|------|------|
+| S17-01 | ✅ | `TripStatusHeader` component | `src/components/jamaah/trip/TripStatusHeader.tsx` |
+| S17-02 | ✅ | `TodayItineraryCard` + highlight aktif | `src/components/jamaah/trip/TodayItineraryCard.tsx` |
+| S17-03 | ✅ | `EmergencyContactBar` + SOS FAB | `src/components/jamaah/trip/EmergencyContactBar.tsx` |
+| S17-04 | ⏳ | `HotelInfoCard` (nama hotel, lantai, kamar) | Baru — belum dibuat |
+| S17-05 | ⏳ | Sholat override lokasi Makkah/Madinah saat ON_TRIP | Belum — perlu ubah `JamaahWaktuSholat.tsx` |
+| S17-06 | ✅ | `SholatCountdownWidget` standalone | `src/components/jamaah/SholatCountdownWidget.tsx` |
+| S17-07 | ⏳ | Realtime: subscribe itinerary update di `JamaahOnTripView` | Belum |
+| S17-08 | ⏳ | Offline cache: itinerary + rombongan | Belum — perlu `useOfflineCache` extension |
+| S17-09 | ✅ | `IbadahShortcutsGrid` component | `src/components/jamaah/IbadahShortcutsGrid.tsx` |
+| S17-10 | ⏳ | `WeatherWidget` terintegrasi di ON_TRIP | Belum |
 
 **Acceptance Criteria Sprint 17:**
-- [ ] Itinerary hari ini tampil dengan benar, item aktif di-highlight
+- [x] Komponen TripStatusHeader, TodayItineraryCard, EmergencyContactBar, SholatCountdownWidget, IbadahShortcutsGrid siap
+- [ ] Itinerary hari ini tampil dengan benar, item aktif di-highlight (perlu data `departure_itineraries`)
 - [ ] Waktu sholat menggunakan koordinat Makkah/Madinah (bukan lokasi HP)
 - [ ] Kontak darurat TL dan muthawif tampil dan bisa di-tap untuk telepon
 - [ ] Tombol SOS selalu visible
@@ -1179,41 +1181,41 @@ useEffect(() => {
 
 ---
 
-### Sprint 18 — Ibadah Harian (OFF_TRIP) *(2 minggu)*
+### Sprint 18 — Ibadah Harian (OFF_TRIP) *(Berikutnya 📋)*
 **Goal: Portal jadi pendamping ibadah harian yang nyaman dipakai setiap hari.**
 
-| ID | Task | File | Estimasi |
-|----|------|------|----------|
-| S18-01 | `JamaahOffTripView` lengkap | Ubah | 2 hari |
-| S18-02 | `HijriDateDisplay` component | Baru | 0.5 hari |
-| S18-03 | `AyatHarianCard` (offline, 365 ayat) | Baru | 1 hari |
-| S18-04 | Ibadah streak system di homepage | Ubah | 1 hari |
-| S18-05 | Mini weekly chart sholat di homepage | Ubah | 1 hari |
-| S18-06 | Al-Quran offline Juz 30 (bundle di app) | Ubah | 2 hari |
-| S18-07 | `JamaahUpcomingView` (countdown + checklist) | Baru | 1 hari |
-| S18-08 | Push notif jadwal sholat (extend cron.ts) | Ubah | 1 hari |
+| ID | Status | Task | File |
+|----|--------|------|------|
+| S18-01 | ✅ | `JamaahOffTripView` skeleton | `src/pages/jamaah/views/JamaahOffTripView.tsx` |
+| S18-02 | ⏳ | `HijriDateDisplay` component | Baru |
+| S18-03 | ⏳ | `AyatHarianCard` (offline, 365 ayat) | Baru |
+| S18-04 | ⏳ | Ibadah streak system di homepage | Ubah `JamaahOffTripView` |
+| S18-05 | ⏳ | Mini weekly chart sholat di homepage | Ubah `JamaahOffTripView` |
+| S18-06 | ⏳ | Al-Quran offline Juz 30 (bundle di app) | Ubah |
+| S18-07 | ✅ | `JamaahUpcomingView` (countdown + checklist) | `src/pages/jamaah/views/JamaahUpcomingView.tsx` |
+| S18-08 | ⏳ | Push notif jadwal sholat (extend cron.ts) | Ubah |
 
 **Acceptance Criteria Sprint 18:**
 - [ ] Homepage menampilkan countdown sholat berikutnya dengan akurat
 - [ ] Al-Quran Juz 30 bisa dibaca saat offline total
 - [ ] Streak sholat tampil di homepage
-- [ ] Jamaah dengan booking upcoming melihat countdown keberangkatan
+- [x] Jamaah dengan booking upcoming melihat countdown keberangkatan (view routing ✅)
 - [ ] Push notif sholat diterima di HP meskipun app tidak dibuka
 
 ---
 
-### Sprint 19 — Muthawif & Tour Leader Terintegrasi *(2 minggu)*
+### Sprint 19 — Muthawif & Tour Leader Terintegrasi *(Dimajukan ⚡)*
 **Goal: Muthawif dan TL akses semua fungsi dari `/jamaah`, bukan URL terpisah.**
 
-| ID | Task | File | Estimasi |
-|----|------|------|----------|
-| S19-01 | `MuthawifActiveView` di `/jamaah` | Baru | 2 hari |
-| S19-02 | `TourLeaderActiveView` di `/jamaah` | Baru | 2 hari |
-| S19-03 | SOS Realtime di `MuthawifActiveView` | Ubah | 1 hari |
-| S19-04 | Broadcast form di `TourLeaderActiveView` | Ubah | 1 hari |
-| S19-05 | Panduan ibadah kontekstual (`guide_key`) | Baru | 2 hari |
-| S19-06 | Jurnal perjalanan (`jamaah_journals` table) | Baru | 1 hari |
-| S19-07 | `MuthawifOffView` dan `TLOffView` = ibadah harian | Baru | 0.5 hari |
+| ID | Status | Task | File |
+|----|--------|------|------|
+| S19-01 | ✅ | `MuthawifActiveView` di `/jamaah` | `src/pages/jamaah/views/MuthawifActiveView.tsx` |
+| S19-02 | ✅ | `TourLeaderActiveView` di `/jamaah` | `src/pages/jamaah/views/TourLeaderActiveView.tsx` |
+| S19-03 | ⏳ | SOS Realtime di `MuthawifActiveView` | Perlu Supabase Realtime subscribe |
+| S19-04 | ⏳ | Broadcast form di `TourLeaderActiveView` | Perlu form + insert ke notif table |
+| S19-05 | ⏳ | Panduan ibadah kontekstual (`guide_key`) | Perlu hook query `ibadah_guides` |
+| S19-06 | ✅ | Jurnal perjalanan (`jamaah_journals` table) | Tabel dibuat di migration 046 |
+| S19-07 | ⏳ | `MuthawifOffView` dan `TLOffView` = ibadah harian | Bisa re-use `JamaahOffTripView` |
 
 ---
 
@@ -1290,43 +1292,56 @@ useEffect(() => {
 
 ## 13. Checklist Acceptance Criteria
 
+> Legend: ✅ Done · ⏳ Pending · 🔄 In Progress
+
 ### Fungsional Utama
 
-**Role Detection**
-- [ ] Jamaah dengan booking ON_TRIP → tampilkan `JamaahOnTripView`
-- [ ] Jamaah tanpa booking aktif → tampilkan `JamaahOffTripView`
-- [ ] Jamaah booking upcoming < 30 hari → tampilkan `JamaahUpcomingView`
-- [ ] Muthawif login → tampilkan `MuthawifActiveView`
-- [ ] Tour Leader login → tampilkan `TourLeaderActiveView`
-- [ ] Belum login → tampilkan `GuestIbadahView`
+**Role Detection** *(Sprint 16 — SELESAI)*
+- [x] Jamaah dengan booking ON_TRIP → tampilkan `JamaahOnTripView` ✅
+- [x] Jamaah tanpa booking aktif → tampilkan `JamaahOffTripView` ✅
+- [x] Jamaah booking upcoming < 30 hari → tampilkan `JamaahUpcomingView` ✅
+- [x] Muthawif login → tampilkan `MuthawifActiveView` ✅
+- [x] Tour Leader login → tampilkan `TourLeaderActiveView` ✅
+- [ ] Belum login → tampilkan `GuestIbadahView` ⏳ (default portal existing)
+- [x] Bottom nav otomatis berubah tabs sesuai role × mode ✅
 
-**Ibadah**
-- [ ] Countdown sholat berikutnya akurat ± 1 menit
-- [ ] Saat ON_TRIP: waktu sholat berdasarkan kota itinerary (Makkah/Madinah), bukan GPS
-- [ ] Kiblat bekerja di dalam ruangan (compass)
-- [ ] Al-Quran Juz 30 bisa dibaca tanpa internet
-- [ ] Zikir counter tersimpan ke DB dan sync lintas device
+**Ibadah** *(Sprint 17-18)*
+- [ ] Countdown sholat berikutnya akurat ± 1 menit ⏳
+- [ ] Saat ON_TRIP: waktu sholat berdasarkan kota itinerary (Makkah/Madinah), bukan GPS ⏳ S17-05
+- [ ] Kiblat bekerja di dalam ruangan (compass) ⏳
+- [ ] Al-Quran Juz 30 bisa dibaca tanpa internet ⏳ S18-06
+- [ ] Zikir counter tersimpan ke DB dan sync lintas device ⏳
 
-**Integrasi Data**
-- [ ] Itinerary hari ini tampil dengan data dari `departure_itineraries` table
-- [ ] Item itinerary yang sedang berjalan di-highlight otomatis
-- [ ] Kontak darurat (TL + Muthawif) diambil live dari `departures` table
-- [ ] Hotel hari ini (Makkah vs Madinah) muncul sesuai hari ke-N
+**Integrasi Data** *(Sprint 17)*
+- [ ] Itinerary hari ini tampil dengan data dari `departure_itineraries` table ⏳ S17-02
+- [ ] Item itinerary yang sedang berjalan di-highlight otomatis ⏳ S17-02
+- [ ] Kontak darurat (TL + Muthawif) diambil live dari `departures` table ⏳ S17-03
+- [ ] Hotel hari ini (Makkah vs Madinah) muncul sesuai hari ke-N ⏳ S17-04
 
-**Real-time**
-- [ ] Broadcast TL diterima oleh jamaah dalam < 3 detik
-- [ ] SOS alert muncul di dashboard TL/Muthawif dalam < 3 detik
-- [ ] Update itinerary oleh TL langsung refresh di HP jamaah
+**Real-time** *(Sprint 17 + 19)*
+- [ ] Broadcast TL diterima oleh jamaah dalam < 3 detik ⏳ S19-04
+- [ ] SOS alert muncul di dashboard TL/Muthawif dalam < 3 detik ⏳ S19-03
+- [ ] Update itinerary oleh TL langsung refresh di HP jamaah ⏳ S17-07
 
-**Offline**
-- [ ] Semua fitur ibadah (sholat, kiblat, quran, doa, zikir) jalan offline
-- [ ] Itinerary tersedia offline (cached saat terakhir online)
-- [ ] Rombongan info tersedia offline
+**Offline** *(Sprint 17-18)*
+- [ ] Semua fitur ibadah (sholat, kiblat, quran, doa, zikir) jalan offline ⏳
+- [ ] Itinerary tersedia offline (cached saat terakhir online) ⏳ S17-08
+- [ ] Rombongan info tersedia offline ⏳ S17-08
 
-**Performa**
-- [ ] First Contentful Paint (FCP) < 1.5 detik (WiFi)
-- [ ] FCP < 3 detik (3G, simulasi kondisi Tanah Suci)
-- [ ] Ukuran bundle tidak naik > 200kb vs sebelumnya
+**Performa** *(Sprint 20)*
+- [ ] First Contentful Paint (FCP) < 1.5 detik (WiFi) ⏳
+- [ ] FCP < 3 detik (3G, simulasi kondisi Tanah Suci) ⏳
+- [ ] Ukuran bundle tidak naik > 200kb vs sebelumnya ⏳
+
+### Ringkasan Progress
+
+| Sprint | Status | Selesai | Total |
+|--------|--------|---------|-------|
+| S16 — Fondasi Role-Based Portal | ✅ SELESAI | 10/10 | 10 |
+| S17 — Fitur Kritis ON_TRIP | 🔄 IN PROGRESS | 5/10 | 10 |
+| S18 — Ibadah Harian OFF_TRIP | 📋 BERIKUTNYA | 2/8 | 8 |
+| S19 — Muthawif & TL Terintegrasi | ⚡ DIMAJUKAN | 3/7 | 7 |
+| S20 — Polish & Pengujian | 📋 BELUM | 0/6 | 6 |
 
 ---
 
