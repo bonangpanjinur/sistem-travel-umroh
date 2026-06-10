@@ -90,6 +90,7 @@ export const RECOMMENDED_MENUS: AdminMenuItem[] = [
   { key: 'rekonsiliasi',        label: 'K-12 Rekonsiliasi Bank', path: '/admin/finance/rekonsiliasi', icon: 'ClipboardCheck',  group_name: 'Akuntansi',          sort_order: 548, required_permission: PERMISSIONS.REKONSILIASI },
   { key: 'laporan-pajak',       label: 'K-13 Laporan Pajak',    path: '/admin/finance/laporan-pajak', icon: 'Receipt',         group_name: 'Akuntansi',          sort_order: 549, required_permission: PERMISSIONS.LAPORAN_PAJAK },
   { key: 'hpp-terpadu',         label: 'HPP Terpadu',           path: '/admin/finance/hpp-terpadu',   icon: 'Package',         group_name: 'Akuntansi',          sort_order: 550, required_permission: PERMISSIONS.LAPORAN_PAJAK },
+  { key: 'laporan-cabang',      label: 'Laporan per Cabang',    path: '/admin/finance/laporan-cabang', icon: 'Building2',        group_name: 'Akuntansi',          sort_order: 551, required_permission: PERMISSIONS.LABA_RUGI },
 
   // ── Laporan (520s) ────────────────────────────────────────────────────────
   { key: 'finance',             label: 'Laporan P&L',           path: '/admin/finance',              icon: 'TrendingUp',      group_name: 'Laporan',            sort_order: 521, required_permission: PERMISSIONS.FINANCE },

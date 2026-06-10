@@ -293,41 +293,39 @@ Implementasi:
 
 ---
 
-### 🟢 FASE LANJUTAN — Peningkatan Analitik ❌ BELUM DIKERJAKAN
+### 🟢 FASE LANJUTAN — Peningkatan Analitik ✅ SELESAI
 
-#### ❌ INT-15: Package Profitability Benchmark
-**Prioritas:** LANJUTAN | **Effort:** M | **Status:** Belum dikerjakan
+#### ✅ INT-15: Package Profitability Benchmark
+**Prioritas:** LANJUTAN | **Effort:** M | **Status:** ✅ Selesai 10 Juni 2026
 **Dependensi:** INT-11, INT-12
 
 Update `AdminPackageProfitabilityComparison.tsx`:
-- Benchmark HPP per kategori antar paket (Economy vs VIP vs Premium)
-- Identifikasi kategori biaya tertinggi yang membedakan paket
-- Rekomendasi harga jual berdasarkan HPP + target margin
+- ✅ Toggle viewMode: Perbandingan ↔ Benchmark di header
+- ✅ BenchmarkView: query departure_cost_items → grouped by category × package type
+- ✅ Bar chart HPP/pax per kategori antar tipe paket
+- ✅ Tabel benchmark (kategori × tipe, highlight tertinggi)
+- ✅ Rekomendasi harga jual minimum per tipe paket berdasarkan HPP + target margin
 
 ---
 
-#### ❌ INT-16: Laporan Keuangan per Cabang (Multi-Branch)
-**Prioritas:** LANJUTAN | **Effort:** L | **Status:** Belum dikerjakan
+#### ✅ INT-16: Laporan Keuangan per Cabang (Multi-Branch)
+**Prioritas:** LANJUTAN | **Effort:** L | **Status:** ✅ Selesai 10 Juni 2026
 **Dependensi:** INT-03 ✅, INT-04 ✅
 
-Filter semua laporan keuangan per `branch_id`:
-- Laba Rugi per Cabang
-- Kas per Cabang
-- AR/AP per Cabang
-- Konsolidasi semua cabang untuk owner
+- ✅ `AdminLaporanCabang.tsx` — 4 tab (Laba Rugi, Arus Kas, AR, AP) dengan filter branch_id
+- ✅ Konsolidasi semua cabang untuk role owner
+- ✅ Route: `finance/laporan-cabang` di AdminRoutes.tsx
+- ✅ Menu: group Akuntansi, sort_order 551
 
 ---
 
-#### ❌ INT-17: Finance KPI Dashboard Widget
-**Prioritas:** LANJUTAN | **Effort:** S | **Status:** Belum dikerjakan
+#### ✅ INT-17: Finance KPI Dashboard Widget
+**Prioritas:** LANJUTAN | **Effort:** S | **Status:** ✅ Selesai 10 Juni 2026
 **Dependensi:** INT-10
 
-Tambah widget di AdminDashboard utama (atau FinanceDashboard):
-- 💰 Revenue bulan ini vs target
-- 📊 Margin rata-rata keberangkatan aktif
-- ⚠️ Jumlah booking overdue (AR)
-- 📋 Vendor jatuh tempo minggu ini (AP)
-- 💸 Biaya SDM vs budget
+- ✅ `FinanceKPIWidget` component di `AdminKPIDashboard.tsx`
+- ✅ 5 KPI cards: Revenue bulan ini, Margin rata-rata, AR belum lunas, AP jatuh tempo 7 hari, Biaya SDM vs budget
+- ✅ Data real-time dari payments, v_financial_summary, bookings, vendor_costs, payroll_records
 
 ---
 
@@ -354,14 +352,14 @@ FASE SEDANG (Dashboard & Analitik) — ✅ SEMUA SELESAI:
   ✅ INT-13 → Auto AR Reminder cron @09:30 WIB + runAROverdueReminders()
   ✅ INT-14 → departure_expenses Approval Workflow (4-tab UI + migration 085)
 
-FASE LANJUTAN (Peningkatan Analitik) — ❌ BELUM DIKERJAKAN:
-  ❌ INT-15 → Package Profitability Benchmark
-  ❌ INT-16 → Laporan per Cabang (Multi-Branch)
-  ❌ INT-17 → Finance KPI Dashboard Widget
+FASE LANJUTAN (Peningkatan Analitik) — ✅ SEMUA SELESAI:
+  ✅ INT-15 → Package Profitability Benchmark (toggle view + bar chart + price reco)
+  ✅ INT-16 → Laporan per Cabang (Multi-Branch) (4 tab + konsolidasi owner)
+  ✅ INT-17 → Finance KPI Dashboard Widget (5 KPI cards real-time)
 ```
 
-**Progress keseluruhan: 14 / 17 item selesai (82%)**
-**INT-01–14 semua sudah selesai. Tersisa 3 item di FASE LANJUTAN (INT-15–17).**
+**Progress keseluruhan: 17 / 17 item selesai (100%) 🎉**
+**Semua FASE KRITIS, PENTING, SEDANG, dan LANJUTAN telah selesai.**
 
 ---
 

@@ -11,7 +11,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase as supabaseRaw } from "@/integrations/supabase/client";
 const supabase = supabaseRaw as any;
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,7 +45,14 @@ import {
   PackageOpen,
   AlertTriangle,
   Download,
+  Lightbulb,
+  TableProperties,
+  Layers,
 } from "lucide-react";
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip,
+  ResponsiveContainer, Legend,
+} from "recharts";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/format";
 
@@ -445,6 +452,297 @@ function DepartureExpandedRow({
   );
 }
 
+// ── Benchmark View (INT-15) ────────────────────────────────────────────────────
+
+interface BenchmarkRow {
+  category: string;
+  byType: Record<string, number>;  // pkg_type → avg HPP per pax
+}
+
+function BenchmarkView({
+  targetMargin,
+  allDepIds,
+  summaries,
+}: {
+  targetMargin: number;
+  allDepIds: string[];
+  summaries: PackageSummary[];
+}) {
+  const { data: catItems = [], isLoading } = useQuery({
+    queryKey: ["benchmark-category-hpp", allDepIds.join(",")],
+    queryFn: async () => {
+      if (allDepIds.length === 0) return [];
+      const { data, error } = await supabase
+        .from("departure_cost_items")
+        .select("departure_id, category, total_cost_idr")
+        .in("departure_id", allDepIds);
+      if (error?.code === "42P01") return [];
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: allDepIds.length > 0,
+    staleTime: 60_000,
+  });
+
+  // Build: depId → packageType, paxCount
+  const depMeta = useMemo(() => {
+    const m: Record<string, { type: string; pax: number; hpp: number }> = {};
+    for (const s of summaries) {
+      for (const dr of s.depRows) {
+        m[dr.dep.id] = {
+          type: s.pkg.type || "unknown",
+          pax: dr.paxConfirmed || dr.dep.quota || 1,
+          hpp: dr.totalHPP ?? 0,
+        };
+      }
+    }
+    return m;
+  }, [summaries]);
+
+  // Group cost items: { category → { pkg_type → { totalCost, totalPax } } }
+  const grouped = useMemo(() => {
+    const g: Record<string, Record<string, { totalCost: number; totalPax: number }>> = {};
+    for (const item of catItems) {
+      const meta = depMeta[item.departure_id];
+      if (!meta) continue;
+      const cat = item.category || "Lainnya";
+      const typ = meta.type;
+      const pax = meta.pax || 1;
+      if (!g[cat]) g[cat] = {};
+      if (!g[cat][typ]) g[cat][typ] = { totalCost: 0, totalPax: 0 };
+      g[cat][typ].totalCost += Number(item.total_cost_idr) || 0;
+      g[cat][typ].totalPax += pax;
+    }
+    return g;
+  }, [catItems, depMeta]);
+
+  const allTypes = useMemo(() => {
+    const types = new Set(summaries.map(s => s.pkg.type || "unknown").filter(Boolean));
+    return Array.from(types).sort();
+  }, [summaries]);
+
+  const allCategories = useMemo(() => Object.keys(grouped).sort(), [grouped]);
+
+  // Build chart data: per category bar chart
+  const chartData = useMemo(() => {
+    return allCategories.map(cat => {
+      const row: Record<string, number | string> = { category: cat };
+      for (const typ of allTypes) {
+        const entry = grouped[cat]?.[typ];
+        if (entry && entry.totalPax > 0) {
+          row[typ] = Math.round(entry.totalCost / entry.totalPax);
+        } else {
+          row[typ] = 0;
+        }
+      }
+      return row;
+    });
+  }, [grouped, allCategories, allTypes]);
+
+  // Total HPP per pax per type
+  const totalHppByType = useMemo(() => {
+    const t: Record<string, number> = {};
+    for (const typ of allTypes) {
+      let totalCost = 0; let totalPax = 0;
+      for (const cat of allCategories) {
+        const entry = grouped[cat]?.[typ];
+        if (entry) { totalCost += entry.totalCost; totalPax += entry.totalPax; }
+      }
+      t[typ] = totalPax > 0 ? totalCost / totalPax : 0;
+    }
+    return t;
+  }, [grouped, allCategories, allTypes]);
+
+  const TYPE_COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899"];
+
+  if (isLoading) return (
+    <div className="space-y-4 py-4">
+      <Skeleton className="h-64 w-full" />
+      <Skeleton className="h-48 w-full" />
+    </div>
+  );
+
+  if (catItems.length === 0) return (
+    <div className="py-16 text-center text-muted-foreground">
+      <AlertTriangle className="h-8 w-8 mx-auto mb-3 opacity-30" />
+      <p className="font-medium">Belum ada data HPP per kategori</p>
+      <p className="text-sm mt-1">Isi departure_cost_items melalui Modul Keberangkatan → Budget & HPP.</p>
+    </div>
+  );
+
+  return (
+    <div className="space-y-6">
+      {/* Bar chart */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-semibold flex items-center gap-2">
+            <BarChart3 className="h-4 w-4 text-primary" />
+            HPP per Kategori per Tipe Paket (Rp/Pax)
+          </CardTitle>
+          <CardDescription className="text-xs">
+            Perbandingan biaya per kategori antar tipe paket. Identifikasi kategori yang paling membedakan harga.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={280}>
+            <BarChart data={chartData} margin={{ top: 4, right: 16, bottom: 40, left: 16 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} className="opacity-30" />
+              <XAxis
+                dataKey="category"
+                tick={{ fontSize: 10 }}
+                angle={-30}
+                textAnchor="end"
+                height={48}
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis
+                tick={{ fontSize: 10 }}
+                axisLine={false}
+                tickLine={false}
+                tickFormatter={(v) => v >= 1_000_000 ? `${(v/1_000_000).toFixed(0)}jt` : `${(v/1_000).toFixed(0)}rb`}
+              />
+              <RTooltip
+                contentStyle={{ fontSize: 12, borderRadius: 10 }}
+                formatter={(v: number, name: string) => [
+                  `Rp ${v >= 1_000_000 ? (v/1_000_000).toFixed(2)+"jt" : (v/1_000).toFixed(0)+"rb"}`,
+                  name
+                ]}
+              />
+              <Legend wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />
+              {allTypes.map((typ, i) => (
+                <Bar
+                  key={typ}
+                  dataKey={typ}
+                  name={typ.charAt(0).toUpperCase() + typ.slice(1)}
+                  fill={TYPE_COLORS[i % TYPE_COLORS.length]}
+                  radius={[3, 3, 0, 0]}
+                />
+              ))}
+            </BarChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+
+      {/* Benchmark table */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-semibold flex items-center gap-2">
+            <TableProperties className="h-4 w-4 text-primary" />
+            Tabel Benchmark HPP per Kategori (Rp/Pax)
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[500px]">
+              <thead className="bg-muted/50 border-b">
+                <tr>
+                  <th className="text-left px-4 py-2 font-semibold text-xs text-muted-foreground">Kategori Biaya</th>
+                  {allTypes.map(typ => (
+                    <th key={typ} className="text-right px-4 py-2 font-semibold text-xs text-muted-foreground capitalize">
+                      {typ}
+                    </th>
+                  ))}
+                  <th className="text-right px-4 py-2 font-semibold text-xs text-muted-foreground">Tertinggi</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {allCategories.map(cat => {
+                  const vals = allTypes.map(typ => {
+                    const entry = grouped[cat]?.[typ];
+                    return entry && entry.totalPax > 0 ? entry.totalCost / entry.totalPax : 0;
+                  });
+                  const maxVal = Math.max(...vals);
+                  const maxType = maxVal > 0 ? allTypes[vals.indexOf(maxVal)] : null;
+                  return (
+                    <tr key={cat} className="hover:bg-muted/20">
+                      <td className="px-4 py-2 font-medium capitalize">{cat}</td>
+                      {allTypes.map((typ, i) => {
+                        const v = vals[i];
+                        const isMax = v === maxVal && maxVal > 0;
+                        return (
+                          <td key={typ} className={cn(
+                            "px-4 py-2 text-right tabular-nums",
+                            isMax ? "font-bold text-red-600" : "text-muted-foreground"
+                          )}>
+                            {v > 0 ? fmtRp(v) : "—"}
+                          </td>
+                        );
+                      })}
+                      <td className="px-4 py-2 text-right">
+                        {maxType ? (
+                          <span className="text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded capitalize">
+                            {maxType}
+                          </span>
+                        ) : <span className="text-muted-foreground">—</span>}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot>
+                <tr className="border-t-2 bg-muted/40 font-bold">
+                  <td className="px-4 py-2 text-sm">Total HPP/Pax</td>
+                  {allTypes.map(typ => (
+                    <td key={typ} className="px-4 py-2 text-right text-base">
+                      {totalHppByType[typ] > 0 ? fmtRp(totalHppByType[typ]) : "—"}
+                    </td>
+                  ))}
+                  <td />
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Price Recommendations */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-semibold flex items-center gap-2">
+            <Lightbulb className="h-4 w-4 text-amber-500" />
+            Rekomendasi Harga Jual Minimum (Target Margin {targetMargin}%)
+          </CardTitle>
+          <CardDescription className="text-xs">
+            Harga minimum = HPP/pax ÷ (1 − target margin). Gunakan sebagai patokan penetapan harga.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {allTypes.map((typ, i) => {
+              const hpp = totalHppByType[typ];
+              if (!hpp) return null;
+              const minPrice = hpp / (1 - targetMargin / 100);
+              return (
+                <div
+                  key={typ}
+                  className="rounded-xl border p-4 space-y-2"
+                  style={{ borderColor: TYPE_COLORS[i % TYPE_COLORS.length] + "40" }}
+                >
+                  <div className="text-xs font-bold uppercase tracking-wide text-muted-foreground capitalize">{typ}</div>
+                  <div className="space-y-0.5">
+                    <div className="text-[10px] text-muted-foreground">HPP/pax rata-rata:</div>
+                    <div className="font-semibold tabular-nums">{formatCurrency(hpp)}</div>
+                  </div>
+                  <div className="space-y-0.5 border-t pt-2">
+                    <div className="text-[10px] text-muted-foreground">Harga min (@{targetMargin}% margin):</div>
+                    <div className="font-bold text-lg tabular-nums" style={{ color: TYPE_COLORS[i % TYPE_COLORS.length] }}>
+                      {formatCurrency(minPrice)}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <p className="text-[11px] text-muted-foreground mt-3">
+            * Rekomendasi berbasis HPP rata-rata dari departure_cost_items. Perbarui HPP secara rutin untuk akurasi optimal.
+          </p>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function AdminPackageProfitabilityComparison() {
@@ -454,6 +752,7 @@ export default function AdminPackageProfitabilityComparison() {
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [searchQ, setSearchQ] = useState("");
+  const [viewMode, setViewMode] = useState<"comparison" | "benchmark">("comparison");
 
   // ── Data fetching ──────────────────────────────────────────────────────────
 
@@ -645,19 +944,44 @@ export default function AdminPackageProfitabilityComparison() {
             Perbandingan Profitabilitas Paket
           </h1>
           <p className="text-muted-foreground text-sm mt-0.5">
-            HPP, margin, harga jual, dan occupancy per keberangkatan — semua paket dalam satu tampilan.
+            {viewMode === "comparison"
+              ? "HPP, margin, harga jual, dan occupancy per keberangkatan — semua paket dalam satu tampilan."
+              : "Benchmark HPP per kategori antar tipe paket + rekomendasi harga jual minimum."}
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => refetch()}
-          disabled={isLoading}
-          className="gap-1.5"
-        >
-          <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} />
-          Muat Ulang
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* View mode toggle */}
+          <div className="flex items-center bg-muted/50 rounded-lg p-0.5 gap-0.5">
+            <Button
+              variant={viewMode === "comparison" ? "default" : "ghost"}
+              size="sm"
+              className="h-7 text-xs gap-1.5"
+              onClick={() => setViewMode("comparison")}
+            >
+              <TableProperties className="h-3.5 w-3.5" />
+              Perbandingan
+            </Button>
+            <Button
+              variant={viewMode === "benchmark" ? "default" : "ghost"}
+              size="sm"
+              className="h-7 text-xs gap-1.5"
+              onClick={() => setViewMode("benchmark")}
+            >
+              <Layers className="h-3.5 w-3.5" />
+              Benchmark
+            </Button>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refetch()}
+            disabled={isLoading}
+            className="gap-1.5"
+          >
+            <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} />
+            Muat Ulang
+          </Button>
+        </div>
       </div>
 
       {/* KPI Summary Cards */}
@@ -739,8 +1063,17 @@ export default function AdminPackageProfitabilityComparison() {
         </Card>
       </div>
 
-      {/* Controls */}
-      <div className="flex flex-wrap items-center gap-3">
+      {/* Benchmark View — rendered when viewMode === "benchmark" */}
+      {viewMode === "benchmark" && (
+        <BenchmarkView
+          targetMargin={targetMargin}
+          allDepIds={allDepIds}
+          summaries={summaries}
+        />
+      )}
+
+      {/* Controls — only shown in comparison mode */}
+      {viewMode === "comparison" && <div className="flex flex-wrap items-center gap-3">
         {/* Search */}
         <Input
           placeholder="Cari nama paket..."
@@ -795,6 +1128,7 @@ export default function AdminPackageProfitabilityComparison() {
         </div>
       </div>
 
+      {viewMode === "comparison" && <>
       {/* Legend */}
       <div className="flex items-center gap-4 text-xs text-muted-foreground">
         <div className="flex items-center gap-1">
@@ -1139,6 +1473,7 @@ export default function AdminPackageProfitabilityComparison() {
         Margin = (Harga − HPP/pax) / Harga × 100. Occupancy = jamaah confirmed / kuota.
         Data diperbarui setiap 1 menit.
       </p>
+      </>}
     </div>
   );
 }

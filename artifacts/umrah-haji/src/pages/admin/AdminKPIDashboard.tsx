@@ -7,9 +7,9 @@ import {
 } from "recharts";
 import {
   TrendingUp, TrendingDown, Users, Calendar, DollarSign, Target,
-  RefreshCw, Settings2, Loader2
+  RefreshCw, Settings2, Loader2, Banknote
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -160,6 +160,174 @@ function SetTargetDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// ── Finance KPI Widget — INT-17 ────────────────────────────────────────────────
+
+function FinanceKPIWidget() {
+  const now = new Date();
+  const startMonth = startOfMonth(now).toISOString().split("T")[0];
+  const endMonth = endOfMonth(now).toISOString().split("T")[0];
+  const periodYear = now.getFullYear();
+  const periodMonth = now.getMonth() + 1;
+  const todayStr = now.toISOString().split("T")[0];
+  const nextWeekStr = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+
+  const { data: finKpi, isLoading } = useQuery({
+    queryKey: ["finance-kpi-widget", startMonth, endMonth],
+    queryFn: async () => {
+      const [revenueRes, marginRes, arRes, apRes, sdmRes, sdmBudgetRes] = await Promise.all([
+        (supabase as any).from("payments").select("amount")
+          .eq("status", "verified")
+          .gte("payment_date", startMonth)
+          .lte("payment_date", endMonth),
+        (supabase as any).from("v_financial_summary")
+          .select("net_margin_pct")
+          .in("status", ["open", "departed"]),
+        (supabase as any).from("bookings")
+          .select("id, total_price, paid_amount")
+          .in("booking_status", ["confirmed", "pending"])
+          .gt("total_price", 0),
+        (supabase as any).from("vendor_costs")
+          .select("id, amount")
+          .eq("status", "pending")
+          .lte("due_date", nextWeekStr)
+          .gte("due_date", todayStr),
+        (supabase as any).from("payroll_records")
+          .select("net_salary")
+          .eq("period_year", periodYear)
+          .eq("period_month", periodMonth)
+          .eq("status", "paid"),
+        (supabase as any).from("finance_budgets")
+          .select("budget_amount")
+          .ilike("account_name", "%gaji%")
+          .eq("period_year", periodYear)
+          .eq("period_month", periodMonth),
+      ]);
+
+      const revenue = (revenueRes.data || []).reduce((s: number, p: any) => s + Number(p.amount || 0), 0);
+      const marginVals = (marginRes.data || [])
+        .map((r: any) => Number(r.net_margin_pct))
+        .filter((v: number) => !isNaN(v) && v !== 0);
+      const avgMargin = marginVals.length > 0
+        ? marginVals.reduce((s: number, v: number) => s + v, 0) / marginVals.length
+        : null;
+      const arOverdue = (arRes.data || []).filter(
+        (b: any) => (Number(b.total_price) - Number(b.paid_amount)) > 0
+      ).length;
+      const apDueCount = (apRes.data || []).length;
+      const apDueAmount = (apRes.data || []).reduce((s: number, v: any) => s + Number(v.amount || 0), 0);
+      const sdmCost = (sdmRes.data || []).reduce((s: number, p: any) => s + Number(p.net_salary || 0), 0);
+      const sdmBudget = (sdmBudgetRes.data || []).reduce((s: number, b: any) => s + Number(b.budget_amount || 0), 0);
+
+      return { revenue, avgMargin, arOverdue, apDueCount, apDueAmount, sdmCost, sdmBudget };
+    },
+    staleTime: 5 * 60_000,
+  });
+
+  const fmtRp = (n: number) => {
+    if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(1)}M`;
+    if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}jt`;
+    if (n >= 1_000) return `${(n / 1_000).toFixed(0)}rb`;
+    return String(Math.round(n));
+  };
+
+  const monthLabel = format(now, "MMMM yyyy");
+
+  const kpis = [
+    {
+      icon: DollarSign,
+      label: "Revenue Bulan Ini",
+      sub: monthLabel,
+      value: isLoading ? null : `Rp ${fmtRp(finKpi?.revenue ?? 0)}`,
+      color: "text-emerald-600",
+      bg: "bg-emerald-50 dark:bg-emerald-950/30",
+      border: "border-emerald-200 dark:border-emerald-800",
+    },
+    {
+      icon: TrendingUp,
+      label: "Margin Rata-rata Aktif",
+      sub: "Keberangkatan open/departed",
+      value: isLoading ? null : finKpi?.avgMargin != null
+        ? `${(finKpi.avgMargin).toFixed(1)}%`
+        : "—",
+      color: finKpi?.avgMargin == null ? "text-muted-foreground"
+        : (finKpi.avgMargin >= 20 ? "text-emerald-600" : finKpi.avgMargin >= 10 ? "text-amber-600" : "text-red-600"),
+      bg: "bg-blue-50 dark:bg-blue-950/30",
+      border: "border-blue-200 dark:border-blue-800",
+    },
+    {
+      icon: Users,
+      label: "AR — Booking Belum Lunas",
+      sub: "Semua booking aktif",
+      value: isLoading ? null : `${finKpi?.arOverdue ?? 0} booking`,
+      color: (finKpi?.arOverdue ?? 0) > 0 ? "text-amber-600" : "text-emerald-600",
+      bg: "bg-amber-50 dark:bg-amber-950/30",
+      border: "border-amber-200 dark:border-amber-800",
+    },
+    {
+      icon: Calendar,
+      label: "AP Jatuh Tempo 7 Hari",
+      sub: finKpi ? `Total: Rp ${fmtRp(finKpi.apDueAmount)}` : "Vendor pending",
+      value: isLoading ? null : `${finKpi?.apDueCount ?? 0} vendor`,
+      color: (finKpi?.apDueCount ?? 0) > 0 ? "text-red-600" : "text-emerald-600",
+      bg: "bg-red-50 dark:bg-red-950/30",
+      border: "border-red-200 dark:border-red-800",
+    },
+    {
+      icon: Target,
+      label: "Biaya SDM Bulan Ini",
+      sub: finKpi?.sdmBudget
+        ? `Budget: Rp ${fmtRp(finKpi.sdmBudget)} · ${finKpi.sdmCost > 0 && finKpi.sdmBudget > 0 ? Math.round((finKpi.sdmCost / finKpi.sdmBudget) * 100) + "%" : "—"}`
+        : "vs budget payroll",
+      value: isLoading ? null : `Rp ${fmtRp(finKpi?.sdmCost ?? 0)}`,
+      color: finKpi?.sdmBudget && finKpi.sdmCost > finKpi.sdmBudget ? "text-red-600" : "text-violet-600",
+      bg: "bg-violet-50 dark:bg-violet-950/30",
+      border: "border-violet-200 dark:border-violet-800",
+    },
+  ];
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base font-semibold flex items-center gap-2">
+          <DollarSign className="h-4 w-4 text-emerald-500" />
+          Finance KPI — Ringkasan Keuangan Real-time
+        </CardTitle>
+        <CardDescription>Revenue, margin, AR overdue, AP jatuh tempo, dan SDM cost bulan ini</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+          {kpis.map((kpi) => (
+            <div
+              key={kpi.label}
+              className={cn(
+                "rounded-xl border p-4 flex flex-col gap-1.5 transition-colors",
+                kpi.bg, kpi.border
+              )}
+            >
+              <div className="flex items-center gap-1.5">
+                <kpi.icon className={cn("h-4 w-4", kpi.color)} />
+                <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide leading-tight">
+                  {kpi.label}
+                </span>
+              </div>
+              {isLoading ? (
+                <Skeleton className="h-6 w-20 mt-1" />
+              ) : (
+                <p className={cn("text-xl font-extrabold tabular-nums leading-tight", kpi.color)}>
+                  {kpi.value}
+                </p>
+              )}
+              {kpi.sub && (
+                <p className="text-[10px] text-muted-foreground leading-tight">{kpi.sub}</p>
+              )}
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -610,6 +778,9 @@ export default function AdminKPIDashboard() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Finance KPI Widget — INT-17 */}
+      <FinanceKPIWidget />
 
       <p className="text-xs text-muted-foreground text-center">
         Data diperbarui otomatis · Klik <RefreshCw className="inline h-3 w-3" /> untuk refresh manual
