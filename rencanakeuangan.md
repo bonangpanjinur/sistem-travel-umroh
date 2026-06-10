@@ -415,22 +415,17 @@ const createVisaVendorCost = async (batch: VisaBatch) => {
 
 ---
 
-#### INT-06: Auto-create departure_cost_items dari Hotel Contract
+#### ✅ INT-06: Auto-create departure_cost_items dari Hotel Contract — SELESAI
 **Prioritas:** PENTING | **Effort:** M
 **Dependensi:** Tidak ada
 
-Di `AdminHotelContracts.tsx` atau DepartureBudgetTab, tambahkan:
-1. Tombol "Import dari Kontrak Hotel" di DepartureBudgetTab → pilih kontrak → pilih room type → input jumlah kamar × malam
-2. Auto-create `departure_cost_items` dengan:
-   - `category = 'hotel'`
-   - `hotel_id` dari kontrak
-   - `unit_cost` dari `hotel_contract.room_type_rates`
-   - `location` dari `hotel.city`
-   - `nights` dari kontrak
-
-**File yang perlu diubah:**
-- `artifacts/umrah-haji/src/components/departure/DepartureBudgetTab.tsx` — tombol import dari hotel contract
-- Atau buat `HotelCostImportDialog.tsx` baru
+Di `DepartureBudgetTab.tsx`, ditambahkan fitur lengkap:
+1. **Card "Import HPP Hotel dari Kontrak"** — muncul otomatis jika ada hotel_contracts untuk keberangkatan ini
+2. Tabel kontrak dengan: nama hotel, kota, tipe kamar, harga/kamar/malam, check-in → check-out, kolom "Malam" (editable, auto-hitung dari tanggal), total biaya
+3. **Checkbox per kontrak** + tombol "Pilih Semua" (skip yang sudah diimpor)
+4. Tombol **"Import ke HPP"** → batch insert ke `departure_cost_items` (category=hotel, unit=per_room, reference_id=contract.id untuk dedup)
+5. Badge **"✓ Sudah Diimpor"** pada kontrak yang reference_id-nya sudah ada di departure_cost_items
+6. **Tabel "HPP Terencana"** baru — menampilkan semua departure_cost_items dengan total + tombol hapus per item
 
 ---
 
