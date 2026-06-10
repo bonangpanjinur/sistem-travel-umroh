@@ -5,12 +5,12 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import {
-  ArrowLeft, Clock, RefreshCw, MapPin, Moon, Sun,
-  Sunrise, Sunset, Bell
+  Clock, RefreshCw, MapPin, Moon, Sun,
+  Sunrise, Sunset, Bell, Navigation
 } from "lucide-react";
-import { Link } from "react-router-dom";
 import { JamaahAppShell } from "@/components/jamaah/shell/JamaahAppShell";
 import { JamaahPageHeader } from "@/components/jamaah/shell/JamaahPageHeader";
+import { usePortalContext } from "@/hooks/usePortalContext";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
 
@@ -80,12 +80,38 @@ function getCountdown(timeStr: string): string {
   return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
+// S17-05: Derive prayer city from active itinerary location when ON_TRIP.
+// Maps location_city strings containing 'Madinah'/'Medina' to "madinah",
+// everything else (including Makkah/Mecca/Jeddah/Arafah) defaults to "makkah".
+function detectCityFromItinerary(itinerary: Array<{ location_city?: string | null }> | undefined): string | null {
+  if (!itinerary?.length) return null;
+  const city = itinerary.find((i) => i.location_city)?.location_city?.toLowerCase() ?? "";
+  if (city.includes("madinah") || city.includes("medina") || city.includes("المدينة")) return "madinah";
+  if (city) return "makkah";
+  return null;
+}
+
 export default function JamaahWaktuSholat() {
+  const ctx = usePortalContext();
   const [selectedCity, setSelectedCity] = useState<string>("makkah");
+  const [autoCity, setAutoCity] = useState<string | null>(null);
   const [prayerData, setPrayerData] = useState<AladhanResponse["data"] | null>(null);
   const [loading, setLoading] = useState(true);
   const [countdown, setCountdown] = useState("");
   const [currentTime, setCurrentTime] = useState(new Date());
+
+  // S17-05: Auto-select city when jamaah is ON_TRIP based on today's itinerary
+  useEffect(() => {
+    if (ctx.status === "ON_TRIP") {
+      const detected = detectCityFromItinerary(ctx.todayItinerary as any);
+      if (detected) {
+        setAutoCity(detected);
+        setSelectedCity(detected);
+      }
+    } else {
+      setAutoCity(null);
+    }
+  }, [ctx.status, ctx.todayItinerary]);
 
   const fetchPrayerTimes = useCallback(async (cityId: string) => {
     setLoading(true);
@@ -151,22 +177,33 @@ export default function JamaahWaktuSholat() {
         }
       />
       <div className="p-4 space-y-4">
-        {/* City Toggle */}
-        <div className="flex gap-2 p-1 bg-muted rounded-lg">
-          {CITIES.map((city) => (
-            <button
-              key={city.id}
-              onClick={() => setSelectedCity(city.id)}
-              className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-sm font-medium transition-colors ${
-                selectedCity === city.id
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:bg-muted-foreground/10"
-              }`}
-            >
-              <MapPin className="h-3.5 w-3.5" />
-              {city.label}
-            </button>
-          ))}
+        {/* City Toggle — S17-05: shows auto-detect badge when ON_TRIP */}
+        <div className="space-y-1.5">
+          {autoCity && (
+            <div className="flex items-center gap-1.5 text-[11px] text-emerald-700 dark:text-emerald-400">
+              <Navigation className="h-3 w-3" />
+              <span>Otomatis berdasarkan lokasi itinerary hari ini</span>
+            </div>
+          )}
+          <div className="flex gap-2 p-1 bg-muted rounded-lg">
+            {CITIES.map((city) => (
+              <button
+                key={city.id}
+                onClick={() => { setAutoCity(null); setSelectedCity(city.id); }}
+                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-sm font-medium transition-colors ${
+                  selectedCity === city.id
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:bg-muted-foreground/10"
+                }`}
+              >
+                <MapPin className="h-3.5 w-3.5" />
+                {city.label}
+                {autoCity === city.id && (
+                  <span className="text-[9px] bg-white/30 rounded px-1">Auto</span>
+                )}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Hijri Date */}

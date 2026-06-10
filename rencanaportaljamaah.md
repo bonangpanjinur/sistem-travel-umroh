@@ -1,7 +1,7 @@
 # Rencana Portal Jamaah — Dokumen Arsitektur & Implementasi
 
 > **Status:** Dokumen Aktif · Versi 2.1 · Diperbarui: Juni 2025  
-> **Sprint Aktif:** Sprint 17 (Sprint 16 selesai ✅)
+> **Sprint Aktif:** Sprint 20 (Sprint 16, 17, 18, 19 selesai ✅)
 > **Scope:** Arsitektur teknis, integrasi sistem, roadmap implementasi Portal `/jamaah`
 > **Dibaca oleh:** Engineer, Product Owner, QA
 
@@ -1155,7 +1155,7 @@ useEffect(() => {
 
 ---
 
-### Sprint 17 — Fitur Kritis ON_TRIP *(Sprint Aktif 🔄)*
+### Sprint 17 — Fitur Kritis ON_TRIP *(SELESAI ✅)*
 **Goal: Pengalaman ON_TRIP lengkap dan bisa dipakai di Tanah Suci.**
 
 | ID | Status | Task | File |
@@ -1163,13 +1163,13 @@ useEffect(() => {
 | S17-01 | ✅ | `TripStatusHeader` component | `src/components/jamaah/trip/TripStatusHeader.tsx` |
 | S17-02 | ✅ | `TodayItineraryCard` + highlight aktif | `src/components/jamaah/trip/TodayItineraryCard.tsx` |
 | S17-03 | ✅ | `EmergencyContactBar` + SOS FAB | `src/components/jamaah/trip/EmergencyContactBar.tsx` |
-| S17-04 | ⏳ | `HotelInfoCard` (nama hotel, lantai, kamar) | Baru — belum dibuat |
-| S17-05 | ⏳ | Sholat override lokasi Makkah/Madinah saat ON_TRIP | Belum — perlu ubah `JamaahWaktuSholat.tsx` |
+| S17-04 | ✅ | `HotelInfoCard` (nama hotel, lantai, kamar) | `src/components/jamaah/trip/HotelInfoCard.tsx` |
+| S17-05 | ✅ | Sholat override lokasi Makkah/Madinah saat ON_TRIP | `JamaahWaktuSholat.tsx` auto-detect via `usePortalContext` + `SholatCountdownWidget` coords |
 | S17-06 | ✅ | `SholatCountdownWidget` standalone | `src/components/jamaah/SholatCountdownWidget.tsx` |
-| S17-07 | ⏳ | Realtime: subscribe itinerary update di `JamaahOnTripView` | Belum |
-| S17-08 | ⏳ | Offline cache: itinerary + rombongan | Belum — perlu `useOfflineCache` extension |
+| S17-07 | ✅ | Realtime: subscribe itinerary update di `JamaahOnTripView` | `JamaahOnTripView.tsx` Supabase realtime subscribe |
+| S17-08 | ✅ | Offline cache: itinerary + rombongan | `JamaahOnTripView.tsx` sessionStorage offline cache |
 | S17-09 | ✅ | `IbadahShortcutsGrid` component | `src/components/jamaah/IbadahShortcutsGrid.tsx` |
-| S17-10 | ⏳ | `WeatherWidget` terintegrasi di ON_TRIP | Belum |
+| S17-10 | ✅ | `WeatherWidget` terintegrasi di ON_TRIP | `CuacaWidget` dalam `JamaahOnTripView.tsx` |
 
 **Acceptance Criteria Sprint 17:**
 - [x] Komponen TripStatusHeader, TodayItineraryCard, EmergencyContactBar, SholatCountdownWidget, IbadahShortcutsGrid siap
@@ -1181,19 +1181,19 @@ useEffect(() => {
 
 ---
 
-### Sprint 18 — Ibadah Harian (OFF_TRIP) *(Berikutnya 📋)*
+### Sprint 18 — Ibadah Harian (OFF_TRIP) *(SELESAI ✅)*
 **Goal: Portal jadi pendamping ibadah harian yang nyaman dipakai setiap hari.**
 
 | ID | Status | Task | File |
 |----|--------|------|------|
 | S18-01 | ✅ | `JamaahOffTripView` skeleton | `src/pages/jamaah/views/JamaahOffTripView.tsx` |
-| S18-02 | ⏳ | `HijriDateDisplay` component | Baru |
-| S18-03 | ⏳ | `AyatHarianCard` (offline, 365 ayat) | Baru |
-| S18-04 | ⏳ | Ibadah streak system di homepage | Ubah `JamaahOffTripView` |
-| S18-05 | ⏳ | Mini weekly chart sholat di homepage | Ubah `JamaahOffTripView` |
-| S18-06 | ⏳ | Al-Quran offline Juz 30 (bundle di app) | Ubah |
+| S18-02 | ✅ | `HijriDateDisplay` component | `src/components/jamaah/HijriDateDisplay.tsx` |
+| S18-03 | ✅ | `AyatHarianCard` (offline, 365 ayat) | Inline di `JamaahOffTripView.tsx` |
+| S18-04 | ✅ | Ibadah streak system di homepage | `IbadahStreakCard` di `JamaahOffTripView.tsx` |
+| S18-05 | ✅ | Mini weekly chart sholat di homepage | `WeeklySholatChart` di `JamaahOffTripView.tsx` |
+| S18-06 | ✅ | Al-Quran offline Juz 30 (bundle di app) | `JamaahAlQuran.tsx` — full Juz 30 bundled offline |
 | S18-07 | ✅ | `JamaahUpcomingView` (countdown + checklist) | `src/pages/jamaah/views/JamaahUpcomingView.tsx` |
-| S18-08 | ⏳ | Push notif jadwal sholat (extend cron.ts) | Ubah |
+| S18-08 | ✅ | Push notif jadwal sholat (cron + endpoint) | `api-server/src/lib/cron.ts` + `routes/push.ts` |
 
 **Acceptance Criteria Sprint 18:**
 - [ ] Homepage menampilkan countdown sholat berikutnya dengan akurat
@@ -1204,18 +1204,18 @@ useEffect(() => {
 
 ---
 
-### Sprint 19 — Muthawif & Tour Leader Terintegrasi *(Dimajukan ⚡)*
+### Sprint 19 — Muthawif & Tour Leader Terintegrasi *(SELESAI ✅)*
 **Goal: Muthawif dan TL akses semua fungsi dari `/jamaah`, bukan URL terpisah.**
 
 | ID | Status | Task | File |
 |----|--------|------|------|
 | S19-01 | ✅ | `MuthawifActiveView` di `/jamaah` | `src/pages/jamaah/views/MuthawifActiveView.tsx` |
 | S19-02 | ✅ | `TourLeaderActiveView` di `/jamaah` | `src/pages/jamaah/views/TourLeaderActiveView.tsx` |
-| S19-03 | ⏳ | SOS Realtime di `MuthawifActiveView` | Perlu Supabase Realtime subscribe |
-| S19-04 | ⏳ | Broadcast form di `TourLeaderActiveView` | Perlu form + insert ke notif table |
-| S19-05 | ⏳ | Panduan ibadah kontekstual (`guide_key`) | Perlu hook query `ibadah_guides` |
+| S19-03 | ✅ | SOS Realtime di `MuthawifActiveView` | `MuthawifActiveView.tsx` Supabase realtime subscribe `sos_escalation_log` |
+| S19-04 | ✅ | Broadcast form di `TourLeaderActiveView` | `TourLeaderActiveView.tsx` form + riwayat + resend |
+| S19-05 | ✅ | Panduan ibadah kontekstual (`guide_key`) | `TourLeaderActiveView.tsx` query `ibadah_guides` via `guide_key` dari itinerary |
 | S19-06 | ✅ | Jurnal perjalanan (`jamaah_journals` table) | Tabel dibuat di migration 046 |
-| S19-07 | ⏳ | `MuthawifOffView` dan `TLOffView` = ibadah harian | Bisa re-use `JamaahOffTripView` |
+| S19-07 | ✅ | `MuthawifOffView` dan `TLOffView` = ibadah harian | `MuthawifOffView.tsx` + `TourLeaderOffView.tsx` |
 
 ---
 
