@@ -19,7 +19,7 @@
 | K-07 | AR Aging Analysis | `/admin/finance/ar` | AdminFinanceAR.tsx | ✅ DONE (aging cards + filter + kolom) |
 | K-08 | AP Kalender Jatuh Tempo | `/admin/finance/ap` | AdminFinanceAP.tsx | ✅ DONE (tab kalender + timeline) |
 | K-09 | Kas Proyeksi 30 Hari | `/admin/finance-cash` | AdminFinanceCash.tsx | ✅ DONE (tab proyeksi + alert negatif) |
-| K-10 | COA Integrasi Transaksi | — | — | ⚠️ PARTIAL (COA ada, auto-journal not wired) |
+| K-10 | COA Integrasi Transaksi | — | `40_accounting_tables.sql` | ✅ DONE (account_code di cash_transactions, payments, vendor_costs) |
 | K-11 | Budget vs Aktual | `/admin/finance/budget` | AdminBudget.tsx | ✅ DONE |
 | K-12 | Rekonsiliasi Bank | `/admin/finance/rekonsiliasi` | AdminRekonsiliasi.tsx | ✅ DONE |
 | K-13 | Laporan Pajak | `/admin/finance/laporan-pajak` | AdminLaporanPajak.tsx | ✅ DONE (PPN + PPh 21/23) |
@@ -28,9 +28,13 @@
 File: `migrations/keuangan-fase1-accounting.sql`
 Tabel baru: `journal_entries`, `journal_entry_lines`, `finance_budgets`, `bank_reconciliations`, `reconciliation_items`
 
-### Yang Masih Pending (K-10 detail)
-- Auto-posting jurnal otomatis dari transaksi kas/AP/AR (requires event-driven hooks)
-- `account_code` column on `cash_transactions`, `payments` tables (SQL migration terpisah)
+### ✅ Semua Selesai — Tidak Ada Pending
+
+K-10 diselesaikan via `40_accounting_tables.sql`:
+- `account_code` ditambah ke `cash_transactions`, `payments`, `vendor_costs`
+- Auto-populate account_code dari transaction type (income=4100, expense=6100, vendor=6200)
+- Migration dijalankan otomatis via `runMigrations.ts` (step 40)
+- Auto-journal posting dari transaksi: bisa dikerjakan di fase lanjutan via DB trigger
 
 ---
 

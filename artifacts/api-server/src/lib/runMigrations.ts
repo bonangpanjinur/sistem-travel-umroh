@@ -822,6 +822,23 @@ export async function runMigrations(): Promise<void> {
       logger.info("runMigrations: 39_journal_entries — already applied, skipping");
     }
 
+    // ── Step 40: Accounting tables — finance_budgets, bank_reconciliations, K-10 account_code ──
+    const accountingTablesApplied = await isApplied(client, "40_accounting_tables");
+    if (!accountingTablesApplied) {
+      try {
+        await runSqlFile(
+          client,
+          sqlPath("40_accounting_tables.sql"),
+          "40_accounting_tables (finance_budgets, bank_reconciliations, reconciliation_items, K-10 account_code columns)",
+        );
+        await markApplied(client, "40_accounting_tables");
+      } catch (e: any) {
+        logger.warn({ err: e?.message }, "runMigrations: 40_accounting_tables — skipping (non-fatal)");
+      }
+    } else {
+      logger.info("runMigrations: 40_accounting_tables — already applied, skipping");
+    }
+
     // ── Step 1g: trip_timeline v2 schema (add day_number, activity_type, etc) ─
     const tripTimelineV2Applied = await isApplied(client, "07_trip_timeline_v2");
     if (!tripTimelineV2Applied) {
