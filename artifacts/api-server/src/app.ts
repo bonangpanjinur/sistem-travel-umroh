@@ -2,10 +2,18 @@ import express, { type Express } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
 import { rateLimit } from "express-rate-limit";
+import { join } from "path";
+import { mkdirSync, existsSync } from "fs";
 import router from "./routes";
 import { supabaseProxyRouter } from "./routes/supabaseProxy.js";
 import { logger } from "./lib/logger";
 import sitemapRouter from "./routes/sitemap.js";
+
+// Ensure uploads directory exists
+const uploadsDir = join(process.cwd(), "uploads");
+if (!existsSync(uploadsDir)) {
+  try { mkdirSync(uploadsDir, { recursive: true }); } catch { /* ignore */ }
+}
 
 const app: Express = express();
 
@@ -54,6 +62,9 @@ app.use(express.urlencoded({ extended: true }));
 // Apply rate limiters
 app.use("/api/v1/leads", leadsLimiter);  // Strict limit for lead submission
 app.use("/api", generalLimiter);         // General limit for all API routes
+
+// Static file serving for uploaded payment proofs
+app.use("/uploads", express.static(join(process.cwd(), "uploads")));
 
 app.use("/api", router);
 

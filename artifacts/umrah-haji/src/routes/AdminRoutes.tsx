@@ -373,6 +373,8 @@ const AdminWABotMenu = lazy(() => import("@/pages/admin/AdminWABotMenu"));
 const AdminWATemplateBroadcast = lazy(
   () => import("@/pages/admin/AdminWATemplateBroadcast"),
 );
+const AdminPaymentVerification = lazy(() => import("@/pages/admin/AdminPaymentVerification"));
+const AdminBankAccounts = lazy(() => import("@/pages/admin/AdminBankAccounts"));
 
 // Fase 32 — WA Broadcast Tersegmentasi
 const AdminWABroadcast = lazy(() => import("@/pages/admin/AdminWABroadcast"));
@@ -754,6 +756,22 @@ export default function AdminRoutes() {
         element={
           <P k={PERMISSIONS.PAYMENTS}>
             <AdminPayments />
+          </P>
+        }
+      />
+      <Route
+        path="payment-verification"
+        element={
+          <P k={PERMISSIONS.PAYMENT_VERIFICATION}>
+            <AdminPaymentVerification />
+          </P>
+        }
+      />
+      <Route
+        path="bank-accounts"
+        element={
+          <P k={PERMISSIONS.BANK_ACCOUNTS}>
+            <AdminBankAccounts />
           </P>
         }
       />

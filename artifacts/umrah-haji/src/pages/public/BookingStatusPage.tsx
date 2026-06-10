@@ -380,7 +380,7 @@ export default function BookingStatusPage() {
                     </div>
                   </div>
                   {remaining > 0 && (
-                    <div className="p-3 rounded-lg bg-amber-50 border border-amber-200">
+                    <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 space-y-2">
                       <div className="flex justify-between items-start">
                         <div>
                           <p className="text-xs text-amber-700 font-medium">Sisa Pembayaran</p>
@@ -393,6 +393,12 @@ export default function BookingStatusPage() {
                           </div>
                         )}
                       </div>
+                      <a
+                        href={`/bayar/${data.booking_code}`}
+                        className="flex items-center justify-center gap-2 w-full py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg transition-colors"
+                      >
+                        💳 Bayar Sekarang
+                      </a>
                     </div>
                   )}
 

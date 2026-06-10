@@ -40,6 +40,8 @@ export const PERMISSIONS = {
 
   // Keuangan
   PAYMENTS: 'payments',
+  PAYMENT_VERIFICATION: 'payment-verification',
+  BANK_ACCOUNTS: 'bank-accounts',
   FINANCE_CASH: 'finance-cash',
   FINANCE_AR: 'finance-ar',
   FINANCE_AP: 'finance-ap',

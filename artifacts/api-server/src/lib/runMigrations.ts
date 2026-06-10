@@ -869,6 +869,29 @@ export async function runMigrations(): Promise<void> {
       logger.info("runMigrations: 07_trip_timeline_v2 — already applied, skipping");
     }
 
+    // ── Step 1t: Payment Architecture (bank_accounts, tokens, trigger) ───
+    const paymentArchApplied = await isApplied(client, "21_payment_architecture");
+    if (!paymentArchApplied) {
+      await runSqlFile(
+        client,
+        sqlPath("21_payment_architecture.sql"),
+        "21_payment_architecture (bank_accounts, payment_page_tokens, sync trigger)",
+      );
+      await markApplied(client, "21_payment_architecture");
+    } else {
+      logger.info("runMigrations: 21_payment_architecture — already applied, skipping");
+    }
+
+    // ── Step 1t-fix: bank_accounts column backfill (safe idempotent ALTERs) ──
+    // Older DB installs may have bank_accounts without notes/logo_url columns.
+    try {
+      await client.query(`ALTER TABLE bank_accounts ADD COLUMN IF NOT EXISTS notes TEXT`);
+      await client.query(`ALTER TABLE bank_accounts ADD COLUMN IF NOT EXISTS logo_url TEXT`);
+      logger.info("runMigrations: bank_accounts column backfill — ok");
+    } catch (e: any) {
+      logger.warn({ err: e.message }, "runMigrations: bank_accounts column backfill — skipped (table may not exist yet)");
+    }
+
     // ── Step 2: payment sync trigger (always re-applied each boot) ────────
     // Wrapped in its own try/catch so a missing table on a broken DB state
     // doesn't crash the server — it just logs and continues.

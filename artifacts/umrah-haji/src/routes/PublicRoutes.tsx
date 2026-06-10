@@ -30,6 +30,7 @@ const AccessDenied = lazy(() => import("@/pages/AccessDenied"));
 const TeamPage = lazy(() => import("@/pages/public/TeamPage"));
 const BookingStatusPage = lazy(() => import("@/pages/public/BookingStatusPage"));
 const PublicBookingDetail = lazy(() => import("@/pages/public/PublicBookingDetail"));
+const PublicPaymentPage = lazy(() => import("@/pages/public/PublicPaymentPage"));
 const KalkulatorBiaya = lazy(() => import("@/pages/public/KalkulatorBiaya"));
 const PackageCompare = lazy(() => import("@/pages/packages/PackageCompare"));
 const KalkulatorCicilan = lazy(() => import("@/pages/customer/KalkulatorCicilan"));
@@ -88,6 +89,7 @@ export default function PublicRoutes() {
       <Route path="/team" element={<LazyPage><TeamPage /></LazyPage>} />
       <Route path="/cek-booking" element={<LazyPage><BookingStatusPage /></LazyPage>} />
       <Route path="/transaksi/:token" element={<LazyPage><PublicBookingDetail /></LazyPage>} />
+      <Route path="/bayar/:bookingCode" element={<LazyPage><PublicPaymentPage /></LazyPage>} />
       <Route path="/kalkulator" element={<LazyPage><KalkulatorBiaya /></LazyPage>} />
       <Route path="/kalkulator-cicilan" element={<LazyPage><KalkulatorCicilan /></LazyPage>} />
       <Route path="/packages/compare" element={<LazyPage><PackageCompare /></LazyPage>} />
