@@ -1209,14 +1209,72 @@ VALUES
 ON CONFLICT DO NOTHING;
 
 -- Default website settings global
-INSERT INTO website_settings (company_name, active_theme, primary_color, accent_color,
-  footer_description, footer_bottom_text)
-VALUES (
-  'Vinstour Travel', 'default', '#16a34a', '#0d9488',
+-- UUID '00000000-0000-0000-0000-000000000001' adalah ID yang selalu diquery frontend
+-- Jika tidak ada, frontend akan 404 dan jatuh ke default; sebaiknya row ini selalu ada.
+INSERT INTO website_settings (
+  id,
+  company_name,
+  active_theme,
+  template,
+  primary_color,
+  secondary_color,
+  accent_color,
+  background_color,
+  foreground_color,
+  heading_font,
+  body_font,
+  tagline,
+  footer_description,
+  footer_bottom_text,
+  meta_title,
+  meta_description,
+  hero_title,
+  hero_subtitle,
+  hero_cta_text,
+  hero_cta_link,
+  hero_display_mode,
+  featured_packages_count,
+  package_card_layout,
+  package_card_image_ratio,
+  package_card_show_airline,
+  package_card_show_hotel,
+  package_card_show_duration,
+  package_card_show_departure
+) VALUES (
+  '00000000-0000-0000-0000-000000000001',
+  'Vinstour Travel',
+  'classic',
+  'classic',
+  '160 84% 25%',
+  '160 20% 96%',
+  '45 93% 47%',
+  '0 0% 100%',
+  '160 50% 5%',
+  'Plus Jakarta Sans',
+  'Inter',
+  'Perjalanan Suci Anda',
   'Layanan perjalanan Umroh & Haji terpercaya dengan pengalaman lebih dari 15 tahun.',
-  '© 2025 Vinstour Travel. All rights reserved.'
+  '© 2025 Vinstour Travel. All rights reserved.',
+  'Vinstour Travel - Perjalanan Umroh Terpercaya',
+  'Layanan perjalanan umroh berkualitas dengan harga terjangkau',
+  'Perjalanan Umroh Impian Anda',
+  'Nikmati pengalaman spiritual yang tak terlupakan',
+  'Pesan Sekarang',
+  '/packages',
+  'both',
+  6,
+  'modern',
+  '16/10',
+  true,
+  true,
+  true,
+  true
 )
-ON CONFLICT DO NOTHING;
+ON CONFLICT (id) DO UPDATE SET
+  company_name  = COALESCE(EXCLUDED.company_name, website_settings.company_name),
+  active_theme  = COALESCE(EXCLUDED.active_theme,  website_settings.active_theme),
+  template      = COALESCE(EXCLUDED.template,      website_settings.template),
+  updated_at    = NOW();
 
 -- Default contact page content
 INSERT INTO contact_page_content (hero_title, hero_subtitle, form_title, operating_hours)

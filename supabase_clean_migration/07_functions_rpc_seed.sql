@@ -798,6 +798,56 @@ END $$;
 
 
 -- =============================================================================
+-- 20. RPC: CHECK EMAIL / PHONE AVAILABILITY (untuk form registrasi)
+-- SECURITY DEFINER agar anon (belum login) bisa memanggil tanpa masalah RLS.
+-- Mengembalikan TRUE jika nilai TERSEDIA (belum dipakai), FALSE jika sudah dipakai.
+-- =============================================================================
+CREATE OR REPLACE FUNCTION public.check_email_available(p_email TEXT)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  RETURN NOT EXISTS (
+    SELECT 1 FROM customers
+    WHERE lower(trim(email)) = lower(trim(p_email))
+    LIMIT 1
+  );
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.check_phone_available(p_phone TEXT)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_normalised TEXT;
+BEGIN
+  -- Normalisasi: +628xx → 08xx, 628xx → 08xx, 08xx tetap
+  v_normalised :=
+    CASE
+      WHEN p_phone LIKE '+62%' THEN '0' || substr(trim(p_phone), 4)
+      WHEN p_phone LIKE '62%'  THEN '0' || substr(trim(p_phone), 3)
+      ELSE trim(p_phone)
+    END;
+
+  RETURN NOT EXISTS (
+    SELECT 1 FROM customers
+    WHERE trim(phone) = trim(p_phone)
+       OR trim(phone) = v_normalised
+    LIMIT 1
+  );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.check_email_available(TEXT) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.check_phone_available(TEXT) TO anon, authenticated;
+
+
+-- =============================================================================
 -- VERIFIKASI AKHIR — Hitung tabel yang berhasil dibuat
 -- =============================================================================
 SELECT

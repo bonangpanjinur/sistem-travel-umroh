@@ -1,13 +1,16 @@
--- ═══════════════════════════════════════════════════════════════════════════
--- FASE 33 — Fix Registration Flow + Global Website Settings Seed
+-- =============================================================================
+-- PATCH: Fix Registrasi Pengguna Baru + Global Website Settings
+-- Jalankan file ini di Supabase SQL Editor pada project yang SUDAH berjalan
+-- (tabel sudah ada). Jangan jalankan di project baru — gunakan file 01–07 dulu.
 --
--- 1. Robust handle_new_user() — exception handler so auth signup never 500s
--- 2. Seed global website_settings row with hardcoded UUID that frontend expects
--- 3. Safe SECURITY DEFINER RPCs for email/phone availability check (no anon RLS issues)
--- ═══════════════════════════════════════════════════════════════════════════
+-- Masalah yang diperbaiki:
+--   1. auth/v1/signup 500 — handle_new_user() sekarang robust (tidak pernah abort signup)
+--   2. website_settings 404 — seed row dengan UUID yang dicari frontend
+--   3. customers 500 (email/phone check) — ganti query langsung ke tabel dengan
+--      SECURITY DEFINER RPC yang aman untuk anon/unauthenticated
+-- =============================================================================
 
--- ─── 1. Robust handle_new_user ────────────────────────────────────────────────
--- Wrap INSERT in BEGIN/EXCEPTION so a trigger error never aborts auth signup
+-- ─── 1. Robust handle_new_user() ──────────────────────────────────────────────
 CREATE OR REPLACE FUNCTION handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -21,22 +24,20 @@ BEGIN
     )
     ON CONFLICT (id) DO NOTHING;
   EXCEPTION WHEN OTHERS THEN
-    -- Log the warning but never abort the auth signup
-    RAISE WARNING 'handle_new_user: failed to create profile for %: %', NEW.id, SQLERRM;
+    RAISE WARNING 'handle_new_user: gagal buat profil untuk %: %', NEW.id, SQLERRM;
   END;
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
--- Recreate trigger (idempotent)
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION handle_new_user();
 
--- ─── 2. Seed global website_settings with the UUID the frontend expects ───────
--- Frontend always queries: .eq("id", "00000000-0000-0000-0000-000000000001")
--- fase18 inserts with a random UUID, causing a 404. This seeds the specific row.
+-- ─── 2. Seed global website_settings row dengan UUID yang dicari frontend ────
+-- Frontend selalu query: .eq("id", "00000000-0000-0000-0000-000000000001")
+-- Migrasi lama (fase18) menyisipkan row tanpa ID spesifik → UUID acak → 404
 INSERT INTO public.website_settings (
   id,
   company_name,
@@ -102,10 +103,9 @@ ON CONFLICT (id) DO UPDATE SET
   template      = COALESCE(EXCLUDED.template,      website_settings.template),
   updated_at    = NOW();
 
--- ─── 3. Safe email / phone availability RPCs ──────────────────────────────────
--- Called by the registration form as anon — bypasses RLS entirely via SECURITY DEFINER
--- Returns TRUE when the value is NOT taken (safe to register), FALSE when already used.
-
+-- ─── 3. RPC aman untuk cek email & telepon dari form registrasi ──────────────
+-- SECURITY DEFINER → bypass RLS, aman dipanggil oleh anon (belum login)
+-- Mengembalikan TRUE = tersedia (belum dipakai), FALSE = sudah terdaftar
 CREATE OR REPLACE FUNCTION public.check_email_available(p_email TEXT)
 RETURNS BOOLEAN
 LANGUAGE plpgsql
@@ -130,7 +130,6 @@ AS $$
 DECLARE
   v_normalised TEXT;
 BEGIN
-  -- Normalise variants: +628xx → 08xx, 628xx → 08xx, keep 08xx as-is
   v_normalised :=
     CASE
       WHEN p_phone LIKE '+62%' THEN '0' || substr(trim(p_phone), 4)
@@ -147,8 +146,7 @@ BEGIN
 END;
 $$;
 
--- Grant execute to both anon (unauthenticated visitors) and authenticated users
 GRANT EXECUTE ON FUNCTION public.check_email_available(TEXT) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.check_phone_available(TEXT) TO anon, authenticated;
 
-SELECT 'Fase 33 — fix register + settings seed installed' AS result;
+SELECT 'PATCH berhasil dijalankan — registrasi dan website_settings sudah diperbaiki' AS result;
