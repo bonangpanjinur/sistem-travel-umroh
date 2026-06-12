@@ -1263,6 +1263,61 @@ export async function runMigrations(): Promise<void> {
       logger.info("runMigrations: 090_fix_is_admin_function — already applied, skipping");
     }
 
+    // ── Step 092: pastikan relasi inti ada — idempotent ──────────────────────
+    // Memastikan auth.users, profiles, user_roles, airlines, has_role(),
+    // user_belongs_to_branch(), dan semua kolom tambahan ada.
+    const migration092Applied = await isApplied(client, "092_ensure_core_relations");
+    if (!migration092Applied) {
+      try {
+        await runSqlFile(
+          client,
+          sqlPath("092_ensure_core_relations.sql"),
+          "092_ensure_core_relations (auth.users + profiles + user_roles + airlines + has_role() + user_belongs_to_branch() — fully idempotent)",
+        );
+        await markApplied(client, "092_ensure_core_relations");
+      } catch (e: any) {
+        logger.warn({ err: e?.message }, "runMigrations: 092_ensure_core_relations — skipping (non-fatal)");
+      }
+    } else {
+      logger.info("runMigrations: 092_ensure_core_relations — already applied, skipping");
+    }
+
+    // ── Step 093: CREATE OR REPLACE is_admin/has_role/user_belongs_to_branch ──
+    const migration093Applied = await isApplied(client, "093_fix_is_admin_drop_create");
+    if (!migration093Applied) {
+      try {
+        await runSqlFile(
+          client,
+          sqlPath("093_fix_is_admin_drop_create.sql"),
+          "093_fix_is_admin_drop_create (CREATE OR REPLACE is_admin + has_role + user_belongs_to_branch — idempotent)",
+        );
+        await markApplied(client, "093_fix_is_admin_drop_create");
+      } catch (e: any) {
+        logger.warn({ err: e?.message }, "runMigrations: 093_fix_is_admin_drop_create — skipping (non-fatal)");
+      }
+    } else {
+      logger.info("runMigrations: 093_fix_is_admin_drop_create — already applied, skipping");
+    }
+
+    // ── Step 094: is_admin() final fix — CREATE OR REPLACE tanpa DROP ────────
+    // is_admin() tidak bisa di-DROP karena RLS policies bergantung padanya.
+    // Gunakan CREATE OR REPLACE dengan nama parameter sama ($1 sebagai referensi).
+    const migration094Applied = await isApplied(client, "094_is_admin_final_fix");
+    if (!migration094Applied) {
+      try {
+        await runSqlFile(
+          client,
+          sqlPath("094_is_admin_final_fix.sql"),
+          "094_is_admin_final_fix (CREATE OR REPLACE is_admin/has_role/user_belongs_to_branch dengan $1 ref — final idempotent)",
+        );
+        await markApplied(client, "094_is_admin_final_fix");
+      } catch (e: any) {
+        logger.warn({ err: e?.message }, "runMigrations: 094_is_admin_final_fix — skipping (non-fatal)");
+      }
+    } else {
+      logger.info("runMigrations: 094_is_admin_final_fix — already applied, skipping");
+    }
+
   } catch (err) {
     logger.error({ err }, "runMigrations: unexpected error — server continues");
   } finally {
