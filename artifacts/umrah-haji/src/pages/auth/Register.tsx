@@ -134,20 +134,24 @@ export default function Register() {
   // ── Async email check ─────────────────────────────────────────────────────
   const checkEmail = (raw: string) => {
     const email = raw.trim().toLowerCase();
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return;
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return;
 
     if (emailDebounce.current) clearTimeout(emailDebounce.current);
     setEmailCheck('checking');
 
     emailDebounce.current = setTimeout(async () => {
       try {
-        const { data } = await (supabase as any)
-          .from('customers')
-          .select('id')
-          .eq('email', email)
-          .maybeSingle();
+        const { data, error } = await supabase.rpc('check_email_available' as any, {
+          p_email: email,
+        });
 
-        if (data) {
+        if (error) {
+          // RPC not available yet — skip check, allow signup to proceed
+          setEmailCheck('idle');
+          return;
+        }
+
+        if (data === false) {
           setEmailCheck('duplicate');
           setError('email', {
             type: 'manual',
@@ -174,20 +178,17 @@ export default function Register() {
 
     phoneDebounce.current = setTimeout(async () => {
       try {
-        // Normalize: strip leading 0 / 62 / +62 → always store as 08xx for comparison
-        const normalised = phone.startsWith('+62')
-          ? '0' + phone.slice(3)
-          : phone.startsWith('62')
-          ? '0' + phone.slice(2)
-          : phone;
+        const { data, error } = await supabase.rpc('check_phone_available' as any, {
+          p_phone: phone,
+        });
 
-        const { data } = await (supabase as any)
-          .from('customers')
-          .select('id')
-          .or(`phone.eq.${phone},phone.eq.${normalised}`)
-          .maybeSingle();
+        if (error) {
+          // RPC not available yet — skip check, allow signup to proceed
+          setPhoneCheck('idle');
+          return;
+        }
 
-        if (data) {
+        if (data === false) {
           setPhoneCheck('duplicate');
           setError('phone', {
             type: 'manual',
@@ -270,9 +271,19 @@ export default function Register() {
       });
       navigate('/auth/login');
     } catch (error: any) {
+      let description = 'Terjadi kesalahan saat mendaftar. Silakan coba lagi.';
+      const msg = (error.message || '').toLowerCase();
+      if (msg.includes('database error')) {
+        description = 'Terjadi kesalahan pada server. Silakan hubungi administrator atau coba beberapa saat lagi.';
+      } else if (msg.includes('already registered') || msg.includes('user already exists')) {
+        description = 'Email ini sudah terdaftar. Silakan login atau gunakan email lain.';
+        setError('email', { type: 'manual', message: 'Email ini sudah terdaftar.' });
+      } else if (error.message) {
+        description = error.message;
+      }
       toast({
         title: 'Pendaftaran Gagal',
-        description: error.message || 'Terjadi kesalahan saat mendaftar',
+        description,
         variant: 'destructive',
       });
     } finally {

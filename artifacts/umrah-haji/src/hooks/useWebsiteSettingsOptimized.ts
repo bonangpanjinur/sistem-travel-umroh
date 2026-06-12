@@ -301,12 +301,24 @@ export function useTenantWebsiteSettings(type: 'branch' | 'agent', slug?: string
       };
 
       const fetchMainSettings = async () => {
-        const { data, error } = await supabase
+        // First try the canonical hardcoded UUID row
+        const { data: byId, error: idError } = await supabase
           .from("website_settings")
           .select("*")
           .eq("id", SETTINGS_ID)
-          .single();
+          .maybeSingle();
+        if (!idError && byId) return byId;
+
+        // Fallback: get the global settings row (no agent, no branch)
+        const { data, error } = await supabase
+          .from("website_settings")
+          .select("*")
+          .is("agent_id", null)
+          .is("branch_id", null)
+          .limit(1)
+          .maybeSingle();
         if (error) throw error;
+        if (!data) throw new Error("Global settings row not found");
         return data;
       };
 
