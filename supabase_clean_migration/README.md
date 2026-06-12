@@ -1,4 +1,4 @@
-# Vinstour Travel Portal — Clean Supabase Migration
+# Raka Travel Portal — Clean Supabase Migration
 
 Folder ini berisi 7 file SQL yang siap dijalankan di project Supabase baru.
 Urutan harus diikuti persis karena ada dependensi antar tabel.
