@@ -8,7 +8,9 @@
     "build:dev": "npm --prefix artifacts/umrah-haji run build && rm -rf dist && cp -r artifacts/umrah-haji/dist/public dist",
     "build": "pnpm run typecheck && pnpm -r --if-present run build",
     "typecheck:libs": "tsc --build",
-    "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
+    "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck",
+    "validate:migration": "node scripts/validate-migrations.mjs",
+    "validate:migration:dir": "node scripts/validate-migrations.mjs --dir migrations/"
   },
   "private": true,
   "devDependencies": {
