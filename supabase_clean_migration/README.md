@@ -1,9 +1,11 @@
-# Raka Travel Portal — Clean Supabase Migration
+# Vinstour Travel Portal — Clean Supabase Migration
 
-Folder ini berisi 7 file SQL yang siap dijalankan di project Supabase baru.
-Urutan harus diikuti persis karena ada dependensi antar tabel.
+Folder ini berisi 11 file SQL untuk migrasi lengkap ke Supabase.
+Jalankan file **01–07 secara berurutan** (wajib). File 08–11 adalah utilitas opsional.
 
 ## Urutan Eksekusi
+
+### Wajib — Migrasi Utama (01–07)
 
 | # | File | Isi |
 |---|------|-----|
@@ -14,6 +16,15 @@ Urutan harus diikuti persis karena ada dependensi antar tabel.
 | 5 | `05_finance_hr_company.sql` | payroll_records, leave_requests, leave_quotas, performance_reviews, marketing_campaigns, sales_targets, training_modules/quizzes/progress, vendor_contracts, departure_budgets, media_gallery, baggage_reference_items, approval_configs, agent_override_commissions, membership_plans, agent_memberships, branch_memberships, branch_commissions, company_settings, bank_accounts, website_settings, contact_page_content, siskohat_sync_logs, departure_cost_items, departure_expenses, departure_other_revenues, departure_financial_summary |
 | 6 | `06_ecommerce.sql` | store_categories, store_products, store_orders, store_order_items, store_shipments, store_product_reviews |
 | 7 | `07_functions_rpc_seed.sql` | Semua stored functions, RPC, slug triggers, seed permissions_list, seed role_permissions, seed menu_items, seed airlines, seed company_settings, seed bank_accounts |
+
+### Utilitas — Jalankan Sesuai Kebutuhan (08–11)
+
+| # | File | Kapan Dipakai |
+|---|------|---------------|
+| 8 | `08_verify_rls.sql` | Setelah file 07 — konfirmasi semua tabel, RLS, dan policy OK |
+| 9 | `09_rollback.sql` | Saat perlu reset bersih (testing saja — **jangan di production**) |
+| 10 | `10_first_admin.sql` | Setelah buat akun pertama via Supabase Auth — jadikan super_admin |
+| 11 | `11_dummy_data.sql` | Isi data contoh realistis untuk demo/testing (20 jamaah, 18 booking, dll.) |
 
 ## Cara Pakai
 
