@@ -39,7 +39,7 @@ type FilterOp =
 interface Filter { col: string; op: FilterOp; raw: string }
 
 const RESERVED_PARAMS = new Set([
-  "select", "order", "limit", "offset", "on_conflict",
+  "select", "order", "limit", "offset", "on_conflict", "or",
 ]);
 
 /**
@@ -53,43 +53,94 @@ const BRANCH_SCOPED_TABLES = new Set([
   "branch_commissions",
 ]);
 
-function parseFilters(query: Record<string, string>): Filter[] {
+function parseFilters(query: Record<string, string | string[]>): Filter[] {
   const out: Filter[] = [];
   for (const [col, expr] of Object.entries(query)) {
     if (RESERVED_PARAMS.has(col)) continue;
-    const dot = expr.indexOf(".");
+    const val = Array.isArray(expr) ? expr[0] : expr;
+    if (!val) continue;
+    const dot = val.indexOf(".");
     if (dot === -1) continue;
-    const op = expr.slice(0, dot) as FilterOp;
-    const raw = expr.slice(dot + 1);
+    const op = val.slice(0, dot) as FilterOp;
+    const raw = val.slice(dot + 1);
     out.push({ col, op, raw });
   }
   return out;
 }
 
-function buildWhere(filters: Filter[], params: unknown[]): string {
-  if (!filters.length) return "";
-  const parts = filters.map(({ col, op, raw }) => {
-    const pi = () => { params.push(raw); return `$${params.length}`; };
-    switch (op) {
-      case "eq":  return raw === "null" ? `${qi(col)} IS NULL`     : `${qi(col)} = ${pi()}`;
-      case "neq": return raw === "null" ? `${qi(col)} IS NOT NULL` : `${qi(col)} != ${pi()}`;
-      case "gt":  params.push(raw); return `${qi(col)} > $${params.length}`;
-      case "gte": params.push(raw); return `${qi(col)} >= $${params.length}`;
-      case "lt":  params.push(raw); return `${qi(col)} < $${params.length}`;
-      case "lte": params.push(raw); return `${qi(col)} <= $${params.length}`;
-      case "is":  return raw === "null" ? `${qi(col)} IS NULL` : `${qi(col)} IS NOT NULL`;
-      case "like":  params.push(raw); return `${qi(col)} LIKE $${params.length}`;
-      case "ilike": params.push(raw); return `${qi(col)} ILIKE $${params.length}`;
-      case "in": {
-        const items = raw.replace(/^\(|\)$/g, "").split(",").map((v) => v.trim());
-        const phs = items.map((v) => { params.push(v); return `$${params.length}`; });
-        return `${qi(col)} IN (${phs.join(", ")})`;
-      }
-      default:
-        params.push(raw);
-        return `${qi(col)} = $${params.length}`;
+/**
+ * Parse PostgREST or() filter groups.
+ * or=(col.op.val,col.op.val) → one Filter[] group (conditions joined with OR)
+ * Multiple or= params → multiple groups (each group joined with AND).
+ */
+function parseOrGroups(query: Record<string, string | string[]>): Filter[][] {
+  const orValues = query["or"];
+  if (!orValues) return [];
+  const values = Array.isArray(orValues) ? orValues : [orValues];
+
+  return values.map((orStr) => {
+    // Strip surrounding parens: "(a.is.null,b.lte.2026-...)" → "a.is.null,b.lte.2026-..."
+    const inner = orStr.replace(/^\(|\)$/g, "");
+    // Split by top-level comma (ISO dates contain colons but not commas)
+    const parts = splitSelectParts(inner);
+    const filters: Filter[] = [];
+    for (const part of parts) {
+      const segs = part.split(".");
+      if (segs.length < 2) continue;
+      const col = segs[0];
+      const op = segs[1] as FilterOp;
+      // Everything after the second dot is the value (handles ISO timestamps)
+      const raw = segs.slice(2).join(".") || "null";
+      filters.push({ col, op, raw });
     }
-  });
+    return filters;
+  }).filter((g) => g.length > 0);
+}
+
+/** Build SQL condition for a single filter (used by both AND and OR branches). */
+function buildOneCondition(f: Filter, params: unknown[]): string {
+  const { col, op, raw } = f;
+  const pi = () => { params.push(raw); return `$${params.length}`; };
+  switch (op) {
+    case "eq":  return raw === "null" ? `${qi(col)} IS NULL`     : `${qi(col)} = ${pi()}`;
+    case "neq": return raw === "null" ? `${qi(col)} IS NOT NULL` : `${qi(col)} != ${pi()}`;
+    case "gt":  params.push(raw); return `${qi(col)} > $${params.length}`;
+    case "gte": params.push(raw); return `${qi(col)} >= $${params.length}`;
+    case "lt":  params.push(raw); return `${qi(col)} < $${params.length}`;
+    case "lte": params.push(raw); return `${qi(col)} <= $${params.length}`;
+    case "is":  return raw === "null" ? `${qi(col)} IS NULL` : `${qi(col)} IS NOT NULL`;
+    case "like":  params.push(raw); return `${qi(col)} LIKE $${params.length}`;
+    case "ilike": params.push(raw); return `${qi(col)} ILIKE $${params.length}`;
+    case "in": {
+      const items = raw.replace(/^\(|\)$/g, "").split(",").map((v) => v.trim());
+      const phs = items.map((v) => { params.push(v); return `$${params.length}`; });
+      return `${qi(col)} IN (${phs.join(", ")})`;
+    }
+    default:
+      params.push(raw);
+      return `${qi(col)} = $${params.length}`;
+  }
+}
+
+/**
+ * Build WHERE clause from AND filters + OR groups.
+ * AND filters are ANDed together; each OR group becomes (cond1 OR cond2 …);
+ * all parts are then ANDed.
+ */
+function buildWhere(filters: Filter[], params: unknown[], orGroups: Filter[][] = []): string {
+  const parts: string[] = [];
+
+  for (const f of filters) {
+    parts.push(buildOneCondition(f, params));
+  }
+
+  for (const group of orGroups) {
+    if (!group.length) continue;
+    const groupParts = group.map((f) => buildOneCondition(f, params));
+    parts.push(`(${groupParts.join(" OR ")})`);
+  }
+
+  if (!parts.length) return "";
   return "WHERE " + parts.join(" AND ");
 }
 
@@ -456,7 +507,7 @@ async function getCallerPayload(authHeader?: string) {
 /** GET /rest/v1/:table — SELECT */
 supabaseProxyRouter.get("/rest/v1/:table", async (req, res) => {
   const { table } = req.params;
-  const q = req.query as Record<string, string>;
+  const q = req.query as Record<string, string | string[]>;
   const prefer = (req.headers["prefer"] as string) ?? "";
 
   // Block dangerous system tables
@@ -466,8 +517,10 @@ supabaseProxyRouter.get("/rest/v1/:table", async (req, res) => {
   }
 
   const params: unknown[] = [];
-  const hasJoins = q.select?.includes("(");
+  const selectParam = Array.isArray(q.select) ? q.select[0] : q.select;
+  const hasJoins = selectParam?.includes("(");
   const filters = parseFilters(q);
+  const orGroups = parseOrGroups(q);
 
   // Branch data scoping: branch_manager can only see their own branch's data
   const caller = await getCallerPayload(req.headers["authorization"]);
@@ -477,9 +530,13 @@ supabaseProxyRouter.get("/rest/v1/:table", async (req, res) => {
     filters.push({ col: "branch_id", op: "eq", raw: caller.branch_id as string });
   }
 
-  const order = buildOrder(q.order);
-  const limitVal = q.limit ? Math.min(parseInt(q.limit, 10), 1000) : 1000;
-  const offsetVal = q.offset ? parseInt(q.offset, 10) : 0;
+  const orderParam = Array.isArray(q.order) ? q.order[0] : q.order;
+  const limitParam = Array.isArray(q.limit) ? q.limit[0] : q.limit;
+  const offsetParam = Array.isArray(q.offset) ? q.offset[0] : q.offset;
+
+  const order = buildOrder(orderParam);
+  const limitVal = limitParam ? Math.min(parseInt(limitParam, 10), 1000) : 1000;
+  const offsetVal = offsetParam ? parseInt(offsetParam, 10) : 0;
 
   try {
     const countExact = prefer.includes("count=exact");
@@ -487,16 +544,16 @@ supabaseProxyRouter.get("/rest/v1/:table", async (req, res) => {
     let sql: string;
     if (hasJoins) {
       // Build select with correlated subqueries for join syntax
-      const selectCols = buildSelectWithJoins(table, q.select);
+      const selectCols = buildSelectWithJoins(table, selectParam);
       // For joins we alias the main table as "t" so subqueries can reference it
-      const whereJoin = buildWhere(filters, params).replace(
-        /WHERE (.*)/,
+      const whereJoin = buildWhere(filters, params, orGroups).replace(
+        /WHERE (.*)/s,
         (_, conds) => `WHERE ${conds.replace(/"(\w+)"/g, "t.$1")}`,
       );
       sql = `SELECT ${selectCols} FROM ${qi(table)} t ${whereJoin} ${order} LIMIT ${limitVal} OFFSET ${offsetVal}`;
     } else {
-      const selectCols = buildSelectWithJoins(table, q.select);
-      const where = buildWhere(filters, params);
+      const selectCols = buildSelectWithJoins(table, selectParam);
+      const where = buildWhere(filters, params, orGroups);
       sql = `SELECT ${selectCols} FROM ${qi(table)} ${where} ${order} LIMIT ${limitVal} OFFSET ${offsetVal}`;
     }
 
@@ -504,7 +561,7 @@ supabaseProxyRouter.get("/rest/v1/:table", async (req, res) => {
 
     if (countExact) {
       const countParams: unknown[] = [];
-      const countWhere = buildWhere(filters, countParams);
+      const countWhere = buildWhere(filters, countParams, orGroups);
       const countRes = await pool.query(
         `SELECT COUNT(*)::int AS n FROM ${qi(table)} ${countWhere}`,
         countParams,
@@ -606,7 +663,7 @@ supabaseProxyRouter.patch("/rest/v1/:table", async (req, res) => {
 
   const params: unknown[] = cols.map((c) => body[c]);
   const setSql = cols.map((c, i) => `${qi(c)} = $${i + 1}`).join(", ");
-  const filters = parseFilters(req.query as Record<string, string>);
+  const filters = parseFilters(req.query as Record<string, string | string[]>);
   const where = buildWhere(filters, params);
 
   let sql = `UPDATE ${qi(table)} SET ${setSql} ${where}`;
@@ -632,7 +689,7 @@ supabaseProxyRouter.delete("/rest/v1/:table", async (req, res) => {
   const returning = prefer.includes("return=representation");
 
   const params: unknown[] = [];
-  const filters = parseFilters(req.query as Record<string, string>);
+  const filters = parseFilters(req.query as Record<string, string | string[]>);
 
   if (!filters.length) {
     // Safety guard: refuse full-table deletes

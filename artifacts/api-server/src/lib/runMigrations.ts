@@ -1318,6 +1318,25 @@ export async function runMigrations(): Promise<void> {
       logger.info("runMigrations: 094_is_admin_final_fix — already applied, skipping");
     }
 
+    // ── Step 095: profiles TOTP columns + idempotent column guard ────────────
+    // Menambah kolom totp_secret, totp_enabled, totp_verified_at ke profiles
+    // agar getUserById() tidak error, serta kolom umum yang mungkin belum ada.
+    const migration095Applied = await isApplied(client, "095_profiles_totp_columns");
+    if (!migration095Applied) {
+      try {
+        await runSqlFile(
+          client,
+          sqlPath("095_profiles_totp_columns.sql"),
+          "095_profiles_totp_columns (ADD COLUMN IF NOT EXISTS totp_secret/totp_enabled/totp_verified_at/session_version)",
+        );
+        await markApplied(client, "095_profiles_totp_columns");
+      } catch (e: any) {
+        logger.warn({ err: e?.message }, "runMigrations: 095_profiles_totp_columns — skipping (non-fatal)");
+      }
+    } else {
+      logger.info("runMigrations: 095_profiles_totp_columns — already applied, skipping");
+    }
+
   } catch (err) {
     logger.error({ err }, "runMigrations: unexpected error — server continues");
   } finally {
