@@ -405,6 +405,7 @@ DECLARE
   v_created  INTEGER := 0;
   v_skipped  INTEGER := 0;
   v_row      RECORD;
+  v_inserted INTEGER;
 BEGIN
   FOREACH v_day IN ARRAY p_days_before LOOP
     FOR v_row IN
@@ -436,10 +437,15 @@ BEGIN
                                  THEN 'pending'
                                  ELSE payment_deadline_reminders.status
                                END,
-            updated_at = NOW();
+            updated_at = NOW()
+        WHERE payment_deadline_reminders.status = 'cancelled';
 
-      IF (xmax = 0) THEN v_created := v_created + 1;
-      ELSE v_skipped := v_skipped + 1;
+      GET DIAGNOSTICS v_inserted = ROW_COUNT;
+
+      IF v_inserted > 0 THEN
+        v_created := v_created + 1;
+      ELSE
+        v_skipped := v_skipped + 1;
       END IF;
     END LOOP;
   END LOOP;
@@ -773,8 +779,8 @@ INSERT INTO airlines (name, iata_code, is_active) VALUES
   ('Turkish Airlines',     'TK',  true),
   ('Lion Air',             'JT',  true),
   ('Batik Air',            'ID',  true),
-  ('Saudia',               'SV',  false),
-  ('Flynas',               'XY',  true)
+  ('Saudia',               'XY',  true),
+  ('Flynas',               'F3',  true)
 ON CONFLICT (iata_code) DO NOTHING;
 
 

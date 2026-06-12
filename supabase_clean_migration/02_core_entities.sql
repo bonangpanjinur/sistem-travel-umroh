@@ -31,17 +31,8 @@ CREATE POLICY "profiles_own" ON profiles
 
 CREATE POLICY "staff_read_profiles" ON profiles
   FOR SELECT USING (auth.role() = 'authenticated');
-
-CREATE POLICY "admin_read_profiles_for_status" ON profiles
-  FOR SELECT TO authenticated
-  USING (
-    id = auth.uid()
-    OR EXISTS (
-      SELECT 1 FROM user_roles ur
-      WHERE ur.user_id = auth.uid()
-        AND ur.role IN ('super_admin','owner','branch_manager','operational','sales','agent')
-    )
-  );
+-- NOTE: "admin_read_profiles_for_status" policy is added AFTER user_roles table
+-- is created below, because it references the user_roles table.
 
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname='set_profiles_updated_at'
@@ -109,6 +100,18 @@ CREATE POLICY "user_roles_admin_manage" ON user_roles
 
 CREATE POLICY "user_roles_read_own" ON user_roles
   FOR SELECT USING (user_id = auth.uid());
+
+-- Add profile policy that references user_roles (deferred to here so user_roles exists)
+CREATE POLICY "admin_read_profiles_for_status" ON profiles
+  FOR SELECT TO authenticated
+  USING (
+    id = auth.uid()
+    OR EXISTS (
+      SELECT 1 FROM user_roles ur
+      WHERE ur.user_id = auth.uid()
+        AND ur.role IN ('super_admin','owner','branch_manager','operational','sales','agent')
+    )
+  );
 
 
 -- =============================================================================

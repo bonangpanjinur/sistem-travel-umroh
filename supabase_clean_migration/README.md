@@ -34,6 +34,14 @@ supabase db execute --file supabase_clean_migration/06_ecommerce.sql
 supabase db execute --file supabase_clean_migration/07_functions_rpc_seed.sql
 ```
 
+## Bug Fixes (Applied)
+
+| File | Bug | Fix |
+|------|-----|-----|
+| `02_core_entities.sql` | **Root cause of ALL errors** — RLS policy `admin_read_profiles_for_status` on `profiles` referenced `user_roles` before it was created in the same file. File 02 aborted mid-run, so `user_roles`, `branches`, `employees` were never created → cascade-failed files 03–07. | Moved the `CREATE POLICY` to after the `user_roles` table definition. The `DROP POLICY` stays at the top (safe), but the `CREATE POLICY` is now deferred. |
+| `07_functions_rpc_seed.sql` | `xmax = 0` used inside `auto_schedule_payment_reminders` to detect INSERT vs ON CONFLICT — this undocumented Postgres trick does not work reliably inside a function body. | Replaced with `GET DIAGNOSTICS v_inserted = ROW_COUNT`. |
+| `07_functions_rpc_seed.sql` | Duplicate `iata_code 'SV'` for both "Saudi Arabian Airlines" and "Saudia" — would cause a unique constraint conflict. | Changed Saudia to `'XY'` and Flynas to `'F3'` (their correct IATA codes). |
+
 ## Catatan Penting
 
 ### Keputusan Desain
