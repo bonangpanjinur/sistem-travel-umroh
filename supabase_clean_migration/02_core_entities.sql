@@ -635,6 +635,25 @@ CREATE TABLE IF NOT EXISTS document_types (
   created_at  TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Tambah kolom jika tabel sudah ada dari migrasi lama tanpa kolom ini
+ALTER TABLE document_types ADD COLUMN IF NOT EXISTS code        TEXT;
+ALTER TABLE document_types ADD COLUMN IF NOT EXISTS description TEXT;
+ALTER TABLE document_types ADD COLUMN IF NOT EXISTS is_required BOOLEAN DEFAULT FALSE;
+ALTER TABLE document_types ADD COLUMN IF NOT EXISTS is_active   BOOLEAN DEFAULT TRUE;
+ALTER TABLE document_types ADD COLUMN IF NOT EXISTS sort_order  INTEGER DEFAULT 0;
+
+-- Pastikan constraint UNIQUE pada code ada
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'document_types_code_key'
+      AND conrelid = 'document_types'::regclass
+  ) THEN
+    ALTER TABLE document_types ADD CONSTRAINT document_types_code_key UNIQUE (code);
+  END IF;
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
+
 ALTER TABLE document_types ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "document_types_admin_manage" ON document_types;

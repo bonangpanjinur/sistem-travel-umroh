@@ -1,5 +1,4 @@
 
-
 -- ============================================================
 -- 01_extensions_helpers.sql
 -- ============================================================
@@ -64,7 +63,6 @@ $$;
 -- SELESAI — Extensions & Helpers siap.
 -- =============================================================================
 SELECT 'File 01 — Extensions & Helpers: OK' AS result;
-
 
 -- ============================================================
 -- 02_core_entities.sql
@@ -706,6 +704,25 @@ CREATE TABLE IF NOT EXISTS document_types (
   created_at  TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Tambah kolom jika tabel sudah ada dari migrasi lama tanpa kolom ini
+ALTER TABLE document_types ADD COLUMN IF NOT EXISTS code        TEXT;
+ALTER TABLE document_types ADD COLUMN IF NOT EXISTS description TEXT;
+ALTER TABLE document_types ADD COLUMN IF NOT EXISTS is_required BOOLEAN DEFAULT FALSE;
+ALTER TABLE document_types ADD COLUMN IF NOT EXISTS is_active   BOOLEAN DEFAULT TRUE;
+ALTER TABLE document_types ADD COLUMN IF NOT EXISTS sort_order  INTEGER DEFAULT 0;
+
+-- Pastikan constraint UNIQUE pada code ada
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'document_types_code_key'
+      AND conrelid = 'document_types'::regclass
+  ) THEN
+    ALTER TABLE document_types ADD CONSTRAINT document_types_code_key UNIQUE (code);
+  END IF;
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
+
 ALTER TABLE document_types ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "document_types_admin_manage" ON document_types;
@@ -764,7 +781,6 @@ CREATE POLICY "menu_items_admin_manage" ON menu_items
 -- SELESAI — File 02: Core Entities
 -- =============================================================================
 SELECT 'File 02 — Core Entities: OK' AS result;
-
 
 -- ============================================================
 -- 03_customers_bookings.sql
@@ -1482,7 +1498,6 @@ END $$;
 -- SELESAI — File 03: Customers, Bookings & Payments
 -- =============================================================================
 SELECT 'File 03 — Customers, Bookings & Payments: OK' AS result;
-
 
 -- ============================================================
 -- 04_operations_portal.sql
@@ -2534,7 +2549,6 @@ ON CONFLICT (code) DO NOTHING;
 -- SELESAI — File 04: Operations & Customer Portal
 -- =============================================================================
 SELECT 'File 04 — Operations & Customer Portal: OK' AS result;
-
 
 -- ============================================================
 -- 05_finance_hr_company.sql
@@ -3855,7 +3869,6 @@ ON CONFLICT (code) DO NOTHING;
 -- =============================================================================
 SELECT 'File 05 — Finance, HR & Company Settings: OK' AS result;
 
-
 -- ============================================================
 -- 06_ecommerce.sql
 -- ============================================================
@@ -4201,7 +4214,6 @@ END $$;
 -- SELESAI — File 06: Store / E-Commerce
 -- =============================================================================
 SELECT 'File 06 — Store E-Commerce: OK' AS result;
-
 
 -- ============================================================
 -- 07_functions_rpc_seed.sql
@@ -5098,7 +5110,6 @@ WHERE table_schema = 'public'
 -- Migrasi Vinstour Travel Portal selesai!
 -- =============================================================================
 SELECT 'File 07 — Functions, RPC & Seed: OK. Migrasi Vinstour selesai!' AS result;
-
 
 -- ============================================================
 -- PATCH_fix_register_and_settings.sql
