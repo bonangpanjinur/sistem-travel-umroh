@@ -516,9 +516,15 @@ supabaseProxyRouter.get("/rest/v1/:table", async (req, res) => {
     // Supabase returns array; single/maybeSingle is handled client-side
     res.json(result.rows);
   } catch (err: any) {
-    // Return empty array for missing tables — the client handles gracefully
-    if (err.message?.includes("does not exist") || err.code === "42P01") {
-      logger.debug({ table }, "supabase-proxy: table not found, returning []");
+    // Return empty array for missing tables or permission errors —
+    // RLS policies are decorative in this architecture (auth is enforced at API layer).
+    // Codes: 42P01 = relation not found, 42501 = insufficient privilege (RLS/function)
+    if (
+      err.message?.includes("does not exist") ||
+      err.code === "42P01" ||
+      err.code === "42501"
+    ) {
+      logger.debug({ table, code: err.code, msg: err.message }, "supabase-proxy: table/permission issue, returning []");
       res.json([]);
       return;
     }

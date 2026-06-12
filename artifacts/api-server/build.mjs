@@ -141,13 +141,24 @@ globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
     console.log("ℹ src/sql not found — skipping SQL copy (using Supabase migrations)");
   }
 
-  const rootSql = path.resolve(artifactDir, "../../sql/MASTER_FRESH_INSTALL.sql");
+  // 01_schema.sql: prefer src/sql/01_schema.sql (canonical for Neon/Replit).
+  // Falls back to root sql/MASTER_FRESH_INSTALL.sql for legacy compatibility.
+  const srcSchema = path.resolve(srcSql, "01_schema.sql");
+  const rootSql   = path.resolve(artifactDir, "../../sql/MASTER_FRESH_INSTALL.sql");
+  const schemaOut = path.resolve(sqlDist, "01_schema.sql");
   try {
-    await stat(rootSql);
-    await cp(rootSql, path.resolve(sqlDist, "01_schema.sql"));
-    console.log("✓ MASTER_FRESH_INSTALL.sql copied to dist/sql/01_schema.sql");
+    await stat(srcSchema);
+    // Already copied as part of cp(srcSql, sqlDist) above — no action needed.
+    console.log("✓ 01_schema.sql already included from src/sql/");
   } catch {
-    console.log("ℹ MASTER_FRESH_INSTALL.sql not found — skipping");
+    // src/sql/01_schema.sql not found — try root MASTER_FRESH_INSTALL.sql
+    try {
+      await stat(rootSql);
+      await cp(rootSql, schemaOut);
+      console.log("✓ MASTER_FRESH_INSTALL.sql copied to dist/sql/01_schema.sql (fallback)");
+    } catch {
+      console.log("ℹ Neither src/sql/01_schema.sql nor MASTER_FRESH_INSTALL.sql found — skipping");
+    }
   }
 }
 

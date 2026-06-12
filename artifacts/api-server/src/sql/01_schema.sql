@@ -1,8 +1,7 @@
 -- =============================================================================
 -- MASTER FRESH INSTALL — Vinstour Travel Portal
--- Schema utama Vinstour Travel Portal untuk Neon Postgres (Replit).
--- Dijalankan otomatis oleh runMigrations.ts saat server start pertama kali.
--- Semua perintah menggunakan IF NOT EXISTS / OR REPLACE — aman dijalankan ulang.
+-- Jalankan file ini SATU KALI di Supabase SQL Editor untuk fresh database.
+-- Semua perintah menggunakan IF NOT EXISTS — aman di-run ulang.
 -- URUTAN: 001 → 039 (jangan diubah urutan eksekusinya)
 -- =============================================================================
 

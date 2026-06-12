@@ -51,6 +51,21 @@ export default defineConfig({
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
   },
+  // In development on Replit, force the Supabase client to use the local
+  // Express proxy (→ Neon Postgres) instead of any Supabase cloud URL that
+  // may be stored in Replit secrets.  The secrets are intentionally cleared
+  // so that `client.ts` falls back to `window.location.origin`.
+  define:
+    process.env.NODE_ENV !== "production"
+      ? {
+          "import.meta.env.VITE_SUPABASE_URL": JSON.stringify(""),
+          "import.meta.env.VITE_SUPABASE_PROJECT_URL": JSON.stringify(""),
+          "import.meta.env.VITE_SUPABASE_API_URL": JSON.stringify(""),
+          "import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY": JSON.stringify(""),
+          "import.meta.env.VITE_SUPABASE_ANON_KEY": JSON.stringify(""),
+          "import.meta.env.VITE_SUPABASE_KEY": JSON.stringify(""),
+        }
+      : {},
   server: {
     port,
     strictPort: true,

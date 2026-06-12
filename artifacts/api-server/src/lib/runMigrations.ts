@@ -1175,6 +1175,94 @@ export async function runMigrations(): Promise<void> {
       logger.info("runMigrations: 086_ar_reminder_log — already applied, skipping");
     }
 
+    // ── Step 087: session_version di profiles + revoke_all_sessions() ────────
+    const migration087Applied = await isApplied(client, "087_session_version_profiles");
+    if (!migration087Applied) {
+      try {
+        await runSqlFile(
+          client,
+          sqlPath("87_session_version_profiles.sql"),
+          "087_session_version_profiles (kolom session_version + fungsi revoke_all_sessions untuk logout paksa semua device)",
+        );
+        await markApplied(client, "087_session_version_profiles");
+      } catch (e: any) {
+        logger.warn({ err: e?.message }, "runMigrations: 087_session_version_profiles — skipping (non-fatal)");
+      }
+    } else {
+      logger.info("runMigrations: 087_session_version_profiles — already applied, skipping");
+    }
+
+    // ── Step 088: harga per kamar untuk anak & bayi + view v_booking_passenger_summary ──
+    const migration088Applied = await isApplied(client, "088_passenger_per_room_pricing");
+    if (!migration088Applied) {
+      try {
+        await runSqlFile(
+          client,
+          sqlPath("88_passenger_per_room_pricing.sql"),
+          "088_passenger_per_room_pricing (price_child_quad/triple/double/single + price_infant_* + view v_booking_passenger_summary)",
+        );
+        await markApplied(client, "088_passenger_per_room_pricing");
+      } catch (e: any) {
+        logger.warn({ err: e?.message }, "runMigrations: 088_passenger_per_room_pricing — skipping (non-fatal)");
+      }
+    } else {
+      logger.info("runMigrations: 088_passenger_per_room_pricing — already applied, skipping");
+    }
+
+    // ── Step 089: reorganisasi grup menu_items ke struktur baru ──────────────
+    const migration089Applied = await isApplied(client, "089_menu_group_reorganization");
+    if (!migration089Applied) {
+      try {
+        await runSqlFile(
+          client,
+          sqlPath("08_menu_group_reorganization.sql"),
+          "089_menu_group_reorganization (upsert menu_items ke grup Beranda/Produk & Paket/Perlengkapan/Laporan/Komunikasi/dll)",
+        );
+        await markApplied(client, "089_menu_group_reorganization");
+      } catch (e: any) {
+        logger.warn({ err: e?.message }, "runMigrations: 089_menu_group_reorganization — skipping (non-fatal)");
+      }
+    } else {
+      logger.info("runMigrations: 089_menu_group_reorganization — already applied, skipping");
+    }
+
+    // ── Step 091: nonaktifkan RLS pada tabel publik (auth di-enforce di API layer) ──
+    const migration091Applied = await isApplied(client, "091_disable_rls_public_tables");
+    if (!migration091Applied) {
+      try {
+        await runSqlFile(
+          client,
+          sqlPath("91_disable_rls_public_tables.sql"),
+          "091_disable_rls_public_tables (DISABLE ROW LEVEL SECURITY pada packages/hotels/departures/airlines/dll — auth dijaga di Express middleware)",
+        );
+        await markApplied(client, "091_disable_rls_public_tables");
+      } catch (e: any) {
+        logger.warn({ err: e?.message }, "runMigrations: 091_disable_rls_public_tables — skipping (non-fatal)");
+      }
+    } else {
+      logger.info("runMigrations: 091_disable_rls_public_tables — already applied, skipping");
+    }
+
+    // ── Step 090: definisi fungsi is_admin() + GRANT ke PUBLIC ───────────────
+    // is_admin() direferensikan di banyak RLS policy tapi tidak pernah di-CREATE
+    // secara eksplisit sebelumnya. Step ini juga memberi EXECUTE grant ke fungsi
+    // auth.uid/role/jwt/email agar bisa dipanggil dari konteks RLS.
+    const migration090Applied = await isApplied(client, "090_fix_is_admin_function");
+    if (!migration090Applied) {
+      try {
+        await runSqlFile(
+          client,
+          sqlPath("90_fix_is_admin_function.sql"),
+          "090_fix_is_admin_function (CREATE OR REPLACE FUNCTION is_admin() SECURITY DEFINER + GRANT EXECUTE TO PUBLIC)",
+        );
+        await markApplied(client, "090_fix_is_admin_function");
+      } catch (e: any) {
+        logger.warn({ err: e?.message }, "runMigrations: 090_fix_is_admin_function — skipping (non-fatal)");
+      }
+    } else {
+      logger.info("runMigrations: 090_fix_is_admin_function — already applied, skipping");
+    }
+
   } catch (err) {
     logger.error({ err }, "runMigrations: unexpected error — server continues");
   } finally {
