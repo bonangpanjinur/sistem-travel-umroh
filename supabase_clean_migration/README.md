@@ -42,6 +42,150 @@ supabase db execute --file supabase_clean_migration/07_functions_rpc_seed.sql
 | `07_functions_rpc_seed.sql` | `xmax = 0` used inside `auto_schedule_payment_reminders` to detect INSERT vs ON CONFLICT — this undocumented Postgres trick does not work reliably inside a function body. | Replaced with `GET DIAGNOSTICS v_inserted = ROW_COUNT`. |
 | `07_functions_rpc_seed.sql` | Duplicate `iata_code 'SV'` for both "Saudi Arabian Airlines" and "Saudia" — would cause a unique constraint conflict. | Changed Saudia to `'XY'` and Flynas to `'F3'` (their correct IATA codes). |
 
+## Troubleshooting
+
+Setiap error di Supabase SQL Editor memiliki kode Postgres 5-karakter (`ERROR: XXXXX`).
+Temukan kode atau kutipan pesan di tabel berikut, lalu ikuti langkah perbaikannya.
+
+---
+
+### Pola 1 — Tabel/Relasi Tidak Ditemukan
+
+| Pesan error (contoh) | Kode | Penyebab | File yg gagal | Tindakan |
+|---|---|---|---|---|
+| `relation "user_roles" does not exist` | 42P01 | File 02 gagal sebelum membuat `user_roles` | **File 02** | Jalankan `09_rollback.sql`, lalu ulang dari file 01 |
+| `relation "branches" does not exist` | 42P01 | File 02 gagal sebelum membuat `branches` | **File 02** | Sama seperti di atas |
+| `relation "customers" does not exist` | 42P01 | File 03 gagal | **File 03** | Periksa output file 03, perbaiki, lalu ulang file 03–07 |
+| `relation "bookings" does not exist` | 42P01 | File 03 gagal | **File 03** | Sama seperti di atas |
+| `relation "savings_plans" does not exist` | 42P01 | File 03 gagal sebelum membuat `savings_plans` | **File 03** | Sama seperti di atas |
+| `relation "employees" does not exist` | 42P01 | File 02 atau 05 gagal | **File 02 / 05** | Cek apakah `profiles` ada; jika tidak, rollback penuh |
+| `relation "departures" does not exist` | 42P01 | File 02 gagal | **File 02** | Rollback penuh, ulang 01–07 |
+| `relation "store_products" does not exist` | 42P01 | File 06 gagal | **File 06** | Ulang hanya file 06 (jika 01–05 sudah OK) |
+| `relation "departure_financial_summary" does not exist` | 42P01 | File 05 gagal | **File 05** | Ulang file 05–07 |
+
+**Cara cepat cek posisi kegagalan:**
+```sql
+-- Tempel di SQL Editor untuk melihat tabel mana yang sudah ada
+SELECT table_name FROM information_schema.tables
+WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
+ORDER BY table_name;
+```
+Bandingkan hasilnya dengan daftar di file 08. Tabel pertama yang hilang menunjukkan di mana file berhenti.
+
+---
+
+### Pola 2 — Tipe Data Tidak Ditemukan
+
+| Pesan error | Kode | Penyebab | Tindakan |
+|---|---|---|---|
+| `type "savings_plans" does not exist` | 42704 | Tabel `savings_plans` belum ada saat file 07 dijalankan (file 03 gagal). Postgres menggunakan nama tabel sebagai row-type. | Pastikan file 03 berhasil dulu, lalu jalankan ulang file 07 |
+| `type "app_role" does not exist` | 42704 | Kode lama masih menggunakan enum `app_role`. Migrasi bersih ini menggunakan `TEXT CHECK(...)`, bukan enum. | Hapus referensi `app_role` dari kode; gunakan string role langsung |
+
+---
+
+### Pola 3 — Duplikat / Konflik Unique
+
+| Pesan error | Kode | Penyebab | Tindakan |
+|---|---|---|---|
+| `duplicate key value violates unique constraint "airlines_iata_code_key"` | 23505 | File 07 dijalankan dua kali (seed airline sudah ada) | Aman diabaikan — seed menggunakan `ON CONFLICT DO NOTHING`. Jika error fatal, jalankan `09_rollback.sql` lalu ulang |
+| `duplicate key value violates unique constraint "permissions_list_pkey"` | 23505 | File 07 dijalankan dua kali | Sama seperti di atas |
+| `duplicate key value violates unique constraint "menu_items_key_key"` | 23505 | File 07 dijalankan dua kali | Sama — `ON CONFLICT DO UPDATE` sudah ada, seharusnya tidak terjadi |
+| `duplicate key value violates unique constraint "approval_configs_type_level_required_role_key"` | 23505 | File 05 dijalankan dua kali tanpa rollback | Jalankan `09_rollback.sql`, lalu ulang 01–07 |
+
+---
+
+### Pola 4 — Policy / RLS Bermasalah
+
+| Pesan error | Kode | Penyebab | Tindakan |
+|---|---|---|---|
+| `policy "X" for table "Y" already exists` | 42710 | File dijalankan dua kali; `DROP POLICY IF EXISTS` tidak dijalankan | Jalankan `09_rollback.sql` lalu ulang; atau drop policy manual: `DROP POLICY "X" ON Y;` |
+| `new row violates row-level security policy for table "X"` | 42501 | RLS aktif tapi policy tidak mengizinkan operasi yang sedang dilakukan | Pastikan user memiliki role yang sesuai di tabel `user_roles`. Cek hasil file 08 bagian 4. |
+| `permission denied for table X` | 42501 | Sama seperti di atas | Sama |
+| `infinite recursion detected in policy for relation "user_roles"` | 42P17 | Policy pada `user_roles` melakukan subquery ke `user_roles` sendiri tanpa alias berbeda | Periksa policy `user_roles_admin_manage` — harus menggunakan alias `ur` |
+
+---
+
+### Pola 5 — Fungsi Tidak Ditemukan
+
+| Pesan error | Kode | Penyebab | Tindakan |
+|---|---|---|---|
+| `function update_updated_at_column() does not exist` | 42883 | File 01 belum dijalankan atau gagal | Jalankan ulang **file 01** terlebih dahulu |
+| `function slugify_text(text) does not exist` | 42883 | File 01 gagal | Jalankan ulang **file 01** |
+| `function handle_new_user() does not exist` | 42883 | File 02 gagal sebelum fungsi ini dibuat | Rollback, ulang file 01–02 |
+| `function get_dashboard_stats() does not exist` | 42883 | File 07 belum dijalankan atau gagal | Jalankan ulang **file 07** |
+| `function convert_savings_to_booking(uuid, uuid, text) does not exist` | 42883 | File 07 gagal | Ulang file 07 (pastikan file 03 sudah OK dulu) |
+
+---
+
+### Pola 6 — Syntax / Fitur Tidak Didukung
+
+| Pesan error | Kode | Penyebab | Tindakan |
+|---|---|---|---|
+| `syntax error at or near "GENERATED"` | 42601 | Versi Postgres < 12. Supabase menggunakan Postgres 15 — tidak seharusnya terjadi. | Pastikan project Supabase tidak menggunakan versi lama. Cek: `SELECT version();` |
+| `column "remaining_amount" can only be updated to DEFAULT` | 428C9 | Kode aplikasi mencoba menulis ke kolom `GENERATED ALWAYS`. | Hapus `remaining_amount` dari semua `INSERT`/`UPDATE` di kode aplikasi — nilainya otomatis dihitung |
+| `cannot use subquery in check constraint` | 0A000 | Percobaan menambahkan `CHECK` yang berisi subquery | Gunakan RLS policy, bukan CHECK constraint, untuk validasi antar tabel |
+| `there is no unique constraint matching given keys for referenced table` | 42830 | Foreign key merujuk ke kolom yang tidak memiliki UNIQUE/PRIMARY KEY | Cek definisi tabel induk; mungkin file induk gagal sebagian |
+
+---
+
+### Pola 7 — Error Saat DROP / Rollback
+
+| Pesan error | Kode | Penyebab | Tindakan |
+|---|---|---|---|
+| `cannot drop table X because other objects depend on it` | 2BP01 | Mencoba drop manual tanpa CASCADE | Selalu gunakan file `09_rollback.sql` yang sudah menyertakan `CASCADE` |
+| `cannot drop function X because other objects depend on it` | 2BP01 | Sama seperti di atas | Sama |
+| `trigger "on_auth_user_created" for relation "users" does not exist` | 42704 | File 09 dijalankan di database yang belum pernah dimigrasikan | Aman diabaikan — semua DROP di file 09 menggunakan `IF EXISTS` |
+
+---
+
+### Alur Diagnosis Cepat
+
+```
+Error muncul saat menjalankan file N
+        │
+        ▼
+Apakah pesan berisi "does not exist"?
+   ├── Ya → Tabel/fungsi dari file sebelumnya tidak ada
+   │         → Cek file N-1, N-2, dst. (lihat Pola 1 & 5)
+   └── Tidak
+        │
+        ▼
+Apakah pesan berisi "already exists" atau "duplicate key"?
+   ├── Ya → File ini pernah dijalankan sebagian
+   │         → Jalankan 09_rollback.sql, lalu ulang dari 01
+   └── Tidak
+        │
+        ▼
+Apakah pesan berisi "row-level security" atau "permission denied"?
+   ├── Ya → RLS/policy issue (lihat Pola 4)
+   └── Tidak
+        │
+        ▼
+Jalankan 08_verify_rls.sql → lihat baris ❌ FAIL untuk petunjuk spesifik
+```
+
+---
+
+### Reset Penuh (Cara Paling Aman)
+
+Jika tidak yakin di mana kegagalan terjadi, reset bersih selalu berhasil:
+
+```
+1. Jalankan 09_rollback.sql   ← hapus semua objek
+2. Jalankan 01_extensions_helpers.sql
+3. Jalankan 02_core_entities.sql        ← perhatikan output "File 02 — OK"
+4. Jalankan 03_customers_bookings.sql
+5. Jalankan 04_operations_portal.sql
+6. Jalankan 05_finance_hr_company.sql
+7. Jalankan 06_ecommerce.sql
+8. Jalankan 07_functions_rpc_seed.sql
+9. Jalankan 08_verify_rls.sql           ← konfirmasi ✅ PASS
+```
+
+Setiap file diakhiri dengan `SELECT 'File XX — ... : OK'` — jika baris itu muncul, file tersebut berhasil penuh.
+
+---
+
 ## Catatan Penting
 
 ### Keputusan Desain
