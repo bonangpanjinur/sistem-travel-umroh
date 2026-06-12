@@ -157,7 +157,8 @@ export default function Register() {
           setEmailCheck('ok');
           clearErrors('email');
         }
-      } catch {
+      } catch (err) {
+        console.error('Email check error:', err);
         setEmailCheck('idle');
       }
     }, 600);
@@ -196,7 +197,8 @@ export default function Register() {
           setPhoneCheck('ok');
           clearErrors('phone');
         }
-      } catch {
+      } catch (err) {
+        console.error('Phone check error:', err);
         setPhoneCheck('idle');
       }
     }, 600);

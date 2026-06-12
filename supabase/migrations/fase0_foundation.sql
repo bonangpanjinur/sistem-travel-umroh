@@ -613,6 +613,9 @@ CREATE POLICY "customers_admin_manage" ON customers
 CREATE POLICY "customers_own_read" ON customers
   FOR SELECT USING (user_id = auth.uid());
 
+CREATE POLICY "customers_public_read_check" ON customers
+  FOR SELECT USING (true);
+
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname='set_customers_updated_at'
     AND tgrelid='customers'::regclass) THEN
