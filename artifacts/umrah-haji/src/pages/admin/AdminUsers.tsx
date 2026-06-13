@@ -27,7 +27,7 @@ import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import { useAuth } from "@/hooks/useAuth";
 import {
-  Search, Users, Shield, UserPlus, Trash2, Edit2, Link2, Key, Building2, UserCog, ShieldCheck, Settings, Info, CheckCircle2, XCircle, AlertCircle
+  Search, Users, Shield, UserPlus, Trash2, Edit2, Link2, Key, Building2, UserCog, ShieldCheck, Settings, Info, CheckCircle2, XCircle, AlertCircle, Eye, EyeOff, Plus
 } from "lucide-react";
 import {
   Popover, PopoverContent, PopoverTrigger,
@@ -121,10 +121,21 @@ export default function AdminUsers() {
   const [newPassword, setNewPassword] = useState('');
   const [showPermissionsDialog, setShowPermissionsDialog] = useState(false);
   const [showDashboardSettings, setShowDashboardSettings] = useState(false);
-  const { hasRole } = useAuth();
+  const { hasRole, session } = useAuth();
   const isSuperAdmin = hasRole('super_admin');
   const isOwner = hasRole('owner');
   const isAdmin = isSuperAdmin || isOwner;
+
+  // Create user dialog state
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showCreatePassword, setShowCreatePassword] = useState(false);
+  const [createForm, setCreateForm] = useState({
+    full_name: '',
+    email: '',
+    password: '',
+    role: '' as AppRole | '',
+    branch_id: 'all',
+  });
 
   // Fetch branches for role assignment
   const { data: branches } = useQuery({
@@ -195,6 +206,48 @@ export default function AdminUsers() {
       }
     }
   }, [searchParams, users, setSearchParams]);
+
+  // Create new user mutation
+  const createUserMutation = useMutation({
+    mutationFn: async ({ full_name, email, password, role, branch_id }: {
+      full_name: string; email: string; password: string; role: AppRole; branch_id: string | null;
+    }) => {
+      const token = session?.access_token;
+      const res = await fetch('/api/auth/admin/users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          email,
+          password,
+          email_confirm: true,
+          user_metadata: { full_name },
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Gagal membuat user');
+
+      // Assign initial role
+      const { error: roleErr } = await (supabase as any)
+        .from('user_roles')
+        .insert({ user_id: data.id, role, branch_id: branch_id || null });
+      if (roleErr) throw roleErr;
+
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      toast.success('User baru berhasil dibuat');
+      setShowCreateDialog(false);
+      setCreateForm({ full_name: '', email: '', password: '', role: '', branch_id: 'all' });
+      setShowCreatePassword(false);
+    },
+    onError: (error: Error) => {
+      toast.error('Gagal membuat user: ' + error.message);
+    },
+  });
 
   // Add/Update role mutation
   const upsertRoleMutation = useMutation({
@@ -350,16 +403,25 @@ export default function AdminUsers() {
           <h1 className="text-3xl font-bold text-gray-900">Manajemen User</h1>
           <p className="text-muted-foreground mt-1">Kelola akses, role, dan keamanan pengguna sistem</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           {isSuperAdmin && (
-            <Button
-              onClick={() => setShowDashboardSettings(true)}
-              variant="outline"
-              className="border-blue-200 hover:bg-blue-50 text-blue-600"
-            >
-              <Settings className="h-4 w-4 mr-2" />
-              Pengaturan Dashboard
-            </Button>
+            <>
+              <Button
+                onClick={() => setShowCreateDialog(true)}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Tambah User Baru
+              </Button>
+              <Button
+                onClick={() => setShowDashboardSettings(true)}
+                variant="outline"
+                className="border-blue-200 hover:bg-blue-50 text-blue-600"
+              >
+                <Settings className="h-4 w-4 mr-2" />
+                Pengaturan Dashboard
+              </Button>
+            </>
           )}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -913,6 +975,190 @@ export default function AdminUsers() {
                 : resetPasswordMethod === 'email'
                 ? 'Kirim Email'
                 : 'Simpan Password'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Create New User Dialog ── */}
+      <Dialog open={showCreateDialog} onOpenChange={(open) => {
+        setShowCreateDialog(open);
+        if (!open) {
+          setCreateForm({ full_name: '', email: '', password: '', role: '', branch_id: 'all' });
+          setShowCreatePassword(false);
+        }
+      }}>
+        <DialogContent className="sm:max-w-[480px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <div className="p-1.5 rounded-lg bg-emerald-50">
+                <UserPlus className="h-5 w-5 text-emerald-600" />
+              </div>
+              Tambah Pengguna Baru
+            </DialogTitle>
+            <DialogDescription>
+              Buat akun baru dan tentukan role akses awal untuk pengguna tersebut.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4 py-3">
+            {/* Full Name */}
+            <div className="space-y-1.5">
+              <label className="text-sm font-semibold text-gray-700">
+                Nama Lengkap <span className="text-red-500">*</span>
+              </label>
+              <Input
+                placeholder="cth: Budi Santoso"
+                value={createForm.full_name}
+                onChange={e => setCreateForm(f => ({ ...f, full_name: e.target.value }))}
+                className="bg-white"
+              />
+            </div>
+
+            {/* Email */}
+            <div className="space-y-1.5">
+              <label className="text-sm font-semibold text-gray-700">
+                Email <span className="text-red-500">*</span>
+              </label>
+              <Input
+                type="email"
+                placeholder="email@domain.com"
+                value={createForm.email}
+                onChange={e => setCreateForm(f => ({ ...f, email: e.target.value }))}
+                className="bg-white"
+              />
+            </div>
+
+            {/* Password */}
+            <div className="space-y-1.5">
+              <label className="text-sm font-semibold text-gray-700">
+                Password <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <Input
+                  type={showCreatePassword ? 'text' : 'password'}
+                  placeholder="Minimal 8 karakter"
+                  value={createForm.password}
+                  onChange={e => setCreateForm(f => ({ ...f, password: e.target.value }))}
+                  className="bg-white pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowCreatePassword(v => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700"
+                >
+                  {showCreatePassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+              {createForm.password && createForm.password.length < 8 && (
+                <p className="text-[11px] text-red-500 font-medium">Password terlalu pendek (min. 8 karakter)</p>
+              )}
+            </div>
+
+            {/* Role */}
+            <div className="space-y-1.5">
+              <label className="text-sm font-semibold text-gray-700">
+                Role Awal <span className="text-red-500">*</span>
+              </label>
+              <Select
+                value={createForm.role}
+                onValueChange={v => setCreateForm(f => ({ ...f, role: v as AppRole, branch_id: 'all' }))}
+              >
+                <SelectTrigger className="bg-white">
+                  <SelectValue placeholder="Pilih role..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(ROLE_LABELS) as AppRole[]).map(role => (
+                    <SelectItem key={role} value={role}>
+                      <div className="flex items-center gap-2">
+                        <span className={`inline-block w-2 h-2 rounded-full ${ROLE_COLORS[role].split(' ')[0]}`} />
+                        {ROLE_LABELS[role]}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {createForm.role && (
+                <p className="text-[11px] text-muted-foreground italic leading-relaxed">
+                  {ROLE_DESCRIPTIONS[createForm.role]}
+                </p>
+              )}
+            </div>
+
+            {/* Branch (optional, only for relevant roles) */}
+            {createForm.role && !['super_admin', 'owner', 'customer', 'jamaah', 'it'].includes(createForm.role) && (
+              <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2 duration-200">
+                <label className="text-sm font-semibold text-gray-700 flex items-center gap-1.5">
+                  <Building2 className="h-3.5 w-3.5 text-gray-400" />
+                  Penempatan Cabang
+                </label>
+                <Select
+                  value={createForm.branch_id}
+                  onValueChange={v => setCreateForm(f => ({ ...f, branch_id: v }))}
+                >
+                  <SelectTrigger className="bg-white">
+                    <SelectValue placeholder="Pilih cabang..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Semua Cabang (Pusat)</SelectItem>
+                    {branches?.map(branch => (
+                      <SelectItem key={branch.id} value={branch.id}>
+                        {branch.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="bg-gray-50 -mx-6 px-6 py-4 rounded-b-lg border-t mt-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowCreateDialog(false)}
+              className="bg-white"
+              disabled={createUserMutation.isPending}
+            >
+              Batal
+            </Button>
+            <Button
+              onClick={() => {
+                if (!createForm.full_name.trim() || !createForm.email.trim() || !createForm.password || !createForm.role) {
+                  toast.error('Lengkapi semua field yang wajib diisi');
+                  return;
+                }
+                if (createForm.password.length < 8) {
+                  toast.error('Password harus minimal 8 karakter');
+                  return;
+                }
+                createUserMutation.mutate({
+                  full_name: createForm.full_name.trim(),
+                  email: createForm.email.trim(),
+                  password: createForm.password,
+                  role: createForm.role as AppRole,
+                  branch_id: createForm.branch_id === 'all' ? null : createForm.branch_id,
+                });
+              }}
+              disabled={
+                !createForm.full_name.trim() ||
+                !createForm.email.trim() ||
+                createForm.password.length < 8 ||
+                !createForm.role ||
+                createUserMutation.isPending
+              }
+              className="bg-emerald-600 hover:bg-emerald-700 min-w-[120px]"
+            >
+              {createUserMutation.isPending ? (
+                <span className="flex items-center gap-2">
+                  <div className="h-3.5 w-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                  Membuat...
+                </span>
+              ) : (
+                <span className="flex items-center gap-2">
+                  <Plus className="h-4 w-4" />
+                  Buat User
+                </span>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
