@@ -2130,3 +2130,2578 @@ Query ke tabel yang **tidak ada di schema** — akan selalu gagal/silent error:
 13. Buat tabel `referral_codes`, `referral_usages`
 14. Buat tabel `guide_channels`, `guide_broadcasts`, `guide_sessions`
 
+
+---
+
+## §24 — SCHEMA DATABASE FINAL
+
+> Schema ini disusun berdasarkan seluruh migrasi Neon DB (`artifacts/api-server/dist/sql/`), query aktual di source code, dan analisis §17–§22.
+> Kolom bertanda `-- [TAMBAH]` belum ada di DB dan perlu migration baru.
+> Tabel bertanda `⚠️ DEPRECATED` kemungkinan tidak aktif dipakai.
+
+---
+
+### 24.1 — ERD (Entity Relationship Diagram)
+
+```
+╔══════════════════════════════════════════════════════════════════════╗
+║                    VINSTOUR — CORE ERD                                ║
+╠══════════════════════════════════════════════════════════════════════╣
+║                                                                        ║
+║  AUTH LAYER                                                           ║
+║  auth.users ──────┬──────────────────────────────────────────────    ║
+║                   │                                                   ║
+║                   ├─< profiles (1:1)                                  ║
+║                   ├─< user_roles (1:N) ──> branches                  ║
+║                   └─< agents (via user_id)                           ║
+║                                                                        ║
+║  ORGANISATION                                                         ║
+║  branches ──< agents ──< bookings                                    ║
+║           └──< employees                                             ║
+║           └──< packages ──< departures                              ║
+║                                                                        ║
+║  TRAVEL CORE                                                          ║
+║  packages ──< departures ──< bookings ──< booking_passengers         ║
+║                    │              │                                   ║
+║                    ├──> hotels (hotel_makkah_id, hotel_madinah_id)   ║
+║                    ├──> airlines (airline_id)                        ║
+║                    ├──> airports (departure/arrival_airport_id)      ║
+║                    ├──> muthawifs (muthawif_id)                      ║
+║                    ├──< room_assignments ──< room_occupants          ║
+║                    ├──< departure_cost_items                         ║
+║                    ├──< departure_expenses                           ║
+║                    ├──< departure_muthawifs                          ║
+║                    └──< guide_channels ──< guide_sessions            ║
+║                                                                        ║
+║  CUSTOMER                                                             ║
+║  customers ──< bookings                                              ║
+║           ├──< customer_mahrams                                      ║
+║           ├──< savings_plans ──< savings_deposits                    ║
+║           ├──< visa_applications                                     ║
+║           └──< attendance                                            ║
+║                                                                        ║
+║  BOOKING ─ PAYMENT                                                   ║
+║  bookings ──< payments                                               ║
+║          ├──< booking_passengers ──> customers                       ║
+║          ├──< booking_feedback                                       ║
+║          └──< booking_departure_checklists                           ║
+║                                                                        ║
+║  FINANCE                                                              ║
+║  departures ──< departure_cost_items ──> coa_categories              ║
+║             ├──< departure_expenses                                  ║
+║             ├──< departure_other_revenues                            ║
+║             └──── departure_financial_summary (1:1)                  ║
+║  journal_entries ──< journal_entry_lines ──> coa_categories          ║
+║                                                                        ║
+║  HR/SDM                                                               ║
+║  employees ──< payroll_records                                       ║
+║           ├──< leave_requests                                        ║
+║           ├──< employee_contracts                                    ║
+║           ├──< performance_reviews                                   ║
+║           └──< disciplinary_records                                  ║
+║                                                                        ║
+║  EQUIPMENT                                                            ║
+║  equipment_items ──< equipment_variants                              ║
+║                  └──< equipment_distributions ──> customers           ║
+║                                                                        ║
+╚══════════════════════════════════════════════════════════════════════╝
+```
+
+---
+
+### 24.2 — Relasi Tabel (FK Map)
+
+| Tabel | FK Kolom | → Referensi |
+|---|---|---|
+| profiles | id | → auth.users(id) |
+| user_roles | user_id | → auth.users(id) |
+| user_roles | branch_id | → branches(id) |
+| agents | user_id | → auth.users(id) |
+| agents | branch_id | → branches(id) |
+| agents | parent_agent_id | → agents(id) |
+| packages | branch_id | → branches(id) |
+| packages | airline_id | → airlines(id) `[ADDED via 092]` |
+| packages | cancellation_rule_id | → cancellation_rules(id) |
+| departures | package_id | → packages(id) |
+| departures | airline_id | → airlines(id) `[ADDED via 092]` |
+| departures | hotel_makkah_id | → hotels(id) `[TAMBAH]` |
+| departures | hotel_madinah_id | → hotels(id) `[TAMBAH]` |
+| departures | departure_airport_id | → airports(id) `[TAMBAH]` |
+| departures | arrival_airport_id | → airports(id) `[TAMBAH]` |
+| departures | muthawif_id | → muthawifs(id) `[via 081]` |
+| departures | team_leader_id | → profiles(id) `[TAMBAH]` |
+| bookings | customer_id | → customers(id) |
+| bookings | departure_id | → departures(id) |
+| bookings | agent_id | → agents(id) |
+| bookings | branch_id | → branches(id) `[TAMBAH]` |
+| bookings | sales_id | → profiles(id) `[TAMBAH kolom]` |
+| booking_passengers | booking_id | → bookings(id) |
+| booking_passengers | customer_id | → customers(id) |
+| payments | booking_id | → bookings(id) |
+| customers | user_id | → auth.users(id) |
+| customers | branch_id | → branches(id) |
+| customer_mahrams | customer_id | → customers(id) |
+| savings_plans | customer_id | → customers(id) |
+| savings_deposits | plan_id | → savings_plans(id) |
+| attendance | departure_id | → departures(id) |
+| attendance | customer_id | → customers(id) |
+| room_assignments | departure_id | → departures(id) |
+| room_occupants | room_assignment_id | → room_assignments(id) |
+| room_occupants | customer_id | → customers(id) |
+| departure_cost_items | departure_id | → departures(id) |
+| departure_cost_items | account_code | → coa_categories(code) |
+| departure_expenses | departure_id | → departures(id) |
+| departure_expenses | booking_id | → bookings(id) |
+| departure_financial_summary | departure_id | → departures(id) |
+| departure_muthawifs | departure_id | → departures(id) |
+| departure_muthawifs | muthawif_id | → muthawifs(id) |
+| journal_entries | branch_id | → branches(id) |
+| journal_entry_lines | entry_id | → journal_entries(id) |
+| employees | user_id | → auth.users(id) |
+| employees | branch_id | → branches(id) |
+| payroll_records | employee_id | → employees(id) |
+| leave_requests | employee_id | → employees(id) |
+| employee_contracts | employee_id | → employees(id) |
+| performance_reviews | employee_id | → employees(id) |
+| equipment_variants | equipment_id | → equipment_items(id) |
+| equipment_distributions | customer_id | → customers(id) |
+| equipment_distributions | departure_id | → departures(id) |
+| equipment_distributions | booking_id | → bookings(id) |
+| leads | branch_id | → branches(id) |
+| leads | agent_id | → agents(id) |
+| guide_channels | departure_id | → departures(id) |
+| guide_sessions | departure_id | → departures(id) |
+| guide_session_attendance | session_id | → guide_sessions(id) |
+| hotel_contracts | hotel_id | → hotels(id) |
+| hotel_contracts | departure_id | → departures(id) |
+| coa_categories | parent_code | → coa_categories(code) |
+| finance_budgets | account_code | → coa_categories(code) |
+
+
+---
+
+### 24.3 — CREATE TABLE: Domain AUTH & ORGANISASI
+
+```sql
+-- ============================================================
+-- DOMAIN 1: AUTH & PROFIL PENGGUNA
+-- ============================================================
+
+-- auth.users (dikelola Neon / bcrypt auth — tidak dimodifikasi langsung)
+-- id UUID PK, email TEXT, encrypted_password TEXT, created_at TIMESTAMPTZ
+
+CREATE TABLE IF NOT EXISTS profiles (
+  id           UUID        PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  full_name    TEXT,
+  avatar_url   TEXT,
+  phone        TEXT,
+  email        TEXT,
+  role         TEXT        DEFAULT 'customer',
+  jabatan      TEXT,                        -- [via 062] jabatan karyawan
+  joined_at    DATE,                        -- [via 062]
+  session_version INTEGER  NOT NULL DEFAULT 1, -- [via 87/092] invalidasi sesi
+  totp_secret  TEXT,                        -- [via 095] TOTP 2FA
+  created_at   TIMESTAMPTZ DEFAULT NOW(),
+  updated_at   TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS user_roles (
+  id         UUID   DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id    UUID   NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  role       TEXT   NOT NULL CHECK (role IN (
+    'super_admin','owner','admin','branch_manager','finance',
+    'operational','sales','marketing','hr','equipment',
+    'agent','sub_agent','customer','jamaah','visa_officer'
+  )),
+  branch_id  UUID   REFERENCES branches(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (user_id, role)
+);
+
+CREATE TABLE IF NOT EXISTS role_permissions (
+  id             UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  role           TEXT NOT NULL,
+  permission_key TEXT NOT NULL,
+  is_enabled     BOOLEAN DEFAULT TRUE,
+  UNIQUE (role, permission_key)
+);
+
+CREATE TABLE IF NOT EXISTS permissions_list (
+  id          UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  key         TEXT NOT NULL UNIQUE,
+  label       TEXT NOT NULL,
+  group_name  TEXT,
+  description TEXT,
+  created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ============================================================
+-- DOMAIN 2: CABANG & KARYAWAN
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS branches (
+  id                   UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  name                 TEXT    NOT NULL,
+  code                 TEXT    NOT NULL UNIQUE,
+  address              TEXT,
+  city                 TEXT,
+  province             TEXT,
+  phone                TEXT,
+  email                TEXT,
+  manager_user_id      UUID    REFERENCES auth.users(id) ON DELETE SET NULL,
+  is_active            BOOLEAN DEFAULT TRUE,
+  slug                 TEXT    UNIQUE,
+  commission_rate      NUMERIC(5,2) DEFAULT 0,  -- [via 071]
+  website_description  TEXT,
+  website_banner_url   TEXT,
+  website_gallery      JSONB   DEFAULT '[]',
+  website_testimonials JSONB   DEFAULT '[]',
+  featured_package_ids JSONB   DEFAULT '[]',
+  view_count           INTEGER DEFAULT 0,
+  created_at           TIMESTAMPTZ DEFAULT NOW(),
+  updated_at           TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_branches_slug      ON branches(slug);
+CREATE INDEX IF NOT EXISTS idx_branches_is_active ON branches(is_active);
+
+CREATE TABLE IF NOT EXISTS employees (
+  id                  UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id             UUID    REFERENCES auth.users(id) ON DELETE SET NULL,
+  branch_id           UUID    REFERENCES branches(id)  ON DELETE SET NULL,
+  full_name           TEXT    NOT NULL,
+  employee_code       TEXT    UNIQUE,
+  position            TEXT,
+  department          TEXT,
+  phone               TEXT,
+  email               TEXT,
+  join_date           DATE,
+  status              TEXT    NOT NULL DEFAULT 'active'
+                              CHECK (status IN ('active','inactive','resigned')),
+  salary              NUMERIC(15,2) DEFAULT 0,
+  basic_salary        NUMERIC(15,2) DEFAULT 0,
+  allowances          JSONB   DEFAULT '{}',
+  photo_url           TEXT,
+  npwp                TEXT,
+  nik                 TEXT,
+  bank_name           TEXT,
+  bank_account_number TEXT,
+  bank_account_name   TEXT,
+  tax_id              TEXT,
+  bpjs_kes_number     TEXT,
+  bpjs_tk_number      TEXT,
+  face_descriptor     TEXT,               -- [via 049]
+  created_at          TIMESTAMPTZ DEFAULT NOW(),
+  updated_at          TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_employees_user_id   ON employees(user_id);
+CREATE INDEX IF NOT EXISTS idx_employees_branch_id ON employees(branch_id);
+CREATE INDEX IF NOT EXISTS idx_employees_status    ON employees(status);
+
+-- ============================================================
+-- DOMAIN 3: AGEN
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS agents (
+  id                        UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id                   UUID    REFERENCES auth.users(id) ON DELETE SET NULL,
+  branch_id                 UUID    REFERENCES branches(id)  ON DELETE SET NULL,
+  parent_agent_id           UUID    REFERENCES agents(id)   ON DELETE SET NULL,
+  company_name              TEXT    NOT NULL,
+  agent_code                TEXT    NOT NULL UNIQUE,
+  contact_name              TEXT,
+  phone                     TEXT,
+  email                     TEXT,
+  address                   TEXT,
+  commission_rate           NUMERIC(5,2) DEFAULT 0,
+  is_active                 BOOLEAN DEFAULT TRUE,
+  slug                      TEXT    UNIQUE,
+  featured_package_ids      JSONB   DEFAULT '[]',
+  website_bio               TEXT,
+  level                     INTEGER DEFAULT 1,
+  -- [via 062] status & verifikasi
+  status                    TEXT    NOT NULL DEFAULT 'active'
+                                    CHECK (status IN ('pending','active','suspended','inactive')),
+  ktp_number                TEXT,                      -- [TAMBAH]
+  ktp_url                   TEXT,                      -- [TAMBAH]
+  npwp                      TEXT,                      -- [TAMBAH]
+  bank_name                 TEXT,                      -- [TAMBAH]
+  bank_account_number       TEXT,                      -- [TAMBAH]
+  bank_account_name         TEXT,                      -- [TAMBAH]
+  -- [via 23_agent_membership_tiers] tier & statistik
+  membership_tier           TEXT    NOT NULL DEFAULT 'bronze'
+                                    CHECK (membership_tier IN ('bronze','silver','gold','platinum')),
+  membership_tier_updated_at TIMESTAMPTZ,
+  total_confirmed_bookings  INTEGER NOT NULL DEFAULT 0,
+  created_at                TIMESTAMPTZ DEFAULT NOW(),
+  updated_at                TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_agents_user_id        ON agents(user_id);
+CREATE INDEX IF NOT EXISTS idx_agents_branch_id      ON agents(branch_id);
+CREATE INDEX IF NOT EXISTS idx_agents_status         ON agents(status);
+CREATE INDEX IF NOT EXISTS idx_agents_membership_tier ON agents(membership_tier);
+CREATE INDEX IF NOT EXISTS idx_agents_slug           ON agents(slug);
+```
+
+
+---
+
+### 24.4 — CREATE TABLE: Domain PAKET & KEBERANGKATAN
+
+```sql
+-- ============================================================
+-- DOMAIN 4: AIRLINES, HOTELS, AIRPORTS (Lookup)
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS airlines (
+  id         UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  name       TEXT    NOT NULL,
+  code       TEXT    UNIQUE,               -- IATA code e.g. GA, QR
+  logo_url   TEXT,
+  country    TEXT,
+  is_active  BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS hotels (
+  id          UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  name        TEXT    NOT NULL,
+  stars       INTEGER DEFAULT 3 CHECK (stars BETWEEN 1 AND 7),
+  city        TEXT    NOT NULL,             -- 'Makkah' | 'Madinah' | 'Jeddah' | lainnya
+  country     TEXT    NOT NULL DEFAULT 'Saudi Arabia',
+  address     TEXT,
+  phone       TEXT,
+  email       TEXT,
+  description TEXT,
+  photo_url   TEXT,
+  is_active   BOOLEAN DEFAULT TRUE,
+  created_at  TIMESTAMPTZ DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_hotels_city ON hotels(city);
+
+-- airports (lookup bandara untuk FK departures)
+-- Diperlukan oleh: DepartureForm, BookingDocumentActions, BulkSendTab
+CREATE TABLE IF NOT EXISTS airports (          -- [TAMBAH — tabel lookup belum ada di schema]
+  id         UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  name       TEXT    NOT NULL,
+  code       TEXT    NOT NULL UNIQUE,          -- IATA: CGK, JED, MED
+  city       TEXT    NOT NULL,
+  country    TEXT    NOT NULL DEFAULT 'Indonesia',
+  is_active  BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ============================================================
+-- DOMAIN 5: PAKET PERJALANAN
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS packages (
+  id                   UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  branch_id            UUID    REFERENCES branches(id)  ON DELETE SET NULL,
+  airline_id           UUID    REFERENCES airlines(id)  ON DELETE SET NULL,  -- [via 092]
+  name                 TEXT    NOT NULL,
+  type                 TEXT    NOT NULL DEFAULT 'umroh'
+                               CHECK (type IN ('umroh','haji','haji_plus','wisata')),
+  description          TEXT,
+  highlights           TEXT,
+  price                NUMERIC(15,2) NOT NULL DEFAULT 0,
+  price_double         NUMERIC(15,2),
+  price_triple         NUMERIC(15,2),
+  price_quad           NUMERIC(15,2),
+  child_price_percent  NUMERIC(5,2) DEFAULT 75,  -- [via 09_passenger_pricing]
+  infant_price_percent NUMERIC(5,2) DEFAULT 50,  -- [via 09_passenger_pricing]
+  duration_days        INTEGER DEFAULT 9,
+  departure_city       TEXT,
+  airline              TEXT,                       -- ⚠️ deprecated → pakai airline_id
+  hotel_mecca          TEXT,                       -- ⚠️ deprecated → pakai departures.hotel_makkah_id
+  hotel_medina         TEXT,                       -- ⚠️ deprecated
+  includes             JSONB   DEFAULT '[]',
+  excludes             JSONB   DEFAULT '[]',
+  terms                TEXT,
+  is_active            BOOLEAN DEFAULT TRUE,
+  photo_url            TEXT,
+  gallery_urls         JSONB   DEFAULT '[]',
+  quota                INTEGER DEFAULT 45,
+  fee_branch           NUMERIC(5,2) DEFAULT 0,
+  cancellation_rule_id UUID    REFERENCES cancellation_rules(id) ON DELETE SET NULL,
+  meta_title           TEXT,                       -- [via 13_seo_fields_packages]
+  meta_description     TEXT,
+  keywords             TEXT[],
+  view_count           INTEGER NOT NULL DEFAULT 0, -- [via 36_package_view_count]
+  created_at           TIMESTAMPTZ DEFAULT NOW(),
+  updated_at           TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_packages_branch_id  ON packages(branch_id);
+CREATE INDEX IF NOT EXISTS idx_packages_type       ON packages(type);
+CREATE INDEX IF NOT EXISTS idx_packages_is_active  ON packages(is_active);
+
+-- ============================================================
+-- DOMAIN 6: KEBERANGKATAN (departures) — FINAL SCHEMA
+-- ============================================================
+-- ⚠️  Banyak kolom di bawah ini perlu ditambahkan via migration baru
+--     karena belum ada di DB saat ini
+
+CREATE TABLE IF NOT EXISTS departures (
+  id                      UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  package_id              UUID    NOT NULL REFERENCES packages(id) ON DELETE CASCADE,
+  -- Tanggal & Penerbangan
+  departure_date          DATE    NOT NULL,
+  return_date             DATE,
+  departure_time          TIME,                    -- [TAMBAH]
+  flight_number           TEXT,                    -- [TAMBAH]
+  airline_id              UUID    REFERENCES airlines(id) ON DELETE SET NULL,  -- [via 092]
+  departure_airport_id    UUID,   -- [TAMBAH] FK → airports(id)
+  arrival_airport_id      UUID,   -- [TAMBAH] FK → airports(id)
+  -- Hotel
+  hotel_makkah_id         UUID,   -- [TAMBAH] FK → hotels(id)
+  hotel_madinah_id        UUID,   -- [TAMBAH] FK → hotels(id)
+  -- Kapasitas & Status
+  quota                   INTEGER DEFAULT 45,
+  available_seats         INTEGER DEFAULT 45,
+  booked_count            INTEGER NOT NULL DEFAULT 0,  -- [via 041]
+  status                  TEXT    NOT NULL DEFAULT 'open'
+                                  CHECK (status IN ('open','closed','full','cancelled')),
+  -- Harga per Kamar
+  price_single            NUMERIC(15,2),               -- [via 041]
+  price_double            NUMERIC(15,2),               -- [TAMBAH]
+  price_triple            NUMERIC(15,2),               -- [TAMBAH]
+  price_quad              NUMERIC(15,2),               -- [TAMBAH]
+  -- Harga per Tipe Penumpang
+  price_adult             NUMERIC(15,2),               -- [via 09_passenger_pricing]
+  price_child             NUMERIC(15,2),               -- [via 09_passenger_pricing]
+  price_infant            NUMERIC(15,2),               -- [via 09_passenger_pricing]
+  child_price_percent     NUMERIC(5,2),                -- [via 09_passenger_pricing]
+  infant_price_percent    NUMERIC(5,2),                -- [via 09_passenger_pricing]
+  -- Per-room child/infant pricing [via 88_passenger_per_room_pricing]
+  price_child_quad        BIGINT,
+  price_infant_quad       BIGINT,
+  -- Operasional & Keuangan
+  currency                TEXT    DEFAULT 'IDR',       -- [TAMBAH]
+  break_even_pax          INTEGER,                     -- [TAMBAH]
+  operational_cost_per_pax NUMERIC(15,2),              -- [TAMBAH]
+  payment_deadline        DATE,                        -- [TAMBAH]
+  document_deadline       DATE,                        -- [via 22_doc_security_features]
+  visa_deadline           DATE,                        -- [TAMBAH]
+  -- SDM
+  muthawif_id             UUID    REFERENCES muthawifs(id) ON DELETE SET NULL,  -- [via 081]
+  team_leader_id          UUID    REFERENCES profiles(id) ON DELETE SET NULL,   -- [TAMBAH]
+  tour_leader_user_id     UUID    REFERENCES auth.users(id) ON DELETE SET NULL, -- [via 061]
+  -- SEO & Display
+  month                   TEXT,                        -- [TAMBAH] 'YYYY-MM' untuk filter
+  slug                    TEXT,                        -- [via 14_seo_fields_departures]
+  meta_title              TEXT,                        -- [via 14_seo_fields_departures]
+  meta_description        TEXT,                        -- [via 14_seo_fields_departures]
+  notes                   TEXT,
+  created_at              TIMESTAMPTZ DEFAULT NOW(),
+  updated_at              TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_departures_package_id     ON departures(package_id);
+CREATE INDEX IF NOT EXISTS idx_departures_departure_date ON departures(departure_date);
+CREATE INDEX IF NOT EXISTS idx_departures_status         ON departures(status);
+CREATE INDEX IF NOT EXISTS idx_departures_muthawif_id    ON departures(muthawif_id);
+CREATE INDEX IF NOT EXISTS idx_departures_airline_id     ON departures(airline_id);
+CREATE INDEX IF NOT EXISTS idx_departures_month          ON departures(month);
+
+-- Departure ↔ Muthawif (many-to-many — 1 departure bisa punya beberapa muthawif)
+CREATE TABLE IF NOT EXISTS departure_muthawifs (
+  id           UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  departure_id UUID    NOT NULL REFERENCES departures(id) ON DELETE CASCADE,
+  muthawif_id  UUID    NOT NULL REFERENCES muthawifs(id)  ON DELETE CASCADE,
+  role         TEXT    DEFAULT 'muthawif',  -- 'muthawif' | 'tour_leader' | 'assistant'
+  notes        TEXT,
+  assigned_at  TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (departure_id, muthawif_id)
+);
+```
+
+
+---
+
+### 24.5 — CREATE TABLE: Domain BOOKING & PEMBAYARAN
+
+```sql
+-- ============================================================
+-- DOMAIN 7: PELANGGAN (customers)
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS customers (
+  id                          UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id                     UUID    REFERENCES auth.users(id)   ON DELETE SET NULL,
+  branch_id                   UUID    REFERENCES branches(id)     ON DELETE SET NULL,
+  full_name                   TEXT    NOT NULL,
+  nik                         TEXT,
+  gender                      TEXT    CHECK (gender IN ('L','P')),
+  phone                       TEXT,
+  email                       TEXT,
+  address                     TEXT,
+  city                        TEXT,
+  province                    TEXT,
+  district                    TEXT,                -- [via 036]
+  village                     TEXT,                -- [via 036]
+  postal_code                 TEXT,
+  birth_date                  DATE,
+  birth_place                 TEXT,
+  -- Paspor
+  passport_number             TEXT,
+  passport_expiry             DATE,
+  passport_issued             TEXT,
+  -- Data tambahan dokumen
+  mother_name                 TEXT,                -- [TAMBAH]
+  father_name                 TEXT,                -- [TAMBAH]
+  marital_status              TEXT CHECK (marital_status IN -- [TAMBAH]
+                                ('single','married','widowed','divorced')),
+  blood_type                  TEXT CHECK (blood_type IN     -- [TAMBAH]
+                                ('A','B','AB','O','A+','A-','B+','B-','AB+','AB-','O+','O-')),
+  -- Mahram (ringkasan — detail di customer_mahrams)
+  mahram_name                 TEXT,                -- [TAMBAH]
+  mahram_relation             TEXT,                -- [TAMBAH]
+  -- Darurat
+  emergency_contact_name      TEXT,                -- [TAMBAH]
+  emergency_contact_phone     TEXT,                -- [TAMBAH]
+  emergency_contact_relation  TEXT,                -- [TAMBAH]
+  -- Flags
+  is_active                   BOOLEAN DEFAULT TRUE,
+  is_tour_leader              BOOLEAN DEFAULT FALSE,  -- [TAMBAH]
+  -- Fisik & Perlengkapan
+  height_cm                   INTEGER,             -- [via 083]
+  weight_kg                   NUMERIC(5,2),        -- [via 083]
+  clothing_size               TEXT,                -- [via 083]
+  -- Haji
+  nomor_porsi_haji            TEXT,
+  embarkasi_kode              TEXT,
+  estimasi_keberangkatan_haji INTEGER,
+  photo_url                   TEXT,
+  created_at                  TIMESTAMPTZ DEFAULT NOW(),
+  updated_at                  TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_customers_user_id   ON customers(user_id);
+CREATE INDEX IF NOT EXISTS idx_customers_branch_id ON customers(branch_id);
+CREATE INDEX IF NOT EXISTS idx_customers_nik       ON customers(nik);
+CREATE INDEX IF NOT EXISTS idx_customers_phone     ON customers(phone);
+
+CREATE TABLE IF NOT EXISTS customer_mahrams (
+  id                  UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  customer_id         UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+  mahram_name         TEXT NOT NULL,
+  mahram_relation     TEXT NOT NULL,
+  mahram_customer_id  UUID REFERENCES customers(id) ON DELETE SET NULL,
+  relation_category   TEXT DEFAULT 'lainnya',
+  notes               TEXT,
+  created_at          TIMESTAMPTZ DEFAULT NOW(),
+  updated_at          TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ============================================================
+-- DOMAIN 8: BOOKING
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS bookings (
+  id               UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  customer_id      UUID    NOT NULL REFERENCES customers(id)  ON DELETE RESTRICT,
+  departure_id     UUID    REFERENCES departures(id)          ON DELETE SET NULL,
+  agent_id         UUID    REFERENCES agents(id)              ON DELETE SET NULL,
+  branch_id        UUID    REFERENCES branches(id)            ON DELETE SET NULL,  -- [TAMBAH]
+  sales_id         UUID    REFERENCES profiles(id)            ON DELETE SET NULL,  -- [TAMBAH]
+  booking_code     TEXT    NOT NULL UNIQUE,
+  -- Status
+  status           TEXT    NOT NULL DEFAULT 'pending'
+                           CHECK (status IN ('pending','confirmed','cancelled','completed')),
+  -- Harga & Pembayaran
+  total_price      NUMERIC(15,2) NOT NULL DEFAULT 0,
+  base_price       NUMERIC(15,2) DEFAULT 0,         -- [TAMBAH] harga dasar sebelum diskon
+  addons_price     NUMERIC(15,2) DEFAULT 0,         -- [TAMBAH] tambahan layanan
+  discount_amount  NUMERIC(15,2) DEFAULT 0,         -- [TAMBAH]
+  paid_amount      NUMERIC(15,2) NOT NULL DEFAULT 0,
+  remaining_amount NUMERIC(15,2) GENERATED ALWAYS AS (total_price - paid_amount) STORED,
+  payment_status   TEXT    NOT NULL DEFAULT 'unpaid'
+                           CHECK (payment_status IN ('unpaid','partial','paid')),
+  payment_deadline DATE,                            -- [TAMBAH]
+  currency         TEXT    DEFAULT 'IDR',           -- [TAMBAH]
+  -- Kamar & Penumpang
+  room_type        TEXT    DEFAULT 'quad'
+                           CHECK (room_type IN ('double','triple','quad')),
+  room_number      TEXT,
+  adult_count      INTEGER DEFAULT 1,               -- [TAMBAH]
+  child_count      INTEGER DEFAULT 0,               -- [TAMBAH]
+  infant_count     INTEGER DEFAULT 0,               -- [TAMBAH]
+  total_pax        INTEGER GENERATED ALWAYS AS      -- [TAMBAH computed]
+                           (COALESCE(adult_count,1) + COALESCE(child_count,0) + COALESCE(infant_count,0)) STORED,
+  -- Lainnya
+  notes            TEXT,
+  referral_source  TEXT    DEFAULT 'direct'
+                           CHECK (referral_source IN
+                             ('direct','agent_website','branch_website','referral',
+                              'whatsapp','instagram','facebook','other')),
+  bagasi_kg_allowed INTEGER DEFAULT 23,
+  created_at       TIMESTAMPTZ DEFAULT NOW(),
+  updated_at       TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_bookings_customer_id    ON bookings(customer_id);
+CREATE INDEX IF NOT EXISTS idx_bookings_departure_id   ON bookings(departure_id);
+CREATE INDEX IF NOT EXISTS idx_bookings_agent_id       ON bookings(agent_id);
+CREATE INDEX IF NOT EXISTS idx_bookings_branch_id      ON bookings(branch_id);
+CREATE INDEX IF NOT EXISTS idx_bookings_status         ON bookings(status);
+CREATE INDEX IF NOT EXISTS idx_bookings_payment_status ON bookings(payment_status);
+CREATE INDEX IF NOT EXISTS idx_bookings_booking_code   ON bookings(booking_code);
+CREATE INDEX IF NOT EXISTS idx_bookings_payment_deadline ON bookings(payment_deadline);
+
+CREATE TABLE IF NOT EXISTS booking_passengers (
+  id                UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  booking_id        UUID    NOT NULL REFERENCES bookings(id)  ON DELETE CASCADE,
+  customer_id       UUID    NOT NULL REFERENCES customers(id) ON DELETE RESTRICT,
+  is_main_passenger BOOLEAN DEFAULT FALSE,
+  passenger_type    TEXT    DEFAULT 'dewasa'
+                            CHECK (passenger_type IN ('dewasa','lansia','anak','mahram')),
+  -- ⚠️ BUG-14: kode kirim 'adult'/'child'/'infant' — perlu normalisasi ke Bahasa
+  nationality       TEXT,                           -- [TAMBAH]
+  seat_number       TEXT,                           -- [TAMBAH] untuk boarding pass
+  room_preference   TEXT,
+  room_number       TEXT,
+  room_number_makkah TEXT,                          -- [via 05]
+  room_group_id     UUID,
+  family_group_id   UUID,
+  checkin_status    TEXT    DEFAULT 'not_checked',
+  checkin_time      TIMESTAMPTZ,
+  checkin_notes     TEXT,
+  created_at        TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_bp_booking_id   ON booking_passengers(booking_id);
+CREATE INDEX IF NOT EXISTS idx_bp_customer_id  ON booking_passengers(customer_id);
+CREATE INDEX IF NOT EXISTS idx_bp_room_number  ON booking_passengers(room_number);
+
+-- ============================================================
+-- DOMAIN 9: PEMBAYARAN
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS payments (
+  id               UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  booking_id       UUID    NOT NULL REFERENCES bookings(id) ON DELETE RESTRICT,
+  payment_code     TEXT    NOT NULL UNIQUE,
+  amount           NUMERIC(15,2) NOT NULL DEFAULT 0,
+  status           TEXT    NOT NULL DEFAULT 'pending'
+                           CHECK (status IN ('pending','verified','rejected','cancelled')),
+  payment_method   TEXT,
+  payment_type     TEXT,   -- 'dp' | 'installment' | 'full' | 'refund'
+  payment_date     DATE,
+  bank_name        TEXT,
+  account_name     TEXT,
+  account_number   TEXT,
+  proof_url        TEXT,
+  proof_filename   TEXT,   -- [via 21_payment_architecture]
+  notes            TEXT,
+  rejection_notes  TEXT,   -- [via 21_payment_architecture]
+  gateway_name     TEXT,   -- [via 21_payment_architecture]
+  transaction_id   TEXT,
+  verified_at      TIMESTAMPTZ,
+  verified_by      UUID    REFERENCES auth.users(id) ON DELETE SET NULL,
+  account_code     TEXT    REFERENCES coa_categories(code) ON DELETE SET NULL,
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_payments_booking_id ON payments(booking_id);
+CREATE INDEX IF NOT EXISTS idx_payments_status     ON payments(status);
+CREATE INDEX IF NOT EXISTS idx_payments_payment_date ON payments(payment_date);
+
+CREATE TABLE IF NOT EXISTS virtual_accounts (
+  id              UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  booking_id      UUID    REFERENCES bookings(id) ON DELETE SET NULL,
+  va_number       TEXT    NOT NULL UNIQUE,
+  bank_code       TEXT    NOT NULL,
+  amount          NUMERIC(15,2) NOT NULL DEFAULT 0,
+  status          TEXT    DEFAULT 'pending',
+  expires_at      TIMESTAMPTZ,
+  paid_at         TIMESTAMPTZ,
+  created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS payment_page_tokens (
+  id         UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  booking_id UUID    NOT NULL REFERENCES bookings(id) ON DELETE CASCADE,
+  token      TEXT    NOT NULL UNIQUE,
+  expires_at TIMESTAMPTZ NOT NULL,
+  used_at    TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+
+---
+
+### 24.6 — CREATE TABLE: Domain KEUANGAN & AKUNTANSI
+
+```sql
+-- ============================================================
+-- DOMAIN 10: KEUANGAN
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS coa_categories (
+  id          UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  code        TEXT    NOT NULL UNIQUE,
+  name        TEXT    NOT NULL,
+  parent_code TEXT    REFERENCES coa_categories(code) ON DELETE SET NULL,
+  category_key TEXT,  -- 'revenue','expense','asset','liability','equity'
+  description TEXT,
+  is_active   BOOLEAN NOT NULL DEFAULT TRUE,
+  sort_order  INT     NOT NULL DEFAULT 0,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_coa_categories_code       ON coa_categories(code);
+CREATE INDEX IF NOT EXISTS idx_coa_categories_parent     ON coa_categories(parent_code);
+CREATE INDEX IF NOT EXISTS idx_coa_categories_key        ON coa_categories(category_key);
+
+-- Rencana HPP per keberangkatan
+CREATE TABLE IF NOT EXISTS departure_cost_items (
+  id              UUID    NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  departure_id    UUID    NOT NULL REFERENCES departures(id) ON DELETE CASCADE,
+  category        TEXT    NOT NULL DEFAULT 'other',
+  sub_category    TEXT,
+  location        TEXT,
+  hotel_id        UUID    REFERENCES hotels(id) ON DELETE SET NULL,
+  nights          INTEGER,
+  room_type       TEXT,
+  check_in_date   DATE,
+  check_out_date  DATE,
+  airline_id      UUID    REFERENCES airlines(id) ON DELETE SET NULL,
+  flight_route    TEXT,
+  flight_class    TEXT,
+  description     TEXT    NOT NULL DEFAULT '',
+  unit            TEXT    NOT NULL DEFAULT 'per_pax',
+  quantity        NUMERIC NOT NULL DEFAULT 1,
+  unit_cost       NUMERIC NOT NULL DEFAULT 0,
+  currency        TEXT    NOT NULL DEFAULT 'IDR',
+  exchange_rate   NUMERIC NOT NULL DEFAULT 1,
+  total_cost_idr  NUMERIC GENERATED ALWAYS AS (quantity * unit_cost * exchange_rate) STORED,
+  account_code    TEXT    REFERENCES coa_categories(code) ON DELETE SET NULL,
+  sort_order      INTEGER NOT NULL DEFAULT 0,
+  notes           TEXT,
+  reference_id    UUID,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_dci_departure_id ON departure_cost_items(departure_id);
+CREATE INDEX IF NOT EXISTS idx_dci_category     ON departure_cost_items(category);
+
+-- Realisasi biaya per keberangkatan
+CREATE TABLE IF NOT EXISTS departure_expenses (
+  id              UUID    NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  departure_id    UUID    NOT NULL REFERENCES departures(id) ON DELETE CASCADE,
+  booking_id      UUID    REFERENCES bookings(id) ON DELETE SET NULL,
+  expense_date    DATE    NOT NULL DEFAULT CURRENT_DATE,
+  category        TEXT    NOT NULL DEFAULT 'other',
+  location        TEXT,
+  description     TEXT    NOT NULL DEFAULT '',
+  amount          NUMERIC NOT NULL DEFAULT 0,
+  currency        TEXT    NOT NULL DEFAULT 'IDR',
+  exchange_rate   NUMERIC NOT NULL DEFAULT 1,
+  amount_idr      NUMERIC GENERATED ALWAYS AS (amount * exchange_rate) STORED,
+  payment_method  TEXT    DEFAULT 'transfer',
+  receipt_url     TEXT,
+  approval_status TEXT    DEFAULT 'pending_approval',  -- [via 085]
+  notes           TEXT,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_de_departure_id ON departure_expenses(departure_id);
+
+-- Pendapatan lain-lain per keberangkatan
+CREATE TABLE IF NOT EXISTS departure_other_revenues (
+  id              UUID    NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  departure_id    UUID    NOT NULL REFERENCES departures(id) ON DELETE CASCADE,
+  booking_id      UUID    REFERENCES bookings(id) ON DELETE SET NULL,
+  revenue_date    DATE    NOT NULL DEFAULT CURRENT_DATE,
+  category        TEXT    NOT NULL DEFAULT 'other',
+  location        TEXT,
+  description     TEXT    NOT NULL DEFAULT '',
+  amount          NUMERIC NOT NULL DEFAULT 0,
+  currency        TEXT    NOT NULL DEFAULT 'IDR',
+  exchange_rate   NUMERIC NOT NULL DEFAULT 1,
+  amount_idr      NUMERIC GENERATED ALWAYS AS (amount * exchange_rate) STORED,
+  notes           TEXT,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Ringkasan keuangan per keberangkatan (materialized summary)
+CREATE TABLE IF NOT EXISTS departure_financial_summary (
+  departure_id          UUID    NOT NULL PRIMARY KEY REFERENCES departures(id) ON DELETE CASCADE,
+  quota                 INTEGER NOT NULL DEFAULT 0,
+  pax_confirmed         INTEGER NOT NULL DEFAULT 0,
+  pax_cancelled         INTEGER NOT NULL DEFAULT 0,
+  revenue_gross         NUMERIC NOT NULL DEFAULT 0,
+  revenue_paid          NUMERIC NOT NULL DEFAULT 0,
+  revenue_outstanding   NUMERIC NOT NULL DEFAULT 0,
+  revenue_refunded      NUMERIC NOT NULL DEFAULT 0,
+  hpp_total             NUMERIC NOT NULL DEFAULT 0,
+  expense_total         NUMERIC NOT NULL DEFAULT 0,
+  other_revenue_total   NUMERIC NOT NULL DEFAULT 0,
+  gross_profit          NUMERIC GENERATED ALWAYS AS (revenue_gross - hpp_total) STORED,
+  net_profit            NUMERIC GENERATED ALWAYS AS
+                          (revenue_gross + other_revenue_total - hpp_total - expense_total) STORED,
+  gross_margin_pct      NUMERIC GENERATED ALWAYS AS (
+                          CASE WHEN revenue_gross > 0
+                            THEN ROUND(((revenue_gross-hpp_total)/revenue_gross)*100,2)
+                            ELSE 0 END) STORED,
+  hpp_planned           NUMERIC NOT NULL DEFAULT 0,   -- [via 084]
+  hpp_realized          NUMERIC NOT NULL DEFAULT 0,   -- [via 084]
+  net_margin_pct        NUMERIC,                       -- [via 084]
+  hpp_variance          NUMERIC,                       -- [via 084]
+  last_calculated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Jurnal entri akuntansi
+CREATE TABLE IF NOT EXISTS journal_entries (
+  id              UUID    NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  entry_number    TEXT    NOT NULL UNIQUE,
+  entry_date      DATE    NOT NULL DEFAULT CURRENT_DATE,
+  description     TEXT    NOT NULL DEFAULT '',
+  ref_type        TEXT,    -- 'booking'|'payment'|'vendor_cost'|'cash'|'manual'
+  ref_id          UUID,
+  ref_code        TEXT,
+  status          TEXT    NOT NULL DEFAULT 'posted'
+                          CHECK (status IN ('draft','posted','voided')),
+  total_debit     NUMERIC(18,2) NOT NULL DEFAULT 0,
+  total_credit    NUMERIC(18,2) NOT NULL DEFAULT 0,
+  branch_id       UUID    REFERENCES branches(id) ON DELETE SET NULL,
+  created_by      UUID    REFERENCES auth.users(id) ON DELETE SET NULL,
+  created_by_name TEXT,
+  voided_at       TIMESTAMPTZ,
+  voided_reason   TEXT,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_je_entry_date  ON journal_entries(entry_date);
+CREATE INDEX IF NOT EXISTS idx_je_ref_type    ON journal_entries(ref_type);
+CREATE INDEX IF NOT EXISTS idx_je_branch_id   ON journal_entries(branch_id);
+
+CREATE TABLE IF NOT EXISTS journal_entry_lines (
+  id           UUID    NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  entry_id     UUID    NOT NULL REFERENCES journal_entries(id) ON DELETE CASCADE,
+  line_number  INTEGER NOT NULL DEFAULT 1,
+  account_code TEXT    NOT NULL REFERENCES coa_categories(code),
+  account_name TEXT,
+  description  TEXT,
+  debit        NUMERIC(18,2) NOT NULL DEFAULT 0,
+  credit       NUMERIC(18,2) NOT NULL DEFAULT 0,
+  ref_id       UUID,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_jel_entry_id    ON journal_entry_lines(entry_id);
+CREATE INDEX IF NOT EXISTS idx_jel_account_code ON journal_entry_lines(account_code);
+
+-- Rekening bank perusahaan
+CREATE TABLE IF NOT EXISTS bank_accounts (
+  id             UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  bank_name      TEXT    NOT NULL,
+  account_number TEXT    NOT NULL,
+  account_name   TEXT    NOT NULL,
+  branch         TEXT,
+  branch_name    TEXT,
+  is_primary     BOOLEAN DEFAULT FALSE,
+  is_active      BOOLEAN DEFAULT TRUE,
+  opening_balance NUMERIC(15,2) DEFAULT 0,
+  notes          TEXT,
+  created_at     TIMESTAMPTZ DEFAULT NOW(),
+  updated_at     TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Rekonsiliasi bank
+CREATE TABLE IF NOT EXISTS bank_reconciliations (
+  id             UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  account_id     UUID    REFERENCES bank_accounts(id) ON DELETE SET NULL,
+  account_name   TEXT,
+  period_date    DATE    NOT NULL,
+  bank_balance   NUMERIC(15,2) NOT NULL DEFAULT 0,
+  book_balance   NUMERIC(15,2) NOT NULL DEFAULT 0,
+  difference     NUMERIC(15,2) GENERATED ALWAYS AS (bank_balance - book_balance) STORED,
+  status         TEXT    DEFAULT 'draft'
+                         CHECK (status IN ('draft','reconciled','discrepancy')),
+  notes          TEXT,
+  reconciled_by  UUID    REFERENCES auth.users(id) ON DELETE SET NULL,
+  reconciled_at  TIMESTAMPTZ,
+  created_at     TIMESTAMPTZ DEFAULT NOW(),
+  updated_at     TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Anggaran keuangan
+CREATE TABLE IF NOT EXISTS finance_budgets (
+  id             UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  period_year    INTEGER NOT NULL,
+  period_month   INTEGER NOT NULL,
+  account_code   TEXT    REFERENCES coa_categories(code),
+  budget_amount  NUMERIC(15,2) NOT NULL DEFAULT 0,
+  actual_amount  NUMERIC(15,2) NOT NULL DEFAULT 0,
+  branch_id      UUID    REFERENCES branches(id) ON DELETE SET NULL,
+  notes          TEXT,
+  created_at     TIMESTAMPTZ DEFAULT NOW(),
+  updated_at     TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (period_year, period_month, account_code, branch_id)
+);
+
+-- Kas & Transaksi (PERLU DIBUAT — saat ini phantom di kode)
+CREATE TABLE IF NOT EXISTS cash_transactions (   -- [TAMBAH — phantom saat ini]
+  id             UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  branch_id      UUID    REFERENCES branches(id) ON DELETE SET NULL,
+  transaction_date DATE  NOT NULL DEFAULT CURRENT_DATE,
+  type           TEXT    NOT NULL CHECK (type IN ('income','expense','transfer')),
+  category       TEXT    NOT NULL,   -- 'salary','operational','booking_payment','other'
+  description    TEXT    NOT NULL,
+  amount         NUMERIC(15,2) NOT NULL DEFAULT 0,
+  reference_id   UUID,               -- booking_id, payment_id, dll
+  account_code   TEXT    REFERENCES coa_categories(code) ON DELETE SET NULL,
+  payment_method TEXT    DEFAULT 'cash',
+  receipt_url    TEXT,
+  recorded_by    UUID    REFERENCES auth.users(id) ON DELETE SET NULL,
+  notes          TEXT,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_ct_branch_id         ON cash_transactions(branch_id);
+CREATE INDEX IF NOT EXISTS idx_ct_transaction_date  ON cash_transactions(transaction_date);
+CREATE INDEX IF NOT EXISTS idx_ct_type              ON cash_transactions(type);
+CREATE INDEX IF NOT EXISTS idx_ct_reference_id      ON cash_transactions(reference_id);
+
+-- Ringkasan keuangan per periode
+CREATE TABLE IF NOT EXISTS departure_budgets (
+  id             UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  departure_id   UUID    NOT NULL REFERENCES departures(id) ON DELETE CASCADE,
+  category       TEXT    NOT NULL CHECK (category IN ('manasik','perlengkapan','lainnya')),
+  description    TEXT,
+  budgeted_amount NUMERIC(15,2) NOT NULL DEFAULT 0,
+  pax_count      INTEGER,
+  per_pax_amount NUMERIC(15,2),
+  notes          TEXT,
+  created_at     TIMESTAMPTZ DEFAULT NOW(),
+  updated_at     TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+
+---
+
+### 24.7 — CREATE TABLE: Domain SDM & HR
+
+```sql
+-- ============================================================
+-- DOMAIN 11: SDM (Sumber Daya Manusia)
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS payroll_records (
+  id                  UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  employee_id         UUID    NOT NULL REFERENCES employees(id) ON DELETE RESTRICT,
+  period_year         INTEGER NOT NULL,
+  period_month        INTEGER NOT NULL,
+  basic_salary        NUMERIC(15,2) NOT NULL DEFAULT 0,
+  allowances          NUMERIC(15,2) NOT NULL DEFAULT 0,
+  overtime_pay        NUMERIC(15,2) NOT NULL DEFAULT 0,
+  bonus               NUMERIC(15,2) NOT NULL DEFAULT 0,
+  deductions          NUMERIC(15,2) NOT NULL DEFAULT 0,
+  bpjs_kes            NUMERIC(15,2) NOT NULL DEFAULT 0,
+  bpjs_tk             NUMERIC(15,2) NOT NULL DEFAULT 0,
+  pph21_amount        NUMERIC(15,2) NOT NULL DEFAULT 0,   -- [via INT-09]
+  gross_salary        NUMERIC(15,2) GENERATED ALWAYS AS
+                        (basic_salary + allowances + overtime_pay + bonus) STORED,
+  net_salary          NUMERIC(15,2) GENERATED ALWAYS AS
+                        (basic_salary + allowances + overtime_pay + bonus - deductions - bpjs_kes - bpjs_tk - pph21_amount) STORED,
+  status              TEXT    NOT NULL DEFAULT 'draft'
+                              CHECK (status IN ('draft','finalized','paid')),
+  payment_date        DATE,
+  transfer_proof_url  TEXT,
+  notes               TEXT,
+  created_by          UUID    REFERENCES auth.users(id) ON DELETE SET NULL,
+  created_at          TIMESTAMPTZ DEFAULT NOW(),
+  updated_at          TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (employee_id, period_year, period_month)
+);
+CREATE INDEX IF NOT EXISTS idx_pr_employee_id ON payroll_records(employee_id);
+CREATE INDEX IF NOT EXISTS idx_pr_period      ON payroll_records(period_year, period_month);
+CREATE INDEX IF NOT EXISTS idx_pr_status      ON payroll_records(status);
+
+CREATE TABLE IF NOT EXISTS payroll_components (
+  id            UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  name          TEXT    NOT NULL,
+  code          TEXT    NOT NULL UNIQUE,
+  type          TEXT    NOT NULL CHECK (type IN ('allowance','deduction')),
+  calc_type     TEXT    CHECK (calc_type IN ('fixed','percentage','formula')),
+  default_amount NUMERIC(15,2) DEFAULT 0,
+  formula       TEXT,
+  is_active     BOOLEAN DEFAULT TRUE,
+  is_taxable    BOOLEAN DEFAULT FALSE,
+  description   TEXT,
+  created_at    TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS employee_payroll_components (
+  id           UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  employee_id  UUID    NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+  component_id UUID    NOT NULL REFERENCES payroll_components(id) ON DELETE CASCADE,
+  period       TEXT,   -- 'YYYY-MM' atau NULL untuk permanen
+  amount       NUMERIC(15,2) NOT NULL DEFAULT 0,
+  note         TEXT,
+  created_at   TIMESTAMPTZ DEFAULT NOW(),
+  updated_at   TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS payroll_slips (
+  id              UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  employee_id     UUID    NOT NULL REFERENCES employees(id) ON DELETE RESTRICT,
+  period_year     INTEGER NOT NULL,
+  period_month    INTEGER NOT NULL,
+  basic_salary    NUMERIC(15,2) DEFAULT 0,
+  allowances      JSONB   DEFAULT '[]',
+  deductions      JSONB   DEFAULT '[]',
+  gross_salary    NUMERIC(15,2) DEFAULT 0,
+  net_salary      NUMERIC(15,2) DEFAULT 0,
+  pdf_url         TEXT,
+  status          TEXT    DEFAULT 'draft'
+                          CHECK (status IN ('draft','sent','confirmed')),
+  sent_at         TIMESTAMPTZ,
+  confirmed_at    TIMESTAMPTZ,
+  notes           TEXT,
+  created_at      TIMESTAMPTZ DEFAULT NOW(),
+  updated_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS leave_requests (
+  id              UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  employee_id     UUID    NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+  leave_type      TEXT    NOT NULL CHECK (leave_type IN
+                            ('annual','sick','emergency','maternity','paternity','unpaid','other')),
+  start_date      DATE    NOT NULL,
+  end_date        DATE    NOT NULL,
+  total_days      INTEGER NOT NULL,
+  reason          TEXT,
+  attachment_url  TEXT,
+  status          TEXT    NOT NULL DEFAULT 'pending'
+                          CHECK (status IN ('pending','approved','rejected','cancelled')),
+  approved_by     UUID    REFERENCES auth.users(id) ON DELETE SET NULL,
+  approved_at     TIMESTAMPTZ,
+  rejection_notes TEXT,
+  created_at      TIMESTAMPTZ DEFAULT NOW(),
+  updated_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS leave_quotas (
+  id            UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  employee_id   UUID    NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+  year          INTEGER NOT NULL,
+  annual_quota  INTEGER NOT NULL DEFAULT 12,
+  carry_over    INTEGER NOT NULL DEFAULT 0,
+  annual_used   INTEGER NOT NULL DEFAULT 0,
+  sick_used     INTEGER NOT NULL DEFAULT 0,
+  created_at    TIMESTAMPTZ DEFAULT NOW(),
+  updated_at    TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (employee_id, year)
+);
+
+CREATE TABLE IF NOT EXISTS disciplinary_records (
+  id              UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  employee_id     UUID    NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+  type            TEXT    NOT NULL,   -- 'sp1','sp2','sp3','warning','termination'
+  violation_date  DATE    NOT NULL,
+  description     TEXT    NOT NULL,
+  action_taken    TEXT,
+  witnesses       TEXT[],
+  attachments     JSONB   DEFAULT '[]',
+  issued_by       UUID    REFERENCES auth.users(id) ON DELETE SET NULL,
+  acknowledged_at TIMESTAMPTZ,
+  created_at      TIMESTAMPTZ DEFAULT NOW(),
+  updated_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS disciplinary_letters (
+  id              UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  employee_id     UUID    NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+  letter_type     TEXT    NOT NULL CHECK (letter_type IN ('sp1','sp2','sp3','warning','termination')),
+  letter_number   TEXT    NOT NULL UNIQUE,
+  issued_date     DATE    NOT NULL,
+  violation       TEXT    NOT NULL,
+  description     TEXT,
+  action_taken    TEXT,
+  signed_by       UUID    REFERENCES auth.users(id) ON DELETE SET NULL,
+  pdf_url         TEXT,
+  status          TEXT    DEFAULT 'draft' CHECK (status IN ('draft','signed','acknowledged')),
+  acknowledged_at TIMESTAMPTZ,
+  created_at      TIMESTAMPTZ DEFAULT NOW(),
+  updated_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS career_history (
+  id               UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  employee_id      UUID    NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+  effective_date   DATE    NOT NULL,
+  change_type      TEXT    NOT NULL,
+  old_position     TEXT,
+  new_position     TEXT,
+  old_department   TEXT,
+  new_department   TEXT,
+  old_salary       NUMERIC(15,2),
+  new_salary       NUMERIC(15,2),
+  old_branch_id    UUID    REFERENCES branches(id) ON DELETE SET NULL,
+  new_branch_id    UUID    REFERENCES branches(id) ON DELETE SET NULL,
+  reason           TEXT,
+  approved_by      UUID    REFERENCES auth.users(id) ON DELETE SET NULL,
+  notes            TEXT,
+  created_at       TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS performance_reviews (
+  id              UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  employee_id     UUID    NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+  reviewer_id     UUID    REFERENCES employees(id) ON DELETE SET NULL,
+  review_period   TEXT    NOT NULL,   -- 'YYYY-Q1' | 'YYYY-H1' | 'YYYY'
+  review_type     TEXT    DEFAULT 'quarterly',
+  quality         NUMERIC(3,1),
+  productivity    NUMERIC(3,1),
+  initiative      NUMERIC(3,1),
+  teamwork        NUMERIC(3,1),
+  attendance_score NUMERIC(3,1),
+  overall_score   NUMERIC(3,1),
+  strengths       TEXT,
+  improvements    TEXT,
+  goals           TEXT,
+  status          TEXT    DEFAULT 'draft',
+  finalized_at    TIMESTAMPTZ,
+  created_at      TIMESTAMPTZ DEFAULT NOW(),
+  updated_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS employee_contracts (
+  id              UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  employee_id     UUID    NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+  contract_type   TEXT    NOT NULL CHECK (contract_type IN ('pkwt','pkwtt','freelance','intern')),
+  start_date      DATE    NOT NULL,
+  end_date        DATE,
+  probation_end   DATE,
+  salary          NUMERIC(15,2),
+  file_url        TEXT,
+  status          TEXT    DEFAULT 'active' CHECK (status IN ('draft','active','expired','terminated')),
+  notes           TEXT,
+  signed_at       DATE,
+  created_at      TIMESTAMPTZ DEFAULT NOW(),
+  updated_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Absensi jamaah (manasik) — [via 01_schema.sql line 6381]
+-- ⚠️ PENTING: kode memakai nama 'attendance_records' — harus rename atau buat view
+CREATE TABLE IF NOT EXISTS attendance (
+  id           UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
+  departure_id UUID    REFERENCES departures(id)  ON DELETE SET NULL,
+  customer_id  UUID    REFERENCES customers(id)   ON DELETE CASCADE,
+  session_type TEXT    NOT NULL DEFAULT 'lainnya',
+  session_label TEXT,
+  status       TEXT    NOT NULL DEFAULT 'hadir'
+                       CHECK (status IN ('hadir','absen','terlambat','izin')),
+  notes        TEXT,
+  recorded_by  UUID    REFERENCES profiles(id)    ON DELETE SET NULL,
+  recorded_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+-- Alias view agar kode tidak rusak:
+-- CREATE VIEW attendance_records AS SELECT * FROM attendance;
+
+CREATE TABLE IF NOT EXISTS job_postings (
+  id           UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  branch_id    UUID    REFERENCES branches(id) ON DELETE SET NULL,
+  title        TEXT    NOT NULL,
+  department   TEXT,
+  description  TEXT,
+  requirements TEXT,
+  status       TEXT    DEFAULT 'open' CHECK (status IN ('open','closed','draft')),
+  deadline     DATE,
+  created_at   TIMESTAMPTZ DEFAULT NOW(),
+  updated_at   TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS job_applicants (
+  id              UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  job_posting_id  UUID    REFERENCES job_postings(id) ON DELETE SET NULL,
+  full_name       TEXT    NOT NULL,
+  email           TEXT,
+  phone           TEXT,
+  cover_letter    TEXT,
+  resume_url      TEXT,
+  status          TEXT    DEFAULT 'new',
+  notes           TEXT,
+  created_at      TIMESTAMPTZ DEFAULT NOW(),
+  updated_at      TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+
+---
+
+### 24.8 — CREATE TABLE: Domain PERLENGKAPAN & OPERASIONAL
+
+```sql
+-- ============================================================
+-- DOMAIN 12: PERLENGKAPAN (Equipment)
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS equipment_items (
+  id                  UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
+  name                TEXT    NOT NULL,
+  category            TEXT    NOT NULL DEFAULT 'umum',
+  description         TEXT,
+  photo_url           TEXT,
+  stock_quantity      INTEGER DEFAULT 0,
+  low_stock_threshold INTEGER NOT NULL DEFAULT 5,
+  gender_target       TEXT    NOT NULL DEFAULT 'all'
+                              CHECK (gender_target IN ('all','male','female')),
+  has_variants        BOOLEAN NOT NULL DEFAULT FALSE,
+  has_sizes           BOOLEAN NOT NULL DEFAULT FALSE,
+  available_sizes     TEXT[]  DEFAULT '{}',
+  pic                 TEXT,
+  pic_type            TEXT,
+  qr_code             TEXT,
+  unit_cost           INTEGER NOT NULL DEFAULT 0,  -- [via 35_equipment_unit_cost]
+  created_at          TIMESTAMPTZ DEFAULT NOW(),
+  updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_ei_category ON equipment_items(category);
+
+CREATE TABLE IF NOT EXISTS equipment_variants (
+  id                  UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
+  equipment_id        UUID    NOT NULL REFERENCES equipment_items(id) ON DELETE CASCADE,
+  size                TEXT,
+  color               TEXT,
+  sku                 TEXT,
+  stock_good          INTEGER NOT NULL DEFAULT 0,
+  stock_damaged       INTEGER NOT NULL DEFAULT 0,
+  low_stock_threshold INTEGER NOT NULL DEFAULT 2,
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_ev_equipment_id ON equipment_variants(equipment_id);
+
+CREATE TABLE IF NOT EXISTS equipment_stock_history (
+  id                UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
+  equipment_item_id UUID    NOT NULL REFERENCES equipment_items(id) ON DELETE CASCADE,
+  change_type       TEXT    NOT NULL,  -- 'in','out','adjustment','damage'
+  quantity_change   INTEGER NOT NULL,
+  previous_quantity INTEGER NOT NULL DEFAULT 0,
+  new_quantity      INTEGER NOT NULL DEFAULT 0,
+  reason            TEXT,
+  reference_id      UUID,
+  created_by        UUID    REFERENCES auth.users(id) ON DELETE SET NULL,
+  created_at        TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS equipment_stock_opname (
+  id                UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
+  equipment_item_id UUID    NOT NULL REFERENCES equipment_items(id) ON DELETE CASCADE,
+  opname_date       DATE    NOT NULL DEFAULT CURRENT_DATE,
+  system_count      INTEGER NOT NULL DEFAULT 0,
+  physical_count    INTEGER NOT NULL DEFAULT 0,
+  difference        INTEGER GENERATED ALWAYS AS (physical_count - system_count) STORED,
+  condition_notes   TEXT,
+  status            TEXT    DEFAULT 'pending',
+  verified_by       UUID    REFERENCES auth.users(id) ON DELETE SET NULL,
+  notes             TEXT,
+  created_at        TIMESTAMPTZ DEFAULT NOW(),
+  updated_at        TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS equipment_distributions (
+  id                    UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
+  customer_id           UUID    NOT NULL REFERENCES customers(id)    ON DELETE CASCADE,
+  departure_id          UUID    REFERENCES departures(id)            ON DELETE SET NULL,
+  booking_id            UUID    REFERENCES bookings(id)              ON DELETE SET NULL,
+  equipment_id          UUID    REFERENCES equipment_items(id)       ON DELETE RESTRICT,
+  item_name             TEXT    NOT NULL,
+  quantity              INTEGER NOT NULL DEFAULT 1,
+  size                  TEXT,
+  distributed_at        TIMESTAMPTZ DEFAULT NOW(),
+  distributed_by        UUID    REFERENCES auth.users(id)            ON DELETE SET NULL,
+  returned_at           TIMESTAMPTZ,
+  confirmed_by_jamaah   BOOLEAN NOT NULL DEFAULT FALSE,
+  notes                 TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_eddist_departure_id ON equipment_distributions(departure_id);
+CREATE INDEX IF NOT EXISTS idx_eddist_customer_id  ON equipment_distributions(customer_id);
+CREATE INDEX IF NOT EXISTS idx_eddist_booking_id   ON equipment_distributions(booking_id);
+
+CREATE TABLE IF NOT EXISTS package_type_equipment (
+  id                UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
+  package_type_id   UUID    NOT NULL,
+  equipment_item_id UUID    NOT NULL REFERENCES equipment_items(id) ON DELETE CASCADE,
+  default_quantity  INTEGER NOT NULL DEFAULT 1,
+  is_required       BOOLEAN NOT NULL DEFAULT TRUE,
+  notes             TEXT,
+  created_at        TIMESTAMPTZ DEFAULT NOW(),
+  updated_at        TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ============================================================
+-- DOMAIN 13: KAMAR & ROOMING
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS room_assignments (
+  id             UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  departure_id   UUID    NOT NULL REFERENCES departures(id) ON DELETE CASCADE,
+  room_number    TEXT    NOT NULL,
+  room_type      TEXT    NOT NULL DEFAULT 'quad'
+                         CHECK (room_type IN ('double','triple','quad')),
+  floor          INTEGER,
+  capacity       INTEGER DEFAULT 4,
+  hotel_name     TEXT,
+  hotel_location TEXT    DEFAULT 'mecca'
+                         CHECK (hotel_location IN ('mecca','medina')),
+  notes          TEXT,
+  created_at     TIMESTAMPTZ DEFAULT NOW(),
+  updated_at     TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (departure_id, room_number, hotel_location)
+);
+CREATE INDEX IF NOT EXISTS idx_ra_departure_id ON room_assignments(departure_id);
+
+CREATE TABLE IF NOT EXISTS room_occupants (
+  id                 UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
+  room_assignment_id UUID    NOT NULL REFERENCES room_assignments(id) ON DELETE CASCADE,
+  customer_id        UUID    NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+  bed_number         INT,
+  mahram_validated   BOOLEAN DEFAULT FALSE,
+  created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (room_assignment_id, customer_id)
+);
+CREATE INDEX IF NOT EXISTS idx_ro_room_id    ON room_occupants(room_assignment_id);
+CREATE INDEX IF NOT EXISTS idx_ro_customer_id ON room_occupants(customer_id);
+
+CREATE TABLE IF NOT EXISTS room_group_audit (
+  id              UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  room_group_id   UUID    NOT NULL,
+  passenger_id    UUID    NOT NULL REFERENCES booking_passengers(id) ON DELETE CASCADE,
+  action          TEXT    NOT NULL,
+  old_room_type   TEXT,
+  new_room_type   TEXT,
+  old_room_number TEXT,
+  new_room_number TEXT,
+  changed_by      UUID    REFERENCES auth.users(id) ON DELETE SET NULL,
+  changed_at      TIMESTAMPTZ DEFAULT NOW(),
+  notes           TEXT
+);
+
+-- ============================================================
+-- DOMAIN 14: TABUNGAN JAMAAH
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS savings_plans (
+  id             UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  customer_id    UUID    NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+  name           TEXT    NOT NULL DEFAULT 'Tabungan Umroh',
+  target_amount  NUMERIC(15,2) NOT NULL DEFAULT 0,
+  current_amount NUMERIC(15,2) NOT NULL DEFAULT 0,
+  target_date    DATE,
+  status         TEXT    NOT NULL DEFAULT 'active'
+                         CHECK (status IN ('active','completed','cancelled')),
+  notes          TEXT,
+  created_at     TIMESTAMPTZ DEFAULT NOW(),
+  updated_at     TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_sp_customer_id ON savings_plans(customer_id);
+
+-- ⚠️ KRITIS: tabel ini disebut 'savings_payments' di kode — perlu CREATE VIEW atau rename kode
+CREATE TABLE IF NOT EXISTS savings_deposits (
+  id           UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  plan_id      UUID    NOT NULL REFERENCES savings_plans(id) ON DELETE CASCADE,
+  amount       NUMERIC(15,2) NOT NULL,
+  deposit_date DATE    NOT NULL DEFAULT CURRENT_DATE,
+  notes        TEXT,
+  created_by   UUID    REFERENCES auth.users(id) ON DELETE SET NULL,
+  created_at   TIMESTAMPTZ DEFAULT NOW()
+);
+-- Solusi fix kode: CREATE VIEW savings_payments AS SELECT * FROM savings_deposits;
+
+CREATE INDEX IF NOT EXISTS idx_sd_plan_id ON savings_deposits(plan_id);
+
+-- ============================================================
+-- DOMAIN 15: HOTEL CONTRACTS & VOUCHERS
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS hotel_contracts (
+  id               UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  hotel_id         UUID    REFERENCES hotels(id)     ON DELETE RESTRICT,
+  departure_id     UUID    REFERENCES departures(id) ON DELETE CASCADE,
+  contract_number  TEXT,
+  contract_date    DATE,
+  room_type        TEXT    CHECK (room_type IN ('double','triple','quad')),
+  room_count       INTEGER NOT NULL DEFAULT 0,
+  price_per_room   NUMERIC(15,2) NOT NULL DEFAULT 0,
+  currency         TEXT    DEFAULT 'SAR',
+  check_in_date    DATE,
+  check_out_date   DATE,
+  nights           INTEGER,
+  total_amount     NUMERIC(15,2) GENERATED ALWAYS AS (room_count * price_per_room) STORED,
+  status           TEXT    DEFAULT 'draft' CHECK (status IN ('draft','confirmed','paid','cancelled')),
+  notes            TEXT,
+  created_at       TIMESTAMPTZ DEFAULT NOW(),
+  updated_at       TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS hotel_vouchers (
+  id              UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  contract_id     UUID    REFERENCES hotel_contracts(id) ON DELETE SET NULL,
+  voucher_number  TEXT    NOT NULL,
+  issued_date     DATE,
+  valid_from      DATE,
+  valid_until     DATE,
+  room_type       TEXT,
+  pax_count       INTEGER,
+  amount          NUMERIC(15,2),
+  status          TEXT    DEFAULT 'active',
+  notes           TEXT,
+  created_at      TIMESTAMPTZ DEFAULT NOW(),
+  updated_at      TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+
+---
+
+### 24.9 — CREATE TABLE: Domain PANDUAN TOUR & PORTAL JAMAAH
+
+```sql
+-- ============================================================
+-- DOMAIN 16: PANDUAN TOUR (Guide System)
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS guide_channels (
+  id           UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  departure_id UUID    NOT NULL REFERENCES departures(id) ON DELETE CASCADE,
+  name         TEXT    NOT NULL DEFAULT 'Seluruh Rombongan',
+  channel_type TEXT    NOT NULL DEFAULT 'all'
+                       CHECK (channel_type IN ('all','bus_1','bus_2','bus_3','custom')),
+  created_by   UUID    REFERENCES auth.users(id) ON DELETE SET NULL,
+  is_active    BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS guide_broadcasts (
+  id              UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  channel_id      UUID    NOT NULL REFERENCES guide_channels(id) ON DELETE CASCADE,
+  departure_id    UUID    NOT NULL REFERENCES departures(id) ON DELETE CASCADE,
+  sender_user_id  UUID    REFERENCES auth.users(id) ON DELETE SET NULL,
+  sender_role     TEXT,
+  message_type    TEXT    NOT NULL DEFAULT 'text'
+                          CHECK (message_type IN ('text','image','audio','location','system')),
+  content         TEXT    NOT NULL,
+  media_url       TEXT,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_gb_channel_id  ON guide_broadcasts(channel_id);
+CREATE INDEX IF NOT EXISTS idx_gb_departure_id ON guide_broadcasts(departure_id);
+
+CREATE TABLE IF NOT EXISTS guide_broadcast_reads (
+  broadcast_id UUID NOT NULL REFERENCES guide_broadcasts(id) ON DELETE CASCADE,
+  user_id      UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  read_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (broadcast_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS guide_sessions (
+  id           UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  departure_id UUID    NOT NULL REFERENCES departures(id) ON DELETE CASCADE,
+  session_type TEXT    NOT NULL DEFAULT 'custom'
+                       CHECK (session_type IN
+                         ('bus_boarding','sholat','ziarah','makan','hotel_checkin','airport','briefing','custom')),
+  title        TEXT    NOT NULL,
+  location     TEXT,
+  scheduled_at TIMESTAMPTZ,
+  started_at   TIMESTAMPTZ,
+  ended_at     TIMESTAMPTZ,
+  qr_token     TEXT    UNIQUE,
+  qr_expires_at TIMESTAMPTZ,
+  created_by   UUID    REFERENCES auth.users(id) ON DELETE SET NULL,
+  notes        TEXT,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_gs_departure_id ON guide_sessions(departure_id);
+
+CREATE TABLE IF NOT EXISTS guide_session_attendance (
+  id          UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  session_id  UUID    NOT NULL REFERENCES guide_sessions(id) ON DELETE CASCADE,
+  customer_id UUID    NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+  status      TEXT    DEFAULT 'hadir' CHECK (status IN ('hadir','absen','terlambat')),
+  notes       TEXT,
+  UNIQUE (session_id, customer_id)
+);
+
+CREATE TABLE IF NOT EXISTS guide_subgroups (
+  id           UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  departure_id UUID    NOT NULL REFERENCES departures(id) ON DELETE CASCADE,
+  name         TEXT    NOT NULL,
+  color        TEXT,
+  created_by   UUID    REFERENCES auth.users(id) ON DELETE SET NULL,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS guide_subgroup_members (
+  subgroup_id UUID NOT NULL REFERENCES guide_subgroups(id) ON DELETE CASCADE,
+  customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+  added_at    TIMESTAMPTZ DEFAULT now(),
+  PRIMARY KEY (subgroup_id, customer_id)
+);
+
+CREATE TABLE IF NOT EXISTS guide_locations (
+  id           UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  departure_id UUID    NOT NULL REFERENCES departures(id) ON DELETE CASCADE,
+  user_id      UUID    REFERENCES auth.users(id) ON DELETE CASCADE,
+  role         TEXT,
+  label        TEXT,
+  latitude     NUMERIC(10,7) NOT NULL,
+  longitude    NUMERIC(10,7) NOT NULL,
+  accuracy_m   NUMERIC(8,2),
+  recorded_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_gl_departure_id ON guide_locations(departure_id);
+
+CREATE TABLE IF NOT EXISTS guide_audio_sessions (
+  id                    UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  departure_id          UUID    NOT NULL REFERENCES departures(id) ON DELETE CASCADE,
+  title                 TEXT    NOT NULL,
+  session_type          TEXT    NOT NULL DEFAULT 'murottal'
+                                CHECK (session_type IN ('murottal','tausyiah','briefing','custom')),
+  status                TEXT    NOT NULL DEFAULT 'idle'
+                                CHECK (status IN ('idle','live','ended')),
+  current_speaker_user_id UUID  REFERENCES auth.users(id) ON DELETE SET NULL,
+  started_at            TIMESTAMPTZ,
+  ended_at              TIMESTAMPTZ,
+  recording_url         TEXT,
+  created_by            UUID    REFERENCES auth.users(id) ON DELETE SET NULL,
+  notes                 TEXT,
+  created_at            TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ============================================================
+-- DOMAIN 17: PORTAL JAMAAH
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS jamaah_checklist (
+  id               UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  customer_id      UUID    NOT NULL REFERENCES customers(id)  ON DELETE CASCADE,
+  departure_id     UUID    REFERENCES departures(id)          ON DELETE SET NULL,
+  has_passport     BOOLEAN DEFAULT FALSE,
+  has_visa         BOOLEAN DEFAULT FALSE,
+  has_ktp          BOOLEAN DEFAULT FALSE,
+  has_kk           BOOLEAN DEFAULT FALSE,
+  has_photo        BOOLEAN DEFAULT FALSE,
+  has_vaccine_cert BOOLEAN DEFAULT FALSE,
+  has_meningitis   BOOLEAN DEFAULT FALSE,
+  has_mahram_cert  BOOLEAN DEFAULT FALSE,
+  has_marriage_cert BOOLEAN DEFAULT FALSE,
+  has_birth_cert   BOOLEAN DEFAULT FALSE,
+  has_paid_full    BOOLEAN DEFAULT FALSE,
+  items_received   BOOLEAN DEFAULT FALSE,
+  is_complete      BOOLEAN GENERATED ALWAYS AS (
+                     has_passport AND has_visa AND has_ktp AND has_kk AND has_photo
+                   ) STORED,
+  notes            TEXT,
+  updated_by       UUID    REFERENCES auth.users(id) ON DELETE SET NULL,
+  updated_at       TIMESTAMPTZ DEFAULT NOW(),
+  created_at       TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_jc_customer_id  ON jamaah_checklist(customer_id);
+CREATE INDEX IF NOT EXISTS idx_jc_departure_id ON jamaah_checklist(departure_id);
+
+CREATE TABLE IF NOT EXISTS jamaah_ibadah_targets (
+  id           UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id      UUID    NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  name         TEXT    NOT NULL,
+  icon         TEXT,
+  unit         TEXT    NOT NULL DEFAULT 'kali',
+  daily_target INTEGER NOT NULL DEFAULT 1,
+  category     TEXT,
+  active       BOOLEAN DEFAULT TRUE,
+  created_at   TIMESTAMPTZ DEFAULT NOW(),
+  updated_at   TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS jamaah_ibadah_logs (
+  id         UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id    UUID    NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  target_id  UUID    NOT NULL REFERENCES jamaah_ibadah_targets(id) ON DELETE CASCADE,
+  log_date   DATE    NOT NULL DEFAULT CURRENT_DATE,
+  count      INTEGER NOT NULL DEFAULT 1,
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (user_id, target_id, log_date)
+);
+
+CREATE TABLE IF NOT EXISTS jamaah_jurnal (
+  id         UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id    UUID    NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  date       DATE    NOT NULL DEFAULT CURRENT_DATE,
+  title      TEXT,
+  content    TEXT    NOT NULL,
+  mood       TEXT,
+  location   TEXT,
+  tags       TEXT[],
+  is_private BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS jamaah_doa_sessions (
+  id          UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id     UUID    NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  dzikir_id   TEXT,
+  dzikir_name TEXT    NOT NULL,
+  dzikir_arab TEXT,
+  dzikir_latin TEXT,
+  icon        TEXT,
+  target      INTEGER DEFAULT 33,
+  current     INTEGER DEFAULT 0,
+  completed   BOOLEAN GENERATED ALWAYS AS (current >= target) STORED,
+  session_date DATE   DEFAULT CURRENT_DATE,
+  created_at  TIMESTAMPTZ DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS jamaah_badges (
+  id        UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id   UUID    NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  badge_id  TEXT    NOT NULL,
+  earned_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (user_id, badge_id)
+);
+
+CREATE TABLE IF NOT EXISTS ibadah_progress (
+  id          UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id     UUID    NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  ibadah_type TEXT    NOT NULL,
+  ibadah_date DATE    NOT NULL DEFAULT CURRENT_DATE,
+  count       INTEGER NOT NULL DEFAULT 1,
+  target      INTEGER DEFAULT 1,
+  notes       TEXT,
+  completed   BOOLEAN GENERATED ALWAYS AS (count >= target) STORED,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (user_id, ibadah_type, ibadah_date)
+);
+
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+  id         UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  endpoint   TEXT    NOT NULL UNIQUE,
+  p256dh     TEXT    NOT NULL,
+  auth       TEXT    NOT NULL,
+  customer_id UUID   REFERENCES customers(id)     ON DELETE CASCADE,
+  user_id    UUID    REFERENCES auth.users(id)     ON DELETE CASCADE,
+  role       TEXT,                                -- [via 072]
+  branch_id  UUID    REFERENCES branches(id)      ON DELETE SET NULL,
+  agent_id   UUID    REFERENCES agents(id)        ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_ps_customer_id ON push_subscriptions(customer_id);
+CREATE INDEX IF NOT EXISTS idx_ps_user_id     ON push_subscriptions(user_id);
+
+CREATE TABLE IF NOT EXISTS push_outbox (
+  id          UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_ids    UUID[],
+  customer_ids UUID[],
+  title       TEXT    NOT NULL,
+  body        TEXT    NOT NULL,
+  type        TEXT    DEFAULT 'info',
+  url         TEXT,
+  status      TEXT    DEFAULT 'pending' CHECK (status IN ('pending','processing','done','failed')),
+  sent_count  INTEGER DEFAULT 0,
+  fail_count  INTEGER DEFAULT 0,
+  scheduled_at TIMESTAMPTZ,
+  processed_at TIMESTAMPTZ,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ============================================================
+-- DOMAIN 18: NOTIFIKASI & PENGUMUMAN
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS notifications (
+  id          UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  title       TEXT    NOT NULL,
+  message     TEXT    NOT NULL,
+  type        TEXT    DEFAULT 'info'
+                      CHECK (type IN ('info','warning','success','error')),
+  target_role TEXT,
+  branch_id   UUID    REFERENCES branches(id) ON DELETE SET NULL,
+  is_read     BOOLEAN DEFAULT FALSE,
+  user_id     UUID    REFERENCES auth.users(id) ON DELETE CASCADE,
+  link        TEXT,
+  created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_notif_user_id   ON notifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_notif_is_read   ON notifications(is_read);
+CREATE INDEX IF NOT EXISTS idx_notif_branch_id ON notifications(branch_id);
+
+CREATE TABLE IF NOT EXISTS announcements (
+  id           UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  title        TEXT    NOT NULL,
+  content      TEXT    NOT NULL,
+  type         TEXT    DEFAULT 'info',
+  target_roles TEXT[],
+  branch_id    UUID    REFERENCES branches(id) ON DELETE SET NULL,
+  is_active    BOOLEAN DEFAULT TRUE,
+  starts_at    TIMESTAMPTZ,
+  ends_at      TIMESTAMPTZ,
+  created_by   UUID    REFERENCES auth.users(id) ON DELETE SET NULL,
+  created_at   TIMESTAMPTZ DEFAULT NOW(),
+  updated_at   TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+
+---
+
+### 24.10 — CREATE TABLE: Domain WHATSAPP, CRM, DOKUMEN & STORE
+
+```sql
+-- ============================================================
+-- DOMAIN 19: WHATSAPP
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS whatsapp_config (
+  id           UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  branch_id    UUID    REFERENCES branches(id) ON DELETE CASCADE,
+  provider     TEXT    DEFAULT 'fonnte',
+  token        TEXT,
+  phone_number TEXT,
+  is_active    BOOLEAN DEFAULT TRUE,
+  created_at   TIMESTAMPTZ DEFAULT NOW(),
+  updated_at   TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS whatsapp_templates (
+  id          UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  name        TEXT    NOT NULL,
+  code        TEXT    NOT NULL UNIQUE,
+  body        TEXT    NOT NULL,
+  variables   TEXT[],
+  trigger     TEXT,
+  is_active   BOOLEAN DEFAULT TRUE,
+  created_at  TIMESTAMPTZ DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS wa_template_broadcasts (
+  id              UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  name            TEXT    NOT NULL,
+  template_name   TEXT    NOT NULL,
+  template_lang   TEXT    DEFAULT 'id',
+  variable_map    JSONB   DEFAULT '{}',
+  status          TEXT    DEFAULT 'draft'
+                          CHECK (status IN ('draft','sending','sent','failed','partial')),
+  target_type     TEXT    DEFAULT 'all',
+  target_filter   JSONB   DEFAULT '{}',
+  scheduled_at    TIMESTAMPTZ,
+  sent_at         TIMESTAMPTZ,
+  total_recipients INTEGER DEFAULT 0,
+  sent_count      INTEGER DEFAULT 0,
+  failed_count    INTEGER DEFAULT 0,
+  created_by      UUID    REFERENCES auth.users(id) ON DELETE SET NULL,
+  created_at      TIMESTAMPTZ DEFAULT NOW(),
+  updated_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS wa_template_broadcast_recipients (
+  id            UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  broadcast_id  UUID    NOT NULL REFERENCES wa_template_broadcasts(id) ON DELETE CASCADE,
+  booking_id    UUID    REFERENCES bookings(id) ON DELETE SET NULL,
+  phone         TEXT    NOT NULL,
+  full_name     TEXT,
+  resolved_vars JSONB   DEFAULT '{}',
+  status        TEXT    DEFAULT 'pending',
+  sent_at       TIMESTAMPTZ,
+  error_msg     TEXT,
+  wa_message_id TEXT,
+  created_at    TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_wabr_broadcast_id ON wa_template_broadcast_recipients(broadcast_id);
+
+CREATE TABLE IF NOT EXISTS wa_scheduled_broadcasts (
+  id              UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  name            TEXT    NOT NULL,
+  message         TEXT    NOT NULL,
+  template_id     UUID    REFERENCES whatsapp_templates(id) ON DELETE SET NULL,
+  target_type     TEXT    DEFAULT 'all',
+  target_tags     TEXT[],
+  target_filter   JSONB   DEFAULT '{}',
+  scheduled_at    TIMESTAMPTZ,
+  status          TEXT    DEFAULT 'draft',
+  sent_at         TIMESTAMPTZ,
+  total_recipients INTEGER DEFAULT 0,
+  sent_count      INTEGER DEFAULT 0,
+  created_by      UUID    REFERENCES auth.users(id) ON DELETE SET NULL,
+  created_at      TIMESTAMPTZ DEFAULT NOW(),
+  updated_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS wa_chatbot_keywords (
+  id            UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  keyword       TEXT    NOT NULL,
+  match_type    TEXT    DEFAULT 'exact' CHECK (match_type IN ('exact','contains','starts_with')),
+  reply_message TEXT    NOT NULL,
+  is_active     BOOLEAN DEFAULT TRUE,
+  priority      INTEGER DEFAULT 0,
+  created_at    TIMESTAMPTZ DEFAULT NOW(),
+  updated_at    TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS wa_incoming_messages (
+  id          UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  from_phone  TEXT    NOT NULL,
+  from_name   TEXT,
+  message     TEXT,
+  message_id  TEXT,
+  provider    TEXT    DEFAULT 'fonnte',
+  is_read     BOOLEAN DEFAULT FALSE,
+  replied     BOOLEAN DEFAULT FALSE,
+  reply_text  TEXT,
+  replied_at  TIMESTAMPTZ,
+  customer_id UUID    REFERENCES customers(id) ON DELETE SET NULL,
+  metadata    JSONB   DEFAULT '{}',
+  created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_wim_from_phone ON wa_incoming_messages(from_phone);
+
+CREATE TABLE IF NOT EXISTS wa_contacts (
+  id          UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  phone       TEXT    NOT NULL UNIQUE,
+  name        TEXT,
+  customer_id UUID    REFERENCES customers(id) ON DELETE SET NULL,
+  tags        TEXT[],
+  notes       TEXT,
+  is_blocked  BOOLEAN DEFAULT FALSE,
+  last_msg_at TIMESTAMPTZ,
+  created_at  TIMESTAMPTZ DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ============================================================
+-- DOMAIN 20: CRM & LEADS
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS leads (
+  id               UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  name             TEXT    NOT NULL,
+  phone            TEXT    NOT NULL,
+  email            TEXT,
+  source           TEXT    DEFAULT 'direct'
+                           CHECK (source IN
+                             ('direct','whatsapp','instagram','facebook','referral','website','lainnya')),
+  branch_id        UUID    REFERENCES branches(id) ON DELETE SET NULL,
+  agent_id         UUID    REFERENCES agents(id)   ON DELETE SET NULL,
+  status           TEXT    DEFAULT 'new'
+                           CHECK (status IN ('new','contacted','qualified','converted','lost')),
+  notes            TEXT,
+  package_interest TEXT,
+  created_at       TIMESTAMPTZ DEFAULT NOW(),
+  updated_at       TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_leads_branch_id ON leads(branch_id);
+CREATE INDEX IF NOT EXISTS idx_leads_status    ON leads(status);
+
+CREATE TABLE IF NOT EXISTS agent_leads (
+  id         UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  agent_id   UUID    NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+  name       TEXT    NOT NULL,
+  phone      TEXT    NOT NULL,
+  stage      TEXT    DEFAULT 'new',
+  notes      TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS discount_requests (
+  id             UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  booking_id     UUID    REFERENCES bookings(id)   ON DELETE SET NULL,
+  agent_id       UUID    REFERENCES agents(id)     ON DELETE SET NULL,
+  branch_id      UUID    REFERENCES branches(id)   ON DELETE SET NULL,
+  discount_amount NUMERIC(15,2),
+  discount_pct   NUMERIC(5,2),
+  reason         TEXT,
+  status         TEXT    DEFAULT 'pending'
+                         CHECK (status IN ('pending','approved','rejected')),
+  approved_by    UUID    REFERENCES auth.users(id) ON DELETE SET NULL,
+  approved_at    TIMESTAMPTZ,
+  rejection_notes TEXT,
+  created_at     TIMESTAMPTZ DEFAULT NOW(),
+  updated_at     TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ============================================================
+-- DOMAIN 21: DOKUMEN
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS document_types (
+  id          UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  name        TEXT    NOT NULL,
+  description TEXT,
+  is_required BOOLEAN DEFAULT FALSE,
+  category    TEXT,
+  created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS generated_documents (
+  id            UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  customer_id   UUID    REFERENCES customers(id)  ON DELETE SET NULL,
+  departure_id  UUID    REFERENCES departures(id) ON DELETE SET NULL,
+  booking_id    UUID    REFERENCES bookings(id)   ON DELETE SET NULL,
+  document_type TEXT    NOT NULL,
+  document_number TEXT  UNIQUE,
+  file_url      TEXT,
+  generated_by  UUID    REFERENCES auth.users(id) ON DELETE SET NULL,
+  generated_at  TIMESTAMPTZ DEFAULT NOW(),
+  expires_at    TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS idx_gd_booking_id ON generated_documents(booking_id);
+
+CREATE TABLE IF NOT EXISTS document_verify_tokens (
+  id            UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  token         TEXT    NOT NULL UNIQUE,
+  doc_type      TEXT    NOT NULL,
+  booking_id    UUID    REFERENCES bookings(id)   ON DELETE CASCADE,
+  customer_id   UUID    REFERENCES customers(id)  ON DELETE CASCADE,
+  customer_name TEXT,
+  doc_number    TEXT,
+  expires_at    TIMESTAMPTZ NOT NULL,
+  used_at       TIMESTAMPTZ,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS document_audit_logs (
+  id            UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  event_type    TEXT    NOT NULL,
+  doc_type      TEXT    NOT NULL,
+  booking_id    UUID    REFERENCES bookings(id)   ON DELETE SET NULL,
+  customer_id   UUID    REFERENCES customers(id)  ON DELETE SET NULL,
+  customer_name TEXT,
+  generated_by  UUID    REFERENCES auth.users(id) ON DELETE SET NULL,
+  ip_address    TEXT,
+  user_agent    TEXT,
+  notes         TEXT,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_dal_booking_id ON document_audit_logs(booking_id);
+
+CREATE TABLE IF NOT EXISTS document_numbering (
+  id         UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  year       INTEGER NOT NULL,
+  month      INTEGER NOT NULL,
+  doc_type   TEXT    NOT NULL,
+  branch_key TEXT    NOT NULL,
+  last_number INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (year, month, doc_type, branch_key)
+);
+
+CREATE TABLE IF NOT EXISTS customer_signatures (
+  id              UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  customer_id     UUID    NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+  signature_base64 TEXT   NOT NULL,
+  signed_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+  ip_address      TEXT,
+  user_agent      TEXT
+);
+
+-- Audit log dokumen (alias untuk kode yang pakai 'audit_logs')
+-- ⚠️ KRITIS: kode memakai 'audit_logs' — tabel ini tidak ada, pakai document_audit_logs atau rbac_audit_trail
+-- Solusi: CREATE VIEW audit_logs AS SELECT * FROM document_audit_logs;
+
+-- ============================================================
+-- DOMAIN 22: STORE (Toko Online)
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS store_categories (
+  id          UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  name        TEXT    NOT NULL,
+  slug        TEXT    NOT NULL UNIQUE,
+  description TEXT,
+  image_url   TEXT,
+  is_active   BOOLEAN DEFAULT TRUE,
+  sort_order  INTEGER DEFAULT 0,
+  created_at  TIMESTAMPTZ DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS store_products (
+  id             UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  category_id    UUID    REFERENCES store_categories(id) ON DELETE SET NULL,
+  name           TEXT    NOT NULL,
+  slug           TEXT    NOT NULL UNIQUE,
+  description    TEXT,
+  price          NUMERIC(15,2) NOT NULL DEFAULT 0,
+  original_price NUMERIC(15,2),
+  stock          INTEGER NOT NULL DEFAULT 0,
+  unit           TEXT    DEFAULT 'pcs',
+  weight_gram    INTEGER DEFAULT 0,
+  images         JSONB   DEFAULT '[]',
+  is_active      BOOLEAN DEFAULT TRUE,
+  is_featured    BOOLEAN DEFAULT FALSE,
+  tags           TEXT[],
+  branch_id      UUID    REFERENCES branches(id) ON DELETE SET NULL,
+  created_at     TIMESTAMPTZ DEFAULT NOW(),
+  updated_at     TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_sp_category_id ON store_products(category_id);
+CREATE INDEX IF NOT EXISTS idx_sp_is_active   ON store_products(is_active);
+
+CREATE TABLE IF NOT EXISTS store_orders (
+  id              UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  order_number    TEXT    NOT NULL UNIQUE,
+  customer_id     UUID    REFERENCES customers(id) ON DELETE SET NULL,
+  user_id         UUID    REFERENCES auth.users(id) ON DELETE SET NULL,
+  status          TEXT    NOT NULL DEFAULT 'pending'
+                          CHECK (status IN ('pending','paid','processing','shipped','delivered','cancelled','refunded')),
+  payment_status  TEXT    NOT NULL DEFAULT 'unpaid'
+                          CHECK (payment_status IN ('unpaid','paid','refunded')),
+  subtotal        NUMERIC(15,2) NOT NULL DEFAULT 0,
+  shipping_cost   NUMERIC(15,2) NOT NULL DEFAULT 0,
+  discount_amount NUMERIC(15,2) NOT NULL DEFAULT 0,
+  total_amount    NUMERIC(15,2) NOT NULL DEFAULT 0,
+  shipping_name   TEXT,
+  shipping_phone  TEXT,
+  shipping_address TEXT,
+  shipping_city   TEXT,
+  shipping_province TEXT,
+  shipping_postal TEXT,
+  notes           TEXT,
+  payment_proof_url TEXT,
+  created_at      TIMESTAMPTZ DEFAULT NOW(),
+  updated_at      TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_so_customer_id ON store_orders(customer_id);
+CREATE INDEX IF NOT EXISTS idx_so_status      ON store_orders(status);
+
+CREATE TABLE IF NOT EXISTS store_order_items (
+  id            UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  order_id      UUID    NOT NULL REFERENCES store_orders(id) ON DELETE CASCADE,
+  product_id    UUID    REFERENCES store_products(id) ON DELETE SET NULL,
+  product_name  TEXT    NOT NULL,
+  product_image TEXT,
+  quantity      INTEGER NOT NULL DEFAULT 1,
+  unit_price    NUMERIC(15,2) NOT NULL DEFAULT 0,
+  subtotal      NUMERIC(15,2) GENERATED ALWAYS AS (quantity * unit_price) STORED
+);
+
+CREATE TABLE IF NOT EXISTS store_shipments (
+  id                UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  order_id          UUID    NOT NULL REFERENCES store_orders(id) ON DELETE CASCADE,
+  courier_name      TEXT,
+  courier_service   TEXT,
+  tracking_number   TEXT,
+  shipped_at        TIMESTAMPTZ,
+  estimated_arrival DATE,
+  delivered_at      TIMESTAMPTZ,
+  status            TEXT    DEFAULT 'pending',
+  notes             TEXT,
+  created_at        TIMESTAMPTZ DEFAULT NOW(),
+  updated_at        TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+
+---
+
+### 24.11 — CREATE TABLE: Domain OPERASIONAL LAPANGAN
+
+```sql
+-- ============================================================
+-- DOMAIN 23: VISA & SOS
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS visa_applications (
+  id               UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  customer_id      UUID    NOT NULL REFERENCES customers(id)  ON DELETE CASCADE,
+  booking_id       UUID    REFERENCES bookings(id)            ON DELETE SET NULL,
+  departure_id     UUID    REFERENCES departures(id)          ON DELETE SET NULL,
+  visa_type        TEXT    DEFAULT 'umroh' CHECK (visa_type IN ('umroh','haji','ziarah')),
+  status           TEXT    NOT NULL DEFAULT 'draft'
+                           CHECK (status IN ('draft','submitted','processing','approved','rejected','expired')),
+  application_date DATE    DEFAULT CURRENT_DATE,
+  submitted_at     TIMESTAMPTZ,
+  approved_at      TIMESTAMPTZ,
+  expiry_date      DATE,
+  visa_number      TEXT,
+  notes            TEXT,
+  rejection_reason TEXT,
+  handled_by       UUID    REFERENCES auth.users(id) ON DELETE SET NULL,
+  created_at       TIMESTAMPTZ DEFAULT NOW(),
+  updated_at       TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_va_customer_id  ON visa_applications(customer_id);
+CREATE INDEX IF NOT EXISTS idx_va_departure_id ON visa_applications(departure_id);
+CREATE INDEX IF NOT EXISTS idx_va_status       ON visa_applications(status);
+
+CREATE TABLE IF NOT EXISTS visa_status_logs (
+  id           UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  application_id UUID  NOT NULL REFERENCES visa_applications(id) ON DELETE CASCADE,
+  old_status   TEXT,
+  new_status   TEXT    NOT NULL,
+  notes        TEXT,
+  changed_by   UUID    REFERENCES auth.users(id) ON DELETE SET NULL,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS sos_alerts (
+  id                   UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  customer_id          UUID    NOT NULL REFERENCES customers(id)  ON DELETE CASCADE,
+  departure_id         UUID    REFERENCES departures(id)          ON DELETE SET NULL,
+  message              TEXT    NOT NULL,
+  location             TEXT,
+  latitude             NUMERIC(10,7),
+  longitude            NUMERIC(10,7),
+  status               TEXT    NOT NULL DEFAULT 'active'
+                               CHECK (status IN ('active','responded','resolved','false_alarm')),
+  assigned_muthawif_id UUID    REFERENCES muthawifs(id) ON DELETE SET NULL,
+  responded_at         TIMESTAMPTZ,
+  resolved_at          TIMESTAMPTZ,
+  notes                TEXT,
+  created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at           TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_sos_departure_id ON sos_alerts(departure_id);
+CREATE INDEX IF NOT EXISTS idx_sos_status       ON sos_alerts(status);
+
+CREATE TABLE IF NOT EXISTS sos_escalation_log (
+  id             UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  sos_alert_id   UUID    NOT NULL REFERENCES sos_alerts(id) ON DELETE CASCADE,
+  escalated_to   TEXT    NOT NULL,
+  escalated_by   UUID    REFERENCES auth.users(id) ON DELETE SET NULL,
+  reason         TEXT,
+  notified_at    TIMESTAMPTZ DEFAULT NOW(),
+  resolved_at    TIMESTAMPTZ,
+  notes          TEXT
+);
+
+-- ============================================================
+-- DOMAIN 24: MARKETING & KAMPANYE
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS marketing_campaigns (
+  id           UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  branch_id    UUID    REFERENCES branches(id) ON DELETE SET NULL,
+  name         TEXT    NOT NULL,
+  description  TEXT,
+  channel      TEXT,   -- 'instagram','facebook','google','wa','email','offline'
+  status       TEXT    DEFAULT 'draft',
+  budget       NUMERIC(15,2) DEFAULT 0,
+  spent        NUMERIC(15,2) DEFAULT 0,
+  start_date   DATE,
+  end_date     DATE,
+  target_reach INTEGER DEFAULT 0,
+  actual_reach INTEGER DEFAULT 0,
+  clicks       INTEGER DEFAULT 0,
+  conversions  INTEGER DEFAULT 0,
+  created_by   UUID    REFERENCES auth.users(id) ON DELETE SET NULL,
+  created_at   TIMESTAMPTZ DEFAULT NOW(),
+  updated_at   TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS marketing_metrics (
+  id           UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  campaign_id  UUID    REFERENCES marketing_campaigns(id) ON DELETE CASCADE,
+  branch_id    UUID    REFERENCES branches(id) ON DELETE SET NULL,
+  metric_date  DATE    NOT NULL,
+  impressions  INTEGER DEFAULT 0,
+  clicks       INTEGER DEFAULT 0,
+  conversions  INTEGER DEFAULT 0,
+  revenue      NUMERIC(15,2) DEFAULT 0,
+  cost         NUMERIC(15,2) DEFAULT 0,
+  created_at   TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ============================================================
+-- DOMAIN 25: SETTING & KONFIGURASI
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS app_settings (
+  key         TEXT    PRIMARY KEY,
+  value       TEXT    NOT NULL,
+  description TEXT,
+  is_public   BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at  TIMESTAMPTZ DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS website_settings (
+  id               UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  branch_id        UUID    REFERENCES branches(id) ON DELETE CASCADE,
+  slug             TEXT    UNIQUE,
+  title            TEXT,
+  tagline          TEXT,
+  profile_photo_url TEXT,
+  banner_url       TEXT,
+  bio              TEXT,
+  testimonials     JSONB   DEFAULT '[]',
+  gallery_urls     JSONB   DEFAULT '[]',
+  seo_title        TEXT,
+  seo_description  TEXT,
+  view_count       INTEGER DEFAULT 0,
+  social_facebook  TEXT,
+  social_instagram TEXT,
+  social_youtube   TEXT,
+  social_tiktok    TEXT,
+  maps_embed_url   TEXT,
+  chat_bubble_color TEXT   NOT NULL DEFAULT 'violet',
+  layout_variant   JSONB   DEFAULT '{}',
+  created_at       TIMESTAMPTZ DEFAULT NOW(),
+  updated_at       TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS banners (
+  id          UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  title       TEXT    NOT NULL,
+  subtitle    TEXT,
+  image_url   TEXT,
+  link_url    TEXT,
+  link_text   TEXT,
+  position    TEXT    DEFAULT 'home_hero',
+  is_active   BOOLEAN DEFAULT TRUE,
+  starts_at   TIMESTAMPTZ,
+  ends_at     TIMESTAMPTZ,
+  branch_id   UUID    REFERENCES branches(id) ON DELETE SET NULL,
+  sort_order  INTEGER DEFAULT 0,
+  created_at  TIMESTAMPTZ DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS coupons (
+  id              UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  code            TEXT    NOT NULL UNIQUE,
+  name            TEXT    NOT NULL,
+  discount_type   TEXT    NOT NULL CHECK (discount_type IN ('percentage','fixed')),
+  discount_value  NUMERIC(15,2) NOT NULL DEFAULT 0,
+  min_purchase    NUMERIC(15,2) DEFAULT 0,
+  max_discount    NUMERIC(15,2),
+  quota           INTEGER DEFAULT 1,
+  used_count      INTEGER DEFAULT 0,
+  is_active       BOOLEAN DEFAULT TRUE,
+  valid_from      DATE,
+  valid_until     DATE,
+  target_type     TEXT    DEFAULT 'all',
+  created_by      UUID    REFERENCES auth.users(id) ON DELETE SET NULL,
+  created_at      TIMESTAMPTZ DEFAULT NOW(),
+  updated_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Aturan Pembatalan
+CREATE TABLE IF NOT EXISTS cancellation_rules (
+  id         UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  name       TEXT    NOT NULL,
+  is_default BOOLEAN DEFAULT FALSE,
+  sections   JSONB   NOT NULL DEFAULT '[]',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS cancellation_rule_audit_logs (
+  id           UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  action       TEXT    NOT NULL,
+  actor_name   TEXT,
+  actor_email  TEXT,
+  rule_id      UUID    REFERENCES cancellation_rules(id) ON DELETE SET NULL,
+  rule_name    TEXT,
+  changes      JSONB   DEFAULT '{}',
+  created_at   TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS media_gallery (
+  id            UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  type          TEXT    NOT NULL DEFAULT 'image'
+                        CHECK (type IN ('hotel','package','departure','general')),
+  media_type    TEXT    DEFAULT 'image',
+  title         TEXT,
+  description   TEXT,
+  media_url     TEXT    NOT NULL,
+  thumbnail_url TEXT,
+  hotel_id      UUID    REFERENCES hotels(id)    ON DELETE SET NULL,
+  package_id    UUID    REFERENCES packages(id)  ON DELETE SET NULL,
+  departure_id  UUID    REFERENCES departures(id) ON DELETE SET NULL,
+  sort_order    INTEGER DEFAULT 0,
+  is_active     BOOLEAN DEFAULT TRUE,
+  created_at    TIMESTAMPTZ DEFAULT NOW(),
+  updated_at    TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Agent wallet (diperlukan kode — tabel belum ada)
+CREATE TABLE IF NOT EXISTS agent_wallets (           -- [TAMBAH — phantom saat ini]
+  id          UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  agent_id    UUID    NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+  balance     NUMERIC(15,2) NOT NULL DEFAULT 0,
+  currency    TEXT    DEFAULT 'IDR',
+  created_at  TIMESTAMPTZ DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (agent_id)
+);
+
+CREATE TABLE IF NOT EXISTS agent_wallet_transactions (  -- [TAMBAH — phantom saat ini]
+  id            UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  wallet_id     UUID    NOT NULL REFERENCES agent_wallets(id) ON DELETE CASCADE,
+  type          TEXT    NOT NULL CHECK (type IN ('credit','debit')),
+  amount        NUMERIC(15,2) NOT NULL DEFAULT 0,
+  balance_after NUMERIC(15,2) NOT NULL DEFAULT 0,
+  description   TEXT    NOT NULL,
+  reference_id  UUID,
+  reference_type TEXT,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_awt_wallet_id ON agent_wallet_transactions(wallet_id);
+
+-- Loyalty Program (diperlukan kode — tabel belum ada)
+CREATE TABLE IF NOT EXISTS loyalty_rewards (         -- [TAMBAH — phantom saat ini]
+  id          UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  customer_id UUID    NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+  total_points INTEGER NOT NULL DEFAULT 0,
+  tier        TEXT    DEFAULT 'bronze',
+  created_at  TIMESTAMPTZ DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (customer_id)
+);
+
+CREATE TABLE IF NOT EXISTS loyalty_transactions (    -- [TAMBAH — phantom saat ini]
+  id            UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  customer_id   UUID    NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+  type          TEXT    NOT NULL CHECK (type IN ('earn','redeem','expire','bonus')),
+  points        INTEGER NOT NULL DEFAULT 0,
+  balance_after INTEGER NOT NULL DEFAULT 0,
+  description   TEXT    NOT NULL,
+  reference_id  UUID,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_lt_customer_id ON loyalty_transactions(customer_id);
+
+-- QR Jamaah (diperlukan kode)
+CREATE TABLE IF NOT EXISTS jamaah_qr_codes (         -- [TAMBAH — phantom saat ini]
+  id            UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  customer_id   UUID    NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+  departure_id  UUID    REFERENCES departures(id) ON DELETE SET NULL,
+  qr_token      TEXT    NOT NULL UNIQUE,
+  qr_type       TEXT    DEFAULT 'identity',
+  expires_at    TIMESTAMPTZ,
+  is_active     BOOLEAN DEFAULT TRUE,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Referral (diperlukan kode)
+CREATE TABLE IF NOT EXISTS referral_codes (          -- [TAMBAH — phantom saat ini]
+  id          UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  code        TEXT    NOT NULL UNIQUE,
+  customer_id UUID    REFERENCES customers(id) ON DELETE CASCADE,
+  agent_id    UUID    REFERENCES agents(id)   ON DELETE CASCADE,
+  discount_type TEXT  DEFAULT 'percentage',
+  discount_value NUMERIC(5,2) DEFAULT 0,
+  usage_limit INTEGER DEFAULT 0,
+  used_count  INTEGER DEFAULT 0,
+  is_active   BOOLEAN DEFAULT TRUE,
+  expires_at  TIMESTAMPTZ,
+  created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS referral_usages (         -- [TAMBAH — phantom saat ini]
+  id             UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
+  referral_code_id UUID  NOT NULL REFERENCES referral_codes(id) ON DELETE CASCADE,
+  booking_id     UUID    REFERENCES bookings(id) ON DELETE SET NULL,
+  customer_id    UUID    REFERENCES customers(id) ON DELETE CASCADE,
+  discount_given NUMERIC(15,2) DEFAULT 0,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+```
+
+
+---
+
+### 24.12 — TABEL DEPRECATED ⚠️
+
+> Tabel-tabel berikut kemungkinan besar tidak aktif dipakai atau sudah digantikan oleh tabel/mekanisme lain.
+> **Jangan di-DROP** sampai ada konfirmasi eksplisit. Tandai dengan komentar di schema.
+
+| Tabel | Alasan Deprecated | Pengganti |
+|---|---|---|
+| `packages.airline` (kolom) | Teks bebas, digantikan `airline_id` FK | `airlines` + `packages.airline_id` |
+| `packages.hotel_mecca` (kolom) | Teks bebas, digantikan FK per departure | `hotels` + `departures.hotel_makkah_id` |
+| `packages.hotel_medina` (kolom) | ditto | `hotels` + `departures.hotel_madinah_id` |
+| `manasik_attendance` | Hanya 6 kolom, duplikat dengan `attendance` | Pakai `attendance` (10 kolom, lebih lengkap) |
+| `dashboard_access_config` | Digantikan oleh `permissions_list` + `role_permissions` | `role_permissions` |
+| `dashboard_access_audit_log` | Duplikat, ada 2 kali di 01_schema.sql (line 2324 & 4170) | `rbac_audit_trail` |
+| `financial_summary` | Digantikan `departure_financial_summary` (lebih lengkap) | `departure_financial_summary` |
+| `transactions` (di 4296) | Schema lama, kini ada `journal_entries` + `journal_entry_lines` | `journal_entries` |
+| `expenses` (di 4348) | Schema lama, kini ada `departure_expenses` | `departure_expenses` |
+| `equipment` (di 4522) | Lama, digantikan `equipment_items` + `equipment_variants` | `equipment_items` |
+| `booking_seat_locks` | Seat locking tidak dipakai di wizard | — |
+| `booking_installment_schedules` | Cicilan tidak ada UI | — |
+| `scheduled_reports` | Laporan terjadwal tidak ada UI aktif | — |
+| `invoice_templates` | Template invoice tidak dipakai (PDF di-generate langsung jsPDF) | — |
+| `trip_timeline_items` | Duplikat dengan `trip_timeline_entries` | `trip_timeline_entries` |
+| `job_applications` | Digantikan `job_applicants` (29_sdm_contracts) | `job_applicants` |
+| `recruitment_stages` | Tidak ada UI dan tidak diquery | — |
+| `general_ledger` | Modul GL belum implementasi, ada `journal_entries` | `journal_entries` |
+| `savings_accounts` | Frontend tidak pakai, pakai `savings_plans` | `savings_plans` |
+| `wa_chatbot_conversation_history` | WA chatbot tidak dihubungkan ke UI | — |
+| `web_vitals_metrics` | Monitoring frontend tidak aktif | — |
+| `rate_limits` | Tidak ada UI atau API endpoint | — |
+| `siskohat_sync_logs` | Modul SISKOHAT belum implementasi | — |
+| `store_carts` | Checkout store belum implementasi | — |
+| `store_order_counters` | Internal counter, tidak diquery | — |
+| `payment_deadline_reminders` | Hanya insert-only dari trigger, tidak ada UI baca | — |
+| `employee_onboarding_tasks` | Onboarding UI belum dibuat | — |
+| `onboarding_templates` + `onboarding_template_items` | ditto | — |
+| `training_quizzes` | Quiz training tidak ada UI | — |
+| `agent_training_progress` | Training agen tidak ada UI | — |
+| `position_training_curricula` | ditto | — |
+| `training_notification_log` + `training_notification_settings` | Training notif tidak ada UI | — |
+| `dashboard_stats` | Materialized snapshot, ada query langsung | — |
+| `approval_configs` | Approval workflow tidak ada UI end-to-end | — |
+| `approval_requests` + `approval_actions` | ditto | — |
+| `sales_targets` | Target sales tidak ada tampilan UI aktif | — |
+| `agent_commission_tiers` | Tier config ada (`agent_tier_config`), tabel ini duplikat | `agent_tier_config` |
+| `baggage_reference_items` | Tidak ada halaman bagasi aktif | `baggage_policies` |
+| `webhook_configs` + `webhook_logs` | Webhook belum diimplementasi | — |
+| `departure_waiting_list` | Waiting list tidak ada UI | — |
+| `doc_deadline_reminder_log` | Insert-only dari trigger | — |
+
+---
+
+### 24.13 — INDEX GLOBAL PRIORITAS TINGGI
+
+```sql
+-- Bookings: query utama di admin
+CREATE INDEX IF NOT EXISTS idx_bookings_created_at    ON bookings(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_bookings_branch_id     ON bookings(branch_id);
+CREATE INDEX IF NOT EXISTS idx_bookings_total_pax     ON bookings(total_pax);
+
+-- Departures: filter & join
+CREATE INDEX IF NOT EXISTS idx_departures_hotel_makkah   ON departures(hotel_makkah_id);
+CREATE INDEX IF NOT EXISTS idx_departures_hotel_madinah  ON departures(hotel_madinah_id);
+CREATE INDEX IF NOT EXISTS idx_departures_departure_airport ON departures(departure_airport_id);
+CREATE INDEX IF NOT EXISTS idx_departures_arrival_airport   ON departures(arrival_airport_id);
+
+-- Payments: laporan keuangan
+CREATE INDEX IF NOT EXISTS idx_payments_created_at    ON payments(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_payments_payment_method ON payments(payment_method);
+
+-- Customers: search
+CREATE INDEX IF NOT EXISTS idx_customers_full_name    ON customers(full_name text_pattern_ops);
+CREATE INDEX IF NOT EXISTS idx_customers_email        ON customers(email);
+CREATE INDEX IF NOT EXISTS idx_customers_passport     ON customers(passport_number);
+
+-- Finance: jurnal
+CREATE INDEX IF NOT EXISTS idx_je_status             ON journal_entries(status);
+CREATE INDEX IF NOT EXISTS idx_je_ref_id             ON journal_entries(ref_id);
+
+-- HR: payroll
+CREATE INDEX IF NOT EXISTS idx_pr_payment_date       ON payroll_records(payment_date);
+
+-- Guide: real-time
+CREATE INDEX IF NOT EXISTS idx_gb_created_at         ON guide_broadcasts(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_gl_recorded_at        ON guide_locations(recorded_at DESC);
+
+-- Store
+CREATE INDEX IF NOT EXISTS idx_so_order_number       ON store_orders(order_number);
+CREATE INDEX IF NOT EXISTS idx_so_created_at         ON store_orders(created_at DESC);
+
+-- Audit
+CREATE INDEX IF NOT EXISTS idx_dal_created_at        ON document_audit_logs(created_at DESC);
+```
+
+---
+
+### 24.14 — VIEW ALIAS UNTUK FIX BUG TANPA UBAH KODE
+
+> Dibuat sebagai bridge agar kode yang pakai nama tabel lama tidak rusak.
+
+```sql
+-- Fix BUG-03: savings_payments → savings_deposits
+CREATE OR REPLACE VIEW savings_payments AS
+  SELECT * FROM savings_deposits;
+
+-- Fix BUG-05: attendance_records → attendance
+CREATE OR REPLACE VIEW attendance_records AS
+  SELECT * FROM attendance;
+
+-- Fix BUG-08: audit_logs → document_audit_logs
+CREATE OR REPLACE VIEW audit_logs AS
+  SELECT
+    id, 'document' AS log_type, event_type AS action,
+    customer_name AS actor_name, booking_id,
+    customer_id, doc_type AS resource_type, created_at
+  FROM document_audit_logs
+  UNION ALL
+  SELECT
+    id, 'rbac' AS log_type, action,
+    changed_by::text AS actor_name, NULL AS booking_id,
+    NULL AS customer_id, module_key AS resource_type, changed_at AS created_at
+  FROM dashboard_access_audit_log;
+
+-- Fix BUG-02: Kolom harga di departures — harus diisi via migration, bukan view
+-- Karena INSERT melalui DepartureForm, VIEW tidak cukup — perlu ALTER TABLE
+```
+
+---
+
+### 24.15 — MIGRATION BARU YANG DIBUTUHKAN
+
+Berdasarkan seluruh analisis §17–§24, berikut urutan migration yang harus dibuat:
+
+```
+087_fix_missing_columns.sql      ← departures: hotel/airport FKs, flight_number, price_double/triple/quad
+088_bookings_missing_columns.sql ← bookings: branch_id, sales_id, base_price, adult/child/infant counts
+089_customers_extra_fields.sql   ← customers: blood_type, emergency_contact, mother/father_name, mahram
+090_agents_verification.sql      ← agents: ktp_number, ktp_url, npwp, bank fields
+091_cash_transactions.sql        ← Buat tabel cash_transactions
+092_alias_views.sql              ← View: savings_payments, attendance_records, audit_logs
+093_loyalty_referral.sql         ← Buat tabel loyalty_rewards, loyalty_transactions
+094_agent_wallets.sql            ← Buat tabel agent_wallets, agent_wallet_transactions
+095_jamaah_qr_referral.sql       ← Buat tabel jamaah_qr_codes, referral_codes, referral_usages
+096_airports_table.sql           ← Buat tabel airports (lookup bandara)
+097_passenger_type_normalize.sql ← ALTER CHECK constraint atau fungsi normalisasi passenger_type
+```
+
+
+---
+
+### 24.16 — RINGKASAN STATISTIK SCHEMA FINAL
+
+```
+Total tabel aktif (dipakai kode)  : ~95 tabel
+Total tabel deprecated             : ~40 tabel
+Total tabel baru yang harus dibuat : 10 tabel (lihat §24.15)
+Total kolom missing dari DB        : 47 kolom (lihat §17)
+Total view alias yang dibutuhkan   : 3 view (lihat §24.14)
+Total migration baru yang dibutuhkan: 11 file SQL
+```
+
+#### Daftar Lengkap Tabel per Domain
+
+| # | Domain | Tabel |
+|---|---|---|
+| 1 | Auth/User | `auth.users`, `profiles`, `user_roles`, `role_permissions`, `permissions_list` |
+| 2 | Organisasi | `branches`, `employees`, `agents`, `agent_invitation_tokens`, `agent_tier_config` |
+| 3 | Lookup | `airlines`, `hotels`, `airports`★, `vendors` |
+| 4 | Paket | `packages`, `media_gallery`, `banners`, `coupons`, `cancellation_rules` |
+| 5 | Keberangkatan | `departures`, `departure_muthawifs`, `departure_checklists`, `departure_waiting_list` |
+| 6 | Booking | `bookings`, `booking_passengers`, `booking_feedback`, `booking_departure_checklists`, `booking_document_logs` |
+| 7 | Pembayaran | `payments`, `virtual_accounts`, `payment_page_tokens`, `bank_accounts` |
+| 8 | Customer | `customers`, `customer_mahrams`, `customer_accounts`, `customer_notifications` |
+| 9 | Keuangan | `coa_categories`, `departure_cost_items`, `departure_expenses`, `departure_other_revenues`, `departure_financial_summary`, `departure_budgets`, `journal_entries`, `journal_entry_lines`, `finance_budgets`, `bank_reconciliations`, `cash_transactions`★ |
+| 10 | SDM/HR | `employees`, `payroll_records`, `payroll_components`, `employee_payroll_components`, `payroll_slips`, `leave_requests`, `leave_quotas`, `disciplinary_records`, `disciplinary_letters`, `career_history`, `performance_reviews`, `employee_contracts`, `job_postings`, `job_applicants` |
+| 11 | Perlengkapan | `equipment_items`, `equipment_variants`, `equipment_stock_history`, `equipment_stock_opname`, `equipment_distributions`, `package_type_equipment` |
+| 12 | Kamar | `room_assignments`, `room_occupants`, `room_group_audit`, `hotel_contracts`, `hotel_vouchers` |
+| 13 | Tabungan | `savings_plans`, `savings_deposits` |
+| 14 | Panduan Tour | `guide_channels`, `guide_broadcasts`, `guide_broadcast_reads`, `guide_sessions`, `guide_session_attendance`, `guide_subgroups`, `guide_subgroup_members`, `guide_locations`, `guide_audio_sessions` |
+| 15 | Portal Jamaah | `jamaah_checklist`, `jamaah_ibadah_targets`, `jamaah_ibadah_logs`, `jamaah_jurnal`, `jamaah_doa_sessions`, `jamaah_badges`, `ibadah_progress` |
+| 16 | Notifikasi | `notifications`, `announcements`, `push_subscriptions`, `push_outbox`, `customer_notifications` |
+| 17 | WhatsApp | `whatsapp_config`, `whatsapp_templates`, `wa_template_broadcasts`, `wa_template_broadcast_recipients`, `wa_scheduled_broadcasts`, `wa_scheduled_broadcast_logs`, `wa_chatbot_keywords`, `wa_incoming_messages`, `wa_contacts`, `wa_bot_menu_items` |
+| 18 | CRM/Leads | `leads`, `agent_leads`, `discount_requests`, `chat_leads` |
+| 19 | Dokumen | `document_types`, `generated_documents`, `document_verify_tokens`, `document_audit_logs`, `document_numbering`, `customer_signatures` |
+| 20 | Visa/SOS | `visa_applications`, `visa_status_logs`, `sos_alerts`, `sos_escalation_log` |
+| 21 | Store | `store_categories`, `store_products`, `store_orders`, `store_order_items`, `store_shipments`, `store_product_reviews` |
+| 22 | Marketing | `marketing_campaigns`, `marketing_metrics`, `marketing_conversions` |
+| 23 | Setting | `app_settings`, `website_settings`, `cancellation_rule_audit_logs`, `media_gallery` |
+| 24 | Baru★ | `airports`, `cash_transactions`, `agent_wallets`, `agent_wallet_transactions`, `loyalty_rewards`, `loyalty_transactions`, `jamaah_qr_codes`, `referral_codes`, `referral_usages` |
+| 25 | Training | `training_modules`, `employee_training_progress` |
+| 26 | Approval | `approval_requests`, `approval_actions` (⚠️ no UI) |
+| 27 | Manasik | `manasik_schedules`, `attendance`, `manasik_attendance` (⚠️ deprecated) |
+
+★ = Tabel yang perlu dibuat (belum ada di DB)
+
