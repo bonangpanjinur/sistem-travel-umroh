@@ -141,12 +141,12 @@ sql/migrations/     — SQL migrations (001–061) canonical
 
 ## Akun Admin Default (Dev)
 
-Buat di startup — gunakan di halaman `/login`:
+Gunakan di halaman `/login` atau `/admin/login`:
 
 | Field | Value |
 |-------|-------|
-| Email | `admin@vinstour.com` |
-| Password | `Admin@Vinstour2024!` |
+| Email | `superadmin@vinstour.com` |
+| Password | `Admin@Vinstour2025` |
 | Role | `super_admin` |
 
 > **Ganti password** segera setelah login pertama di `/admin/users`.
