@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS package_types (
 
 CREATE INDEX IF NOT EXISTS idx_package_types_name ON package_types(name);
 
+DROP TRIGGER IF EXISTS set_package_types_updated_at ON package_types;
 CREATE TRIGGER set_package_types_updated_at
   BEFORE UPDATE ON package_types
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
@@ -69,6 +70,7 @@ CREATE TABLE IF NOT EXISTS equipment_items (
 CREATE INDEX IF NOT EXISTS idx_equipment_items_category  ON equipment_items(category);
 CREATE INDEX IF NOT EXISTS idx_equipment_items_is_active ON equipment_items(is_active);
 
+DROP TRIGGER IF EXISTS set_equipment_items_updated_at ON equipment_items;
 CREATE TRIGGER set_equipment_items_updated_at
   BEFORE UPDATE ON equipment_items
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
@@ -145,6 +147,7 @@ CREATE TABLE IF NOT EXISTS theme_presets (
 CREATE INDEX IF NOT EXISTS idx_theme_presets_slug       ON theme_presets(slug);
 CREATE INDEX IF NOT EXISTS idx_theme_presets_is_default ON theme_presets(is_default);
 
+DROP TRIGGER IF EXISTS set_theme_presets_updated_at ON theme_presets;
 CREATE TRIGGER set_theme_presets_updated_at
   BEFORE UPDATE ON theme_presets
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

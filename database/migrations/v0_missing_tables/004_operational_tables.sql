@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS bus_assignments (
 
 CREATE INDEX IF NOT EXISTS idx_bus_assignments_departure_id ON bus_assignments(departure_id);
 
+DROP TRIGGER IF EXISTS set_bus_assignments_updated_at ON bus_assignments;
 CREATE TRIGGER set_bus_assignments_updated_at
   BEFORE UPDATE ON bus_assignments
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
@@ -61,6 +62,7 @@ CREATE TABLE IF NOT EXISTS itineraries (
 CREATE INDEX IF NOT EXISTS idx_itineraries_departure_id ON itineraries(departure_id);
 CREATE INDEX IF NOT EXISTS idx_itineraries_day          ON itineraries(departure_id, day_number);
 
+DROP TRIGGER IF EXISTS set_itineraries_updated_at ON itineraries;
 CREATE TRIGGER set_itineraries_updated_at
   BEFORE UPDATE ON itineraries
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
@@ -98,6 +100,7 @@ CREATE TABLE IF NOT EXISTS manifests (
 
 CREATE INDEX IF NOT EXISTS idx_manifests_departure_id ON manifests(departure_id);
 
+DROP TRIGGER IF EXISTS set_manifests_updated_at ON manifests;
 CREATE TRIGGER set_manifests_updated_at
   BEFORE UPDATE ON manifests
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
@@ -132,6 +135,7 @@ CREATE TABLE IF NOT EXISTS luggage (
 CREATE INDEX IF NOT EXISTS idx_luggage_departure_id ON luggage(departure_id);
 CREATE INDEX IF NOT EXISTS idx_luggage_booking_id   ON luggage(booking_id);
 
+DROP TRIGGER IF EXISTS set_luggage_updated_at ON luggage;
 CREATE TRIGGER set_luggage_updated_at
   BEFORE UPDATE ON luggage
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
@@ -168,6 +172,7 @@ CREATE TABLE IF NOT EXISTS vendor_costs (
 CREATE INDEX IF NOT EXISTS idx_vendor_costs_departure_id ON vendor_costs(departure_id);
 CREATE INDEX IF NOT EXISTS idx_vendor_costs_vendor_id    ON vendor_costs(vendor_id);
 
+DROP TRIGGER IF EXISTS set_vendor_costs_updated_at ON vendor_costs;
 CREATE TRIGGER set_vendor_costs_updated_at
   BEFORE UPDATE ON vendor_costs
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
@@ -250,11 +255,21 @@ CREATE POLICY "Staff insert room audit"
 
 -- ── 8. SAVINGS_PAYMENTS ──────────────────────────────────────
 -- Rekaman setoran tabungan haji/umroh.
--- Trigger tr_apply_payment_to_schedule di patches mereferensikan tabel ini.
+--
+-- ⚠️ CATATAN DEPENDENCY KRITIS:
+-- Kolom schedule_id mereferensikan tabel savings_schedules.
+-- savings_schedules DIBUAT di v4_patches/20260513111158_6897f5ed.sql.
+-- v4_patches/20260513111158 juga membuat TRIGGER ON savings_payments.
+--
+-- Solusi: savings_payments dibuat di sini TANPA FK constraint ke savings_schedules.
+-- FK ditambahkan di: v0_missing_tables/005_post_v4patches.sql (setelah savings_schedules ada).
+--
+-- Urutan wajib:
+--   004 (file ini)  →  [v4_patches/20260513111158 membuat savings_schedules]  →  005 (tambah FK)
 CREATE TABLE IF NOT EXISTS savings_payments (
   id              UUID        NOT NULL DEFAULT uuid_generate_v4() PRIMARY KEY,
   savings_plan_id UUID        NOT NULL REFERENCES savings_plans(id) ON DELETE CASCADE,
-  schedule_id     UUID        REFERENCES savings_schedules(id) ON DELETE SET NULL,
+  schedule_id     UUID,                 -- FK ke savings_schedules ditambah di file 005 setelah tabel itu ada
   amount          NUMERIC     NOT NULL DEFAULT 0,
   payment_date    DATE        NOT NULL DEFAULT CURRENT_DATE,
   method          TEXT        NOT NULL DEFAULT 'transfer'
@@ -269,10 +284,11 @@ CREATE TABLE IF NOT EXISTS savings_payments (
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_savings_payments_plan_id    ON savings_payments(savings_plan_id);
+CREATE INDEX IF NOT EXISTS idx_savings_payments_plan_id     ON savings_payments(savings_plan_id);
 CREATE INDEX IF NOT EXISTS idx_savings_payments_schedule_id ON savings_payments(schedule_id);
-CREATE INDEX IF NOT EXISTS idx_savings_payments_date       ON savings_payments(payment_date DESC);
+CREATE INDEX IF NOT EXISTS idx_savings_payments_date        ON savings_payments(payment_date DESC);
 
+DROP TRIGGER IF EXISTS set_savings_payments_updated_at ON savings_payments;
 CREATE TRIGGER set_savings_payments_updated_at
   BEFORE UPDATE ON savings_payments
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

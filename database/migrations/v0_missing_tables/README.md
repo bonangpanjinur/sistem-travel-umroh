@@ -1,84 +1,131 @@
-# v0_missing_tables — Tabel yang Tidak Ada di Migration Manapun
+# v0_missing_tables — 22 Tabel yang Tidak Ada di Migration Asli
 
-## ⚠️ Konteks Penting
+## Konteks
 
-File-file di folder ini adalah **tabel yang ditemukan hilang** saat audit mendalam (Juni 2025).
-Tabel-tabel ini **direferensikan** di trigger, RLS policy, FK constraint, dan RPC function
-di seluruh 74 file migration yang ada — tetapi tidak pernah punya `CREATE TABLE` sendiri.
+Audit mendalam Juni 2025 menemukan **22 tabel** yang direferensikan FK, trigger, RLS policy,
+dan RPC function di seluruh 74 file migration — tetapi tidak punya `CREATE TABLE` mana pun.
 
-**Penyebab:** Tabel-tabel ini kemungkinan dibuat langsung via **Supabase Dashboard**
-(bukan via migration file) sehingga tidak pernah tercatat di codebase.
+**Penyebab:** Dibuat langsung via **Supabase Dashboard** (bukan via migration file).
 
-## Urutan Eksekusi
+---
 
-File harus dijalankan **setelah** `v1_foundation/fase0_foundation.sql` (karena
-perlu `profiles`, `customers`, `bookings`, `departures`, dll sudah ada), tapi
-**sebelum** `v2_sprint_phases/`, `v3_numbered_features/`, dan `v4_patches/`.
+## File dalam Folder Ini
+
+| File | Tabel | Jalankan Kapan |
+|---|---|---|
+| `001_core_business_tables.sql` | `airlines`, `payments`, `departure_hotels`, `loyalty_points`, `agent_commissions` | Setelah fase0_foundation |
+| `002_documents_and_access.sql` | `customer_documents`, `referral_codes`, `referral_usages`, `ticket_responses`, `audit_logs`, `user_permissions` | Setelah fase0_foundation |
+| `003_catalog_tables.sql` | `package_types`, `equipment_items`, `theme_presets` + seed data | Setelah fase0_foundation |
+| `004_operational_tables.sql` | `bus_assignments`, `itineraries`, `manifests`, `luggage`, `vendor_costs`, `jamaah_live_locations`, `room_assignment_audit`, `savings_payments` | Setelah fase0_foundation |
+| `005_post_v4patches.sql` | — (hanya ALTER TABLE, menambah FK constraint) | **SETELAH seluruh v4_patches** |
+
+---
+
+## Urutan Wajib
 
 ```
-v1_foundation/fase0_foundation.sql           ← jalankan dulu
-v0_missing_tables/001_core_business_tables.sql
-v0_missing_tables/002_documents_and_access.sql
-v0_missing_tables/003_catalog_tables.sql
-v0_missing_tables/004_operational_tables.sql
-v2_sprint_phases/fase16_new_tables.sql       ← baru lanjut ke sini
-...
+fase0_foundation.sql
+    ↓
+001 → 002 → 003 → 004   [Stage 2]
+    ↓
+consolidated_fase_11_15.sql
+    ↓
+v2/fase16 → fase29
+    ↓ [⚠️ KRITIS: sebelum fase30]
+v4_patches/20260531000000_fix_payment_deadline_reminders.sql
+    ↓
+v2/fase30 → fase32
+    ↓
+v3_numbered_features (063–store)
+    ↓
+v4_patches (semua, chronological, termasuk 20260513111158 yang membuat savings_schedules)
+    ↓
+005_post_v4patches.sql  ← savings_payments FK → savings_schedules
+    ↓
+patches/ (security)
+    ↓
+setup/ (Supabase only)
 ```
 
-## Isi File
+---
 
-### 001_core_business_tables.sql
-| Tabel | Deskripsi | Direferensikan Di |
-|---|---|---|
-| `airlines` | Katalog maskapai penerbangan | `departures` (FK), `manifests` |
-| `payments` | Rekaman pembayaran booking jamaah | fase23, fase24, fase25, v4_patches trigger |
-| `departure_hotels` | Assignment hotel per keberangkatan | 066b, delete_departure_safely |
-| `loyalty_points` | Poin & tier loyalitas pelanggan | jamaah_badges trigger, apply_tier_discount |
-| `agent_commissions` | Rekaman komisi agen per booking | v4_patches/20260511000842 trigger |
+## Dependency Antar File
 
-### 002_documents_and_access.sql
-| Tabel | Deskripsi | Direferensikan Di |
-|---|---|---|
-| `customer_documents` | Dokumen jamaah (paspor, KTP, visa, dll) | fase27 RLS, jamaah_badges trigger |
-| `referral_codes` | Kode referral agen/pengguna | patches/20260511040151, patches/20260511033505 |
-| `referral_usages` | Riwayat penggunaan kode referral | patches/20260511040151 |
-| `ticket_responses` | Balasan dalam tiket support | patches/20260511040151 |
-| `audit_logs` | Log audit aktivitas sistem | patches/20260511033505 |
-| `user_permissions` | Override permission per-user | setup/20260513121035 (Supabase Realtime) |
+```
+001: airlines (no dep)
+     payments      → bookings, profiles           [fase0 ✅]
+     departure_hotels → departures, hotels         [fase0 ✅]
+     loyalty_points   → customers                  [fase0 ✅]
+     agent_commissions → agents, bookings          [fase0 ✅]
 
-### 003_catalog_tables.sql
-| Tabel | Deskripsi | Direferensikan Di |
-|---|---|---|
-| `package_types` | Jenis paket (Economy/Standard/VIP/VVIP) | `package_type_equipment` FK, `package_hpp_templates` |
-| `equipment_items` | Katalog item perlengkapan ibadah | `equipment_distributions` FK, `package_type_equipment` FK |
-| `theme_presets` | Preset tema visual website | v4_patches/20260511053018 ALTER TABLE |
+002: customer_documents → customers, bookings, profiles   [fase0 ✅]
+     referral_codes     → agents, profiles                [fase0 ✅]
+     referral_usages    → referral_codes [002], bookings  [fase0 ✅]
+     ticket_responses   → support_tickets, profiles       [fase0 ✅]
+     audit_logs         → profiles                        [fase0 ✅]
+     user_permissions   → profiles                        [fase0 ✅]
 
-### 004_operational_tables.sql
-| Tabel | Deskripsi | Direferensikan Di |
-|---|---|---|
-| `bus_assignments` | Penugasan bus jamaah | delete_departure_safely |
-| `itineraries` | Jadwal perjalanan harian | delete_departure_safely |
-| `manifests` | Manifest penerbangan | delete_departure_safely |
-| `luggage` | Tracking bagasi jamaah | delete_departure_safely |
-| `vendor_costs` | Biaya vendor per keberangkatan | delete_departure_safely |
-| `jamaah_live_locations` | GPS tracking jamaah di lapangan | delete_departure_safely |
-| `room_assignment_audit` | Audit trail perubahan kamar | delete_departure_safely |
-| `savings_payments` | Setoran tabungan haji/umroh | v4_patches trigger (tr_apply_payment_to_schedule) |
+003: package_types  (no dep — seed: 4 tipe)
+     equipment_items (no dep — seed: 12 item)
+     theme_presets   (no dep — seed: 7 tema, kolom sudah include 20260511053018 ✅)
 
-## Catatan Skema
+004: bus_assignments → departures, vendors         [fase0 ✅]
+     itineraries     → departures                  [fase0 ✅]
+     manifests       → departures, airlines [001], profiles [fase0 ✅]
+     luggage         → departures, bookings, booking_passengers [fase0 ✅]
+     vendor_costs    → departures, vendors          [fase0 ✅]
+     jamaah_live_locations → departures, customers, profiles [fase0 ✅]
+     room_assignment_audit → departures, room_assignments, booking_passengers [fase0 ✅]
+     savings_payments → savings_plans [fase0 ✅]
+       schedule_id: UUID — TANPA FK (ditambah di 005 setelah savings_schedules ada)
 
-- Semua tabel menggunakan `uuid_generate_v4()` untuk PK — butuh ekstensi `uuid-ossp`
-- Semua tabel punya RLS policy — **hanya untuk Supabase** (gunakan app-level auth di Neon)
-- `payments.transaction_id` dan `payments.payment_type` sudah di-include dalam CREATE TABLE
-  (tidak perlu jalankan fase23 ALTER TABLE untuk tabel baru)
-- `theme_presets` sudah include semua kolom yang ditambahkan oleh `v4_patches/20260511053018`
-  (tidak perlu jalankan ALTER TABLE lagi jika pakai file ini)
-- `equipment_items` adalah katalog item; `equipment` (di fase16) adalah inventaris fisik stok
+005: ALTER savings_payments ADD CONSTRAINT FK → savings_schedules
+     ⚠️ savings_schedules dibuat di v4_patches/20260513111158
+     ⚠️ Wajib run SETELAH patch itu
+```
 
-## Seed Data Included
+---
 
-| Tabel | Jumlah Seed |
-|---|---|
-| `package_types` | 4 rows (economy, standard, vip, vvip) |
-| `equipment_items` | 12 rows (koper, buku, pakaian, aksesoris) |
-| `theme_presets` | 7 rows (default blue, emerald, royal, golden, midnight, rose, slate) |
+## Mengapa savings_payments Dipisah?
+
+`savings_payments.schedule_id` butuh FK ke `savings_schedules`.
+Tapi `savings_schedules` BARU DIBUAT oleh `v4_patches/20260513111158_6897f5ed.sql`.
+
+Dan patch itu JUGA membuat `TRIGGER ON savings_payments` — jadi `savings_payments`
+harus SUDAH ADA sebelum patch itu dijalankan.
+
+**Chicken-and-egg yang diselesaikan dengan:**
+1. Buat `savings_payments` di `004` tanpa FK ke `savings_schedules`
+2. v4_patches/20260513111158 membuat `savings_schedules` + trigger ON savings_payments
+3. Tambahkan FK di `005` setelah keduanya sudah ada
+
+---
+
+## Sifat Idempotent
+
+Semua file menggunakan:
+- `CREATE TABLE IF NOT EXISTS` — aman jika tabel sudah ada
+- `DROP TRIGGER IF EXISTS X ON table; CREATE TRIGGER X ...` — aman jika trigger sudah ada
+- `CREATE INDEX IF NOT EXISTS` — aman jika index sudah ada
+- `INSERT ... ON CONFLICT DO NOTHING` — aman jika seed data sudah ada
+- `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` — (fase23, v4/20260511053018) aman ✅
+
+---
+
+## Untuk Database Supabase yang Sudah Berjalan
+
+Cek dulu apakah tabel sudah ada:
+
+```sql
+SELECT COUNT(*) FROM information_schema.tables
+WHERE table_schema = 'public'
+  AND table_name IN (
+    'payments','airlines','departure_hotels','loyalty_points','agent_commissions',
+    'customer_documents','referral_codes','referral_usages','ticket_responses',
+    'audit_logs','user_permissions','package_types','equipment_items','theme_presets',
+    'bus_assignments','itineraries','manifests','luggage','vendor_costs',
+    'jamaah_live_locations','room_assignment_audit','savings_payments'
+  );
+-- Hasil 22 → SKIP folder ini (tabel sudah ada via Dashboard)
+-- Hasil < 22 → jalankan file yang dibutuhkan saja
+```

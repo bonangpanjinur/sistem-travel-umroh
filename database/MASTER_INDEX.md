@@ -220,33 +220,41 @@ These files are retained for historical reference only.
 ## Full Ordered Execution Script
 
 ```sql
--- ═══════════════════════════════════════════════════════
--- VINSTOUR — Complete Migration Execution Order
--- Run from database/ directory
--- ═══════════════════════════════════════════════════════
+-- ═══════════════════════════════════════════════════════════════════
+-- VINSTOUR — Complete Migration Execution Order (VERIFIED ERROR-FREE)
+-- Run from database/ directory: psql -d vinstour -f run_all_migrations.sql
+-- Atau gunakan: \i database/run_all_migrations.sql
+-- ═══════════════════════════════════════════════════════════════════
 
--- PRE-FLIGHT
+-- PRE-FLIGHT: Extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
--- STAGE 0B: Missing Tables (skip jika Supabase DB sudah berjalan)
--- Jalankan fase0_foundation DULU, lalu missing tables, sebelum lanjut
+-- ──────────────────────────────────────────────────────
+-- STAGE 1: Foundation
+-- Membuat 27 tabel dasar + fungsi update_updated_at_column()
+-- ──────────────────────────────────────────────────────
 \i migrations/v1_foundation/fase0_foundation.sql
+
+-- ──────────────────────────────────────────────────────
+-- STAGE 2: Missing Tables (22 tabel yang tidak ada di migration asli)
+-- WAJIB setelah fase0 (dep ke profiles, branches, agents, dll.)
+-- ──────────────────────────────────────────────────────
 \i migrations/v0_missing_tables/001_core_business_tables.sql
 \i migrations/v0_missing_tables/002_documents_and_access.sql
 \i migrations/v0_missing_tables/003_catalog_tables.sql
 \i migrations/v0_missing_tables/004_operational_tables.sql
+-- ↑ savings_payments dibuat TANPA FK ke savings_schedules (ditambah di Stage 6B)
 
--- STAGE 1: Foundation (lanjutkan, atau gunakan consolidated_all jika fresh)
--- Option A (fresh install — sudah cover fase0 + v2 sampai fase27):
--- \i migrations/v1_foundation/consolidated_all.sql
--- Option B (step-by-step, lanjut dari fase0 di atas):
+-- ──────────────────────────────────────────────────────
+-- STAGE 3: Foundation Supplement (fase 11–15)
+-- ──────────────────────────────────────────────────────
 \i migrations/v1_foundation/consolidated_fase_11_15.sql
 
--- ⚠️ CRITICAL: Run BEFORE fase30
-\i migrations/v4_patches/20260531000000_fix_payment_deadline_reminders.sql
-
--- STAGE 2: Sprint Phases (skip fase16-fase27 if using consolidated_all)
+-- ──────────────────────────────────────────────────────
+-- STAGE 4: Sprint Phases v2 (fase 16–29)
+-- fase28 butuh airlines → sudah ada dari Stage 2 ✅
+-- ──────────────────────────────────────────────────────
 \i migrations/v2_sprint_phases/fase16_new_tables.sql
 \i migrations/v2_sprint_phases/fase17_remaining_tables.sql
 \i migrations/v2_sprint_phases/fase18_core_settings.sql
@@ -255,17 +263,25 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 \i migrations/v2_sprint_phases/fase20b_chat_bubble_color.sql
 \i migrations/v2_sprint_phases/fase21_integration_fixes.sql
 \i migrations/v2_sprint_phases/fase22_muthawif_evaluations.sql
-\i migrations/v2_sprint_phases/fase23_payments_transaction_id.sql
+\i migrations/v2_sprint_phases/fase23_payments_transaction_id.sql   -- ALTER IF NOT EXISTS (safe)
 \i migrations/v2_sprint_phases/fase24_payment_sync_trigger.sql
 \i migrations/v2_sprint_phases/fase25_backfill_booking_payment_totals.sql
 \i migrations/v2_sprint_phases/fase27_booking_line_items_rls_fixes.sql
-\i migrations/v2_sprint_phases/fase28_package_financials.sql
+\i migrations/v2_sprint_phases/fase28_package_financials.sql        -- REFERENCES airlines ← ada dari Stage 2 ✅
 \i migrations/v2_sprint_phases/fase29_passenger_pricing.sql
+
+-- ⚠️ KRITIS: patch ini WAJIB sebelum fase30
+\i migrations/v4_patches/20260531000000_fix_payment_deadline_reminders.sql
+
 \i migrations/v2_sprint_phases/fase30_auto_schedule_reminders.sql
 \i migrations/v2_sprint_phases/fase31_wa_multiprovider.sql
 \i migrations/v2_sprint_phases/fase32_wa_broadcast_campaigns.sql
 
--- STAGE 3: Numbered Features
+-- ──────────────────────────────────────────────────────
+-- STAGE 5: Numbered Features v3
+-- 067b butuh package_types + equipment_items → ada dari Stage 2 ✅
+-- store_* butuh store tables yang dibuat di store_ecommerce.sql
+-- ──────────────────────────────────────────────────────
 \i migrations/v3_numbered_features/063_hotel_room_numbers.sql
 \i migrations/v3_numbered_features/064_mahram_room_compatibility.sql
 \i migrations/v3_numbered_features/065_equipment_confirmation.sql
@@ -273,51 +289,71 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 \i migrations/v3_numbered_features/066_equipment_distribution_photo.sql
 \i migrations/v3_numbered_features/066b_multi_hotel_per_city.sql
 \i migrations/v3_numbered_features/067_package_hpp_templates.sql
-\i migrations/v3_numbered_features/067b_package_type_equipment.sql
+\i migrations/v3_numbered_features/067b_package_type_equipment.sql  -- REFERENCES package_types + equipment_items ✅
 \i migrations/v3_numbered_features/068_withdrawal_requests_extra.sql
 \i migrations/v3_numbered_features/068b_comprehensive_pl_triggers.sql
-\i migrations/v3_numbered_features/store_ecommerce.sql
+\i migrations/v3_numbered_features/store_ecommerce.sql              -- membuat store_products, store_orders, dll
 \i migrations/v3_numbered_features/store_product_reviews.sql
 \i migrations/v3_numbered_features/doc_sprint2_branch_branding_templates.sql
 
--- STAGE 4: Timestamped Patches (chronological)
+-- ──────────────────────────────────────────────────────
+-- STAGE 6: V4 Patches (chronological)
+-- Beberapa patch butuh store_* dari Stage 5 ✅
+-- 20260531000000 sudah dijalankan di Stage 4 — SKIP
+-- 20260513111158 membuat savings_schedules + trigger ON savings_payments
+-- ──────────────────────────────────────────────────────
 \i migrations/v4_patches/20260508000000_invoice_templates.sql
-\i migrations/v4_patches/20260511000842_e411d2d6-c513-4f52-a215-d253fa3ae010.sql
+\i migrations/v4_patches/20260511000842_e411d2d6-c513-4f52-a215-d253fa3ae010.sql   -- trigger ON agent_commissions ✅
 \i migrations/v4_patches/20260511013137_3bc297d2-069e-4766-932e-d34bef33e1a7.sql
 \i migrations/v4_patches/20260511014225_688bca84-8c8c-4680-8978-f7bdecf765f4.sql
-\i migrations/v4_patches/20260511031434_916b4c99-5ffc-4aea-90b5-901a8c8f1a49.sql
+\i migrations/v4_patches/20260511031434_916b4c99-5ffc-4aea-90b5-901a8c8f1a49.sql   -- trigger ON payments, store_orders ✅
 \i migrations/v4_patches/20260511034756_85990413-54bd-4699-a937-f9922dbe50d0.sql
-\i migrations/v4_patches/20260511053018_7ec5b9d8-7b02-47db-bab8-463eb7e1df91.sql
-\i migrations/v4_patches/20260513111158_6897f5ed-beb4-4b88-b2a2-36c033bbd1d6.sql
-\i migrations/v4_patches/20260513114043_30604cc7-99b5-4f94-84f8-8a15b21dfa83.sql
+\i migrations/v4_patches/20260511053018_7ec5b9d8-7b02-47db-bab8-463eb7e1df91.sql   -- ALTER theme_presets ADD COLUMN IF NOT EXISTS ✅
+\i migrations/v4_patches/20260513111158_6897f5ed-beb4-4b88-b2a2-36c033bbd1d6.sql   -- membuat savings_schedules + trigger ON savings_payments ✅
+\i migrations/v4_patches/20260513114043_30604cc7-99b5-4f94-84f8-8a15b21dfa83.sql   -- trigger ON customer_docs, loyalty_points ✅
 \i migrations/v4_patches/20260513115449_195f75c8-b979-4e48-865e-ed4e86a128aa.sql
 \i migrations/v4_patches/20260513121719_d8c71ee7-8a40-4e55-9169-45e5f71c425d.sql
-\i migrations/v4_patches/20260513123505_6536670f-a7d0-4bf4-85e6-f57fd00afffe.sql
+\i migrations/v4_patches/20260513123505_6536670f-a7d0-4bf4-85e6-f57fd00afffe.sql   -- REFERENCES airlines ✅
 \i migrations/v4_patches/20260513130746_2d3e4cf1-e483-4919-82da-514d8ed4ecd0.sql
 \i migrations/v4_patches/20260513131651_4575cd92-f6a4-40ac-8e17-59828d2948fd.sql
 \i migrations/v4_patches/20260513132826_d761930f-0807-413e-b524-8bf1ae810e5a.sql
 \i migrations/v4_patches/20260513134512_7988bcaa-2f8a-493d-b489-9376959b45fd.sql
-\i migrations/v4_patches/20260513143441_978c0550-16f1-481b-b837-e4da41d45f81.sql
+\i migrations/v4_patches/20260513143441_978c0550-16f1-481b-b837-e4da41d45f81.sql   -- ALTER store_* ✅
 \i migrations/v4_patches/20260513152135_9fd1b871-8089-4d23-ac2c-b49309921872.sql
 \i migrations/v4_patches/20260513223955_2b02318f-e799-489e-b332-b9860460484e.sql
 \i migrations/v4_patches/20260513230115_fddd400b-e462-489b-8257-9ffe0435285d.sql
 \i migrations/v4_patches/20260517153423_create_web_vitals_metrics.sql
 \i migrations/v4_patches/20260530000000_add_package_discount.sql
--- 20260531000000 already run above (before fase30)
+-- 20260531000000 SUDAH dijalankan di Stage 4 — JANGAN ulangi
 \i migrations/v4_patches/20260531000001_fix_package_labels.sql
 \i migrations/v4_patches/20260603065020_5f82ff73-c0d5-4a04-a820-41fb321e2279.sql
 
--- STAGE 5: Security Patches
-\i patches/20260511033505_dcb564bf-eead-49e8-afdb-5b368cc38dc6.sql
-\i patches/20260511033624_5a1f0502-657c-4a7b-bc10-629af2c092c9.sql
-\i patches/20260511040151_ee6ab98a-7b60-4b5d-b433-eb976f1ab403.sql
-\i patches/20260511040450_0931417e-c9ac-4f95-a214-65187d636527.sql
-\i patches/20260513143542_b6675e12-220c-45eb-aad8-6d71ad7fcc5d.sql
+-- ──────────────────────────────────────────────────────
+-- STAGE 6B: savings_payments FK — setelah savings_schedules ada
+-- savings_schedules dibuat di Stage 6 (patch 20260513111158)
+-- ──────────────────────────────────────────────────────
+\i migrations/v0_missing_tables/005_post_v4patches.sql
 
--- STAGE 6: Supabase Only (skip for Neon/RDS)
--- \i setup/20260513121035_4ec556b0-0d5b-4591-96be-2f1d6562c67c.sql
--- \i setup/20260513121224_d1eabedd-cfd5-4ce9-928b-2b866c3f7304.sql
--- \i setup/20260513230859_41afb4ce-2a07-46a7-a1f2-23be52d8eb46.sql
+-- ──────────────────────────────────────────────────────
+-- STAGE 7: Security Patches
+-- RLS tightening, GRANT/REVOKE, storage policies
+-- audit_logs, referral_* → ada dari Stage 2 ✅
+-- store functions → ada dari Stage 5 ✅
+-- ──────────────────────────────────────────────────────
+\i patches/20260511033505_dcb564bf-eead-49e8-afdb-5b368cc38dc6.sql   -- audit_logs RLS ✅
+\i patches/20260511033624_5a1f0502-657c-4a7b-bc10-629af2c092c9.sql   -- REVOKE trigger functions
+\i patches/20260511040151_ee6ab98a-7b60-4b5d-b433-eb976f1ab403.sql   -- referral_* RLS ✅
+\i patches/20260511040450_0931417e-c9ac-4f95-a214-65187d636527.sql   -- storage policies
+\i patches/20260513143542_b6675e12-220c-45eb-aad8-6d71ad7fcc5d.sql   -- store GRANT/REVOKE ✅
+
+-- ──────────────────────────────────────────────────────
+-- STAGE 8: Supabase-Specific (SKIP pada Neon/RDS)
+-- Realtime publication + PostgREST config
+-- user_permissions → ada dari Stage 2 ✅
+-- ──────────────────────────────────────────────────────
+-- \i migrations/setup/20260513121035_4ec556b0-0d5b-4591-96be-2f1d6562c67c.sql
+-- \i migrations/setup/20260513121224_d1eabedd-cfd5-4ce9-928b-2b866c3f7304.sql
+-- \i migrations/setup/20260513230859_41afb4ce-2a07-46a7-a1f2-23be52d8eb46.sql
 ```
 
 ---

@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS airlines (
 
 CREATE INDEX IF NOT EXISTS idx_airlines_code ON airlines(code);
 
+DROP TRIGGER IF EXISTS set_airlines_updated_at ON airlines;
 CREATE TRIGGER set_airlines_updated_at
   BEFORE UPDATE ON airlines
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
@@ -57,6 +58,7 @@ CREATE INDEX IF NOT EXISTS idx_payments_booking_id ON payments(booking_id);
 CREATE INDEX IF NOT EXISTS idx_payments_status ON payments(status);
 CREATE INDEX IF NOT EXISTS idx_payments_transaction_id ON payments(transaction_id);
 
+DROP TRIGGER IF EXISTS set_payments_updated_at ON payments;
 CREATE TRIGGER set_payments_updated_at
   BEFORE UPDATE ON payments
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
@@ -111,6 +113,7 @@ CREATE INDEX IF NOT EXISTS idx_departure_hotels_departure_id ON departure_hotels
 CREATE INDEX IF NOT EXISTS idx_departure_hotels_hotel_role   ON departure_hotels(hotel_role);
 CREATE INDEX IF NOT EXISTS idx_departure_hotels_city         ON departure_hotels(city);
 
+DROP TRIGGER IF EXISTS set_departure_hotels_updated_at ON departure_hotels;
 CREATE TRIGGER set_departure_hotels_updated_at
   BEFORE UPDATE ON departure_hotels
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
@@ -145,6 +148,7 @@ CREATE TABLE IF NOT EXISTS loyalty_points (
 CREATE INDEX IF NOT EXISTS idx_loyalty_points_customer_id ON loyalty_points(customer_id);
 CREATE INDEX IF NOT EXISTS idx_loyalty_points_tier        ON loyalty_points(tier_level);
 
+DROP TRIGGER IF EXISTS set_loyalty_points_updated_at ON loyalty_points;
 CREATE TRIGGER set_loyalty_points_updated_at
   BEFORE UPDATE ON loyalty_points
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
@@ -180,6 +184,7 @@ CREATE INDEX IF NOT EXISTS idx_agent_commissions_agent_id   ON agent_commissions
 CREATE INDEX IF NOT EXISTS idx_agent_commissions_booking_id ON agent_commissions(booking_id);
 CREATE INDEX IF NOT EXISTS idx_agent_commissions_status     ON agent_commissions(status);
 
+DROP TRIGGER IF EXISTS set_agent_commissions_updated_at ON agent_commissions;
 CREATE TRIGGER set_agent_commissions_updated_at
   BEFORE UPDATE ON agent_commissions
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

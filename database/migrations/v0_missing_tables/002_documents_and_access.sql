@@ -30,6 +30,7 @@ CREATE INDEX IF NOT EXISTS idx_customer_docs_customer_id ON customer_documents(c
 CREATE INDEX IF NOT EXISTS idx_customer_docs_booking_id  ON customer_documents(booking_id);
 CREATE INDEX IF NOT EXISTS idx_customer_docs_status      ON customer_documents(status);
 
+DROP TRIGGER IF EXISTS set_customer_documents_updated_at ON customer_documents;
 CREATE TRIGGER set_customer_documents_updated_at
   BEFORE UPDATE ON customer_documents
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
@@ -87,6 +88,7 @@ CREATE INDEX IF NOT EXISTS idx_referral_codes_code      ON referral_codes(code);
 CREATE INDEX IF NOT EXISTS idx_referral_codes_agent_id  ON referral_codes(agent_id);
 CREATE INDEX IF NOT EXISTS idx_referral_codes_is_active ON referral_codes(is_active);
 
+DROP TRIGGER IF EXISTS set_referral_codes_updated_at ON referral_codes;
 CREATE TRIGGER set_referral_codes_updated_at
   BEFORE UPDATE ON referral_codes
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
@@ -218,6 +220,7 @@ CREATE TABLE IF NOT EXISTS user_permissions (
 CREATE INDEX IF NOT EXISTS idx_user_permissions_user_id    ON user_permissions(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_permissions_permission ON user_permissions(permission);
 
+DROP TRIGGER IF EXISTS set_user_permissions_updated_at ON user_permissions;
 CREATE TRIGGER set_user_permissions_updated_at
   BEFORE UPDATE ON user_permissions
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
