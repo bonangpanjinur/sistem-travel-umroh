@@ -1,0 +1,300 @@
+Saya sedang membangun ulang database project travel umroh.
+
+Repository ini sudah memiliki database lama yang besar dengan banyak tabel seperti:
+
+* user_roles
+* user_permissions
+* user_permissions_overrides
+* user_permissions_audit
+* agents
+* agent_wallets
+* agent_wallet_transactions
+* agent_commissions
+* airlines
+* airports
+* access_policies
+* activity_logs
+* announcements
+* about_page_content
+
+dan masih banyak tabel lain.
+
+Saya sudah meng-export struktur database lama.
+
+Jangan langsung membuat migration baru.
+
+## PHASE 1 — DATABASE DISCOVERY
+
+Scan seluruh project dan seluruh SQL schema lama.
+
+Bangun:
+
+database_audit/table_inventory.md
+
+Berisi:
+
+* seluruh tabel
+* jumlah kolom
+* tujuan tabel
+* domain bisnis
+* apakah aktif digunakan oleh codebase
+
+Kelompokkan menjadi:
+
+### Authentication
+
+### Users
+
+### Roles & Permissions
+
+### Branches
+
+### Agents
+
+### Jamaah
+
+### Packages
+
+### Package Departures
+
+### Airlines
+
+### Airports
+
+### Hotels
+
+### Transportation
+
+### Bookings
+
+### Payments
+
+### Finance
+
+### Equipment
+
+### Marketing
+
+### CRM
+
+### Website CMS
+
+### Notifications
+
+### Audit & Security
+
+### System Settings
+
+---
+
+## PHASE 2 — CODEBASE ANALYSIS
+
+Cari seluruh penggunaan:
+
+supabase.from(...)
+rpc(...)
+storage.from(...)
+
+Bangun:
+
+database_audit/database_usage_report.md
+
+Untuk setiap tabel:
+
+* halaman yang menggunakan
+* service yang menggunakan
+* CRUD level
+
+---
+
+## PHASE 3 — DEPENDENCY MAP
+
+Bangun:
+
+database_audit/dependency_map.md
+
+Cari:
+
+* foreign keys
+* functions
+* triggers
+* views
+* policies
+
+Buat graph:
+
+TABLE -> TABLE
+
+TABLE -> FUNCTION
+
+FUNCTION -> TABLE
+
+POLICY -> TABLE
+
+TRIGGER -> TABLE
+
+VIEW -> TABLE
+
+---
+
+## PHASE 4 — DATABASE CLEANUP PLAN
+
+Identifikasi:
+
+* tabel redundant
+* tabel overlap
+* role system yang duplikat
+* permission system yang duplikat
+* enum yang overlap
+* policy yang berlebihan
+
+Buat:
+
+database_audit/database_cleanup_plan.md
+
+Kategori:
+
+KEEP
+
+MERGE
+
+REMOVE
+
+REDESIGN
+
+---
+
+## PHASE 5 — BLUEPRINT BARU
+
+Buat:
+
+database_audit/database_blueprint.md
+
+Desain database baru khusus untuk:
+
+Travel Umroh & Haji
+
+Domain wajib:
+
+1. Authentication
+2. Profiles
+3. Roles
+4. Permissions
+5. Branches
+6. Agents
+7. Sub Agents
+8. Jamaah
+9. Packages
+10. Package Departures
+11. Airlines
+12. Airports
+13. Hotels
+14. Transportation
+15. Bookings
+16. Booking Participants
+17. Payments
+18. Finance
+19. Equipment
+20. Marketing
+21. CRM
+22. Notifications
+23. Audit Logs
+24. Website CMS
+25. System Settings
+
+---
+
+## ROLE MODEL
+
+Gunakan enum:
+
+public.app_role
+
+Isi:
+
+super_admin
+owner
+it
+admin
+branch_manager
+finance
+operational
+operator
+sales
+marketing
+equipment
+agent
+sub_agent
+customer
+jamaah
+
+Semua policy harus menggunakan helper function.
+
+Jangan menggunakan:
+
+role = 'admin'
+
+langsung di policy.
+
+Gunakan:
+
+public.has_role(...)
+
+agar tidak terjadi error enum migration.
+
+---
+
+## PHASE 6 — GENERATE DATABASE BARU
+
+Setelah blueprint selesai.
+
+Generate seluruh migration baru.
+
+Simpan di:
+
+supabase_clean_migration/
+
+Struktur:
+
+001_extensions.sql
+002_enums.sql
+003_profiles.sql
+004_branches.sql
+005_roles.sql
+006_permissions.sql
+007_user_roles.sql
+008_user_permissions.sql
+009_agents.sql
+010_jamaah.sql
+011_packages.sql
+012_package_departures.sql
+013_bookings.sql
+014_booking_participants.sql
+015_payments.sql
+016_finance.sql
+017_equipment.sql
+018_marketing.sql
+019_crm.sql
+020_notifications.sql
+021_audit_logs.sql
+022_cms.sql
+023_system_settings.sql
+024_views.sql
+025_functions.sql
+026_triggers.sql
+027_rls.sql
+028_seed_roles.sql
+029_seed_permissions.sql
+030_seed_admin.sql
+
+Jangan mengubah migration lama.
+
+Jangan overwrite file lama.
+
+Simpan semua hasil audit di folder:
+
+database_audit/
+
+dan seluruh migration baru di:
+
+supabase_clean_migration/

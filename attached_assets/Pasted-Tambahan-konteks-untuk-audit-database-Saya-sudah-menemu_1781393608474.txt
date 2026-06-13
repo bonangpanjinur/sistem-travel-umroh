@@ -1,0 +1,136 @@
+Tambahan konteks untuk audit database:
+
+Saya sudah menemukan daftar tabel dari database Supabase lama.
+
+Gunakan daftar tabel ini sebagai referensi domain bisnis saat melakukan audit dan blueprint.
+
+Jangan langsung membuat migration baru sebelum audit selesai.
+
+Fokus memahami relasi bisnis antar domain.
+
+Domain yang sudah teridentifikasi:
+
+### User & Security
+
+* access_policies
+* activity_logs
+* audit_logs
+* login_attempts
+* otp_codes
+* dashboard_access_config
+* dashboard_access_audit_log
+
+### Agent Network
+
+* agents
+* agent_wallets
+* agent_wallet_transactions
+* agent_commissions
+* active_pics
+
+### Travel Operations
+
+* bookings
+* booking_passengers
+* booking_line_items
+* booking_status_history
+* booking_transfers
+* departures
+* departure_hotels
+* departure_itineraries
+* departure_checklists
+* departure_expenses
+* departure_cost_items
+* departure_other_revenues
+* departure_financial_summary
+* manifests
+* muthawifs
+* luggage
+
+### Customer / Jamaah
+
+* customers
+* customer_documents
+* customer_family_relations
+* customer_mahrams
+* jamaah_qr_codes
+* jamaah_live_locations
+* haji_registrations
+* haji_waiting_progress
+
+### Transportation
+
+* airlines
+* airports
+* bus_providers
+* bus_assignments
+* bus_passengers
+
+### Finance
+
+* bank_accounts
+* cash_transactions
+* journal_entries
+* journal_entry_lines
+* coupons
+* loyalty_points
+* loyalty_transactions
+* loyalty_rewards
+* loyalty_point_expiry
+
+### HR
+
+* employees
+* departments
+* attendance
+* attendance_records
+* leave_requests
+* leave_quotas
+* employee_devices
+* hr_settings
+
+### Equipment
+
+* equipment_categories
+* equipment_items
+* equipment_variants
+* equipment_distributions
+* equipment_photos
+* equipment_stock_history
+* equipment_stock_opname
+* equipment_settings
+* equipment_notification_settings
+
+### Marketing & CRM
+
+* leads
+* marketing_materials
+* marketing_material_downloads
+* landing_pages
+* notifications
+
+### Website CMS
+
+* about_page_content
+* contact_page_content
+* banners
+* gallery_items
+* hero_stats
+* faqs
+* faq_knowledge_base
+* announcements
+* offline_content
+
+### Company
+
+* branches
+* company_settings
+* company_features
+
+Gunakan informasi ini untuk memperbaiki:
+
+* database_blueprint.md
+* dependency_map.md
+* permission_matrix.md
+
+Sebelum generate migration baru di folder supabase_clean_migration.
