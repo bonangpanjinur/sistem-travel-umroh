@@ -1,24 +1,39 @@
 /**
- * Supabase client — on Replit, always uses the local Express proxy.
+ * Supabase client — smart environment detection.
  *
- * The Express backend at /auth/v1/* and /rest/v1/* fully implements the
- * Supabase-compatible API using Replit's built-in PostgreSQL database.
- * No external Supabase cloud connection is needed or used.
+ * • Production (umrohweb.site / any deploy with VITE_SUPABASE_URL):
+ *   Uses the real Supabase cloud URL + anon key from env vars.
+ *
+ * • Replit dev (no VITE_SUPABASE_URL set):
+ *   Uses the local Express proxy at window.location.origin.
+ *   The proxy at /auth/v1/* and /rest/v1/* is forwarded by Vite
+ *   to the Express backend on port 3001.
  */
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const localOrigin =
-  typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5000';
+const explicitUrl  = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+const explicitKey  = (
+  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
+  import.meta.env.VITE_SUPABASE_ANON_KEY
+) as string | undefined;
 
-const resolvedUrl = localOrigin;
-const resolvedKey = 'local-dev-anon-key';
+const isProduction = !!explicitUrl && !!explicitKey;
+
+const resolvedUrl = isProduction
+  ? explicitUrl!
+  : (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5000');
+
+const resolvedKey = isProduction
+  ? explicitKey!
+  : 'local-dev-anon-key';
 
 export const supabaseConfigSource = {
   url: resolvedUrl,
-  urlSource: 'local-proxy',
-  keySource: 'local-proxy',
-  envKeysSeen: [],
+  urlSource: isProduction ? 'env-VITE_SUPABASE_URL' : 'local-proxy',
+  keySource: isProduction ? 'env-VITE_SUPABASE_PUBLISHABLE_KEY' : 'local-proxy',
+  isProduction,
+  envKeysSeen: Object.keys(import.meta.env).filter(k => k.startsWith('VITE_SUPABASE')),
 } as const;
 
 export const supabase = createClient<Database>(resolvedUrl, resolvedKey, {
@@ -28,18 +43,18 @@ export const supabase = createClient<Database>(resolvedUrl, resolvedKey, {
     autoRefreshToken: true,
     detectSessionInUrl: true,
   },
-  realtime: {
-    params: { eventsPerSecond: 0 },
-    // Disable realtime WebSocket — not supported by local Express proxy.
-    // All data is fetched via REST /rest/v1/* which is fully proxied.
-    transport: class DisabledWebSocket extends EventTarget {
-      static CONNECTING = 0; static OPEN = 1; static CLOSING = 2; static CLOSED = 3;
-      readyState = 3;
-      constructor() { super(); }
-      send() {}
-      close() {}
-    } as any,
-  },
+  realtime: isProduction
+    ? undefined
+    : {
+        params: { eventsPerSecond: 0 },
+        transport: class DisabledWebSocket extends EventTarget {
+          static CONNECTING = 0; static OPEN = 1; static CLOSING = 2; static CLOSED = 3;
+          readyState = 3;
+          constructor() { super(); }
+          send() {}
+          close() {}
+        } as any,
+      },
   global: {
     headers: {
       'x-client-info': 'vinstour/1.0',

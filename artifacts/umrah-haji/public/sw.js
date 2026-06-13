@@ -1,5 +1,5 @@
-const CACHE_VERSION = "vinstour-v7";
-const IMAGE_CACHE = "vinstour-images-v1";
+const CACHE_VERSION = "vinstour-v8";
+const IMAGE_CACHE = "vinstour-images-v2";
 const IMAGE_CACHE_MAX = 80; // maksimum entry agar tidak membengkak
 
 const IMAGE_HOST_ALLOWLIST = [
