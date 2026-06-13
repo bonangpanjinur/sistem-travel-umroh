@@ -120,7 +120,13 @@ END;
 $$;
 
 -- Grant usage on schema public
-GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
-GRANT ALL   ON SCHEMA public TO service_role;
+DO $$
+BEGIN
+  GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
+  GRANT ALL   ON SCHEMA public TO service_role;
+EXCEPTION WHEN OTHERS THEN
+  RAISE NOTICE 'GRANT on schema public skipped: %', SQLERRM;
+END;
+$$;
 
 SELECT '000_extensions: OK' AS result;

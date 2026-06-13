@@ -358,14 +358,20 @@ WHERE d.status IN ('open','full')
 ORDER BY d.departure_date ASC;
 
 -- Grant SELECT on all views
-GRANT SELECT ON public.v_bookings_full            TO authenticated;
-GRANT SELECT ON public.v_departures_with_stats    TO authenticated, anon;
-GRANT SELECT ON public.v_customers_summary        TO authenticated;
-GRANT SELECT ON public.v_departure_pl             TO authenticated;
-GRANT SELECT ON public.v_payments_pending         TO authenticated;
-GRANT SELECT ON public.v_agents_performance       TO authenticated;
-GRANT SELECT ON public.v_wa_send_logs_full        TO authenticated;
-GRANT SELECT ON public.v_inventory_alerts         TO authenticated;
-GRANT SELECT ON public.v_upcoming_departures      TO authenticated, anon;
+DO $$
+BEGIN
+  GRANT SELECT ON public.v_bookings_full            TO authenticated;
+  GRANT SELECT ON public.v_departures_with_stats    TO authenticated, anon;
+  GRANT SELECT ON public.v_customers_summary        TO authenticated;
+  GRANT SELECT ON public.v_departure_pl             TO authenticated;
+  GRANT SELECT ON public.v_payments_pending         TO authenticated;
+  GRANT SELECT ON public.v_agents_performance       TO authenticated;
+  GRANT SELECT ON public.v_wa_send_logs_full        TO authenticated;
+  GRANT SELECT ON public.v_inventory_alerts         TO authenticated;
+  GRANT SELECT ON public.v_upcoming_departures      TO authenticated, anon;
+EXCEPTION WHEN OTHERS THEN
+  RAISE NOTICE 'GRANT on views skipped: %', SQLERRM;
+END;
+$$;
 
 SELECT '010_views: OK' AS result;

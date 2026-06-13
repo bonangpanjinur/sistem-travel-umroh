@@ -801,11 +801,15 @@ CREATE TABLE IF NOT EXISTS public.wa_feature_roadmap (
 ALTER TABLE public.wa_feature_roadmap ENABLE ROW LEVEL SECURITY;
 
 -- Grant permissions
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO authenticated;
-GRANT SELECT ON ALL TABLES IN SCHEMA public TO anon;
-GRANT ALL    ON ALL TABLES IN SCHEMA public TO service_role;
-
--- Grant sequences
-GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO authenticated, anon, service_role;
+DO $$
+BEGIN
+  GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO authenticated;
+  GRANT SELECT ON ALL TABLES IN SCHEMA public TO anon;
+  GRANT ALL    ON ALL TABLES IN SCHEMA public TO service_role;
+  GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO authenticated, anon, service_role;
+EXCEPTION WHEN OTHERS THEN
+  RAISE NOTICE 'GRANT on tables/sequences skipped: %', SQLERRM;
+END;
+$$;
 
 SELECT '005_tables_finance: OK' AS result;

@@ -40,7 +40,7 @@ $$;
 -- 3. HOLD_DEPARTURE_SEATS — Decrement available seats (with row lock)
 -- ---------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.hold_departure_seats(p_departure_id UUID, p_seats INTEGER)
-RETURNS BOOLEAN LANGUAGE plpgsql SECURITY DEFINER AS $$
+RETURNS BOOLEAN LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE v_available INTEGER;
 BEGIN
   SELECT available_seats INTO v_available
@@ -64,7 +64,7 @@ $$;
 -- 4. RELEASE_DEPARTURE_SEATS — Return seats when booking is cancelled
 -- ---------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.release_departure_seats(p_departure_id UUID, p_seats INTEGER)
-RETURNS VOID LANGUAGE plpgsql SECURITY DEFINER AS $$
+RETURNS VOID LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 BEGIN
   UPDATE public.departures
   SET available_seats = LEAST(quota, available_seats + p_seats),
@@ -77,7 +77,7 @@ $$;
 -- 5. DELETE_DEPARTURE_SAFELY — Delete departure only if no active bookings
 -- ---------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.delete_departure_safely(p_departure_id UUID)
-RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER AS $$
+RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE v_count INTEGER;
 BEGIN
   SELECT COUNT(*) INTO v_count
@@ -107,7 +107,7 @@ CREATE OR REPLACE FUNCTION public.convert_savings_to_booking(
   p_departure_id UUID,
   p_room_type    TEXT DEFAULT 'quad'
 )
-RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER AS $$
+RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
   v_plan         public.savings_plans;
   v_booking_code TEXT;
@@ -150,7 +150,7 @@ CREATE OR REPLACE FUNCTION public.create_customer_account(
   p_agent_slug  TEXT  DEFAULT NULL,
   p_branch_slug TEXT  DEFAULT NULL
 )
-RETURNS UUID LANGUAGE plpgsql SECURITY DEFINER AS $$
+RETURNS UUID LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE v_account_id UUID;
 BEGIN
   INSERT INTO public.customer_accounts (
@@ -178,7 +178,7 @@ CREATE OR REPLACE FUNCTION public.increment_website_view(
   p_agent_id  UUID DEFAULT NULL,
   p_branch_id UUID DEFAULT NULL
 )
-RETURNS VOID LANGUAGE plpgsql SECURITY DEFINER AS $$
+RETURNS VOID LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 BEGIN
   IF p_agent_id IS NOT NULL THEN
     UPDATE public.website_settings
@@ -442,7 +442,7 @@ GRANT EXECUTE ON FUNCTION public.auto_schedule_payment_reminders(INTEGER[]) TO a
 -- 13. RECALCULATE_DEPARTURE_FINANCIAL_SUMMARY — Rebuild P&L snapshot
 -- ---------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.recalculate_departure_financial_summary(p_departure_id UUID)
-RETURNS VOID LANGUAGE plpgsql SECURITY DEFINER AS $$
+RETURNS VOID LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
   v_quota         INTEGER;
   v_pax_confirmed INTEGER;
@@ -538,7 +538,7 @@ GRANT EXECUTE ON FUNCTION public.get_dashboard_stats(UUID, DATE, DATE) TO authen
 -- 15. PURGE_EXPIRED_SEAT_LOCKS — Clean up expired seat holds
 -- ---------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.purge_expired_seat_locks()
-RETURNS INTEGER LANGUAGE plpgsql SECURITY DEFINER AS $$
+RETURNS INTEGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE v_count INTEGER;
 BEGIN
   DELETE FROM public.booking_seat_locks
@@ -549,10 +549,14 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.purge_expired_seat_locks() TO service_role;
-
--- Grant remaining utility functions
-GRANT EXECUTE ON FUNCTION public.slugify_text(TEXT)               TO authenticated, anon;
-GRANT EXECUTE ON FUNCTION public.update_updated_at()              TO authenticated, service_role;
+DO $$
+BEGIN
+  GRANT EXECUTE ON FUNCTION public.purge_expired_seat_locks()                           TO service_role;
+  GRANT EXECUTE ON FUNCTION public.slugify_text(TEXT)                                   TO authenticated, anon;
+  GRANT EXECUTE ON FUNCTION public.update_updated_at()                                  TO authenticated, service_role;
+EXCEPTION WHEN OTHERS THEN
+  RAISE NOTICE 'GRANT EXECUTE on utility functions skipped: %', SQLERRM;
+END;
+$$;
 
 SELECT '007_functions: OK' AS result;

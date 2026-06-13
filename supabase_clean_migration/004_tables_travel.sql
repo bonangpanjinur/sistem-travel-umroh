@@ -1036,8 +1036,14 @@ CREATE TABLE IF NOT EXISTS public.contact_messages (
 ALTER TABLE public.contact_messages ENABLE ROW LEVEL SECURITY;
 
 -- Grant permissions
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO authenticated;
-GRANT SELECT ON ALL TABLES IN SCHEMA public TO anon;
-GRANT ALL    ON ALL TABLES IN SCHEMA public TO service_role;
+DO $$
+BEGIN
+  GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO authenticated;
+  GRANT SELECT ON ALL TABLES IN SCHEMA public TO anon;
+  GRANT ALL    ON ALL TABLES IN SCHEMA public TO service_role;
+EXCEPTION WHEN OTHERS THEN
+  RAISE NOTICE 'GRANT on tables skipped: %', SQLERRM;
+END;
+$$;
 
 SELECT '004_tables_travel: OK' AS result;

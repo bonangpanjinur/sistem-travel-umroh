@@ -288,8 +288,14 @@ CREATE TABLE IF NOT EXISTS public.email_logs (
 ALTER TABLE public.email_logs ENABLE ROW LEVEL SECURITY;
 
 -- Grant table-level permissions to roles
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO authenticated;
-GRANT SELECT ON ALL TABLES IN SCHEMA public TO anon;
-GRANT ALL    ON ALL TABLES IN SCHEMA public TO service_role;
+DO $$
+BEGIN
+  GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO authenticated;
+  GRANT SELECT ON ALL TABLES IN SCHEMA public TO anon;
+  GRANT ALL    ON ALL TABLES IN SCHEMA public TO service_role;
+EXCEPTION WHEN OTHERS THEN
+  RAISE NOTICE 'GRANT on tables skipped: %', SQLERRM;
+END;
+$$;
 
 SELECT '002_tables_core: OK' AS result;
