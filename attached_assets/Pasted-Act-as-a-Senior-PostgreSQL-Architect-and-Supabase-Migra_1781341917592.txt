@@ -1,0 +1,160 @@
+Act as a Senior PostgreSQL Architect and Supabase Migration Engineer.
+
+Target folder:
+
+supabase_clean_migration/
+
+Your objective is to create ONE clean migration chain that can build the entire database from scratch on a fresh Supabase project.
+
+Tasks:
+
+PHASE 1 — SYSTEM ANALYSIS
+
+Analyze the entire repository.
+
+Discover:
+
+1. All features/modules
+2. All API endpoints
+3. All database tables
+4. All views
+5. All triggers
+6. All functions
+7. All RLS policies
+8. All indexes
+9. All enums
+10. All foreign key relationships
+
+Generate:
+
+- Feature → Table map
+- Feature → API map
+- Table → Feature map
+
+PHASE 2 — SCHEMA ANALYSIS
+
+Analyze all existing SQL files.
+
+Compare against:
+
+- actual tables used by code
+- actual fields used by code
+- actual API requirements
+
+Detect:
+
+- duplicate SQL
+- conflicting migrations
+- obsolete migrations
+- abandoned tables
+- unused columns
+- missing columns
+- missing indexes
+- missing foreign keys
+- missing RLS policies
+- missing functions
+- migration order problems
+
+Generate a report first.
+
+PHASE 3 — BUILD CLEAN DATABASE MODEL
+
+Create the final database design.
+
+Requirements:
+
+1. Keep only objects actually used by the application.
+2. Remove dead schema.
+3. Remove duplicate migrations.
+4. Resolve migration conflicts.
+5. Resolve table naming inconsistencies.
+6. Resolve foreign key inconsistencies.
+7. Ensure all RLS dependencies are satisfied.
+8. Ensure all helper functions are created before policies.
+9. Ensure all triggers are created before dependent operations.
+
+Generate:
+
+- Final schema map
+- Final dependency graph
+- Final migration execution order
+
+PHASE 4 — REBUILD MIGRATION CHAIN
+
+Inside:
+
+supabase_clean_migration/
+
+Create ordered migration files:
+
+000_extensions.sql
+001_enums.sql
+002_tables_core.sql
+003_tables_users.sql
+004_tables_travel.sql
+005_tables_finance.sql
+006_indexes.sql
+007_functions.sql
+008_triggers.sql
+009_rls_policies.sql
+010_views.sql
+011_seed_admin.sql
+
+Rules:
+
+- Each file must be executable independently.
+- No duplicate CREATE statements.
+- No conflicting ALTER statements.
+- No dependency violations.
+- No references to objects not yet created.
+
+PHASE 5 — SEED SEPARATION
+
+Move all non-production data into:
+
+supabase_clean_migration/seeds/
+
+Create:
+
+- seed_admin.sql
+- seed_roles.sql
+- seed_master_data.sql
+- seed_dummy_data.sql
+
+Rules:
+
+- Production schema must not depend on dummy data.
+- Dummy data must never be mixed with migrations.
+
+PHASE 6 — VALIDATION
+
+Verify:
+
+- Fresh database installation succeeds.
+- No SQL execution errors.
+- No missing function errors.
+- No missing table errors.
+- No missing column errors.
+- No circular dependencies.
+
+Generate:
+
+1. Final migration tree
+2. Dependency tree
+3. Removed files list
+4. Archived files list
+5. Migration execution order
+
+IMPORTANT:
+
+Do NOT preserve old migration structure.
+
+The goal is NOT to clean existing migrations.
+
+The goal is to create ONE authoritative migration chain inside:
+
+supabase_clean_migration/
+
+that can recreate the entire database from zero on a fresh Supabase project.
+
+Output reports before modifying files.

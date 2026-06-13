@@ -1,0 +1,39 @@
+-- =============================================================================
+-- VINSTOUR TRAVEL PORTAL — Clean Migration Chain
+-- FILE 001: Domain Types & Enum Notes
+-- Run AFTER 000. Idempotent.
+-- =============================================================================
+--
+-- NOTE: This schema uses TEXT columns with CHECK constraints rather than
+-- native PostgreSQL ENUM types. This design is intentional — it allows
+-- adding new values without DDL migrations (ALTER TYPE … ADD VALUE).
+--
+-- All valid domain values are documented here for reference and are
+-- enforced via CHECK constraints on the tables that use them.
+--
+-- =============================================================================
+-- BOOKING STATUS:   pending | confirmed | completed | cancelled
+-- PAYMENT STATUS:   unpaid  | partial   | paid       | refunded | overpaid
+-- VISA STATUS:      draft   | submitted | in_review | approved | rejected | expired
+-- DEPARTURE STATUS: draft   | open      | full       | closed   | departed | completed | cancelled
+-- USER ROLE:        super_admin | admin | finance | marketing | operator | branch_manager | agent | customer
+-- PACKAGE TYPE:     umroh | haji | wisata
+-- ROOM TYPE:        quad  | triple | double | single
+-- GENDER:           male  | female
+-- JOURNAL TYPE:     general | sales | purchase | payment | receipt | adjustment
+-- STORE ORDER STATUS: pending | processing | shipped | delivered | cancelled | refunded
+-- WA TEMPLATE TYPE: text | image | document | button
+-- LEAVE TYPE:       annual | sick | personal | emergency | unpaid
+-- COMMISSION TYPE:  agent | branch | referral | employee
+-- SAVINGS STATUS:   active | paused | completed | cancelled
+-- APPROVAL STATUS:  pending | approved | rejected | escalated
+-- MEMBER TYPE:      agent | branch
+-- NOTIFICATION CH:  push | email | in_app | whatsapp
+-- TRIGGER EVENT:    booking.confirmed | payment.received | visa.status_changed |
+--                   sos.received | departure.reminder | approval.created | manasik.reminder
+-- =============================================================================
+
+-- Utility view — query all valid enum-like values from table constraints
+-- (For reference only; safe to skip on first run)
+
+SELECT '001_enums: OK — TEXT+CHECK constraint domains documented' AS result;

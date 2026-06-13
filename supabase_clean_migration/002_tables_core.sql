@@ -1,0 +1,295 @@
+-- =============================================================================
+-- VINSTOUR TRAVEL PORTAL — Clean Migration Chain
+-- FILE 002: Core Infrastructure Tables
+--   profiles, user_roles, permissions_list, role_permissions,
+--   staff_invitations, menu_items, audit_logs, rbac_audit_trail,
+--   notifications, notification_templates, otp_codes, user_2fa_settings,
+--   push_subscriptions, push_outbox, email_logs
+-- Run AFTER 001. Idempotent — IF NOT EXISTS throughout.
+-- RLS policies: see 009_rls_policies.sql
+-- Triggers:     see 008_triggers.sql
+-- =============================================================================
+
+-- ---------------------------------------------------------------------------
+-- 1. PROFILES — Extended auth.users profile (1:1)
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.profiles (
+  id                UUID        PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  email             TEXT        UNIQUE,
+  full_name         TEXT,
+  phone             TEXT,
+  avatar_url        TEXT,
+  role              TEXT        NOT NULL DEFAULT 'customer'
+                                CHECK (role IN ('super_admin','admin','finance','marketing',
+                                                'operator','branch_manager','agent','customer')),
+  is_active         BOOLEAN     NOT NULL DEFAULT TRUE,
+  session_version   INTEGER     NOT NULL DEFAULT 0,
+  last_sign_in_at   TIMESTAMPTZ,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+
+-- ---------------------------------------------------------------------------
+-- 2. USER_ROLES — Fine-grained RBAC role assignments
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.user_roles (
+  id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id    UUID        NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  role       TEXT        NOT NULL
+                         CHECK (role IN ('super_admin','admin','finance','marketing',
+                                         'operator','branch_manager','agent','customer')),
+  granted_by UUID        REFERENCES auth.users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (user_id, role)
+);
+
+ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
+
+-- ---------------------------------------------------------------------------
+-- 3. PERMISSIONS_LIST — Master permission registry
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.permissions_list (
+  id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  key         TEXT        NOT NULL UNIQUE,
+  label       TEXT        NOT NULL,
+  group_name  TEXT,
+  description TEXT,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE public.permissions_list ENABLE ROW LEVEL SECURITY;
+
+-- ---------------------------------------------------------------------------
+-- 4. ROLE_PERMISSIONS — Map roles → permissions
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.role_permissions (
+  id             UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  role           TEXT        NOT NULL
+                             CHECK (role IN ('super_admin','admin','finance','marketing',
+                                             'operator','branch_manager','agent','customer')),
+  permission_key TEXT        NOT NULL REFERENCES public.permissions_list(key) ON DELETE CASCADE,
+  can_view       BOOLEAN     NOT NULL DEFAULT FALSE,
+  can_create     BOOLEAN     NOT NULL DEFAULT FALSE,
+  can_edit       BOOLEAN     NOT NULL DEFAULT FALSE,
+  can_delete     BOOLEAN     NOT NULL DEFAULT FALSE,
+  updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (role, permission_key)
+);
+
+ALTER TABLE public.role_permissions ENABLE ROW LEVEL SECURITY;
+
+-- ---------------------------------------------------------------------------
+-- 5. STAFF_INVITATIONS — Pending staff onboarding invites
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.staff_invitations (
+  id           UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  email        TEXT        NOT NULL,
+  role         TEXT        NOT NULL
+                           CHECK (role IN ('admin','finance','marketing','operator','branch_manager')),
+  invited_by   UUID        REFERENCES auth.users(id) ON DELETE SET NULL,
+  branch_id    UUID,
+  token        TEXT        NOT NULL UNIQUE DEFAULT encode(gen_random_bytes(32), 'hex'),
+  expires_at   TIMESTAMPTZ NOT NULL DEFAULT NOW() + INTERVAL '7 days',
+  accepted_at  TIMESTAMPTZ,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE public.staff_invitations ENABLE ROW LEVEL SECURITY;
+
+-- ---------------------------------------------------------------------------
+-- 6. MENU_ITEMS — Dynamic sidebar navigation configuration
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.menu_items (
+  id           UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  label        TEXT        NOT NULL,
+  icon         TEXT,
+  path         TEXT,
+  permission   TEXT,
+  parent_id    UUID        REFERENCES public.menu_items(id) ON DELETE CASCADE,
+  sort_order   INTEGER     NOT NULL DEFAULT 0,
+  is_active    BOOLEAN     NOT NULL DEFAULT TRUE,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE public.menu_items ENABLE ROW LEVEL SECURITY;
+
+-- ---------------------------------------------------------------------------
+-- 7. AUDIT_LOGS — Immutable change log for all significant operations
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.audit_logs (
+  id           UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id      UUID        REFERENCES auth.users(id) ON DELETE SET NULL,
+  action       TEXT        NOT NULL,
+  table_name   TEXT,
+  record_id    TEXT,
+  old_data     JSONB,
+  new_data     JSONB,
+  ip_address   TEXT,
+  user_agent   TEXT,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
+
+-- ---------------------------------------------------------------------------
+-- 8. RBAC_AUDIT_TRAIL — RBAC-specific permission change history
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.rbac_audit_trail (
+  id             UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  changed_by     UUID        REFERENCES auth.users(id) ON DELETE SET NULL,
+  target_user_id UUID        REFERENCES auth.users(id) ON DELETE SET NULL,
+  action         TEXT        NOT NULL CHECK (action IN ('grant','revoke','update','create_role')),
+  role           TEXT,
+  permission_key TEXT,
+  old_value      JSONB,
+  new_value      JSONB,
+  notes          TEXT,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE public.rbac_audit_trail ENABLE ROW LEVEL SECURITY;
+
+-- ---------------------------------------------------------------------------
+-- 9. NOTIFICATION_TEMPLATES — Reusable notification message templates
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.notification_templates (
+  id            UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  code          TEXT        NOT NULL UNIQUE,
+  name          TEXT        NOT NULL,
+  channel       TEXT        NOT NULL DEFAULT 'push'
+                            CHECK (channel IN ('push','email','in_app','whatsapp')),
+  title         TEXT,
+  body          TEXT        NOT NULL,
+  variables     TEXT[],
+  trigger_event TEXT,
+  is_active     BOOLEAN     NOT NULL DEFAULT TRUE,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE public.notification_templates ENABLE ROW LEVEL SECURITY;
+
+-- ---------------------------------------------------------------------------
+-- 10. NOTIFICATIONS — In-app notification inbox per user
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.notifications (
+  id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     UUID        NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  title       TEXT        NOT NULL,
+  body        TEXT,
+  type        TEXT        NOT NULL DEFAULT 'info'
+                          CHECK (type IN ('info','success','warning','error','alert')),
+  channel     TEXT        NOT NULL DEFAULT 'in_app'
+                          CHECK (channel IN ('push','email','in_app','whatsapp')),
+  is_read     BOOLEAN     NOT NULL DEFAULT FALSE,
+  data        JSONB,
+  action_url  TEXT,
+  read_at     TIMESTAMPTZ,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+
+-- ---------------------------------------------------------------------------
+-- 11. OTP_CODES — One-time password / verification codes
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.otp_codes (
+  id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     UUID        REFERENCES auth.users(id) ON DELETE CASCADE,
+  identifier  TEXT        NOT NULL,
+  code        TEXT        NOT NULL,
+  purpose     TEXT        NOT NULL DEFAULT 'login'
+                          CHECK (purpose IN ('login','phone_verify','email_verify','reset_password','2fa')),
+  expires_at  TIMESTAMPTZ NOT NULL,
+  used_at     TIMESTAMPTZ,
+  attempts    INTEGER     NOT NULL DEFAULT 0,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE public.otp_codes ENABLE ROW LEVEL SECURITY;
+
+-- ---------------------------------------------------------------------------
+-- 12. USER_2FA_SETTINGS — Two-factor authentication configuration
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.user_2fa_settings (
+  id             UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id        UUID        NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
+  method         TEXT        NOT NULL DEFAULT 'totp'
+                             CHECK (method IN ('totp','sms','email')),
+  is_enabled     BOOLEAN     NOT NULL DEFAULT FALSE,
+  totp_secret    TEXT,
+  backup_codes   TEXT[],
+  verified_at    TIMESTAMPTZ,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE public.user_2fa_settings ENABLE ROW LEVEL SECURITY;
+
+-- ---------------------------------------------------------------------------
+-- 13. PUSH_SUBSCRIPTIONS — Web-push subscription endpoints
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.push_subscriptions (
+  id           UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id      UUID        NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  endpoint     TEXT        NOT NULL,
+  p256dh_key   TEXT,
+  auth_key     TEXT,
+  device_type  TEXT        DEFAULT 'browser',
+  is_active    BOOLEAN     NOT NULL DEFAULT TRUE,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (user_id, endpoint)
+);
+
+ALTER TABLE public.push_subscriptions ENABLE ROW LEVEL SECURITY;
+
+-- ---------------------------------------------------------------------------
+-- 14. PUSH_OUTBOX — Queued push notifications awaiting delivery
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.push_outbox (
+  id           UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id      UUID        REFERENCES auth.users(id) ON DELETE CASCADE,
+  title        TEXT        NOT NULL,
+  body         TEXT,
+  data         JSONB,
+  status       TEXT        NOT NULL DEFAULT 'pending'
+                           CHECK (status IN ('pending','sent','failed','skipped')),
+  attempts     INTEGER     NOT NULL DEFAULT 0,
+  last_error   TEXT,
+  send_after   TIMESTAMPTZ,
+  sent_at      TIMESTAMPTZ,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE public.push_outbox ENABLE ROW LEVEL SECURITY;
+
+-- ---------------------------------------------------------------------------
+-- 15. EMAIL_LOGS — Outgoing email delivery records
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.email_logs (
+  id           UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id      UUID        REFERENCES auth.users(id) ON DELETE SET NULL,
+  to_email     TEXT        NOT NULL,
+  subject      TEXT        NOT NULL,
+  template     TEXT,
+  status       TEXT        NOT NULL DEFAULT 'sent'
+                           CHECK (status IN ('pending','sent','failed','bounced')),
+  provider     TEXT,
+  provider_id  TEXT,
+  error        TEXT,
+  sent_at      TIMESTAMPTZ,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE public.email_logs ENABLE ROW LEVEL SECURITY;
+
+-- Grant table-level permissions to roles
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO authenticated;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO anon;
+GRANT ALL    ON ALL TABLES IN SCHEMA public TO service_role;
+
+SELECT '002_tables_core: OK' AS result;
