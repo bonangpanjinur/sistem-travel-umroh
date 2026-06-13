@@ -1087,3 +1087,644 @@ supabase_clean_migration/
 sql/migrations/                   ← Numbered migrations (001–086)
 REPOSITORY_ANALYSIS.md            ← Analisis detail lengkap per tabel
 ```
+
+---
+
+## 13. MATRIX ANALISIS FITUR — HALAMAN × API × TABEL × KOLOM
+
+> **Legenda:**
+> - ✅ Tabel/kolom ada dan sesuai di schema
+> - ❌ Tabel **TIDAK ADA** di schema (phantom table — query pasti gagal/silent error)
+> - ⚠️ Tabel ada tapi nama kolom atau skema berbeda
+> - 🔴 Fitur tidak memiliki tabel pendukung apapun di schema
+> - `→` = nama yang benar di schema
+
+---
+
+### F-01 Dashboard Admin
+
+| Item | Detail |
+|------|--------|
+| **Halaman** | `AdminDashboard.tsx` |
+| **Hook** | `useDashboardStats.ts` |
+| **API** | `GET /dashboard/stats`, `GET /dashboard/booking-trend`, `/rest/v1/bookings`, `/rest/v1/agents`, `/rest/v1/customers`, `/rest/v1/payments`, `/rest/v1/leads`, `/rest/v1/departures` |
+| **Tabel ✅** | `bookings`, `customers`, `payments`, `leads`, `branches`, `departures`, `agents` |
+| **Kolom akses** | `bookings`: id, booking_code, total_price, paid_amount, booking_status, payment_status, created_at, total_pax, agent_id, branch_id; `departures`: id, departure_date, quota, booked_count; `agents`: id, company_name, parent_agent_id, branch_id |
+
+---
+
+### F-02 Manajemen Paket
+
+| Item | Detail |
+|------|--------|
+| **Halaman** | `AdminPackages.tsx`, `PackageList.tsx`, `PackageDetail.tsx`, `PackageCompare.tsx` |
+| **API** | `/rest/v1/packages`, `/v1/packages`, `/rest/v1/departures`, `/rest/v1/departure_cost_items` |
+| **Tabel ✅** | `packages`, `departures`, `departure_cost_items`, `package_labels`, `package_label_assignments`, `package_types`, `package_reviews`, `media_gallery` |
+| **Tabel ❌** | `package_groups` (→ tidak ada di schema, cek `package_labels`) |
+| **Kolom akses** | `packages`: *, departures(id, departure_date, quota, booked_count, status, price_*); `package_types`: id, name, display_order |
+| **Catatan** | `package_groups` diakses di AdminPackages tapi tidak ada di schema |
+
+---
+
+### F-03 Manajemen Keberangkatan
+
+| Item | Detail |
+|------|--------|
+| **Halaman** | `AdminDepartures.tsx`, `AdminDepartureDetail.tsx` (6 tab), `AdminDepartureTracking.tsx` |
+| **API** | `/rest/v1/departures`, `/v1/departures`, `/rest/v1/departure_hotels`, `/rest/v1/departure_cost_items`, `/rest/v1/departure_financial_summary` |
+| **Tabel ✅** | `departures`, `departure_hotels`, `departure_cost_items`, `departure_expenses`, `departure_other_revenues`, `departure_financial_summary`, `departure_budgets`, `hotels`, `airlines`, `muthawifs`, `booking_passengers`, `trip_timeline` |
+| **Tabel ⚠️** | `jamaah_qr_codes` (❌ diakses di AdminDepartures.tsx tapi tidak ada di schema) |
+| **Kolom ⚠️** | `departures.available_seats` (dipakai di /bookings/reserve-slot, tapi kolom di schema adalah `booked_count+quota`, tidak ada `available_seats`) |
+
+---
+
+### F-04 Manajemen Booking
+
+| Item | Detail |
+|------|--------|
+| **Halaman** | `AdminBookings.tsx`, `AdminBookingDetail.tsx`, `AdminBookingCreate.tsx`, `AdminBookingTransfers.tsx`, `PublicBookingDetail.tsx`, `BookingStatusPage.tsx` |
+| **API** | `/rest/v1/bookings`, `PATCH /bookings/:id/status`, `PATCH /bookings/:id/cancel`, `DELETE /bookings/:id`, `POST /bookings/sync-payment-totals` |
+| **Tabel ✅** | `bookings`, `booking_passengers`, `booking_line_items`, `booking_status_history`, `booking_access_tokens`, `booking_transfers`, `booking_document_logs`, `payments`, `refunds`, `customer_documents`, `customer_mahrams`, `agents`, `airlines`, `hotels`, `bank_accounts`, `invoice_templates`, `profiles` |
+| **Tabel ❌** | `audit_logs` (diakses di AdminBookingDetail → tidak ada, harusnya `rbac_audit_trail` atau `document_audit_logs`) |
+| **Tabel ⚠️** | `customer-documents` (typo di AdminCustomerDetail — seharusnya `customer_documents`) |
+
+---
+
+### F-05 Manajemen Pelanggan / Jamaah (Admin)
+
+| Item | Detail |
+|------|--------|
+| **Halaman** | `AdminCustomers.tsx`, `AdminCustomerDetail.tsx`, `AdminDocumentVerification.tsx`, `AdminIncompleteDocuments.tsx`, `AdminDocumentExpiryTracker.tsx` |
+| **API** | `/rest/v1/customers`, `/rest/v1/customer_documents`, `/rest/v1/document_types` |
+| **Tabel ✅** | `customers`, `customer_documents`, `customer_notifications`, `customer_mahrams`, `bookings`, `packages`, `departures`, `document_types` |
+| **Tabel ❌** | `customer-documents` (typo/URL path digunakan sebagai tabel di beberapa komponen) |
+
+---
+
+### F-06 Manajemen Agen & Komisi
+
+| Item | Detail |
+|------|--------|
+| **Halaman** | `AdminAgents.tsx`, `AdminAgentDetail.tsx`, `AdminAgentCommissionReport.tsx`, `AdminBranchCommissions.tsx`, `AdminWithdrawalManagement.tsx` |
+| **API** | `GET /agents/:id`, `POST /agents/create`, `GET /agents/tiers/config`, `PUT /agents/tiers/config/:tier`, `GET /agents/commission-tiers/list`, `POST /agents/invitation` |
+| **Tabel ✅** | `agents`, `agent_commissions`, `agent_tier_config`, `agent_memberships`, `withdrawal_requests`, `branches`, `profiles`, `bookings`, `packages`, `departures` |
+| **Tabel ❌** | `agent_wallets` (diakses di useAgents.ts, AdminWithdrawalManagement, AgentWallet.tsx — **tidak ada di schema**), `agent_wallet_transactions` (di AgentWallet.tsx — **tidak ada**) |
+| **Tabel ⚠️** | `agent_invitation_tokens` (dipakai di API server /agents/invitation tapi **tidak di schema**) |
+| **Catatan** | Seluruh fitur dompet agen (Agent Wallet) tidak punya tabel pendukung |
+
+---
+
+### F-07 Keuangan — P&L & HPP Keberangkatan
+
+| Item | Detail |
+|------|--------|
+| **Halaman** | `AdminFinancePL.tsx`, `AdminFinanceTerpadu.tsx`, `AdminHPPTerpadu.tsx`, `AdminLabaRugi.tsx`, `AdminLaporanKeberangkatan.tsx` |
+| **API** | `/rest/v1/departure_financial_summary`, `/rest/v1/departure_cost_items`, `/rest/v1/departure_expenses`, `/rest/v1/departure_other_revenues` |
+| **Tabel ✅** | `departure_financial_summary`, `departure_cost_items`, `departure_expenses`, `departure_other_revenues`, `departures`, `packages`, `payroll_records` |
+| **Kolom ⚠️** | `departure_financial_summary.hpp_planned`, `.hpp_realized`, `.net_margin_pct`, `.hpp_variance` — hanya ada di **VIEW v_financial_summary_v2**, bukan di tabel basis |
+
+---
+
+### F-08 Keuangan — Kas & Arus Kas
+
+| Item | Detail |
+|------|--------|
+| **Halaman** | `AdminFinanceCash.tsx`, `AdminArusKas.tsx`, `AdminNeraca.tsx`, `AdminRekonsiliasi.tsx` |
+| **API** | `/rest/v1/cash_transactions`, `/rest/v1/salary_payments` |
+| **Tabel ❌** | `cash_transactions` (**tidak ada di schema** — 3 halaman mengaksesnya) |
+| **Tabel ❌** | `salary_payments` (**tidak ada di schema** — harusnya `payroll_records`) |
+| **Tabel ✅** | `employees`, `bank_accounts` |
+| **Status** | 🔴 Fitur Kas/Arus Kas **tidak punya tabel pendukung yang valid** |
+
+---
+
+### F-09 Akuntansi — COA & Jurnal
+
+| Item | Detail |
+|------|--------|
+| **Halaman** | `AdminCOA.tsx`, `AdminJurnalUmum.tsx`, `AdminBukuBesar.tsx` |
+| **API** | `GET /coa`, `POST /coa`, `GET /journal`, `POST /journal` |
+| **Tabel ⚠️** | `coa_categories` (diakses di API route /coa — **tidak ada di schema**, schema punya `chart_of_accounts`) |
+| **Tabel ✅** | `journal_entries` (ada di schema migration 039) |
+| **Tabel ❌** | `general_ledger` (ada di schema tapi **tidak pernah diquery** di frontend/API) |
+| **Catatan** | Nama tabel COA tidak konsisten: schema=`chart_of_accounts`, API=`coa_categories` |
+
+---
+
+### F-10 Laporan Keuangan & Pajak
+
+| Item | Detail |
+|------|--------|
+| **Halaman** | `AdminLaporanKeuangan.tsx`, `AdminLaporanPajak.tsx`, `AdminLaporanAgen.tsx`, `AdminLaporanCabang.tsx`, `AdminKPIDashboard.tsx` |
+| **API** | `GET /reports/*` |
+| **Tabel ✅** | `bookings`, `payments`, `departures`, `departure_financial_summary`, `agent_commissions`, `payroll_records`, `employees`, `branches` |
+| **Tabel ❌** | `cash_transactions` (diakses di AdminLaporanCabang, AdminLaporanPajak) |
+| **Kolom ⚠️** | `payroll_records.pph21_amount` — ada di schema (migration 082 kolom), tapi perlu verifikasi apakah sudah di Neon |
+
+---
+
+### F-11 SDM — Data Karyawan
+
+| Item | Detail |
+|------|--------|
+| **Halaman** | `AdminHR.tsx`, `AdminHRAnalytics.tsx` |
+| **API** | `GET /hr/*` |
+| **Tabel ✅** | `employees`, `branches`, `user_roles` |
+| **Tabel ❌** | `attendance_records` (diakses di AdminHR.tsx dan AdminFinanceCash.tsx — **tidak ada di schema**, harusnya `attendance`) |
+
+---
+
+### F-12 SDM — Payroll & Pajak
+
+| Item | Detail |
+|------|--------|
+| **Halaman** | `AdminHR.tsx` (tab payroll), `AdminLaporanPajak.tsx` |
+| **API** | `GET /hr/payroll`, `POST /hr/payroll/finalize` |
+| **Tabel ✅** | `payroll_records`, `employees` |
+| **Tabel ❌** | `payroll_slips` (ada di schema migration 027/070 tapi **0 frontend hits**), `payroll_components` (0 hits), `employee_payroll_components` (0 hits) |
+| **Status** | Schema punya 3 tabel payroll detail yang tidak digunakan UI |
+
+---
+
+### F-13 SDM — Absensi
+
+| Item | Detail |
+|------|--------|
+| **Halaman** | `AdminHRAbsensi.tsx`, `AdminHRAbsensiRekap.tsx`, `AdminAbsensiDigital.tsx`, `AdminAbsensiHarianTanahSuci.tsx` |
+| **API** | — |
+| **Tabel ❌** | `attendance_records` (**tidak ada di schema** — harusnya `attendance`) |
+| **Tabel ✅** | `attendance` (ada di schema fase21, tapi diakses dengan nama berbeda di halaman HR) |
+| **Status** | 🔴 Halaman absensi admin mengakses tabel yang salah nama |
+
+---
+
+### F-14 SDM — Pelatihan Karyawan
+
+| Item | Detail |
+|------|--------|
+| **Halaman** | `AdminHRTraining.tsx` |
+| **API** | `GET /v1/training/notification-settings`, `POST /v1/training/run-notifications` |
+| **Tabel ✅** | `training_modules`, `training_notification_settings`, `training_notification_log` |
+| **Tabel ⚠️** | API mengakses `employee_training_progress` & `training_curricula` — schema punya `agent_training_progress` & `position_training_curricula` (nama berbeda) |
+
+---
+
+### F-15 SDM — Karir, Kontrak & Rekrutmen
+
+| Item | Detail |
+|------|--------|
+| **Halaman** | Belum ada halaman yang mengakses tabel ini |
+| **API** | — |
+| **Tabel ❌ (ada di schema, 0 hits)** | `disciplinary_records`, `career_history`, `employee_contracts`, `job_postings`, `job_applicants`, `onboarding_templates`, `onboarding_template_items`, `employee_onboarding_tasks`, `position_training_curricula` |
+| **Status** | 🔴 Seluruh modul rekrutmen & karir sudah ada di schema tapi **belum ada UI** |
+
+---
+
+### F-16 Portal Jamaah — Dashboard & Profil
+
+| Item | Detail |
+|------|--------|
+| **Halaman** | `JamaahPortal.tsx`, `JamaahProfil.tsx`, `JamaahWelcome.tsx`, `JamaahDigitalID.tsx` |
+| **API** | `/rest/v1/customers`, `/rest/v1/bookings`, `/rest/v1/departures` |
+| **Tabel ✅** | `customers`, `bookings`, `departures`, `packages`, `booking_passengers`, `profiles`, `user_roles`, `customer_notifications` |
+| **Tabel ❌** | `jamaah_qr_codes` (diakses di JamaahDigitalID — **tidak ada di schema**) |
+
+---
+
+### F-17 Portal Jamaah — Ibadah Tracker
+
+| Item | Detail |
+|------|--------|
+| **Halaman** | `JamaahIbadah*.tsx`, `JamaahJurnal.tsx`, `TrackerIbadah.tsx` |
+| **API** | `/rest/v1/ibadah_progress`, `/rest/v1/jamaah_ibadah_logs`, `/rest/v1/jamaah_ibadah_targets` |
+| **Tabel ✅** | `ibadah_progress`, `jamaah_ibadah_logs`, `jamaah_ibadah_targets`, `jamaah_jurnal`, `jamaah_doa_sessions` |
+| **Kolom ✅** | ibadah_progress: user_id, ibadah_date, ibadah_type, count, target, notes, completed |
+
+---
+
+### F-18 Portal Jamaah — SOS Alert
+
+| Item | Detail |
+|------|--------|
+| **Halaman** | `JamaahSOSStatus.tsx`, `MuthawifSOS.tsx` |
+| **API** | `/rest/v1/sos_alerts` |
+| **Tabel ✅** | `sos_alerts` |
+| **Tabel ❌** | `sos_escalation_log` (ada di schema migration 082 tapi 0 frontend hits) |
+| **Kolom ⚠️** | `sos_alerts.emergency_type` — ada di fase16 tapi mungkin tidak di fase0 (konflik schema) |
+
+---
+
+### F-19 Portal Jamaah — Visa Tracker
+
+| Item | Detail |
+|------|--------|
+| **Halaman** | `JamaahVisaTracker.tsx`, `AdminVisaManagement.tsx` |
+| **API** | `/rest/v1/visa_applications` |
+| **Tabel ✅** | `visa_applications` |
+| **Tabel ⚠️** | `visa_status_logs` (skema ambigu — 2 definisi berbeda, lihat §8.2) |
+
+---
+
+### F-20 Portal Jamaah — Loyalty & Badge
+
+| Item | Detail |
+|------|--------|
+| **Halaman** | `JamaahPortal.tsx`, `AdminLoyalty.tsx`, beberapa komponen portal |
+| **API** | `/rest/v1/loyalty_points`, `/rest/v1/loyalty_rewards`, `/rest/v1/loyalty_transactions` |
+| **Tabel ✅** | `loyalty_points`, `jamaah_badges`, `tier_benefits` |
+| **Tabel ❌** | `loyalty_rewards` (**tidak ada di schema** — 6 hits di frontend) |
+| **Tabel ❌** | `loyalty_transactions` (**tidak ada di schema** — 5 hits di frontend) |
+| **Status** | 🔴 Fitur redeem loyalty reward & history transaksi tidak punya tabel |
+
+---
+
+### F-21 Tabungan (Savings)
+
+| Item | Detail |
+|------|--------|
+| **Halaman** | `SavingsDashboard.tsx`, `SavingsRegister.tsx`, `AdminSavings.tsx`, `AdminSavingsPlans.tsx`, `AdminMonitoringTabungan.tsx`, `MySavings.tsx` |
+| **API** | `/rest/v1/savings_plans`, `/rest/v1/savings_schedules` |
+| **Tabel ✅** | `savings_plans`, `savings_schedules` |
+| **Tabel ❌** | `savings_payments` (**tidak ada di schema** — 8 hits, harusnya `savings_deposits`) |
+| **Tabel ❌** | `savings_page_content` (**tidak ada di schema** — 4 hits, data konten statis) |
+| **Kolom ⚠️** | `savings_plans.current_amount` — mungkin tidak ada di schema (schema tidak menyebutkan kolom ini secara eksplisit, biasanya dihitung dari savings_deposits) |
+
+---
+
+### F-22 E-Commerce Toko
+
+| Item | Detail |
+|------|--------|
+| **Halaman** | `TokoOnline.tsx`, `AdminStore.tsx`, `AdminInventory.tsx` (procurement) |
+| **API** | `/rest/v1/store_*` |
+| **Tabel ✅** | `store_products`, `store_categories`, `store_orders`, `store_order_items`, `store_shipments`, `store_product_reviews`, `store_carts`, `store_suppliers`, `store_purchase_orders`, `store_purchase_order_items`, `store_stock_movements`, `store_opname_sessions`, `store_opname_lines`, `store_low_stock_alerts` |
+| **Catatan** | Modul e-commerce paling lengkap — semua tabel yang diquery tersedia di schema |
+
+---
+
+### F-23 WhatsApp Management
+
+| Item | Detail |
+|------|--------|
+| **Halaman** | `AdminWhatsApp.tsx`, `AdminWABroadcast.tsx` |
+| **API** | `GET /v1/whatsapp/config`, `POST /v1/whatsapp/send`, `GET /whatsapp/*` |
+| **Tabel ✅** | `whatsapp_config`, `wa_templates`, `wa_send_logs`, `wa_broadcast_campaigns`, `wa_broadcast_logs` |
+| **Tabel ⚠️** | `webhook_endpoints` (diakses di beberapa komponen — schema punya `webhooks`, bukan `webhook_endpoints`) |
+| **Tabel ❌** | `wa_feature_roadmap` (ada di schema tapi 0 frontend hits — hanya data statis) |
+
+---
+
+### F-24 Push Notifications
+
+| Item | Detail |
+|------|--------|
+| **Halaman** | `AdminPushNotifications.tsx` |
+| **API** | `POST /push/send`, `GET /push/subscriptions` |
+| **Tabel ✅** | `push_subscriptions`, `push_outbox`, `notifications` |
+
+---
+
+### F-25 Perlengkapan (Equipment)
+
+| Item | Detail |
+|------|--------|
+| **Halaman** | `EquipmentPage.tsx`, `AdminEquipmentMaster.tsx`, `AdminEquipmentSettings.tsx`, `MasterItemTab.tsx`, `StockOpnameTab.tsx` |
+| **API** | `/rest/v1/equipment`, `/rest/v1/equipment_distributions`, `/rest/v1/equipment_distribution_items` |
+| **Tabel ✅** | `equipment`, `equipment_distributions`, `equipment_distribution_items`, `equipment_maintenance`, `equipment_damage` |
+| **Tabel ⚠️** | `equipment_items` (diakses di frontend — schema punya `equipment` sebagai master, tidak ada `equipment_items` terpisah) |
+| **Kolom ❌** | `equipment_distributions.item_name` → diquery sebagai TEXT, tapi tidak ada FK ke `equipment.id` — data tidak terhubung ke master |
+
+---
+
+### F-26 Rooming List
+
+| Item | Detail |
+|------|--------|
+| **Halaman** | `AdminRoomAssignments.tsx`, `RoomingListPageImproved.tsx`, `DepartureRoomingTab.tsx` |
+| **API** | `/rest/v1/room_assignments`, `/rest/v1/room_occupants`, `/rest/v1/booking_passengers` |
+| **Tabel ✅** | `room_assignments`, `room_occupants`, `booking_passengers` |
+| **Sistem Dual** | `booking_passengers.roommate_id` (double pairing) + `booking_passengers.room_number_makkah/madinah` (triple/quad grouping) + `room_assignments`+`room_occupants` (hotel system) |
+
+---
+
+### F-27 Operasional — Check-in & Manifes
+
+| Item | Detail |
+|------|--------|
+| **Halaman** | `CheckinPage.tsx`, `OfflineCheckinPage.tsx`, `ManifestPage.tsx`, `AdminManifestJamaah.tsx`, `QRCodePage.tsx` |
+| **API** | `GET /manifest/:departureId` |
+| **Tabel ✅** | `bookings`, `booking_passengers`, `departures`, `attendance` |
+| **Tabel ❌** | `manifests` (diakses di ManifestPage.tsx — **tidak ada di schema**), `qr_scans` (diakses di QRCodePage — **tidak ada**) |
+
+---
+
+### F-28 Operasional — Trip Timeline & Program
+
+| Item | Detail |
+|------|--------|
+| **Halaman** | `TripTimelinePage.tsx`, `JamaahProgramLive.tsx`, `TourLeaderProgram.tsx` |
+| **API** | `PATCH /guide/program/:itemId` |
+| **Tabel ✅** | `trip_timeline` |
+| **Kolom akses** | live_status, delay_minutes, live_notes, location_changed_to, event_time |
+
+---
+
+### F-29 Guide/Muthawif — Sesi & Broadcast
+
+| Item | Detail |
+|------|--------|
+| **Halaman** | `MuthawifDashboard.tsx`, `MuthawifBroadcast.tsx`, `MuthawifAbsensiSesi.tsx`, `TourLeaderBroadcast.tsx`, `TourLeaderAttendance.tsx` |
+| **API** | `GET /guide/channels/:departureId`, `POST /guide/broadcasts`, `POST /guide/sessions`, `POST /guide/sessions/:id/checkin` |
+| **Tabel ❌** | `guide_channels` (**tidak ada di schema**), `guide_broadcasts` (**tidak ada**), `guide_sessions` (**tidak ada**), `guide_session_attendance` (**tidak ada**) |
+| **Status** | 🔴 Seluruh fitur siaran muthawif/TL tidak punya tabel pendukung di schema |
+
+---
+
+### F-30 Manasik
+
+| Item | Detail |
+|------|--------|
+| **Halaman** | `AdminManasik.tsx` |
+| **API** | `/rest/v1/manasik_schedules`, `/rest/v1/manasik_attendances` |
+| **Tabel ✅** | `manasik_schedules`, `manasik_attendances` |
+| **Tabel ❌** | `manasik_attendances` (ada di schema sebagai `manasik_attendances` dari fase21 — perlu verifikasi nama pasti) |
+
+---
+
+### F-31 Dokumen & Template
+
+| Item | Detail |
+|------|--------|
+| **Halaman** | `AdminDocumentGenerator.tsx`, `AdminDocumentTemplates.tsx`, `AdminDocumentAudit.tsx`, `AdminDocumentTypes.tsx`, `DocVerifyPage.tsx` |
+| **API** | `POST /documents/next-number`, `POST /documents/audit`, `POST /documents/verify-tokens`, `POST /documents/signature/:id` |
+| **Tabel ✅** | `document_templates`, `customer_documents`, `document_types` |
+| **Tabel ❌** | `document_audit_logs` (diakses di /documents/audit — **tidak ada di schema**) |
+| **Tabel ❌** | `document_verify_tokens` (diakses di /documents/verify-tokens — **tidak ada**) |
+| **Tabel ❌** | `customer_signatures` (diakses di /documents/signature — **tidak ada**) |
+| **Tabel ⚠️** | `document_numbering` (API menyebut `get_next_document_number` — schema punya `document_numbering_sequences` tapi function name berbeda) |
+
+---
+
+### F-32 Approval Workflow
+
+| Item | Detail |
+|------|--------|
+| **Halaman** | `AdminApprovals.tsx` |
+| **API** | `/rest/v1/approval_requests`, `/rest/v1/approval_actions` |
+| **Tabel ✅** | `approval_requests`, `approval_actions`, `approval_configs` |
+
+---
+
+### F-33 Leads & CRM
+
+| Item | Detail |
+|------|--------|
+| **Halaman** | `AdminLeads.tsx`, `AdminLeadDetail.tsx`, `AdminLeadAnalytics.tsx`, `AdminFollowUpReminder.tsx` |
+| **API** | `/v1/leads`, `/rest/v1/leads` |
+| **Tabel ✅** | `leads`, `packages` |
+| **Kolom ⚠️** | Hook `useLeads` mencoba join `package_interest` sebagai FK tapi tidak ada tabel — `package_interest` mungkin TEXT column di `leads` |
+
+---
+
+### F-34 Website & Penampilan
+
+| Item | Detail |
+|------|--------|
+| **Halaman** | `AdminAppearance.tsx`, `AdminLandingPageEditor.tsx`, `AdminLandingPages.tsx`, `AdminBanners.tsx`, `AdminBlog.tsx` |
+| **API** | `/rest/v1/website_settings`, `/rest/v1/banners`, `/rest/v1/announcements`, `/rest/v1/media_gallery` |
+| **Tabel ✅** | `website_settings`, `banners`, `announcements`, `media_gallery` |
+| **Tabel ❌** | `hero_stats` (1 file — **tidak ada di schema**), `about_page_content` (4 files), `savings_page_content` (4 files), `testimonials` (useTestimonials hook) |
+| **Status** | 🔴 Seluruh konten halaman publik statis (Hero, About, Testimonial) tidak punya tabel |
+
+---
+
+### F-35 Referral Jamaah
+
+| Item | Detail |
+|------|--------|
+| **Halaman** | `JamaahReferral.tsx` |
+| **API** | `/rest/v1/referral_codes`, `/rest/v1/referral_usages` |
+| **Tabel ❌** | `referral_codes` (**tidak ada di schema** — 3 hits) |
+| **Tabel ❌** | `referral_usages` (**tidak ada di schema** — 3 hits) |
+| **Status** | 🔴 Fitur referral tidak punya tabel pendukung |
+
+---
+
+### F-36 Kalkulator Cicilan (CicilanGenerator)
+
+| Item | Detail |
+|------|--------|
+| **Halaman** | `AdminCicilanGenerator.tsx`, `AdminCicilanReminder.tsx` |
+| **API** | `/rest/v1/payment_deadline_reminders`, `/rest/v1/savings_payments` |
+| **Tabel ✅** | `payment_deadline_reminders` |
+| **Tabel ❌** | `savings_payments` (harusnya `savings_deposits`) |
+| **Tabel ❌** | `booking_installment_schedules` (ada di schema tapi 0 frontend hits) |
+
+---
+
+### F-37 Hotel & Vendor Management
+
+| Item | Detail |
+|------|--------|
+| **Halaman** | `AdminHotels.tsx`, `AdminHotelContracts.tsx` |
+| **API** | `/rest/v1/hotels`, `/rest/v1/hotel_room_capacities` |
+| **Tabel ✅** | `hotels`, `hotel_room_capacities` |
+| **Tabel ❌** | `hotel_contracts`, `hotel_vouchers` (ada di schema migration 082 tapi 0 frontend hits) |
+| **Tabel ✅** | `vendors`, `vendor_contracts` (diakses di AdminVendors) |
+| **Tabel ❌** | `vendor_costs` (**tidak ada di schema** — 2 hits) |
+
+---
+
+### F-38 Cabang (Branches)
+
+| Item | Detail |
+|------|--------|
+| **Halaman** | `AdminBranches.tsx`, `AdminBranchDetail.tsx`, `AdminBranchComparison.tsx` |
+| **API** | `POST /branches/create`, `GET /branches/:id` |
+| **Tabel ✅** | `branches`, `agents`, `departures`, `packages`, `bookings`, `user_roles`, `profiles`, `bank_accounts`, `branch_commissions`, `branch_monthly_targets` |
+| **Tabel ⚠️** | `branch_memberships` (diakses di frontend, ada di schema) |
+
+---
+
+### F-39 Pengguna & RBAC
+
+| Item | Detail |
+|------|--------|
+| **Halaman** | `AdminUsers.tsx`, `AdminAccessSimulator.tsx`, `AdminSecurityAudit.tsx`, `Admin2FASettings.tsx` |
+| **API** | `POST /auth/admin/users`, `PATCH /auth/admin/users/:id`, `GET /permissions` |
+| **Tabel ✅** | `profiles`, `user_roles`, `role_permissions`, `user_permissions`, `permissions_list` |
+| **Tabel ❌** | `audit_logs` (AdminSecurityAudit — **tidak ada**, harusnya `rbac_audit_trail`), `login_attempts` (**tidak ada**), `user_2fa_settings` (**tidak ada**) |
+| **Tabel ⚠️** | `rbac_audit_trail` (ada di schema migration 047 tapi tidak diakses di frontend) |
+
+---
+
+### F-40 Chatbot & FAQ
+
+| Item | Detail |
+|------|--------|
+| **Halaman** | `AdminChatbotStats.tsx`, `AdminFAQManager.tsx`, `AdminChatLogs.tsx` |
+| **API** | `POST /v1/chatbot`, `GET /v1/chatbot/stats` |
+| **Tabel ✅** | `faqs` |
+| **Tabel ✅** | `chatbot_logs` (ada di Drizzle schema, diakses via API) |
+
+---
+
+### F-41 Aturan Pembatalan
+
+| Item | Detail |
+|------|--------|
+| **Halaman** | `AdminAturanPembatalan.tsx`, `AdminCancellationPolicies.tsx` |
+| **API** | `GET /cancellation-rules`, `PUT /cancellation-rules/bulk-unassign` |
+| **Tabel ✅** | `cancellation_rules`, `packages` (cancellation_rule_id) |
+| **Tabel ❌** | `cancellation_rule_audit_logs` (diakses di API route tapi **tidak di schema**) |
+
+---
+
+### F-42 Exchange Rates & Kurs
+
+| Item | Detail |
+|------|--------|
+| **Halaman** | `AdminExchangeRates.tsx`, `KursPage.tsx` |
+| **API** | `/v1/kurs`, `/rest/v1/exchange_rates` |
+| **Tabel ✅** | `exchange_rates` |
+
+---
+
+### F-43 Tabungan Haji (Savings Haji)
+
+| Item | Detail |
+|------|--------|
+| **Halaman** | `AdminHajiManagement.tsx`, `JamaahSISKOHAT.tsx` |
+| **API** | `/rest/v1/customers`, `/rest/v1/siskohat_sync_logs` |
+| **Tabel ✅** | `customers` (kolom: nomor_porsi_haji, embarkasi_kode), `siskohat_sync_logs` |
+
+---
+
+### F-44 API Keys Management
+
+| Item | Detail |
+|------|--------|
+| **Halaman** | `AdminApiConnect.tsx`, `AdminIntegrationSettings.tsx` |
+| **API** | `/rest/v1/api_keys` |
+| **Tabel ✅** | `api_keys` (ada di Drizzle schema) |
+
+---
+
+### F-45 Laporan Aset Kantor
+
+| Item | Detail |
+|------|--------|
+| **Halaman** | `OfficeAssets.tsx` |
+| **API** | `/rest/v1/equipment` (dengan filter tipe=office) |
+| **Tabel ✅** | `equipment` |
+
+---
+
+## 14. RINGKASAN: TABEL TIDAK DIGUNAKAN DI FRONTEND/API
+
+Tabel ada di schema tapi **0 query hits** di seluruh frontend dan API server:
+
+| Tabel | Modul | Status |
+|-------|-------|--------|
+| `departure_waiting_list` | Keberangkatan | Belum ada UI |
+| `hotel_contracts` | Hotel | Halaman ada tapi tidak query |
+| `hotel_vouchers` | Hotel | Belum ada UI |
+| `sos_escalation_log` | SOS | Belum ada UI |
+| `booking_installment_schedules` | Booking | Belum ada UI |
+| `booking_seat_locks` | Booking | Hanya di API server (reserve-slot) |
+| `payroll_components` | SDM | Belum ada UI |
+| `employee_payroll_components` | SDM | Belum ada UI |
+| `payroll_slips` | SDM | Belum ada UI |
+| `disciplinary_records` | SDM | Belum ada UI |
+| `career_history` | SDM | Belum ada UI |
+| `employee_contracts` | SDM | Belum ada UI |
+| `job_postings` | Rekrutmen | Belum ada UI |
+| `job_applicants` | Rekrutmen | Belum ada UI |
+| `onboarding_templates` | Onboarding | Belum ada UI |
+| `onboarding_template_items` | Onboarding | Belum ada UI |
+| `employee_onboarding_tasks` | Onboarding | Belum ada UI |
+| `position_training_curricula` | SDM | Belum ada UI (API pakai nama berbeda) |
+| `agent_commission_tiers` | Agen | Belum ada UI |
+| `rbac_audit_trail` | Auth | Belum ada UI (frontend pakai `audit_logs` ❌) |
+| `account_periods` | Akuntansi | Belum ada UI |
+| `general_ledger` | Akuntansi | Belum ada UI |
+| `document_numbering_sequences` | Dokumen | API pakai nama fungsi berbeda |
+| `tier_benefits` | Loyalty | Belum ada UI |
+| `pwa_install_events` | Monitoring | Belum ada UI |
+| `web_vitals_metrics` | Monitoring | Belum ada UI |
+| `wa_feature_roadmap` | WhatsApp | Data statis, tidak ditampilkan |
+
+---
+
+## 15. RINGKASAN: TABEL PHANTOM (QUERY KE TABEL YANG TIDAK ADA)
+
+Query ke tabel yang **tidak ada di schema** — akan selalu gagal/silent error:
+
+| Tabel Phantom | Hit | Halaman Utama | Pengganti Yang Benar |
+|---------------|-----|---------------|----------------------|
+| `savings_payments` | 8 | AdminSavings, AdminPayments, SavingsDashboard | → `savings_deposits` |
+| `loyalty_rewards` | 6 | AdminLoyalty, portal jamaah | → **buat tabel baru** |
+| `loyalty_transactions` | 5 | AdminLoyalty, portal jamaah | → **buat tabel baru** |
+| `salary_payments` | 5 | AdminFinanceCash | → `payroll_records` |
+| `luggage` | 5 | LuggagePage, OperationalDashboard | → `baggage_policies` / `baggage_reference_items` |
+| `cash_transactions` | 3+ | AdminArusKas, AdminFinanceCash, AdminLabaRugi, laporan | → **buat tabel baru** |
+| `audit_logs` | 5 | AdminBookingDetail, AdminSecurityAudit | → `rbac_audit_trail` |
+| `savings_page_content` | 4 | SavingsPageEditor, hooks | → **buat tabel** atau pakai `app_settings` |
+| `about_page_content` | 4 | AdminAppearance | → **buat tabel** atau pakai `website_settings` |
+| `agent_wallets` | 4 | AgentWallet, useAgents | → **buat tabel baru** |
+| `jamaah_qr_codes` | 4 | JamaahDigitalID, AdminDepartures, QRCodePage | → **buat tabel baru** |
+| `attendance_records` | 2 | AdminHR, AdminFinanceCash | → `attendance` |
+| `referral_codes` | 3 | JamaahReferral | → **buat tabel baru** |
+| `referral_usages` | 3 | JamaahReferral | → **buat tabel baru** |
+| `preparation_checklists` | 3 | Portal jamaah persiapan | → `jamaah_checklist` |
+| `virtual_accounts` | 3 | Pembayaran VA | → **buat tabel baru** |
+| `hero_stats` | 1 | AdminAppearance (HeroStatsEditor) | → **buat tabel** atau pakai `website_settings` |
+| `webhook_endpoints` | 3 | AdminApiConnect | → `webhooks` |
+| `manifests` | 2 | ManifestPage | → query langsung dari `booking_passengers` |
+| `vendor_costs` | 2 | AdminVendors | → **buat tabel baru** |
+| `package_images` | 2 | Package gallery | → `media_gallery` |
+| `package_groups` | — | AdminPackages | → `package_labels` |
+| `login_attempts` | 1 | AdminSecurityAudit | → **buat tabel baru** |
+| `user_2fa_settings` | 1 | Admin2FASettings | → **buat tabel baru** |
+| `guide_channels` | API | MuthawifBroadcast | → **buat tabel baru** |
+| `guide_broadcasts` | API | MuthawifBroadcast | → **buat tabel baru** |
+| `guide_sessions` | API | MuthawifAbsensiSesi | → **buat tabel baru** |
+| `guide_session_attendance` | API | MuthawifAbsensiSesi | → **buat tabel baru** |
+| `coa_categories` | API | AdminCOA | → `chart_of_accounts` |
+| `document_audit_logs` | API | AdminDocumentAudit | → **buat tabel baru** |
+| `document_verify_tokens` | API | DocVerifyPage | → **buat tabel baru** |
+| `customer_signatures` | API | DocSignaturePage | → **buat tabel baru** |
+| `agent_invitation_tokens` | API | AgentInvite | → **buat tabel baru** |
+| `testimonials` | Hook | LandingPage | → **buat tabel** atau pakai `media_gallery` |
+| `theme_presets` | Hook | AdminAppearance | → **buat tabel baru** |
+
+---
+
+## 16. PRIORITAS PERBAIKAN
+
+### P1 — Kritis (data hilang, fitur rusak)
+
+1. **Ganti `savings_payments` → `savings_deposits`** di 8 file
+2. **Ganti `attendance_records` → `attendance`** di AdminHR, AdminFinanceCash
+3. **Ganti `coa_categories` → `chart_of_accounts`** di route /coa
+4. **Ganti `audit_logs` → `rbac_audit_trail`** di AdminSecurityAudit, AdminBookingDetail
+5. **Buat tabel `cash_transactions`** atau ganti query ke `transactions` (ada di schema)
+6. **Buat tabel `loyalty_rewards` & `loyalty_transactions`** untuk fitur loyalty lengkap
+
+### P2 — Penting (fitur tidak berfungsi)
+
+7. **Buat tabel `guide_channels`, `guide_broadcasts`, `guide_sessions`, `guide_session_attendance`** untuk fitur muthawif/TL broadcast
+8. **Buat tabel `agent_wallets` & `agent_wallet_transactions`** untuk fitur dompet agen
+9. **Buat tabel `jamaah_qr_codes`** untuk digital ID jamaah
+10. **Buat tabel `referral_codes` & `referral_usages`** untuk fitur referral
+11. **Ganti `salary_payments` → `payroll_records`** di AdminFinanceCash
+12. **Ganti `luggage` → `baggage_policies`** di LuggagePage
+13. **Buat tabel `document_audit_logs`, `document_verify_tokens`, `customer_signatures`**
+
+### P3 — Backlog (schema siap, UI belum)
+
+14. Buat halaman untuk: `job_postings`, `job_applicants`, `employee_contracts`, `career_history`
+15. Buat halaman untuk: `hotel_contracts`, `hotel_vouchers`
+16. Buat halaman untuk: `booking_installment_schedules`
+17. Hubungkan `rbac_audit_trail` ke halaman AdminSecurityAudit
+18. Buat halaman untuk: `payroll_slips`, `payroll_components`
