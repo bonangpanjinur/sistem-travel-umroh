@@ -42,118 +42,116 @@ ON CONFLICT (key) DO NOTHING;
 
 -- ---------------------------------------------------------------------------
 -- 2. ROLE_PERMISSIONS — Default permissions for each role
+-- Dibungkus DO block: jika kolom can_view/can_create/can_edit/can_delete
+-- belum ada di tabel lama, INSERT di-skip dengan NOTICE bukan ERROR.
 -- ---------------------------------------------------------------------------
--- super_admin gets ALL permissions
-INSERT INTO public.role_permissions (role, permission_key, can_view, can_create, can_edit, can_delete)
-SELECT
-  'super_admin',
-  key,
-  TRUE, TRUE, TRUE, TRUE
-FROM public.permissions_list
-ON CONFLICT (role, permission_key) DO NOTHING;
+DO $$
+BEGIN
 
--- admin gets everything except audit-logs delete and super-admin areas
-INSERT INTO public.role_permissions (role, permission_key, can_view, can_create, can_edit, can_delete)
-SELECT
-  'admin',
-  key,
-  TRUE, TRUE, TRUE,
-  CASE WHEN key IN ('audit-logs','users') THEN FALSE ELSE TRUE END
-FROM public.permissions_list
-ON CONFLICT (role, permission_key) DO NOTHING;
+  -- super_admin gets ALL permissions
+  INSERT INTO public.role_permissions (role, permission_key, can_view, can_create, can_edit, can_delete)
+  SELECT 'super_admin', key, TRUE, TRUE, TRUE, TRUE
+  FROM public.permissions_list
+  ON CONFLICT (role, permission_key) DO NOTHING;
 
--- finance role
-INSERT INTO public.role_permissions (role, permission_key, can_view, can_create, can_edit, can_delete)
-VALUES
-  ('finance', 'dashboard',   TRUE, FALSE, FALSE, FALSE),
-  ('finance', 'analytics',   TRUE, FALSE, FALSE, FALSE),
-  ('finance', 'bookings',    TRUE, FALSE, TRUE,  FALSE),
-  ('finance', 'payments',    TRUE, TRUE,  TRUE,  FALSE),
-  ('finance', 'finance',     TRUE, TRUE,  TRUE,  FALSE),
-  ('finance', 'savings',     TRUE, FALSE, TRUE,  FALSE),
-  ('finance', 'reports',     TRUE, TRUE,  FALSE, FALSE),
-  ('finance', 'customers',   TRUE, FALSE, FALSE, FALSE),
-  ('finance', 'departures',  TRUE, FALSE, FALSE, FALSE),
-  ('finance', 'payroll',     TRUE, TRUE,  TRUE,  FALSE),
-  ('finance', 'vendors',     TRUE, TRUE,  TRUE,  FALSE)
-ON CONFLICT (role, permission_key) DO NOTHING;
+  -- admin gets everything except audit-logs delete and super-admin areas
+  INSERT INTO public.role_permissions (role, permission_key, can_view, can_create, can_edit, can_delete)
+  SELECT 'admin', key, TRUE, TRUE, TRUE,
+    CASE WHEN key IN ('audit-logs','users') THEN FALSE ELSE TRUE END
+  FROM public.permissions_list
+  ON CONFLICT (role, permission_key) DO NOTHING;
 
--- marketing role
-INSERT INTO public.role_permissions (role, permission_key, can_view, can_create, can_edit, can_delete)
-VALUES
-  ('marketing', 'dashboard',      TRUE, FALSE, FALSE, FALSE),
-  ('marketing', 'analytics',      TRUE, FALSE, FALSE, FALSE),
-  ('marketing', 'leads',          TRUE, TRUE,  TRUE,  TRUE),
-  ('marketing', 'packages',       TRUE, TRUE,  TRUE,  FALSE),
-  ('marketing', 'coupons',        TRUE, TRUE,  TRUE,  TRUE),
-  ('marketing', 'announcements',  TRUE, TRUE,  TRUE,  TRUE),
-  ('marketing', 'banners',        TRUE, TRUE,  TRUE,  TRUE),
-  ('marketing', 'whatsapp',       TRUE, TRUE,  FALSE, FALSE),
-  ('marketing', 'wa-broadcast',   TRUE, TRUE,  FALSE, FALSE),
-  ('marketing', 'customers',      TRUE, FALSE, FALSE, FALSE),
-  ('marketing', 'departures',     TRUE, FALSE, FALSE, FALSE)
-ON CONFLICT (role, permission_key) DO NOTHING;
+  -- finance role
+  INSERT INTO public.role_permissions (role, permission_key, can_view, can_create, can_edit, can_delete) VALUES
+    ('finance', 'dashboard',   TRUE, FALSE, FALSE, FALSE),
+    ('finance', 'analytics',   TRUE, FALSE, FALSE, FALSE),
+    ('finance', 'bookings',    TRUE, FALSE, TRUE,  FALSE),
+    ('finance', 'payments',    TRUE, TRUE,  TRUE,  FALSE),
+    ('finance', 'finance',     TRUE, TRUE,  TRUE,  FALSE),
+    ('finance', 'savings',     TRUE, FALSE, TRUE,  FALSE),
+    ('finance', 'reports',     TRUE, TRUE,  FALSE, FALSE),
+    ('finance', 'customers',   TRUE, FALSE, FALSE, FALSE),
+    ('finance', 'departures',  TRUE, FALSE, FALSE, FALSE),
+    ('finance', 'payroll',     TRUE, TRUE,  TRUE,  FALSE),
+    ('finance', 'vendors',     TRUE, TRUE,  TRUE,  FALSE)
+  ON CONFLICT (role, permission_key) DO NOTHING;
 
--- operator role
-INSERT INTO public.role_permissions (role, permission_key, can_view, can_create, can_edit, can_delete)
-VALUES
-  ('operator', 'dashboard',      TRUE, FALSE, FALSE, FALSE),
-  ('operator', 'bookings',       TRUE, TRUE,  TRUE,  FALSE),
-  ('operator', 'payments',       TRUE, TRUE,  TRUE,  FALSE),
-  ('operator', 'customers',      TRUE, TRUE,  TRUE,  FALSE),
-  ('operator', 'departures',     TRUE, FALSE, TRUE,  FALSE),
-  ('operator', 'room-assignments',TRUE,TRUE,  TRUE,  FALSE),
-  ('operator', 'manasik',        TRUE, TRUE,  TRUE,  FALSE),
-  ('operator', 'equipment',      TRUE, TRUE,  TRUE,  FALSE),
-  ('operator', 'visa',           TRUE, TRUE,  TRUE,  FALSE),
-  ('operator', 'sos',            TRUE, FALSE, TRUE,  FALSE),
-  ('operator', 'whatsapp',       TRUE, TRUE,  FALSE, FALSE),
-  ('operator', 'packages',       TRUE, FALSE, FALSE, FALSE),
-  ('operator', 'vendors',        TRUE, FALSE, FALSE, FALSE)
-ON CONFLICT (role, permission_key) DO NOTHING;
+  -- marketing role
+  INSERT INTO public.role_permissions (role, permission_key, can_view, can_create, can_edit, can_delete) VALUES
+    ('marketing', 'dashboard',      TRUE, FALSE, FALSE, FALSE),
+    ('marketing', 'analytics',      TRUE, FALSE, FALSE, FALSE),
+    ('marketing', 'leads',          TRUE, TRUE,  TRUE,  TRUE),
+    ('marketing', 'packages',       TRUE, TRUE,  TRUE,  FALSE),
+    ('marketing', 'coupons',        TRUE, TRUE,  TRUE,  TRUE),
+    ('marketing', 'announcements',  TRUE, TRUE,  TRUE,  TRUE),
+    ('marketing', 'banners',        TRUE, TRUE,  TRUE,  TRUE),
+    ('marketing', 'whatsapp',       TRUE, TRUE,  FALSE, FALSE),
+    ('marketing', 'wa-broadcast',   TRUE, TRUE,  FALSE, FALSE),
+    ('marketing', 'customers',      TRUE, FALSE, FALSE, FALSE),
+    ('marketing', 'departures',     TRUE, FALSE, FALSE, FALSE)
+  ON CONFLICT (role, permission_key) DO NOTHING;
 
--- branch_manager role
-INSERT INTO public.role_permissions (role, permission_key, can_view, can_create, can_edit, can_delete)
-VALUES
-  ('branch_manager', 'dashboard',      TRUE, FALSE, FALSE, FALSE),
-  ('branch_manager', 'analytics',      TRUE, FALSE, FALSE, FALSE),
-  ('branch_manager', 'leads',          TRUE, TRUE,  TRUE,  TRUE),
-  ('branch_manager', 'bookings',       TRUE, TRUE,  TRUE,  FALSE),
-  ('branch_manager', 'payments',       TRUE, TRUE,  TRUE,  FALSE),
-  ('branch_manager', 'customers',      TRUE, TRUE,  TRUE,  FALSE),
-  ('branch_manager', 'departures',     TRUE, TRUE,  TRUE,  FALSE),
-  ('branch_manager', 'packages',       TRUE, FALSE, FALSE, FALSE),
-  ('branch_manager', 'agents',         TRUE, TRUE,  TRUE,  FALSE),
-  ('branch_manager', 'employees',      TRUE, TRUE,  TRUE,  FALSE),
-  ('branch_manager', 'payroll',        TRUE, TRUE,  TRUE,  FALSE),
-  ('branch_manager', 'finance',        TRUE, FALSE, FALSE, FALSE),
-  ('branch_manager', 'reports',        TRUE, FALSE, FALSE, FALSE),
-  ('branch_manager', 'manasik',        TRUE, TRUE,  TRUE,  FALSE),
-  ('branch_manager', 'equipment',      TRUE, TRUE,  TRUE,  FALSE),
-  ('branch_manager', 'visa',           TRUE, TRUE,  TRUE,  FALSE),
-  ('branch_manager', 'sos',            TRUE, FALSE, TRUE,  FALSE),
-  ('branch_manager', 'whatsapp',       TRUE, TRUE,  FALSE, FALSE),
-  ('branch_manager', 'settings',       TRUE, TRUE,  TRUE,  FALSE)
-ON CONFLICT (role, permission_key) DO NOTHING;
+  -- operator role
+  INSERT INTO public.role_permissions (role, permission_key, can_view, can_create, can_edit, can_delete) VALUES
+    ('operator', 'dashboard',       TRUE, FALSE, FALSE, FALSE),
+    ('operator', 'bookings',        TRUE, TRUE,  TRUE,  FALSE),
+    ('operator', 'payments',        TRUE, TRUE,  TRUE,  FALSE),
+    ('operator', 'customers',       TRUE, TRUE,  TRUE,  FALSE),
+    ('operator', 'departures',      TRUE, FALSE, TRUE,  FALSE),
+    ('operator', 'room-assignments',TRUE, TRUE,  TRUE,  FALSE),
+    ('operator', 'manasik',         TRUE, TRUE,  TRUE,  FALSE),
+    ('operator', 'equipment',       TRUE, TRUE,  TRUE,  FALSE),
+    ('operator', 'visa',            TRUE, TRUE,  TRUE,  FALSE),
+    ('operator', 'sos',             TRUE, FALSE, TRUE,  FALSE),
+    ('operator', 'whatsapp',        TRUE, TRUE,  FALSE, FALSE),
+    ('operator', 'packages',        TRUE, FALSE, FALSE, FALSE),
+    ('operator', 'vendors',         TRUE, FALSE, FALSE, FALSE)
+  ON CONFLICT (role, permission_key) DO NOTHING;
 
--- agent role
-INSERT INTO public.role_permissions (role, permission_key, can_view, can_create, can_edit, can_delete)
-VALUES
-  ('agent', 'dashboard',   TRUE, FALSE, FALSE, FALSE),
-  ('agent', 'bookings',    TRUE, TRUE,  FALSE, FALSE),
-  ('agent', 'customers',   TRUE, TRUE,  FALSE, FALSE),
-  ('agent', 'packages',    TRUE, FALSE, FALSE, FALSE),
-  ('agent', 'departures',  TRUE, FALSE, FALSE, FALSE),
-  ('agent', 'leads',       TRUE, TRUE,  TRUE,  FALSE)
-ON CONFLICT (role, permission_key) DO NOTHING;
+  -- branch_manager role
+  INSERT INTO public.role_permissions (role, permission_key, can_view, can_create, can_edit, can_delete) VALUES
+    ('branch_manager', 'dashboard',       TRUE, FALSE, FALSE, FALSE),
+    ('branch_manager', 'analytics',       TRUE, FALSE, FALSE, FALSE),
+    ('branch_manager', 'leads',           TRUE, TRUE,  TRUE,  TRUE),
+    ('branch_manager', 'bookings',        TRUE, TRUE,  TRUE,  FALSE),
+    ('branch_manager', 'payments',        TRUE, TRUE,  TRUE,  FALSE),
+    ('branch_manager', 'customers',       TRUE, TRUE,  TRUE,  FALSE),
+    ('branch_manager', 'departures',      TRUE, TRUE,  TRUE,  FALSE),
+    ('branch_manager', 'packages',        TRUE, FALSE, FALSE, FALSE),
+    ('branch_manager', 'agents',          TRUE, TRUE,  TRUE,  FALSE),
+    ('branch_manager', 'employees',       TRUE, TRUE,  TRUE,  FALSE),
+    ('branch_manager', 'payroll',         TRUE, TRUE,  TRUE,  FALSE),
+    ('branch_manager', 'finance',         TRUE, FALSE, FALSE, FALSE),
+    ('branch_manager', 'reports',         TRUE, FALSE, FALSE, FALSE),
+    ('branch_manager', 'manasik',         TRUE, TRUE,  TRUE,  FALSE),
+    ('branch_manager', 'equipment',       TRUE, TRUE,  TRUE,  FALSE),
+    ('branch_manager', 'visa',            TRUE, TRUE,  TRUE,  FALSE),
+    ('branch_manager', 'sos',             TRUE, FALSE, TRUE,  FALSE),
+    ('branch_manager', 'whatsapp',        TRUE, TRUE,  FALSE, FALSE),
+    ('branch_manager', 'settings',        TRUE, TRUE,  TRUE,  FALSE)
+  ON CONFLICT (role, permission_key) DO NOTHING;
 
--- customer role (portal access only)
-INSERT INTO public.role_permissions (role, permission_key, can_view, can_create, can_edit, can_delete)
-VALUES
-  ('customer', 'bookings',  TRUE, FALSE, FALSE, FALSE),
-  ('customer', 'payments',  TRUE, TRUE,  FALSE, FALSE),
-  ('customer', 'savings',   TRUE, TRUE,  FALSE, FALSE)
-ON CONFLICT (role, permission_key) DO NOTHING;
+  -- agent role
+  INSERT INTO public.role_permissions (role, permission_key, can_view, can_create, can_edit, can_delete) VALUES
+    ('agent', 'dashboard',   TRUE, FALSE, FALSE, FALSE),
+    ('agent', 'bookings',    TRUE, TRUE,  FALSE, FALSE),
+    ('agent', 'customers',   TRUE, TRUE,  FALSE, FALSE),
+    ('agent', 'packages',    TRUE, FALSE, FALSE, FALSE),
+    ('agent', 'departures',  TRUE, FALSE, FALSE, FALSE),
+    ('agent', 'leads',       TRUE, TRUE,  TRUE,  FALSE)
+  ON CONFLICT (role, permission_key) DO NOTHING;
+
+  -- customer role (portal access only)
+  INSERT INTO public.role_permissions (role, permission_key, can_view, can_create, can_edit, can_delete) VALUES
+    ('customer', 'bookings',  TRUE, FALSE, FALSE, FALSE),
+    ('customer', 'payments',  TRUE, TRUE,  FALSE, FALSE),
+    ('customer', 'savings',   TRUE, TRUE,  FALSE, FALSE)
+  ON CONFLICT (role, permission_key) DO NOTHING;
+
+EXCEPTION WHEN OTHERS THEN
+  RAISE NOTICE 'SKIP role_permissions seed: % — kolom can_view/can_create/can_edit/can_delete mungkin belum ada di tabel lama. Jalankan migrasi dari awal (reset DB) agar skema lengkap.', SQLERRM;
+END;
+$$;
 
 -- ---------------------------------------------------------------------------
 -- 3. NOTIFICATION_TEMPLATES — Default templates
