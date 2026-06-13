@@ -13,33 +13,59 @@ CREATE EXTENSION IF NOT EXISTS "unaccent";
 CREATE EXTENSION IF NOT EXISTS "pg_trgm";
 
 -- ---------------------------------------------------------------------------
--- Auth schema stub (for local / non-Supabase Postgres)
--- On Supabase Cloud, auth.users already exists — these are skipped by the
--- IF NOT EXISTS guard. Safe to run on both environments.
--- ---------------------------------------------------------------------------
-CREATE SCHEMA IF NOT EXISTS auth;
-
-CREATE TABLE IF NOT EXISTS auth.users (
-  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  email         TEXT UNIQUE,
-  raw_user_meta_data JSONB,
-  created_at    TIMESTAMPTZ DEFAULT NOW()
-);
-
--- ---------------------------------------------------------------------------
--- Database roles (Supabase-style)
+-- Auth schema stub (for local / non-Supabase Postgres only)
+-- On Supabase Cloud, auth schema is managed by Supabase — we have no
+-- permission to CREATE TABLE there. This block silently skips on Cloud.
 -- ---------------------------------------------------------------------------
 DO $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
-    CREATE ROLE anon NOLOGIN;
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
-    CREATE ROLE authenticated NOLOGIN;
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role') THEN
-    CREATE ROLE service_role NOLOGIN BYPASSRLS;
-  END IF;
+  -- Try to create auth schema (no-op on Supabase Cloud — already exists)
+  BEGIN
+    CREATE SCHEMA IF NOT EXISTS auth;
+  EXCEPTION WHEN insufficient_privilege THEN
+    NULL; -- Supabase Cloud: skip silently
+  END;
+
+  -- Try to create auth.users stub (only needed for local Postgres)
+  BEGIN
+    CREATE TABLE IF NOT EXISTS auth.users (
+      id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      email               TEXT UNIQUE,
+      raw_user_meta_data  JSONB,
+      created_at          TIMESTAMPTZ DEFAULT NOW()
+    );
+  EXCEPTION
+    WHEN insufficient_privilege THEN NULL; -- Supabase Cloud: skip silently
+    WHEN duplicate_table        THEN NULL; -- already exists: skip silently
+  END;
+END;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- Database roles (Supabase-style)
+-- On Supabase Cloud these roles already exist — CREATE ROLE is skipped.
+-- On local Postgres they are created fresh.
+-- ---------------------------------------------------------------------------
+DO $$
+BEGIN
+  BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+      CREATE ROLE anon NOLOGIN;
+    END IF;
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
+      CREATE ROLE authenticated NOLOGIN;
+    END IF;
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role') THEN
+      CREATE ROLE service_role NOLOGIN BYPASSRLS;
+    END IF;
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
 END;
 $$;
 
