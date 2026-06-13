@@ -1728,3 +1728,405 @@ Query ke tabel yang **tidak ada di schema** — akan selalu gagal/silent error:
 16. Buat halaman untuk: `booking_installment_schedules`
 17. Hubungkan `rbac_audit_trail` ke halaman AdminSecurityAudit
 18. Buat halaman untuk: `payroll_slips`, `payroll_components`
+
+---
+
+## §17 — KOLOM DIPAKAI DI KODE TAPI TIDAK ADA DI SCHEMA
+
+> **Metode**: Bandingkan akses properti di source code (`artifacts/umrah-haji/src/`, `artifacts/api-server/src/`) vs skema DB aktual di `artifacts/api-server/dist/sql/01_schema.sql` + file migrasi bernomor.
+
+---
+
+### 17.1 — Tabel `bookings`
+
+**Skema aktual Neon DB** (`01_schema.sql:639`): `id, customer_id, departure_id, agent_id, booking_code, status, total_price, paid_amount, payment_status, room_type, notes, referral_source, bagasi_kg_allowed, remaining_amount`
+
+| Kolom Diakses | Pemakaian | File Lokasi | Status |
+|---|---|---|---|
+| `booking_status` | 69× | `useBookings.ts:18`, `AdminBookings.tsx:145,294`, `AdminReports.tsx:123`, `AdminVirtualAccount.tsx:69`, trigger DB | ❌ TIDAK ADA — schema punya `status` |
+| `total_amount` | 2× | `AdminVirtualAccount.tsx:69`, `AdminFinanceAR.tsx:86` | ❌ TIDAK ADA — schema punya `total_price` |
+| `base_price` | 12× | `QuickInvoiceSheet.tsx:111`, `ChangeRoomTypeDialog.tsx:105`, `RoomTypeAssignmentDialog.tsx:106`, `BulkSendTab.tsx:63` | ❌ Tidak ditemukan di migrasi Neon |
+| `addons_price` | 5× | `QuickInvoiceSheet.tsx:116,168,173,174,197` | ❌ Tidak ditemukan di migrasi Neon |
+| `adult_count` | 1× | `useBookingWizardDynamic.ts:303` | ❌ Tidak ditemukan di migrasi Neon |
+| `child_count` | 1× | `useBookingWizardDynamic.ts` | ❌ Tidak ditemukan di migrasi Neon |
+| `infant_count` | 1× | `useBookingWizardDynamic.ts` | ❌ Tidak ditemukan di migrasi Neon |
+| `discount_amount` | 16× | `QuickInvoiceSheet.tsx`, `BulkSendTab.tsx:63` | ❌ Tidak ditemukan di migrasi Neon |
+| `currency` | — | `BookingWizard.tsx` (via departure join) | ❌ Tidak ditemukan di migrasi Neon |
+| `sales_id` | 3× | `AdminBookingCreate.tsx:482`, `AdminBookingDetail.tsx:399` | ⚠️ FK constraint added (016) tapi kolom tidak ada |
+| `total_pax` | 42× | `AdminBookings.tsx`, `AdminReports.tsx`, departure triggers | ❌ Tidak ditemukan di migrasi Neon |
+| `payment_deadline` | 15× | `AdminBookings.tsx`, `AdminPayments.tsx` | ❌ Tidak ditemukan di migrasi Neon |
+| `branch_id` | 4× | `AdminBookings.tsx` | ❌ Tidak ditemukan di sql/migrations/ Neon |
+| `remaining_amount` | 36× | `AdminBookings.tsx`, portal jamaah | ✅ Ada di `03_bookings_columns.sql` |
+
+---
+
+### 17.2 — Tabel `departures`
+
+**Skema aktual Neon DB** (`01_schema.sql`): `id, package_id, departure_date, return_date, quota, available_seats, status, notes` + `price_single, booked_count` (041) + `tour_leader_user_id` (061) + `muthawif_id` (081)
+
+| Kolom Diakses | Pemakaian | File Lokasi | Status |
+|---|---|---|---|
+| `flight_number` | 21× | `BoardingPassModal.tsx:240`, `DepartureForm.tsx:65,227,275,675`, `BookingWizard.tsx:147` | ❌ TIDAK ADA di Neon |
+| `hotel_makkah_id` | 7+ | `DepartureForm.tsx:72,233,278,765`, `BookingWizard.tsx:147`, `LinkDepartureForm.tsx:53` | ❌ TIDAK ADA — FK ke `hotels` gagal |
+| `hotel_madinah_id` | 7+ | `DepartureForm.tsx:73,234,279`, `BookingWizard.tsx:147` | ❌ TIDAK ADA |
+| `departure_airport_id` | 6+ | `DepartureForm.tsx:63,225,273,691`, `LinkDepartureForm.tsx:50` | ❌ TIDAK ADA — FK ke `airports` gagal |
+| `arrival_airport_id` | 4+ | `DepartureForm.tsx:64,226,274,716` | ❌ TIDAK ADA |
+| `document_deadline` | 7× | `DocumentDeadlinePanel.tsx:37,116,129,215`, `DepartureForm.tsx:85` | ❌ TIDAK ADA |
+| `visa_deadline` | 3× | `DepartureForm.tsx:87`, `DepartureVisaSummary` | ❌ TIDAK ADA |
+| `break_even_pax` | 1× | `DepartureCommissionCard` | ❌ TIDAK ADA |
+| `price_double` | 6+ | `AdminDepartureDetail.tsx`, `BookingWizard.tsx:147` | ❌ `price_double/triple/quad` ada di `packages`, bukan `departures` |
+| `price_triple` | 6+ | ditto | ❌ TIDAK ADA di departures |
+| `price_quad` | 8+ | ditto | ❌ TIDAK ADA di departures |
+| `price_adult` | 3× | portal jamaah, pricing page | ⚠️ di `09_passenger_pricing.sql` (perlu verifikasi) |
+| `price_child` | 3× | ditto | ⚠️ ditto |
+| `price_infant` | 3× | ditto | ⚠️ ditto |
+| `airline_id` | 5+ | `DepartureForm.tsx`, joins dalam select query | ❌ TIDAK ADA — FK ke `airlines` gagal |
+| `departure_time` | 1× | `DepartureForm.tsx` | ❌ TIDAK ADA |
+| `month` | 6× | filter kolom, dashboard stats | ❌ TIDAK ADA |
+| `payment_deadline` | 1× | `DepartureForm.tsx` | ❌ TIDAK ADA |
+| `meta_title` | 1× | SEO module | ⚠️ di `14_seo_fields_departures.sql` (perlu verifikasi) |
+| `meta_description` | 1× | SEO module | ⚠️ ditto |
+| `slug` | 1× | URL routing | ⚠️ ditto |
+| `currency` | 1× | `BookingWizard.tsx:147` (select dari departures) | ❌ TIDAK ADA |
+| `operational_cost_per_pax` | 1× | finance/HPP | ❌ TIDAK ADA |
+| `team_leader_id` | 1× | FK di types.ts | ❌ TIDAK ADA |
+| `booked_count` | 12× | `AdminDepartureDetail.tsx`, paxCount HPP | ✅ Ada di `041_tab_fix4_departures_price_single.sql` |
+| `available_seats` | 5+ | `BookingWizard.tsx`, availability check | ✅ Ada di schema dasar |
+| `muthawif_id` | 2× | `DepartureMuthawifPanel`, departure detail | ✅ Ada di `081_departure_muthawif_id.sql` |
+
+---
+
+### 17.3 — Tabel `customers`
+
+**Skema aktual Neon DB** (`01_schema.sql`): `id, user_id, branch_id, full_name, nik, gender, phone, email, address, city, province, postal_code, birth_date, birth_place, passport_number, passport_expiry, passport_issued, photo_url, is_active, nomor_porsi_haji, embarkasi_kode, estimasi_keberangkatan_haji` + `district, village` (036) + `height_cm, weight_kg, clothing_size` (083)
+
+| Kolom Diakses | Pemakaian | File Lokasi | Status |
+|---|---|---|---|
+| `blood_type` | 2× | `AdminCustomerDetail.tsx`, CustomerForm | ❌ TIDAK ADA di Neon |
+| `emergency_contact_name` | 3× | CustomerForm, portal jamaah | ❌ TIDAK ADA |
+| `emergency_contact_phone` | 5× | CustomerForm, portal jamaah | ❌ TIDAK ADA |
+| `emergency_contact_relation` | 3× | CustomerForm | ❌ TIDAK ADA |
+| `is_tour_leader` | 6× | portal jamaah, departure detail | ❌ TIDAK ADA |
+| `mother_name` | 2× | dokumen PDF, form pasport | ❌ TIDAK ADA |
+| `father_name` | 2× | dokumen PDF | ❌ TIDAK ADA |
+| `mahram_name` | 2× | form mahram, BookingCreate | ❌ TIDAK ADA di customers (ada di tabel `mahrams`) |
+| `mahram_relation` | 1× | form mahram | ❌ TIDAK ADA di customers |
+| `marital_status` | 2× | CustomerForm | ❌ TIDAK ADA |
+| `height_cm` | 2× | portal jamaah, admin customer | ✅ Ada di `083_sprint_d_height_clothing_size.sql` |
+| `weight_kg` | — | — | ✅ Ada di `083` |
+| `clothing_size` | 2× | portal jamaah | ✅ Ada di `083` |
+| `district` | 1× | CustomerForm | ✅ Ada di `036_patch_customer_mahrams_rls.sql` |
+| `village` | 1× | CustomerForm | ✅ Ada di `036` |
+| `face_descriptor` | — | FaceDescriptor feature | ⚠️ `049` menambah ke `employees`, bukan `customers` |
+
+---
+
+### 17.4 — Tabel `agents`
+
+**Skema aktual Neon DB**: `id, user_id, branch_id, parent_agent_id, company_name, agent_code, contact_name, phone, email, address, commission_rate, is_active, slug, featured_package_ids, website_bio, level`
+
+| Kolom Diakses | Pemakaian | File Lokasi | Status |
+|---|---|---|---|
+| `membership_tier` | 3+ | `AdminAgentDetail.tsx`, `PICSelectionStep.tsx` | ❌ Tidak ada di sql/migrations/ Neon |
+| `membership_tier_updated_at` | — | `types.ts` | ❌ TIDAK ADA |
+| `total_confirmed_bookings` | 2+ | `AdminAgentDetail.tsx`, dashboard | ❌ TIDAK ADA |
+| `ktp_number` | 1× | `AdminAgentDetail.tsx:472,496` | ❌ TIDAK ADA |
+| `ktp_url` | 1× | `AdminAgentDetail.tsx:472` | ❌ TIDAK ADA |
+| `status` (pending/active/suspended) | 3+ | `AdminAgents.tsx`, `types.ts` | ⚠️ `062_agent_status_branch_staff.sql` menambah kolom + index |
+| `npwp` | — | `types.ts` | ❌ TIDAK ADA |
+| `bank_name` | — | `types.ts` | ❌ `012_hr_enhancements.sql` tambah ke `employees`, bukan `agents` |
+| `bank_account_number` | — | `types.ts` | ❌ ditto |
+| `bank_account_name` | — | `types.ts` | ❌ ditto |
+
+---
+
+### 17.5 — Tabel `booking_passengers`
+
+**Skema aktual**: `id, booking_id, customer_id, is_main_passenger, passenger_type, room_preference, room_number, room_group_id, family_group_id, checkin_status, checkin_time, checkin_notes`
+
+| Kolom Diakses | Pemakaian | File Lokasi | Status |
+|---|---|---|---|
+| `seat_number` | 3× | `BoardingPassModal.tsx`, boarding pass PDF | ❌ TIDAK ADA |
+| `nationality` | 2× | manifest, boarding pass | ❌ TIDAK ADA |
+| `roommate_id` | — | rooming system | ⚠️ Perlu verifikasi (ada di supabase migration) |
+| `passport_issued` | — | dokumen | ⚠️ Ada di `customers` bukan `booking_passengers` |
+
+---
+
+## §18 — TABEL PHANTOM (DIPAKAI DI KODE, TIDAK ADA DI SCHEMA NEON DB)
+
+> Tabel phantom = `supabase.from('nama_tabel')` dipanggil di kode tapi tabel tidak ada di `01_schema.sql` maupun numbered migration files.
+
+| Tabel Phantom | File Pemakai | Jumlah File | Tabel Seharusnya | Dampak |
+|---|---|---|---|---|
+| `savings_payments` | `AdminSavings.tsx`, `useJamaahSavings.ts`, `BookingDetail.tsx`, `useBookingWizardDynamic.ts`, + 1 | 5 | `savings_deposits` | 🔴 Semua query tabungan gagal |
+| `attendance_records` | `AdminHR.tsx`, `AdminFinanceCash.tsx`, `useAttendance.ts`, `AdminPayroll.tsx`, + 3 | 7 | `attendance` | 🔴 Modul absensi HR rusak total |
+| `audit_logs` | `AdminSecurity.tsx`, `AdminBookingDetail.tsx`, `useAuditLog.ts`, + 4 | 7 | `rbac_audit_trail` | 🔴 Log audit tidak tampil |
+| `cash_transactions` | `AdminFinanceCash.tsx`, `AdminFinanceKas.tsx`, `useCashTransactions.ts`, + 6 | 9 | ❌ Tidak ada ekuivalen | 🔴 Modul kas keuangan rusak total |
+| `agent_wallets` | `AdminAgentDetail.tsx`, `useAgentWallet.ts`, `AgentWallet.tsx` | 3 | ❌ Tidak ada | 🟠 Dompet agen kosong |
+| `agent_wallet_transactions` | `AdminAgentDetail.tsx`, `AgentWallet.tsx` | 2 | ❌ Tidak ada | 🟠 Riwayat dompet agen kosong |
+| `loyalty_rewards` | `AdminLoyalty.tsx`, `useJamaahLoyalty.ts`, `LoyaltyPage.tsx` | 3 | ❌ Tidak ada | 🟠 Fitur loyalty tidak berfungsi |
+| `loyalty_transactions` | `AdminLoyalty.tsx`, `useJamaahLoyalty.ts`, `LoyaltyPage.tsx` | 3 | ❌ Tidak ada | 🟠 Riwayat poin kosong |
+| `jamaah_qr_codes` | `JamaahQRCard.tsx`, `useJamaahQR.ts` | 2 | ❌ Tidak ada | 🟡 QR digital jamaah gagal generate |
+| `referral_codes` | `ReferralPage.tsx`, `useReferral.ts` | 2 | ❌ Tidak ada | 🟡 Halaman referral error |
+| `referral_usages` | `ReferralPage.tsx`, `useReferral.ts` | 2 | ❌ Tidak ada | 🟡 ditto |
+| `guide_sessions` | `GuideSessionPage.tsx` | 1 | ❌ Tidak ada | 🟡 Halaman sesi guide error |
+| `salary_payments` | `AdminFinanceCash.tsx` | 1 | `payroll_records` | 🟠 Gaji karyawan tidak tampil |
+| `luggage` | `LuggagePage.tsx` | 1 | `baggage_policies` | 🟡 Halaman bagasi error |
+
+---
+
+## §19 — KOLOM DATABASE YANG TIDAK PERNAH DIPAKAI
+
+> Kolom ada di schema tapi 0 akses di seluruh source code frontend + API server.
+
+### 19.1 — `bookings`
+| Kolom | Alasan Tidak Dipakai |
+|---|---|
+| `room_number` | Ditambah di migration 026 tapi frontend pakai `booking_passengers.room_number` |
+| `bagasi_kg_allowed` | Ada di schema, hanya tampil di 1 form (tidak diquery secara aktif) |
+| `referral_source` | Ada field di form tapi filter/report tidak memanfaatkan |
+
+### 19.2 — `customers`
+| Kolom | Alasan |
+|---|---|
+| `passport_issued` | Di schema tapi tidak tampil di form/dokumen manapun |
+| `is_active` | Schema ada tapi filter aktif/nonaktif jarang dipakai di UI |
+| `embarkasi_kode` | Haji-specific, modul haji belum selesai |
+| `estimasi_keberangkatan_haji` | ditto |
+
+### 19.3 — `departures`
+| Kolom | Alasan |
+|---|---|
+| `available_seats` | Schema ada tapi UI kebanyakan pakai `booked_count` untuk display |
+| `notes` | Field ada tapi tidak tampil di detail view departures |
+
+### 19.4 — `packages`
+| Kolom | Alasan |
+|---|---|
+| `price_double`, `price_triple`, `price_quad` | Di `packages` tapi frontend query dari `departures` (yang tidak punya kolom ini) → data tidak dipakai |
+| `hotel_mecca`, `hotel_medina` | Kolom teks lama, UI pakai join ke `hotels` via `departures.hotel_makkah_id` |
+| `airline` | Kolom teks lama, UI pakai join ke `airlines` via `departures.airline_id` |
+| `fee_branch` | Ada di schema, tidak dipakai di perhitungan komisi aktual |
+
+### 19.5 — Tabel lengkap dengan banyak kolom tidak terpakai
+| Tabel | Kolom Tidak Terpakai |
+|---|---|
+| `muthawifs` | `bio`, `rating`, `total_reviews`, `languages` |
+| `itinerary_templates` | `is_public`, `tags` |
+| `manasik_sessions` | `max_attendees`, `location_detail`, `notes` |
+| `push_subscriptions` | `device_id`, `os`, `browser` (sebagian) |
+
+---
+
+## §20 — TABEL DATABASE YANG TIDAK PERNAH DIPAKAI
+
+> Tabel ada di schema Neon DB tapi 0 query di seluruh source code.
+
+| Tabel | Migration | Alasan Tidak Dipakai | Prioritas Hapus |
+|---|---|---|---|
+| `job_applications` | 069_sdm | Rekrutmen belum diimplementasi di frontend | P3 |
+| `recruitment_stages` | 069_sdm | ditto | P3 |
+| `employee_onboarding` | 071_onboarding | Onboarding UI belum dibuat | P3 |
+| `general_ledger` | keuangan fase1 | Modul GL belum implementasi | P3 |
+| `trip_timeline_entries` | 057 | Trip timeline tidak diquery di frontend | P3 |
+| `savings_accounts` | 001_foundation | Frontend pakai `savings_plans` bukan `savings_accounts` | ⚠️ Perlu reconcile |
+| `savings_deposits` | 001_foundation | Frontend pakai `savings_payments` (phantom!) | 🔴 Perlu rename |
+| `manasik_attendance` | 017 | Absensi manasik UI memakai `attendance_records` (phantom) | 🔴 Perlu reconcile |
+| `dashboard_access_config` | 008 | Digantikan oleh permissions system | P3 |
+| `web_vitals_metrics` | 20260517 | Monitoring frontend tidak aktif | P3 |
+| `rate_limits` | rbac migration | Tidak ada UI atau API endpoint | P3 |
+| `agent_commission_tiers` | 046 | Tabel ada tapi `AdminAgentDetail` tidak menampilkan tier table | P2 |
+| `booking_seat_locks` | 048 | Seat locking tidak dipakai di booking wizard | P3 |
+| `booking_installment_schedules` | 043 | Cicilan tidak ada UI | P3 |
+| `scheduled_reports` | 044 | Laporan terjadwal tidak ada UI aktif | P2 |
+| `invoice_templates` | 055 | Template invoice tidak dipakai (PDF di-generate langsung) | P3 |
+| `trip_timeline_items` | 007_trip_timeline_v2 | ditto dengan trip_timeline_entries | P3 |
+| `wa_chatbot_conversation_history` | 017_wa | WA chatbot modul tidak dihubungkan ke UI | P2 |
+| `document_numbering_sequences` | 073 | Penomoran dokumen tidak dipakai secara aktif | P3 |
+
+---
+
+## §21 — RELASI YANG TIDAK KONSISTEN (FK ISSUES)
+
+### 21.1 — FK di kode tapi kolom tidak ada di schema
+
+| Relasi Digunakan | File | Masalah |
+|---|---|---|
+| `hotels!departures_hotel_makkah_id_fkey` | `BookingWizard.tsx:147`, `LinkDepartureForm.tsx:53`, `BulkSendTab.tsx:71`, `ItineraryPDFTab.tsx:238` | `departures.hotel_makkah_id` tidak ada → FK constraint tidak bisa dibuat → semua join ini return null |
+| `hotels!departures_hotel_madinah_id_fkey` | `BookingWizard.tsx:147`, `LinkDepartureForm.tsx:54`, `BulkSendTab.tsx:72` | ditto |
+| `airports!departures_departure_airport_id_fkey` | `LinkDepartureForm.tsx:50`, `StepReviewSimple.tsx:80`, `BulkSendTab.tsx:69` | `departures.departure_airport_id` tidak ada |
+| `airports!departures_arrival_airport_id_fkey` | multiple | ditto |
+| `profiles!bookings_sales_id_fkey` | `AdminBookingDetail.tsx:399` (kode bahkan ada komentar "FK doesn't exist") | `bookings.sales_id` kolom tidak ada di Neon → join gagal |
+| `airlines!departures_airline_id_fkey` | `DepartureForm.tsx`, join queries | `departures.airline_id` tidak ada |
+
+### 21.2 — Nama kolom inkonsisten antara tabel/view
+
+| Pemakaian di Code | Schema Sebenarnya | Dampak |
+|---|---|---|
+| `bookings.booking_status` (69×) | `bookings.status` | Semua filter `.eq('booking_status', ...)` return error atau data salah |
+| `bookings.total_amount` (2×) | `bookings.total_price` | AdminVirtualAccount tampilkan NULL/0 |
+| `savings_deposits` (schema) vs `savings_payments` (code 5 files) | Nama tabel berbeda | Query tabungan selalu gagal |
+| `attendance` (schema) vs `attendance_records` (code 7 files) | Nama tabel berbeda | Absensi tidak tampil |
+| `rbac_audit_trail` (schema) vs `audit_logs` (code 7 files) | Nama tabel berbeda | Log audit tidak tampil |
+
+### 21.3 — FK yang ada di kode tapi tidak punya migration CREATE TABLE
+
+| FK / Join | Tabel Target | Status |
+|---|---|---|
+| `savings_plans.customer_id → customers.id` | Keduanya ada | ✅ OK |
+| `bookings.agent_id → agents.id` | Keduanya ada | ✅ OK |
+| `departures.muthawif_id → muthawifs.id` | ✅ `081` menambah kolom + FK | ✅ OK |
+| `bookings.sales_id → profiles.id` | `sales_id` tidak ada di `bookings` | ❌ Migration 016 hanya tambah constraint, kolom tidak pernah dibuat |
+| `departures.hotel_makkah_id → hotels.id` | Kolom tidak ada | ❌ FK tidak bisa dibuat |
+| `departures.airline_id → airlines.id` | Kolom tidak ada | ❌ FK tidak bisa dibuat |
+
+### 21.4 — CHECK constraint mismatch
+
+| Kolom | CHECK di Schema | Nilai di Code |
+|---|---|---|
+| `bookings.status` | `('pending','confirmed','cancelled','completed')` | Kode juga kirim `'processing'`, `'rejected'` via `booking_status` field |
+| `departures.status` | `('open','closed','full','cancelled')` | Kode juga handle `'draft'` di beberapa tempat |
+| `booking_passengers.passenger_type` | `('dewasa','lansia','anak','mahram')` | `useBookingWizardDynamic.ts` juga kirim `'adult'`, `'child'`, `'infant'` (English) |
+
+---
+
+## §22 — POTENSI BUG AKIBAT KETIDAKSESUAIAN SCHEMA
+
+> Dampak nyata ke pengguna / operator. Diurutkan dari paling kritis.
+
+### 🔴 P0 — Fitur Utama Rusak Total
+
+#### BUG-01: Filter status booking tidak berfungsi
+- **File**: `useBookings.ts:18`, `AdminBookings.tsx:145,294`, `AdminReports.tsx:123`
+- **Kode**: `.eq('booking_status', filters.status)`
+- **Masalah**: Kolom `booking_status` tidak ada di tabel `bookings` (schema punya `status`). Query via proxy akan return error PostgreSQL `column "booking_status" does not exist` atau semua baris karena proxy fallback.
+- **Dampak**: Admin tidak bisa filter booking berdasarkan status → semua booking tampil sekaligus
+
+#### BUG-02: Harga departures selalu 0 di booking wizard
+- **File**: `BookingWizard.tsx:147`
+- **Kode**: `select('...price_quad, price_triple, price_double...')` dari `departures`
+- **Masalah**: `price_double/triple/quad` ada di tabel `packages`, BUKAN `departures`. Departures di Neon hanya punya `price_single` (dari 041).
+- **Dampak**: Booking wizard tampilkan harga 0 → jamaah tidak tahu harga paket
+
+#### BUG-03: Semua query tabungan jamaah gagal
+- **File**: `AdminSavings.tsx`, `useJamaahSavings.ts`, `BookingDetail.tsx`, `useBookingWizardDynamic.ts`
+- **Kode**: `.from('savings_payments')`
+- **Masalah**: Tabel bernama `savings_deposits` di schema, bukan `savings_payments`
+- **Dampak**: Halaman tabungan error, riwayat setoran tidak tampil
+
+#### BUG-04: Modul kas keuangan rusak total
+- **File**: `AdminFinanceCash.tsx`, `AdminFinanceKas.tsx`, `useCashTransactions.ts` (9 file)
+- **Kode**: `.from('cash_transactions')`
+- **Masalah**: Tabel `cash_transactions` tidak ada di schema Neon DB sama sekali
+- **Dampak**: Halaman Kas Keuangan selalu error
+
+#### BUG-05: Modul absensi HR rusak
+- **File**: `AdminHR.tsx`, `AdminFinanceCash.tsx`, `AdminPayroll.tsx` (7 file)
+- **Kode**: `.from('attendance_records')`
+- **Masalah**: Tabel adalah `attendance` di Neon DB
+- **Dampak**: Data absensi tidak tampil di HR dan payroll
+
+---
+
+### 🟠 P1 — Fitur Penting Tidak Berfungsi
+
+#### BUG-06: Invoice/PDF hitung harga salah
+- **File**: `QuickInvoiceSheet.tsx:111-197`
+- **Kode**: `booking.base_price`, `booking.addons_price`, `booking.discount_amount`
+- **Masalah**: Ketiga kolom ini tidak ada di Neon DB → nilai selalu `undefined/null` → perhitungan total invoice salah (tampil 0 atau `NaN`)
+- **Dampak**: Invoice yang dikirim ke jamaah mencantumkan harga salah
+
+#### BUG-07: Form departures tidak menyimpan data penting
+- **File**: `DepartureForm.tsx:273-279`
+- **Kode**: Save `flight_number`, `hotel_makkah_id`, `hotel_madinah_id`, `departure_airport_id`, `arrival_airport_id`, `document_deadline`, `visa_deadline`
+- **Masalah**: Kolom-kolom ini tidak ada di tabel `departures` Neon DB
+- **Dampak**: Data penerbangan, hotel, dan deadline yang diisi admin hilang setelah save → tidak muncul di detail departure
+
+#### BUG-08: Log audit tidak bisa dibuka
+- **File**: `AdminSecurity.tsx`, `AdminBookingDetail.tsx`, + 5 file
+- **Kode**: `.from('audit_logs')`
+- **Masalah**: Schema punya `rbac_audit_trail`, bukan `audit_logs`
+- **Dampak**: Halaman audit log selalu kosong atau error
+
+#### BUG-09: AdminVirtualAccount tampilkan total salah
+- **File**: `AdminVirtualAccount.tsx:69`
+- **Kode**: `bookings(id, booking_code, booking_status, total_amount)`
+- **Masalah**: (1) `booking_status` tidak ada, (2) `total_amount` tidak ada (schema: `total_price`)
+- **Dampak**: Virtual account list tampilkan total 0 untuk semua booking
+
+#### BUG-10: Form customer tidak menyimpan field penting
+- **File**: `AdminCustomerForm.tsx`, `CustomerPortalProfile.tsx`
+- **Kode**: Save `blood_type`, `emergency_contact_name/phone/relation`, `is_tour_leader`, `mother_name`, `father_name`, `mahram_name`, `marital_status`
+- **Masalah**: Kolom-kolom ini tidak ada di tabel `customers` Neon DB
+- **Dampak**: Data medis dan kontak darurat jamaah tidak tersimpan → risiko keselamatan
+
+---
+
+### 🟡 P2 — Fitur Tidak Sempurna / Data Hilang
+
+#### BUG-11: Boarding pass dan manifest tidak ada nomor kursi
+- **File**: `BoardingPassModal.tsx`
+- **Kode**: `passenger.seat_number`
+- **Masalah**: `booking_passengers.seat_number` tidak ada di schema
+- **Dampak**: Boarding pass tidak menampilkan nomor kursi
+
+#### BUG-12: Dokumen perjalanan tidak ada nama ibu/ayah/mahram
+- **File**: `BulkSendTab.tsx`, dokumen PDF
+- **Kode**: `customer.mother_name`, `customer.father_name`, `customer.mahram_name`
+- **Masalah**: Kolom tidak ada di `customers` Neon DB
+- **Dampak**: Dokumen paspor / visa tidak lengkap
+
+#### BUG-13: Halaman referral, loyalty, dan QR jamaah error
+- **File**: `ReferralPage.tsx`, `LoyaltyPage.tsx`, `JamaahQRCard.tsx`
+- **Masalah**: Tabel `referral_codes`, `loyalty_rewards`, `jamaah_qr_codes` tidak ada
+- **Dampak**: Halaman-halaman ini selalu throw error saat mount
+
+#### BUG-14: Passenger type mismatch di booking wizard
+- **File**: `useBookingWizardDynamic.ts`
+- **Kode**: Kirim `passenger_type: 'adult'` / `'child'` / `'infant'`
+- **Masalah**: CHECK constraint di `booking_passengers.passenger_type` hanya izinkan `'dewasa','lansia','anak','mahram'`
+- **Dampak**: INSERT booking gagal dengan constraint violation jika menggunakan nilai English
+
+#### BUG-15: Agen tidak punya membership tier & verifikasi KTP
+- **File**: `AdminAgentDetail.tsx:472`, `PICSelectionStep.tsx`
+- **Kode**: `agent.membership_tier`, `agent.ktp_number`, `agent.status`, `agent.total_confirmed_bookings`
+- **Masalah**: Kolom tidak ada di Neon DB (kecuali `status` yang ditambah di `062`)
+- **Dampak**: Profil agen tidak menampilkan tier, KTP, dan jumlah booking terkonfirmasi
+
+---
+
+## §23 — RINGKASAN PRIORITAS PERBAIKAN
+
+### Total Temuan
+| Kategori | Jumlah |
+|---|---|
+| Kolom dipakai tapi tidak ada di schema | **47 kolom** |
+| Tabel phantom (query tapi tidak ada) | **14 tabel** |
+| Kolom tidak pernah dipakai | **~25 kolom** |
+| Tabel tidak pernah dipakai | **19 tabel** |
+| FK inkonsisten / broken join | **6 relasi** |
+| Bug aktif berdampak ke pengguna | **15 bug** |
+
+### Aksi Prioritas
+
+#### 🔴 P0 — Harus Fix Sekarang (sistem rusak)
+1. **Tambah kolom `bookings`**: `booking_status` (alias untuk `status`), `base_price`, `addons_price`, `adult_count`, `child_count`, `infant_count`, `discount_amount`, `total_pax`, `payment_deadline`, `branch_id`, `sales_id`, `currency` → **1 migration baru**
+2. **Tambah kolom `departures`**: `flight_number`, `hotel_makkah_id`, `hotel_madinah_id`, `departure_airport_id`, `arrival_airport_id`, `document_deadline`, `visa_deadline`, `break_even_pax`, `airline_id`, `departure_time`, `month`, `payment_deadline`, `price_double`, `price_triple`, `price_quad`, `currency`, `team_leader_id`, `operational_cost_per_pax` → **1 migration baru**
+3. **Rename atau buat alias tabel**: `savings_payments` → query ke `savings_deposits`, `attendance_records` → `attendance`, `audit_logs` → `rbac_audit_trail`
+4. **Buat tabel `cash_transactions`** atau refactor query ke tabel lain
+5. **Tambah kolom `customers`**: `blood_type`, `emergency_contact_name/phone/relation`, `is_tour_leader`, `mother_name`, `father_name`, `mahram_name`, `mahram_relation`, `marital_status`
+6. **Fix `booking_passengers.passenger_type` CHECK** atau normalize nilai English → Bahasa
+
+#### 🟠 P1 — Fix Segera (fitur penting tidak berfungsi)
+7. Tambah kolom `agents`: `membership_tier`, `ktp_number`, `ktp_url`, `total_confirmed_bookings`, `npwp`, `bank_name/account_number/name`
+8. Tambah kolom `booking_passengers`: `seat_number`, `nationality`
+9. Buat tabel `agent_wallets` + `agent_wallet_transactions`
+10. Fix `AdminVirtualAccount.tsx:69` — ganti `total_amount` → `total_price`
+
+#### 🟡 P2 — Plan (fitur baru)
+11. Buat tabel `loyalty_rewards`, `loyalty_transactions`
+12. Buat tabel `jamaah_qr_codes`
+13. Buat tabel `referral_codes`, `referral_usages`
+14. Buat tabel `guide_channels`, `guide_broadcasts`, `guide_sessions`
+
