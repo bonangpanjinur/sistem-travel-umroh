@@ -46,6 +46,22 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 \echo ''
 
 -- ─────────────────────────────────────────────────────────────────────────────
+-- STAGE 1.5: Auth Helper Functions — PREREQUISITE
+-- Must run AFTER user_roles + employees tables exist (STAGE 1) and
+-- BEFORE any migration that references is_admin(), has_role(), or
+-- user_belongs_to_branch() in RLS policies or function bodies.
+--
+-- Defines:
+--   • public.is_admin(UUID)
+--   • public.has_role(UUID, TEXT)
+--   • public.user_belongs_to_branch(UUID, UUID)
+-- ─────────────────────────────────────────────────────────────────────────────
+\echo '[STAGE 1.5] Auth helper functions (is_admin, has_role, user_belongs_to_branch)...'
+\i migrations/v1_foundation/fase0_5_auth_helper_functions.sql
+\echo '[STAGE 1.5] ✓ Auth helper functions ready'
+\echo ''
+
+-- ─────────────────────────────────────────────────────────────────────────────
 -- STAGE 2: Missing Tables — Group A (Post-Foundation Core)
 -- Tabel-tabel yang direferensikan di seluruh codebase tapi tidak ada di migration asli.
 -- Semuanya bergantung pada tabel dari STAGE 1.
