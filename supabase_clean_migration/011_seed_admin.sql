@@ -2,6 +2,8 @@
 -- VINSTOUR TRAVEL PORTAL — Clean Migration Chain
 -- FILE 011: Seed Data — Permissions, Master Data & Default Config
 -- Run LAST (after 010). All INSERT … ON CONFLICT DO NOTHING — idempotent.
+-- Schema source: 002_tables_core, 003_tables_users, 004_tables_travel,
+--                005_tables_finance (run these first).
 -- =============================================================================
 
 -- ---------------------------------------------------------------------------
@@ -42,109 +44,111 @@ ON CONFLICT (key) DO NOTHING;
 
 -- ---------------------------------------------------------------------------
 -- 2. ROLE_PERMISSIONS — Default permissions for each role
--- Live schema: (id, role, permission_key, is_enabled)
--- Unique constraint: (role, permission_key)
+-- Schema (002_tables_core): role, permission_key, can_view, can_create,
+--   can_edit, can_delete. UNIQUE (role, permission_key).
+-- Wrapped in DO block as safety net in case schema varies.
 -- ---------------------------------------------------------------------------
 DO $$
 BEGIN
 
   -- super_admin gets ALL permissions
-  INSERT INTO public.role_permissions (role, permission_key, is_enabled)
-  SELECT 'super_admin', key, TRUE
+  INSERT INTO public.role_permissions (role, permission_key, can_view, can_create, can_edit, can_delete)
+  SELECT 'super_admin', key, TRUE, TRUE, TRUE, TRUE
   FROM public.permissions_list
   ON CONFLICT (role, permission_key) DO NOTHING;
 
-  -- admin gets everything
-  INSERT INTO public.role_permissions (role, permission_key, is_enabled)
-  SELECT 'admin', key, TRUE
+  -- admin gets everything except audit-logs delete and super-admin areas
+  INSERT INTO public.role_permissions (role, permission_key, can_view, can_create, can_edit, can_delete)
+  SELECT 'admin', key, TRUE, TRUE, TRUE,
+    CASE WHEN key IN ('audit-logs','users') THEN FALSE ELSE TRUE END
   FROM public.permissions_list
   ON CONFLICT (role, permission_key) DO NOTHING;
 
   -- finance role
-  INSERT INTO public.role_permissions (role, permission_key, is_enabled) VALUES
-    ('finance', 'dashboard',   TRUE),
-    ('finance', 'analytics',   TRUE),
-    ('finance', 'bookings',    TRUE),
-    ('finance', 'payments',    TRUE),
-    ('finance', 'finance',     TRUE),
-    ('finance', 'savings',     TRUE),
-    ('finance', 'reports',     TRUE),
-    ('finance', 'customers',   TRUE),
-    ('finance', 'departures',  TRUE),
-    ('finance', 'payroll',     TRUE),
-    ('finance', 'vendors',     TRUE)
+  INSERT INTO public.role_permissions (role, permission_key, can_view, can_create, can_edit, can_delete) VALUES
+    ('finance', 'dashboard',   TRUE, FALSE, FALSE, FALSE),
+    ('finance', 'analytics',   TRUE, FALSE, FALSE, FALSE),
+    ('finance', 'bookings',    TRUE, FALSE, TRUE,  FALSE),
+    ('finance', 'payments',    TRUE, TRUE,  TRUE,  FALSE),
+    ('finance', 'finance',     TRUE, TRUE,  TRUE,  FALSE),
+    ('finance', 'savings',     TRUE, FALSE, TRUE,  FALSE),
+    ('finance', 'reports',     TRUE, TRUE,  FALSE, FALSE),
+    ('finance', 'customers',   TRUE, FALSE, FALSE, FALSE),
+    ('finance', 'departures',  TRUE, FALSE, FALSE, FALSE),
+    ('finance', 'payroll',     TRUE, TRUE,  TRUE,  FALSE),
+    ('finance', 'vendors',     TRUE, TRUE,  TRUE,  FALSE)
   ON CONFLICT (role, permission_key) DO NOTHING;
 
   -- marketing role
-  INSERT INTO public.role_permissions (role, permission_key, is_enabled) VALUES
-    ('marketing', 'dashboard',      TRUE),
-    ('marketing', 'analytics',      TRUE),
-    ('marketing', 'leads',          TRUE),
-    ('marketing', 'packages',       TRUE),
-    ('marketing', 'coupons',        TRUE),
-    ('marketing', 'announcements',  TRUE),
-    ('marketing', 'banners',        TRUE),
-    ('marketing', 'whatsapp',       TRUE),
-    ('marketing', 'wa-broadcast',   TRUE),
-    ('marketing', 'customers',      TRUE),
-    ('marketing', 'departures',     TRUE)
+  INSERT INTO public.role_permissions (role, permission_key, can_view, can_create, can_edit, can_delete) VALUES
+    ('marketing', 'dashboard',      TRUE, FALSE, FALSE, FALSE),
+    ('marketing', 'analytics',      TRUE, FALSE, FALSE, FALSE),
+    ('marketing', 'leads',          TRUE, TRUE,  TRUE,  TRUE),
+    ('marketing', 'packages',       TRUE, TRUE,  TRUE,  FALSE),
+    ('marketing', 'coupons',        TRUE, TRUE,  TRUE,  TRUE),
+    ('marketing', 'announcements',  TRUE, TRUE,  TRUE,  TRUE),
+    ('marketing', 'banners',        TRUE, TRUE,  TRUE,  TRUE),
+    ('marketing', 'whatsapp',       TRUE, TRUE,  FALSE, FALSE),
+    ('marketing', 'wa-broadcast',   TRUE, TRUE,  FALSE, FALSE),
+    ('marketing', 'customers',      TRUE, FALSE, FALSE, FALSE),
+    ('marketing', 'departures',     TRUE, FALSE, FALSE, FALSE)
   ON CONFLICT (role, permission_key) DO NOTHING;
 
   -- operator role
-  INSERT INTO public.role_permissions (role, permission_key, is_enabled) VALUES
-    ('operator', 'dashboard',        TRUE),
-    ('operator', 'bookings',         TRUE),
-    ('operator', 'payments',         TRUE),
-    ('operator', 'customers',        TRUE),
-    ('operator', 'departures',       TRUE),
-    ('operator', 'room-assignments', TRUE),
-    ('operator', 'manasik',          TRUE),
-    ('operator', 'equipment',        TRUE),
-    ('operator', 'visa',             TRUE),
-    ('operator', 'sos',              TRUE),
-    ('operator', 'whatsapp',         TRUE),
-    ('operator', 'packages',         TRUE),
-    ('operator', 'vendors',          TRUE)
+  INSERT INTO public.role_permissions (role, permission_key, can_view, can_create, can_edit, can_delete) VALUES
+    ('operator', 'dashboard',        TRUE, FALSE, FALSE, FALSE),
+    ('operator', 'bookings',         TRUE, TRUE,  TRUE,  FALSE),
+    ('operator', 'payments',         TRUE, TRUE,  TRUE,  FALSE),
+    ('operator', 'customers',        TRUE, TRUE,  TRUE,  FALSE),
+    ('operator', 'departures',       TRUE, FALSE, TRUE,  FALSE),
+    ('operator', 'room-assignments', TRUE, TRUE,  TRUE,  FALSE),
+    ('operator', 'manasik',          TRUE, TRUE,  TRUE,  FALSE),
+    ('operator', 'equipment',        TRUE, TRUE,  TRUE,  FALSE),
+    ('operator', 'visa',             TRUE, TRUE,  TRUE,  FALSE),
+    ('operator', 'sos',              TRUE, FALSE, TRUE,  FALSE),
+    ('operator', 'whatsapp',         TRUE, TRUE,  FALSE, FALSE),
+    ('operator', 'packages',         TRUE, FALSE, FALSE, FALSE),
+    ('operator', 'vendors',          TRUE, FALSE, FALSE, FALSE)
   ON CONFLICT (role, permission_key) DO NOTHING;
 
   -- branch_manager role
-  INSERT INTO public.role_permissions (role, permission_key, is_enabled) VALUES
-    ('branch_manager', 'dashboard',        TRUE),
-    ('branch_manager', 'analytics',        TRUE),
-    ('branch_manager', 'leads',            TRUE),
-    ('branch_manager', 'bookings',         TRUE),
-    ('branch_manager', 'payments',         TRUE),
-    ('branch_manager', 'customers',        TRUE),
-    ('branch_manager', 'departures',       TRUE),
-    ('branch_manager', 'packages',         TRUE),
-    ('branch_manager', 'agents',           TRUE),
-    ('branch_manager', 'employees',        TRUE),
-    ('branch_manager', 'payroll',          TRUE),
-    ('branch_manager', 'finance',          TRUE),
-    ('branch_manager', 'reports',          TRUE),
-    ('branch_manager', 'manasik',          TRUE),
-    ('branch_manager', 'equipment',        TRUE),
-    ('branch_manager', 'visa',             TRUE),
-    ('branch_manager', 'sos',              TRUE),
-    ('branch_manager', 'whatsapp',         TRUE),
-    ('branch_manager', 'settings',         TRUE)
+  INSERT INTO public.role_permissions (role, permission_key, can_view, can_create, can_edit, can_delete) VALUES
+    ('branch_manager', 'dashboard',        TRUE, FALSE, FALSE, FALSE),
+    ('branch_manager', 'analytics',        TRUE, FALSE, FALSE, FALSE),
+    ('branch_manager', 'leads',            TRUE, TRUE,  TRUE,  TRUE),
+    ('branch_manager', 'bookings',         TRUE, TRUE,  TRUE,  FALSE),
+    ('branch_manager', 'payments',         TRUE, TRUE,  TRUE,  FALSE),
+    ('branch_manager', 'customers',        TRUE, TRUE,  TRUE,  FALSE),
+    ('branch_manager', 'departures',       TRUE, TRUE,  TRUE,  FALSE),
+    ('branch_manager', 'packages',         TRUE, FALSE, FALSE, FALSE),
+    ('branch_manager', 'agents',           TRUE, TRUE,  TRUE,  FALSE),
+    ('branch_manager', 'employees',        TRUE, TRUE,  TRUE,  FALSE),
+    ('branch_manager', 'payroll',          TRUE, TRUE,  TRUE,  FALSE),
+    ('branch_manager', 'finance',          TRUE, FALSE, FALSE, FALSE),
+    ('branch_manager', 'reports',          TRUE, FALSE, FALSE, FALSE),
+    ('branch_manager', 'manasik',          TRUE, TRUE,  TRUE,  FALSE),
+    ('branch_manager', 'equipment',        TRUE, TRUE,  TRUE,  FALSE),
+    ('branch_manager', 'visa',             TRUE, TRUE,  TRUE,  FALSE),
+    ('branch_manager', 'sos',              TRUE, FALSE, TRUE,  FALSE),
+    ('branch_manager', 'whatsapp',         TRUE, TRUE,  FALSE, FALSE),
+    ('branch_manager', 'settings',         TRUE, TRUE,  TRUE,  FALSE)
   ON CONFLICT (role, permission_key) DO NOTHING;
 
   -- agent role
-  INSERT INTO public.role_permissions (role, permission_key, is_enabled) VALUES
-    ('agent', 'dashboard',   TRUE),
-    ('agent', 'bookings',    TRUE),
-    ('agent', 'customers',   TRUE),
-    ('agent', 'packages',    TRUE),
-    ('agent', 'departures',  TRUE),
-    ('agent', 'leads',       TRUE)
+  INSERT INTO public.role_permissions (role, permission_key, can_view, can_create, can_edit, can_delete) VALUES
+    ('agent', 'dashboard',   TRUE, FALSE, FALSE, FALSE),
+    ('agent', 'bookings',    TRUE, TRUE,  FALSE, FALSE),
+    ('agent', 'customers',   TRUE, TRUE,  FALSE, FALSE),
+    ('agent', 'packages',    TRUE, FALSE, FALSE, FALSE),
+    ('agent', 'departures',  TRUE, FALSE, FALSE, FALSE),
+    ('agent', 'leads',       TRUE, TRUE,  TRUE,  FALSE)
   ON CONFLICT (role, permission_key) DO NOTHING;
 
   -- customer role (portal access only)
-  INSERT INTO public.role_permissions (role, permission_key, is_enabled) VALUES
-    ('customer', 'bookings',  TRUE),
-    ('customer', 'payments',  TRUE),
-    ('customer', 'savings',   TRUE)
+  INSERT INTO public.role_permissions (role, permission_key, can_view, can_create, can_edit, can_delete) VALUES
+    ('customer', 'bookings',  TRUE, FALSE, FALSE, FALSE),
+    ('customer', 'payments',  TRUE, TRUE,  FALSE, FALSE),
+    ('customer', 'savings',   TRUE, TRUE,  FALSE, FALSE)
   ON CONFLICT (role, permission_key) DO NOTHING;
 
 EXCEPTION WHEN OTHERS THEN
@@ -226,26 +230,26 @@ ON CONFLICT DO NOTHING;
 
 -- ---------------------------------------------------------------------------
 -- 6. COMPANY_SETTINGS — Konfigurasi global perusahaan
--- Live schema: (id, setting_key, setting_value, setting_type, description, created_at, updated_at)
--- Note: is_public column does NOT exist in this database — removed.
+-- Schema (005_tables_finance): setting_key, setting_value, setting_type,
+--   description, is_public.
 -- ---------------------------------------------------------------------------
 INSERT INTO public.company_settings
-  (setting_key, setting_value, setting_type, description)
+  (setting_key, setting_value, setting_type, description, is_public)
 VALUES
-  ('company_name',          '"Vinstour Travel"',                                              'string',  'Nama resmi perusahaan'),
-  ('company_tagline',       '"Perjalanan Suci Anda"',                                         'string',  'Tagline perusahaan'),
-  ('company_phone',         '"021-1234567"',                                                  'string',  'Nomor telepon utama'),
-  ('company_email',         '"info@vinstour.com"',                                            'string',  'Email utama perusahaan'),
-  ('company_address',       '"Jakarta, Indonesia"',                                           'string',  'Alamat kantor pusat'),
-  ('company_logo_url',      'null',                                                           'string',  'URL logo perusahaan'),
-  ('company_wa_number',     '"628111234567"',                                                 'string',  'Nomor WhatsApp utama (format 62xxx)'),
-  ('kpi_targets_monthly',   '{"bookings":150,"revenue":3500000000,"leads":500,"conversion":30}','json', 'Target KPI bulanan'),
-  ('fonnte_api_key',        'null',                                                           'string',  'API key Fonnte untuk kirim WhatsApp'),
-  ('max_booking_dp_pct',    '30',                                                             'number',  'Persentase minimal DP booking (%)'),
-  ('booking_expiry_hours',  '24',                                                             'number',  'Jam sebelum booking pending kadaluarsa'),
-  ('currency_default',      '"IDR"',                                                          'string',  'Mata uang default sistem'),
-  ('timezone',              '"Asia/Jakarta"',                                                 'string',  'Timezone sistem'),
-  ('usd_exchange_rate',     '16000',                                                          'number',  'Kurs USD ke IDR (update manual)')
+  ('company_name',          '"Vinstour Travel"',                                              'string',  'Nama resmi perusahaan',                         TRUE),
+  ('company_tagline',       '"Perjalanan Suci Anda"',                                         'string',  'Tagline perusahaan',                            TRUE),
+  ('company_phone',         '"021-1234567"',                                                  'string',  'Nomor telepon utama',                           TRUE),
+  ('company_email',         '"info@vinstour.com"',                                            'string',  'Email utama perusahaan',                        TRUE),
+  ('company_address',       '"Jakarta, Indonesia"',                                           'string',  'Alamat kantor pusat',                           TRUE),
+  ('company_logo_url',      'null',                                                           'url',     'URL logo perusahaan',                           TRUE),
+  ('company_wa_number',     '"628111234567"',                                                 'string',  'Nomor WhatsApp utama (format 62xxx)',            TRUE),
+  ('kpi_targets_monthly',   '{"bookings":150,"revenue":3500000000,"leads":500,"conversion":30}','json', 'Target KPI bulanan',                           FALSE),
+  ('fonnte_api_key',        'null',                                                           'string',  'API key Fonnte untuk kirim WhatsApp',           FALSE),
+  ('max_booking_dp_pct',    '30',                                                             'number',  'Persentase minimal DP booking (%)',             FALSE),
+  ('booking_expiry_hours',  '24',                                                             'number',  'Jam sebelum booking pending kadaluarsa',        FALSE),
+  ('currency_default',      '"IDR"',                                                          'string',  'Mata uang default sistem',                      TRUE),
+  ('timezone',              '"Asia/Jakarta"',                                                 'string',  'Timezone sistem',                               FALSE),
+  ('usd_exchange_rate',     '16000',                                                          'number',  'Kurs USD ke IDR (update manual)',               FALSE)
 ON CONFLICT (setting_key) DO NOTHING;
 
 -- ---------------------------------------------------------------------------
@@ -260,16 +264,11 @@ ON CONFLICT DO NOTHING;
 
 -- ---------------------------------------------------------------------------
 -- 8. WEBSITE_SETTINGS — Global default (fixed UUID for frontend stability)
--- Live schema columns: id, agent_id, branch_id, company_name, logo_url,
---   favicon_url, active_theme, primary_color, accent_color, foreground_color,
---   background_color, body_font, heading_font, footer_description,
---   footer_bottom_text, custom_sections, created_at, updated_at,
---   chat_bubble_color, layout_variant, theme_overrides
--- Removed (not in live schema): template, secondary_color, tagline,
---   meta_title, meta_description, hero_*, package_card_*, is_published.
---   These are stored in custom_sections JSONB instead.
--- Uses DO block to handle partial unique index idx_website_settings_global
---   (only one global record allowed where agent_id IS NULL AND branch_id IS NULL).
+-- Schema (003_tables_users): includes template, secondary_color, tagline,
+--   meta_title, meta_description, hero_*, package_card_*, is_published, etc.
+-- Uses DO block: only inserts when no global record exists yet
+--   (partial unique index idx_website_settings_global prevents duplicates
+--   where agent_id IS NULL AND branch_id IS NULL).
 -- ---------------------------------------------------------------------------
 DO $$
 BEGIN
@@ -279,37 +278,32 @@ BEGIN
   ) THEN
     INSERT INTO public.website_settings (
       id,
-      company_name, active_theme,
-      primary_color, accent_color, background_color, foreground_color,
+      company_name, active_theme, template,
+      primary_color, secondary_color, accent_color, background_color, foreground_color,
       heading_font, body_font,
-      footer_description, footer_bottom_text,
-      custom_sections
+      tagline, footer_description, footer_bottom_text,
+      meta_title, meta_description,
+      hero_title, hero_subtitle, hero_cta_text, hero_cta_link, hero_display_mode,
+      featured_packages_count, package_card_layout, package_card_image_ratio,
+      package_card_show_airline, package_card_show_hotel,
+      package_card_show_duration, package_card_show_departure,
+      is_published
     ) VALUES (
       '00000000-0000-0000-0000-000000000001',
-      'Vinstour Travel', 'classic',
-      '160 84% 25%', '45 93% 47%', '0 0% 100%', '160 50% 5%',
+      'Vinstour Travel', 'classic', 'classic',
+      '160 84% 25%', '160 20% 96%', '45 93% 47%', '0 0% 100%', '160 50% 5%',
       'Plus Jakarta Sans', 'Inter',
+      'Perjalanan Suci Anda',
       'Layanan perjalanan Umroh & Haji terpercaya dengan pengalaman lebih dari 15 tahun.',
       '© 2025 Vinstour Travel. All rights reserved.',
-      '{
-        "tagline": "Perjalanan Suci Anda",
-        "secondary_color": "160 20% 96%",
-        "meta_title": "Vinstour Travel - Perjalanan Umroh Terpercaya",
-        "meta_description": "Layanan perjalanan umroh berkualitas dengan harga terjangkau",
-        "hero_title": "Wujudkan Ibadah Suci Anda",
-        "hero_subtitle": "Layanan Umroh & Haji terpercaya dengan pengalaman lebih dari 15 tahun melayani jamaah Indonesia",
-        "hero_cta_text": "Lihat Paket",
-        "hero_cta_link": "/packages",
-        "hero_display_mode": "both",
-        "featured_packages_count": 6,
-        "package_card_layout": "modern",
-        "package_card_image_ratio": "16/10",
-        "package_card_show_airline": true,
-        "package_card_show_hotel": true,
-        "package_card_show_duration": true,
-        "package_card_show_departure": true,
-        "is_published": true
-      }'::jsonb
+      'Vinstour Travel - Perjalanan Umroh Terpercaya',
+      'Layanan perjalanan umroh berkualitas dengan harga terjangkau',
+      'Perjalanan Umroh Impian Anda',
+      'Nikmati pengalaman spiritual yang tak terlupakan bersama kami',
+      'Pesan Sekarang', '/packages', 'both',
+      6, 'modern', '16/10',
+      TRUE, TRUE, TRUE, TRUE,
+      TRUE
     );
     RAISE NOTICE 'website_settings: global default inserted OK';
   ELSE
@@ -320,6 +314,8 @@ $$;
 
 -- ---------------------------------------------------------------------------
 -- 9. CONTACT_PAGE_CONTENT — Default konten halaman kontak
+-- Schema (003_tables_users): hero_title, hero_subtitle, form_title,
+--   operating_hours (no settings_id, no map_url in this version).
 -- ---------------------------------------------------------------------------
 INSERT INTO public.contact_page_content
   (hero_title, hero_subtitle, form_title, operating_hours)
@@ -351,205 +347,145 @@ ON CONFLICT DO NOTHING;
 
 -- ---------------------------------------------------------------------------
 -- 11. CHART_OF_ACCOUNTS — COA default
--- Wrapped in DO block: table may not exist in all database versions.
+-- Schema (005_tables_finance): code, name, type, description, sort_order.
 -- ---------------------------------------------------------------------------
-DO $$
-BEGIN
-  IF EXISTS (
-    SELECT 1 FROM information_schema.tables
-    WHERE table_schema = 'public' AND table_name = 'chart_of_accounts'
-  ) THEN
-    INSERT INTO public.chart_of_accounts (code, name, type, description, sort_order) VALUES
-      ('1000', 'Aset',                   'asset',     'Total aset perusahaan',            1),
-      ('1100', 'Kas & Bank',             'asset',     'Uang tunai dan saldo rekening',    2),
-      ('1200', 'Piutang Usaha',          'asset',     'Tagihan kepada pelanggan',         3),
-      ('2000', 'Kewajiban',              'liability', 'Total kewajiban perusahaan',       10),
-      ('2100', 'Utang Usaha',            'liability', 'Hutang kepada vendor',             11),
-      ('2200', 'Utang Pajak',            'liability', 'Kewajiban pajak',                  12),
-      ('3000', 'Ekuitas',                'equity',    'Modal pemilik',                    20),
-      ('4000', 'Pendapatan',             'revenue',   'Total pendapatan',                 30),
-      ('4100', 'Pendapatan Paket Umroh', 'revenue',   'Penjualan paket umroh',            31),
-      ('4200', 'Pendapatan Paket Haji',  'revenue',   'Penjualan paket haji',             32),
-      ('4300', 'Pendapatan Toko',        'revenue',   'Penjualan produk toko',            33),
-      ('4400', 'Pendapatan Lain-lain',   'revenue',   'Pendapatan di luar operasi utama', 34),
-      ('5000', 'Harga Pokok Penjualan',  'cogs',      'Biaya langsung paket wisata',      40),
-      ('5100', 'HPP Tiket Pesawat',      'cogs',      'Biaya tiket pesawat',              41),
-      ('5200', 'HPP Hotel',              'cogs',      'Biaya hotel Mekkah & Madinah',     42),
-      ('5300', 'HPP Visa',               'cogs',      'Biaya pengurusan visa',            43),
-      ('5400', 'HPP Handling & Ground',  'cogs',      'Biaya handling & ground handling', 44),
-      ('6000', 'Biaya Operasional',      'expense',   'Total biaya operasional',          50),
-      ('6100', 'Biaya Gaji',             'expense',   'Gaji & tunjangan karyawan',        51),
-      ('6200', 'Biaya Marketing',        'expense',   'Iklan & promosi',                  52),
-      ('6300', 'Biaya Kantor',           'expense',   'Sewa, utilitas, supplies',         53),
-      ('6400', 'Biaya Komisi Agen',      'expense',   'Komisi mitra agen',                54)
-    ON CONFLICT (code) DO NOTHING;
-    RAISE NOTICE 'chart_of_accounts: seeded OK';
-  ELSE
-    RAISE NOTICE 'SKIP chart_of_accounts: tabel tidak ditemukan di database ini.';
-  END IF;
-END;
-$$;
-
--- ---------------------------------------------------------------------------
--- 12. WA_FEATURE_ROADMAP — Roadmap pengembangan fitur WA
--- Wrapped in DO block: table may not exist in all database versions.
--- ---------------------------------------------------------------------------
-DO $$
-BEGIN
-  IF EXISTS (
-    SELECT 1 FROM information_schema.tables
-    WHERE table_schema = 'public' AND table_name = 'wa_feature_roadmap'
-  ) THEN
-    INSERT INTO public.wa_feature_roadmap
-      (phase, code, title, description, status, sort_order)
-    VALUES
-      (1, 'WA_BASIC_SEND',        'Kirim WA via Fonnte',              'Kirim pesan single & bulk via Fonnte',                'done',        10),
-      (1, 'WA_TEMPLATES_ENGINE',  'Template Pesan Dinamis',           'Variabel {nama}, {kode}, {tanggal} di template',      'done',        20),
-      (1, 'WA_SEND_LOGS',         'Log Pengiriman WA',                'Riwayat setiap pesan terkirim / gagal',               'done',        30),
-      (1, 'WA_BLAST_DEPARTURE',   'Broadcast per Keberangkatan',      'Kirim massal ke semua jamaah satu keberangkatan',     'done',        40),
-      (1, 'WA_AUTO_BOOKING',      'Notif Otomatis Booking Baru',      'Auto-kirim WA saat booking/DP/lunas dikonfirmasi',    'done',        60),
-      (2, 'WA_MULTIPROVIDER',     'Multi-Provider WA',                'Support Fonnte, Wablas, Waboxapp, dll',               'in_progress', 70),
-      (2, 'WA_AUTO_REMINDER',     'Auto-Jadwal Reminder Pembayaran',  'Buat baris reminder H-7/H-3 otomatis',               'in_progress', 90),
-      (3, 'WA_BROADCAST_SEGMENT', 'Broadcast Tersegmentasi',          'Filter penerima: by paket, keberangkatan, status',   'planned',     100),
-      (4, 'WA_CHATBOT_KEYWORD',   'Auto-Reply Berbasis Kata Kunci',   'Balas otomatis jika jamaah kirim kata kunci tertentu','planned',     130),
-      (5, 'WA_META_CLOUD',        'WhatsApp Cloud API (Meta)',        'Integrasi resmi Meta Business API',                   'planned',     160)
-    ON CONFLICT (code) DO NOTHING;
-    RAISE NOTICE 'wa_feature_roadmap: seeded OK';
-  ELSE
-    RAISE NOTICE 'SKIP wa_feature_roadmap: tabel tidak ditemukan di database ini.';
-  END IF;
-END;
-$$;
-
--- ---------------------------------------------------------------------------
--- 13. FAQS — FAQ default
--- Wrapped in DO block: table may not exist in all database versions.
--- ---------------------------------------------------------------------------
-DO $$
-BEGIN
-  IF EXISTS (
-    SELECT 1 FROM information_schema.tables
-    WHERE table_schema = 'public' AND table_name = 'faqs'
-  ) THEN
-    INSERT INTO public.faqs (question, answer, category, sort_order, is_published) VALUES
-      ('Apa itu Vinstour Travel?',
-       'Vinstour Travel adalah platform manajemen perjalanan Umroh dan Haji yang membantu travel agent dan jamaah dalam mengelola seluruh proses perjalanan ibadah.',
-       'Umum', 1, TRUE),
-      ('Bagaimana cara memesan paket umroh?',
-       'Anda dapat memesan paket umroh langsung melalui website kami atau menghubungi kantor terdekat. Tim kami siap membantu proses pemesanan Anda.',
-       'Pemesanan', 2, TRUE),
-      ('Berapa lama proses pengurusan visa?',
-       'Proses pengurusan visa umroh biasanya memakan waktu 7-14 hari kerja setelah semua dokumen lengkap dan dikirimkan ke Kedutaan.',
-       'Visa', 3, TRUE),
-      ('Apa yang termasuk dalam paket umroh?',
-       'Paket umroh kami umumnya mencakup: tiket pesawat PP, akomodasi hotel bintang di Mekkah & Madinah, visa umroh, bimbingan ibadah, dan perlengkapan umroh.',
-       'Paket', 4, TRUE),
-      ('Bagaimana sistem pembayaran?',
-       'Kami menerima pembayaran melalui transfer bank, kartu kredit, dan payment gateway online. Tersedia opsi cicilan dan program tabungan umroh.',
-       'Pembayaran', 5, TRUE)
-    ON CONFLICT DO NOTHING;
-    RAISE NOTICE 'faqs: seeded OK';
-  ELSE
-    RAISE NOTICE 'SKIP faqs: tabel tidak ditemukan di database ini.';
-  END IF;
-END;
-$$;
-
--- ---------------------------------------------------------------------------
--- 14. PACKAGE_GROUPS — Kategori paket default
--- Wrapped in DO block: table may not exist in all database versions.
--- ---------------------------------------------------------------------------
-DO $$
-BEGIN
-  IF EXISTS (
-    SELECT 1 FROM information_schema.tables
-    WHERE table_schema = 'public' AND table_name = 'package_groups'
-  ) THEN
-    INSERT INTO public.package_groups (name, slug, description, sort_order, is_active)
-    VALUES
-      ('Umroh Reguler',     'umroh-reguler',     'Paket umroh standar dengan akomodasi bintang 3-4',     1, TRUE),
-      ('Umroh Premium',     'umroh-premium',     'Paket umroh eksklusif dengan hotel bintang 5',         2, TRUE),
-      ('Umroh Ramadhan',    'umroh-ramadhan',    'Paket umroh di bulan Ramadhan penuh berkah',           3, TRUE),
-      ('Haji Plus',         'haji-plus',         'Paket haji plus dengan fasilitas ONH+ terpilih',       4, TRUE),
-      ('Wisata Halal',      'wisata-halal',      'Paket wisata halal ke destinasi pilihan',              5, TRUE),
-      ('Umroh Backpacker',  'umroh-backpacker',  'Paket umroh hemat untuk jamaah mandiri',               6, TRUE)
-    ON CONFLICT (slug) DO NOTHING;
-    RAISE NOTICE 'package_groups: seeded OK';
-  ELSE
-    RAISE NOTICE 'SKIP package_groups: tabel tidak ditemukan di database ini.';
-  END IF;
-END;
-$$;
-
--- ---------------------------------------------------------------------------
--- 15. AIRLINES — Maskapai utama Indonesia–Arab Saudi
--- Live schema: (id, name, code, logo_url, country, is_active, created_at, updated_at)
--- Note: live uses 'code' (not 'iata_code'/'icao_code'). Mapped accordingly.
--- ON CONFLICT uses (code) which is the unique column in live schema.
--- ---------------------------------------------------------------------------
-INSERT INTO public.airlines (name, code, country, is_active) VALUES
-  ('Garuda Indonesia',       'GA',  'Indonesia',     TRUE),
-  ('Saudi Arabian Airlines', 'SV',  'Saudi Arabia',  TRUE),
-  ('Lion Air',               'JT',  'Indonesia',     TRUE),
-  ('Batik Air',              'ID',  'Indonesia',     TRUE),
-  ('Emirates',               'EK',  'UAE',           TRUE),
-  ('Qatar Airways',          'QR',  'Qatar',         TRUE),
-  ('Flynas',                 'XY',  'Saudi Arabia',  TRUE),
-  ('Flyadeal',               'F3',  'Saudi Arabia',  TRUE)
+INSERT INTO public.chart_of_accounts (code, name, type, description, sort_order) VALUES
+  ('1000', 'Aset',                   'asset',     'Total aset perusahaan',            1),
+  ('1100', 'Kas & Bank',             'asset',     'Uang tunai dan saldo rekening',    2),
+  ('1200', 'Piutang Usaha',          'asset',     'Tagihan kepada pelanggan',         3),
+  ('2000', 'Kewajiban',              'liability', 'Total kewajiban perusahaan',       10),
+  ('2100', 'Utang Usaha',            'liability', 'Hutang kepada vendor',             11),
+  ('2200', 'Utang Pajak',            'liability', 'Kewajiban pajak',                  12),
+  ('3000', 'Ekuitas',                'equity',    'Modal pemilik',                    20),
+  ('4000', 'Pendapatan',             'revenue',   'Total pendapatan',                 30),
+  ('4100', 'Pendapatan Paket Umroh', 'revenue',   'Penjualan paket umroh',            31),
+  ('4200', 'Pendapatan Paket Haji',  'revenue',   'Penjualan paket haji',             32),
+  ('4300', 'Pendapatan Toko',        'revenue',   'Penjualan produk toko',            33),
+  ('4400', 'Pendapatan Lain-lain',   'revenue',   'Pendapatan di luar operasi utama', 34),
+  ('5000', 'Harga Pokok Penjualan',  'cogs',      'Biaya langsung paket wisata',      40),
+  ('5100', 'HPP Tiket Pesawat',      'cogs',      'Biaya tiket pesawat',              41),
+  ('5200', 'HPP Hotel',              'cogs',      'Biaya hotel Mekkah & Madinah',     42),
+  ('5300', 'HPP Visa',               'cogs',      'Biaya pengurusan visa',            43),
+  ('5400', 'HPP Handling & Ground',  'cogs',      'Biaya handling & ground handling', 44),
+  ('6000', 'Biaya Operasional',      'expense',   'Total biaya operasional',          50),
+  ('6100', 'Biaya Gaji',             'expense',   'Gaji & tunjangan karyawan',        51),
+  ('6200', 'Biaya Marketing',        'expense',   'Iklan & promosi',                  52),
+  ('6300', 'Biaya Kantor',           'expense',   'Sewa, utilitas, supplies',         53),
+  ('6400', 'Biaya Komisi Agen',      'expense',   'Komisi mitra agen',                54)
 ON CONFLICT (code) DO NOTHING;
 
 -- ---------------------------------------------------------------------------
--- 16. AIRPORTS — Bandara utama terkait rute Indonesia–Tanah Suci
--- Wrapped in DO block: table may not exist in all database versions.
+-- 12. WA_FEATURE_ROADMAP — Roadmap pengembangan fitur WA
+-- Schema (005_tables_finance): phase, code, title, description, status,
+--   sort_order.
 -- ---------------------------------------------------------------------------
-DO $$
-BEGIN
-  IF EXISTS (
-    SELECT 1 FROM information_schema.tables
-    WHERE table_schema = 'public' AND table_name = 'airports'
-  ) THEN
-    INSERT INTO public.airports (iata_code, icao_code, name, city, country, country_code, timezone)
-    VALUES
-      ('CGK', 'WIII', 'Soekarno-Hatta International Airport', 'Jakarta',  'Indonesia',   'ID', 'Asia/Jakarta'),
-      ('SUB', 'WARR', 'Juanda International Airport',          'Surabaya', 'Indonesia',   'ID', 'Asia/Jakarta'),
-      ('UPG', 'WAAA', 'Sultan Hasanuddin International Airport','Makassar','Indonesia',   'ID', 'Asia/Makassar'),
-      ('KNO', 'WIMM', 'Kualanamu International Airport',       'Medan',    'Indonesia',   'ID', 'Asia/Jakarta'),
-      ('JED', 'OEJN', 'King Abdulaziz International Airport',  'Jeddah',   'Saudi Arabia','SA', 'Asia/Riyadh'),
-      ('MED', 'OEMA', 'Prince Mohammad Bin Abdulaziz Airport', 'Madinah',  'Saudi Arabia','SA', 'Asia/Riyadh'),
-      ('RUH', 'OERK', 'King Khalid International Airport',     'Riyadh',   'Saudi Arabia','SA', 'Asia/Riyadh'),
-      ('DXB', 'OMDB', 'Dubai International Airport',           'Dubai',    'UAE',         'AE', 'Asia/Dubai'),
-      ('DOH', 'OTHH', 'Hamad International Airport',           'Doha',     'Qatar',       'QA', 'Asia/Qatar')
-    ON CONFLICT (iata_code) DO NOTHING;
-    RAISE NOTICE 'airports: seeded OK';
-  ELSE
-    RAISE NOTICE 'SKIP airports: tabel tidak ditemukan di database ini.';
-  END IF;
-END;
-$$;
+INSERT INTO public.wa_feature_roadmap
+  (phase, code, title, description, status, sort_order)
+VALUES
+  (1, 'WA_BASIC_SEND',        'Kirim WA via Fonnte',              'Kirim pesan single & bulk via Fonnte',                'done',        10),
+  (1, 'WA_TEMPLATES_ENGINE',  'Template Pesan Dinamis',           'Variabel {nama}, {kode}, {tanggal} di template',      'done',        20),
+  (1, 'WA_SEND_LOGS',         'Log Pengiriman WA',                'Riwayat setiap pesan terkirim / gagal',               'done',        30),
+  (1, 'WA_BLAST_DEPARTURE',   'Broadcast per Keberangkatan',      'Kirim massal ke semua jamaah satu keberangkatan',     'done',        40),
+  (1, 'WA_AUTO_BOOKING',      'Notif Otomatis Booking Baru',      'Auto-kirim WA saat booking/DP/lunas dikonfirmasi',    'done',        60),
+  (2, 'WA_MULTIPROVIDER',     'Multi-Provider WA',                'Support Fonnte, Wablas, Waboxapp, dll',               'in_progress', 70),
+  (2, 'WA_AUTO_REMINDER',     'Auto-Jadwal Reminder Pembayaran',  'Buat baris reminder H-7/H-3 otomatis',               'in_progress', 90),
+  (3, 'WA_BROADCAST_SEGMENT', 'Broadcast Tersegmentasi',          'Filter penerima: by paket, keberangkatan, status',   'planned',     100),
+  (4, 'WA_CHATBOT_KEYWORD',   'Auto-Reply Berbasis Kata Kunci',   'Balas otomatis jika jamaah kirim kata kunci tertentu','planned',     130),
+  (5, 'WA_META_CLOUD',        'WhatsApp Cloud API (Meta)',        'Integrasi resmi Meta Business API',                   'planned',     160)
+ON CONFLICT (code) DO NOTHING;
+
+-- ---------------------------------------------------------------------------
+-- 13. FAQS — FAQ default
+-- Schema (003_tables_users): question, answer, category, sort_order,
+--   is_published.
+-- ---------------------------------------------------------------------------
+INSERT INTO public.faqs (question, answer, category, sort_order, is_published) VALUES
+  ('Apa itu Vinstour Travel?',
+   'Vinstour Travel adalah platform manajemen perjalanan Umroh dan Haji yang membantu travel agent dan jamaah dalam mengelola seluruh proses perjalanan ibadah.',
+   'Umum', 1, TRUE),
+  ('Bagaimana cara memesan paket umroh?',
+   'Anda dapat memesan paket umroh langsung melalui website kami atau menghubungi kantor terdekat. Tim kami siap membantu proses pemesanan Anda.',
+   'Pemesanan', 2, TRUE),
+  ('Berapa lama proses pengurusan visa?',
+   'Proses pengurusan visa umroh biasanya memakan waktu 7-14 hari kerja setelah semua dokumen lengkap dan dikirimkan ke Kedutaan.',
+   'Visa', 3, TRUE),
+  ('Apa yang termasuk dalam paket umroh?',
+   'Paket umroh kami umumnya mencakup: tiket pesawat PP, akomodasi hotel bintang di Mekkah & Madinah, visa umroh, bimbingan ibadah, dan perlengkapan umroh.',
+   'Paket', 4, TRUE),
+  ('Bagaimana sistem pembayaran?',
+   'Kami menerima pembayaran melalui transfer bank, kartu kredit, dan payment gateway online. Tersedia opsi cicilan dan program tabungan umroh.',
+   'Pembayaran', 5, TRUE)
+ON CONFLICT DO NOTHING;
+
+-- ---------------------------------------------------------------------------
+-- 14. PACKAGE_GROUPS — Kategori paket default
+-- Schema (003_tables_users): name, slug, description, sort_order, is_active.
+-- ---------------------------------------------------------------------------
+INSERT INTO public.package_groups (name, slug, description, sort_order, is_active)
+VALUES
+  ('Umroh Reguler',     'umroh-reguler',     'Paket umroh standar dengan akomodasi bintang 3-4',     1, TRUE),
+  ('Umroh Premium',     'umroh-premium',     'Paket umroh eksklusif dengan hotel bintang 5',         2, TRUE),
+  ('Umroh Ramadhan',    'umroh-ramadhan',    'Paket umroh di bulan Ramadhan penuh berkah',           3, TRUE),
+  ('Haji Plus',         'haji-plus',         'Paket haji plus dengan fasilitas ONH+ terpilih',       4, TRUE),
+  ('Wisata Halal',      'wisata-halal',      'Paket wisata halal ke destinasi pilihan',              5, TRUE),
+  ('Umroh Backpacker',  'umroh-backpacker',  'Paket umroh hemat untuk jamaah mandiri',               6, TRUE)
+ON CONFLICT (slug) DO NOTHING;
+
+-- ---------------------------------------------------------------------------
+-- 15. AIRLINES — Maskapai utama Indonesia–Arab Saudi
+-- Schema (004_tables_travel): name, iata_code, icao_code, country, is_active.
+-- ---------------------------------------------------------------------------
+INSERT INTO public.airlines (name, iata_code, icao_code, country, is_active) VALUES
+  ('Garuda Indonesia',       'GA',  'GIA', 'Indonesia',     TRUE),
+  ('Saudi Arabian Airlines', 'SV',  'SVA', 'Saudi Arabia',  TRUE),
+  ('Lion Air',               'JT',  'LNI', 'Indonesia',     TRUE),
+  ('Batik Air',              'ID',  'BTK', 'Indonesia',     TRUE),
+  ('Saudia',                 'SV2', 'SVA', 'Saudi Arabia',  FALSE),
+  ('Emirates',               'EK',  'UAE', 'UAE',           TRUE),
+  ('Qatar Airways',          'QR',  'QTR', 'Qatar',         TRUE),
+  ('Flynas',                 'XY',  'KNE', 'Saudi Arabia',  TRUE),
+  ('Flyadeal',               'F3',  'FAD', 'Saudi Arabia',  TRUE)
+ON CONFLICT (iata_code) DO NOTHING;
+
+-- ---------------------------------------------------------------------------
+-- 16. AIRPORTS — Bandara utama terkait rute Indonesia–Tanah Suci
+-- Schema (004_tables_travel): iata_code, icao_code, name, city, country,
+--   country_code, timezone.
+-- ---------------------------------------------------------------------------
+INSERT INTO public.airports (iata_code, icao_code, name, city, country, country_code, timezone)
+VALUES
+  ('CGK', 'WIII', 'Soekarno-Hatta International Airport', 'Jakarta',  'Indonesia',   'ID', 'Asia/Jakarta'),
+  ('SUB', 'WARR', 'Juanda International Airport',          'Surabaya', 'Indonesia',   'ID', 'Asia/Jakarta'),
+  ('UPG', 'WAAA', 'Sultan Hasanuddin International Airport','Makassar','Indonesia',   'ID', 'Asia/Makassar'),
+  ('KNO', 'WIMM', 'Kualanamu International Airport',       'Medan',    'Indonesia',   'ID', 'Asia/Jakarta'),
+  ('JED', 'OEJN', 'King Abdulaziz International Airport',  'Jeddah',   'Saudi Arabia','SA', 'Asia/Riyadh'),
+  ('MED', 'OEMA', 'Prince Mohammad Bin Abdulaziz Airport', 'Madinah',  'Saudi Arabia','SA', 'Asia/Riyadh'),
+  ('RUH', 'OERK', 'King Khalid International Airport',     'Riyadh',   'Saudi Arabia','SA', 'Asia/Riyadh'),
+  ('DXB', 'OMDB', 'Dubai International Airport',           'Dubai',    'UAE',         'AE', 'Asia/Dubai'),
+  ('DOH', 'OTHH', 'Hamad International Airport',           'Doha',     'Qatar',       'QA', 'Asia/Qatar')
+ON CONFLICT (iata_code) DO NOTHING;
 
 -- ---------------------------------------------------------------------------
 -- 17. HOTELS — Hotel default Mekkah & Madinah
--- Live schema: (id, name, stars, city, country, address, phone, email,
---               description, photo_url, is_active, created_at, updated_at)
--- Note: live uses 'stars' (not 'star_rating'). 'distance_to_haram' not in
---       live schema — removed.
+-- Schema (004_tables_travel): name, city, star_rating, distance_to_haram,
+--   is_active.
 -- ---------------------------------------------------------------------------
 INSERT INTO public.hotels
-  (name, city, stars, is_active)
+  (name, city, star_rating, distance_to_haram, is_active)
 VALUES
-  ('Makkah Clock Royal Tower',      'makkah',  5, TRUE),
-  ('Swissotel Makkah',              'makkah',  5, TRUE),
-  ('Hilton Suites Makkah',          'makkah',  5, TRUE),
-  ('Sheraton Makkah',               'makkah',  5, TRUE),
-  ('Grand Zam Zam',                 'makkah',  4, TRUE),
-  ('Al Massa Hotel',                'makkah',  4, TRUE),
-  ('Dar Al Tawhid Intercontinental','makkah',  5, TRUE),
-  ('Pullman ZamZam Makkah',         'makkah',  5, TRUE),
-  ('Anwar Al Madinah Mövenpick',    'madinah', 5, TRUE),
-  ('Oberoi Madinah',                'madinah', 5, TRUE),
-  ('Al Harameyn Hotel Madinah',     'madinah', 4, TRUE),
-  ('Grand Mercure Madinah',         'madinah', 5, TRUE),
-  ('Dallah Taibah Hotel',           'madinah', 4, TRUE)
+  ('Makkah Clock Royal Tower',     'makkah',  5, 0.1,  TRUE),
+  ('Swissotel Makkah',             'makkah',  5, 0.2,  TRUE),
+  ('Hilton Suites Makkah',         'makkah',  5, 0.3,  TRUE),
+  ('Sheraton Makkah',              'makkah',  5, 0.4,  TRUE),
+  ('Grand Zam Zam',                'makkah',  4, 0.5,  TRUE),
+  ('Al Massa Hotel',               'makkah',  4, 0.8,  TRUE),
+  ('Dar Al Tawhid Intercontinental','makkah', 5, 0.1,  TRUE),
+  ('Pullman ZamZam Makkah',        'makkah',  5, 0.15, TRUE),
+  ('Anwar Al Madinah Mövenpick',   'madinah', 5, 0.1,  TRUE),
+  ('Oberoi Madinah',               'madinah', 5, 0.05, TRUE),
+  ('Al Harameyn Hotel Madinah',    'madinah', 4, 0.3,  TRUE),
+  ('Grand Mercure Madinah',        'madinah', 5, 0.2,  TRUE),
+  ('Dallah Taibah Hotel',          'madinah', 4, 0.4,  TRUE)
 ON CONFLICT DO NOTHING;
 
 -- ---------------------------------------------------------------------------
