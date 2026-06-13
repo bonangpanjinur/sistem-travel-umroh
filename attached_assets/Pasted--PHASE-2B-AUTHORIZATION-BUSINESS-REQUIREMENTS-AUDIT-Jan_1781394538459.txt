@@ -1,0 +1,270 @@
+# PHASE 2B — AUTHORIZATION & BUSINESS REQUIREMENTS AUDIT
+
+Jangan generate MASTER_MIGRATION.sql dulu.
+
+Sebelum migration final dibuat, lakukan audit mendalam terhadap:
+
+1. User
+2. Role
+3. Permission
+4. Branch
+5. Department
+6. Agent
+7. Sub Agent
+8. Employee
+9. Customer/Jamaah
+
+Tujuan:
+
+Memastikan model authorization final sudah benar sebelum database dibekukan.
+
+---
+
+# TASK 1 — ROLE AUDIT
+
+Analisis seluruh codebase.
+
+Cari semua penggunaan:
+
+* role
+* roles
+* permission
+* permissions
+* can(...)
+* hasRole(...)
+* hasPermission(...)
+* access
+* authorize
+* branch access
+
+Bangun file:
+
+database_audit/role_audit.md
+
+Isi:
+
+Untuk setiap role:
+
+super_admin
+owner
+it
+admin
+branch_manager
+finance
+operational
+operator
+sales
+marketing
+equipment
+agent
+sub_agent
+customer
+jamaah
+
+jelaskan:
+
+* tujuan role
+* fitur yang digunakan
+* halaman yang digunakan
+* menu yang digunakan
+* tabel yang diakses
+* API yang digunakan
+
+---
+
+# TASK 2 — PERMISSION AUDIT
+
+Bangun:
+
+database_audit/permission_audit.md
+
+Identifikasi seluruh permission yang sebenarnya dibutuhkan.
+
+Format:
+
+Domain
+Permission
+Description
+
+Contoh:
+
+booking.create
+booking.read
+booking.update
+booking.delete
+booking.approve
+
+customer.create
+customer.read
+customer.update
+
+finance.approve_payment
+
+finance.refund
+
+finance.journal_post
+
+dst.
+
+---
+
+# TASK 3 — MENU ACCESS AUDIT
+
+Analisis seluruh:
+
+* sidebar
+* menu_items
+* navigation
+* routes
+
+Bangun:
+
+database_audit/menu_permission_matrix.md
+
+Format:
+
+Menu
+Required Role
+Required Permission
+
+---
+
+# TASK 4 — BRANCH ACCESS MODEL
+
+Audit kebutuhan multi-cabang.
+
+Jawab:
+
+1. Apakah user bisa berada di banyak cabang?
+2. Apakah role berlaku global atau per cabang?
+3. Apakah branch_manager hanya melihat cabangnya sendiri?
+4. Apakah finance melihat semua cabang?
+5. Apakah sales bisa lintas cabang?
+6. Apakah agent terikat cabang?
+
+Buat rekomendasi model final.
+
+Output:
+
+database_audit/branch_access_model.md
+
+---
+
+# TASK 5 — USER MODEL AUDIT
+
+Audit seluruh tabel:
+
+users
+profiles
+employees
+agents
+customers
+jamaah
+
+Tentukan apakah:
+
+A.
+
+auth.users
+→ profiles
+
+profiles
+→ employee
+
+profiles
+→ customer
+
+profiles
+→ agent
+
+atau model lain yang lebih tepat.
+
+Output:
+
+database_audit/user_model.md
+
+---
+
+# TASK 6 — PERMISSION ARCHITECTURE
+
+Buat desain final.
+
+Tentukan apakah perlu:
+
+roles
+permissions
+role_permissions
+user_roles
+user_permissions
+user_permission_overrides
+
+atau struktur yang lebih sederhana.
+
+Berikan alasan.
+
+Output:
+
+database_audit/authorization_architecture.md
+
+---
+
+# TASK 7 — RLS STRATEGY
+
+Desain seluruh RLS.
+
+Jangan langsung generate SQL.
+
+Dokumentasikan:
+
+* helper functions
+* role helper
+* permission helper
+* branch helper
+
+Contoh:
+
+public.has_role()
+
+public.has_permission()
+
+public.can_access_branch()
+
+Output:
+
+database_audit/rls_strategy.md
+
+---
+
+# TASK 8 — GAP ANALYSIS
+
+Bandingkan:
+
+1. Codebase aktual
+2. Database lama
+3. Blueprint baru
+
+Cari:
+
+* fitur yang belum memiliki tabel
+* tabel yang tidak dipakai
+* permission yang belum dimodelkan
+* role yang tidak digunakan
+* menu yang tidak terlindungi
+
+Output:
+
+database_audit/gap_analysis.md
+
+---
+
+# RULE
+
+Jangan generate migration baru dulu.
+
+Jangan generate MASTER_MIGRATION.sql dulu.
+
+Selesaikan seluruh audit authorization dan business requirements terlebih dahulu.
+
+Karena user role, permission, branch access, dan ownership model adalah fondasi seluruh database.
+
+Migration final hanya boleh dibuat setelah seluruh audit di atas selesai.
