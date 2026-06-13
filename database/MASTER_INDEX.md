@@ -1,8 +1,24 @@
 # MASTER_INDEX — Vinstour Travel Portal Database Migrations
 
-> Complete execution order, dependencies, and rollback availability for all 75 SQL files.
-> Reorganized: June 2025
+> Complete execution order, dependencies, and rollback availability for all 96 SQL files.
+> Reorganized: Juni 2025 (audit awal) — Diperbarui: Juni 2025 (audit mendalam: 22 tabel hilang ditemukan)
 > Source audit: `docs/database_organization_report.md`
+
+---
+
+## ⚠️ TEMUAN AUDIT MENDALAM
+
+Audit awal hanya memeriksa konflik dan duplikat.
+Audit mendalam menemukan **22 tabel yang direferensikan di seluruh migration tetapi tidak punya `CREATE TABLE` mana pun** — kemungkinan dibuat langsung via Supabase Dashboard.
+
+Migration untuk tabel-tabel ini ada di folder baru: **`migrations/v0_missing_tables/`**
+
+| Kelompok | Tabel |
+|---|---|
+| Core bisnis | `payments`, `airlines`, `departure_hotels`, `loyalty_points`, `agent_commissions` |
+| Dokumen & akses | `customer_documents`, `referral_codes`, `referral_usages`, `ticket_responses`, `audit_logs`, `user_permissions` |
+| Katalog | `package_types`, `equipment_items`, `theme_presets` |
+| Operasional | `bus_assignments`, `itineraries`, `manifests`, `luggage`, `vendor_costs`, `jamaah_live_locations`, `room_assignment_audit`, `savings_payments` |
 
 ---
 
@@ -11,6 +27,7 @@
 | Symbol | Meaning |
 |---|---|
 | ✅ | Active — must be applied |
+| 🆕 | Tabel baru — tidak ada di migration asli, dibuat dari audit mendalam |
 | 🔵 | Supabase-only — skip on Neon/RDS |
 | 🟡 | Data migration — idempotent, can re-run |
 | 🔒 | Security patch — GRANT/REVOKE only |
@@ -20,7 +37,7 @@
 
 ---
 
-## STAGE 0 — Pre-flight Check
+## STAGE 0A — Pre-flight Check
 
 Before running any migration, verify:
 1. PostgreSQL version ≥ 14 (for GENERATED ALWAYS AS STORED columns)
@@ -28,6 +45,25 @@ Before running any migration, verify:
 3. `pgcrypto` extension enabled: `CREATE EXTENSION IF NOT EXISTS pgcrypto;`
 4. (Supabase only) GoTrue auth schema present for `auth.uid()` functions
 5. Database is empty OR you have taken a full backup
+
+---
+
+## STAGE 0B — Missing Tables (v0_missing_tables/) 🆕
+
+> **JALANKAN SETELAH v1_foundation/fase0_foundation.sql dan SEBELUM v2_sprint_phases.**
+> Tabel-tabel ini direferensikan oleh trigger, FK, dan RLS di fase selanjutnya.
+> Jika database Supabase Anda sudah berjalan, tabel-tabel ini sudah ada — **SKIP stage ini**.
+
+| # | File | Status | Tabel yang Dibuat | Depends On |
+|---|---|---|---|---|
+| 0.1 | `v0_missing_tables/001_core_business_tables.sql` | 🆕 | `airlines`, `payments`, `departure_hotels`, `loyalty_points`, `agent_commissions` | fase0_foundation |
+| 0.2 | `v0_missing_tables/002_documents_and_access.sql` | 🆕 | `customer_documents`, `referral_codes`, `referral_usages`, `ticket_responses`, `audit_logs`, `user_permissions` | fase0_foundation |
+| 0.3 | `v0_missing_tables/003_catalog_tables.sql` | 🆕 | `package_types`, `equipment_items`, `theme_presets` | fase0_foundation |
+| 0.4 | `v0_missing_tables/004_operational_tables.sql` | 🆕 | `bus_assignments`, `itineraries`, `manifests`, `luggage`, `vendor_costs`, `jamaah_live_locations`, `room_assignment_audit`, `savings_payments` | fase0_foundation + airlines |
+
+> **Catatan untuk database Supabase yang sudah ada:**
+> File 003 mencakup seed `theme_presets` — jika table sudah ada, seed akan di-SKIP (ON CONFLICT DO NOTHING).
+> File 003 juga mencakup semua kolom dari `v4_patches/20260511053018` — jangan jalankan ALTER TABLE itu lagi.
 
 ---
 
@@ -189,13 +225,25 @@ These files are retained for historical reference only.
 -- Run from database/ directory
 -- ═══════════════════════════════════════════════════════
 
--- STAGE 1: Foundation
-\i migrations/v1_foundation/consolidated_all.sql
--- OR (step-by-step):
--- \i migrations/v1_foundation/fase0_foundation.sql
--- \i migrations/v1_foundation/consolidated_fase_11_15.sql
+-- PRE-FLIGHT
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
--- ⚠️ CRITICAL: Run this BEFORE fase30 (Stage 2 #17)
+-- STAGE 0B: Missing Tables (skip jika Supabase DB sudah berjalan)
+-- Jalankan fase0_foundation DULU, lalu missing tables, sebelum lanjut
+\i migrations/v1_foundation/fase0_foundation.sql
+\i migrations/v0_missing_tables/001_core_business_tables.sql
+\i migrations/v0_missing_tables/002_documents_and_access.sql
+\i migrations/v0_missing_tables/003_catalog_tables.sql
+\i migrations/v0_missing_tables/004_operational_tables.sql
+
+-- STAGE 1: Foundation (lanjutkan, atau gunakan consolidated_all jika fresh)
+-- Option A (fresh install — sudah cover fase0 + v2 sampai fase27):
+-- \i migrations/v1_foundation/consolidated_all.sql
+-- Option B (step-by-step, lanjut dari fase0 di atas):
+\i migrations/v1_foundation/consolidated_fase_11_15.sql
+
+-- ⚠️ CRITICAL: Run BEFORE fase30
 \i migrations/v4_patches/20260531000000_fix_payment_deadline_reminders.sql
 
 -- STAGE 2: Sprint Phases (skip fase16-fase27 if using consolidated_all)
