@@ -30,6 +30,15 @@ CREATE TABLE IF NOT EXISTS public.leads (
   updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Jika tabel sudah ada dari schema lama, tambahkan kolom baru secara idempotent
+ALTER TABLE public.leads ADD COLUMN IF NOT EXISTS agent_id       UUID REFERENCES public.agents(id) ON DELETE SET NULL;
+ALTER TABLE public.leads ADD COLUMN IF NOT EXISTS branch_id      UUID REFERENCES public.branches(id) ON DELETE SET NULL;
+ALTER TABLE public.leads ADD COLUMN IF NOT EXISTS package_id     UUID REFERENCES public.packages(id) ON DELETE SET NULL;
+ALTER TABLE public.leads ADD COLUMN IF NOT EXISTS assigned_to    UUID REFERENCES auth.users(id) ON DELETE SET NULL;
+ALTER TABLE public.leads ADD COLUMN IF NOT EXISTS last_contact   TIMESTAMPTZ;
+ALTER TABLE public.leads ADD COLUMN IF NOT EXISTS converted_at   TIMESTAMPTZ;
+ALTER TABLE public.leads ADD COLUMN IF NOT EXISTS customer_id    UUID REFERENCES public.customers(id) ON DELETE SET NULL;
+
 ALTER TABLE public.leads ENABLE ROW LEVEL SECURITY;
 
 CREATE INDEX IF NOT EXISTS idx_leads_status      ON public.leads(status);

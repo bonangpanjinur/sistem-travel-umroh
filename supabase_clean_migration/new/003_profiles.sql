@@ -32,6 +32,13 @@ BEGIN
 END;
 $$;
 
+-- Jika tabel sudah ada dari schema lama, tambahkan kolom baru secara idempotent
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_active       BOOLEAN     NOT NULL DEFAULT TRUE;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS session_version INTEGER     NOT NULL DEFAULT 0;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS last_sign_in_at TIMESTAMPTZ;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS avatar_url      TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS phone           TEXT;
+
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
 COMMENT ON TABLE  public.profiles IS 'Extended user profile (1:1 auth.users). Role managed via user_roles table.';

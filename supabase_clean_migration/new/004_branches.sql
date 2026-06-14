@@ -23,6 +23,14 @@ CREATE TABLE IF NOT EXISTS public.branches (
   updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Jika tabel sudah ada dari schema lama, tambahkan kolom baru secara idempotent
+ALTER TABLE public.branches ADD COLUMN IF NOT EXISTS slug        TEXT;
+ALTER TABLE public.branches ADD COLUMN IF NOT EXISTS manager_id  UUID REFERENCES public.profiles(id) ON DELETE SET NULL;
+ALTER TABLE public.branches ADD COLUMN IF NOT EXISTS logo_url    TEXT;
+ALTER TABLE public.branches ADD COLUMN IF NOT EXISTS description TEXT;
+ALTER TABLE public.branches ADD COLUMN IF NOT EXISTS meta_data   JSONB;
+ALTER TABLE public.branches ADD COLUMN IF NOT EXISTS is_active   BOOLEAN NOT NULL DEFAULT TRUE;
+
 ALTER TABLE public.branches ENABLE ROW LEVEL SECURITY;
 
 CREATE INDEX IF NOT EXISTS idx_branches_slug ON public.branches(slug);

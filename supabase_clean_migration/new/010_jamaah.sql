@@ -42,8 +42,30 @@ CREATE TABLE IF NOT EXISTS public.customers (
   updated_at                  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Jika tabel sudah ada dari schema lama, tambahkan kolom baru secara idempotent
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS agent_id                   UUID        REFERENCES public.agents(id) ON DELETE SET NULL;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS branch_id                  UUID        REFERENCES public.branches(id) ON DELETE SET NULL;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS customer_code              TEXT;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS nik                        TEXT;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS passport_no                TEXT;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS passport_expiry            DATE;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS gender                     public.gender_type;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS birth_date                 DATE;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS birth_place                TEXT;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS postal_code                TEXT;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS nationality                TEXT        NOT NULL DEFAULT 'Indonesia';
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS education                  TEXT;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS occupation                 TEXT;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS emergency_contact_name     TEXT;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS emergency_contact_phone    TEXT;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS emergency_contact_relation TEXT;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS photo_url                  TEXT;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS health_notes               TEXT;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS meta_data                  JSONB;
+
 ALTER TABLE public.customers ENABLE ROW LEVEL SECURITY;
 
+CREATE UNIQUE INDEX IF NOT EXISTS customers_customer_code_key ON public.customers(customer_code) WHERE customer_code IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_customers_user_id   ON public.customers(user_id);
 CREATE INDEX IF NOT EXISTS idx_customers_agent_id  ON public.customers(agent_id);
 CREATE INDEX IF NOT EXISTS idx_customers_branch_id ON public.customers(branch_id);
@@ -69,6 +91,17 @@ CREATE TABLE IF NOT EXISTS public.customer_accounts (
   created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Jika tabel sudah ada dari schema lama, tambahkan kolom baru secara idempotent
+ALTER TABLE public.customer_accounts ADD COLUMN IF NOT EXISTS referred_by_agent_id  UUID REFERENCES public.agents(id) ON DELETE SET NULL;
+ALTER TABLE public.customer_accounts ADD COLUMN IF NOT EXISTS referred_by_branch_id UUID REFERENCES public.branches(id) ON DELETE SET NULL;
+ALTER TABLE public.customer_accounts ADD COLUMN IF NOT EXISTS agent_slug            TEXT;
+ALTER TABLE public.customer_accounts ADD COLUMN IF NOT EXISTS branch_slug           TEXT;
+ALTER TABLE public.customer_accounts ADD COLUMN IF NOT EXISTS loyalty_points        INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE public.customer_accounts ADD COLUMN IF NOT EXISTS total_bookings        INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE public.customer_accounts ADD COLUMN IF NOT EXISTS total_spent           NUMERIC NOT NULL DEFAULT 0;
+ALTER TABLE public.customer_accounts ADD COLUMN IF NOT EXISTS is_verified           BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE public.customer_accounts ADD COLUMN IF NOT EXISTS verified_at           TIMESTAMPTZ;
 
 ALTER TABLE public.customer_accounts ENABLE ROW LEVEL SECURITY;
 
@@ -113,6 +146,14 @@ CREATE TABLE IF NOT EXISTS public.muthawifs (
   created_at       TIMESTAMPTZ      NOT NULL DEFAULT NOW(),
   updated_at       TIMESTAMPTZ      NOT NULL DEFAULT NOW()
 );
+
+-- Jika tabel sudah ada dari schema lama, tambahkan kolom baru secara idempotent
+ALTER TABLE public.muthawifs ADD COLUMN IF NOT EXISTS branch_id        UUID REFERENCES public.branches(id) ON DELETE SET NULL;
+ALTER TABLE public.muthawifs ADD COLUMN IF NOT EXISTS specialization   TEXT;
+ALTER TABLE public.muthawifs ADD COLUMN IF NOT EXISTS languages        TEXT[];
+ALTER TABLE public.muthawifs ADD COLUMN IF NOT EXISTS certification_no TEXT;
+ALTER TABLE public.muthawifs ADD COLUMN IF NOT EXISTS is_available     BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE public.muthawifs ADD COLUMN IF NOT EXISTS is_active        BOOLEAN NOT NULL DEFAULT TRUE;
 
 ALTER TABLE public.muthawifs ENABLE ROW LEVEL SECURITY;
 

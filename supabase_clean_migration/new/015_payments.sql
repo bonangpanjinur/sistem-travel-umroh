@@ -76,6 +76,14 @@ CREATE TABLE IF NOT EXISTS public.savings_plans (
   updated_at           TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Jika tabel sudah ada dari schema lama, tambahkan kolom baru secara idempotent
+ALTER TABLE public.savings_plans ADD COLUMN IF NOT EXISTS agent_id             UUID REFERENCES public.agents(id) ON DELETE SET NULL;
+ALTER TABLE public.savings_plans ADD COLUMN IF NOT EXISTS branch_id            UUID REFERENCES public.branches(id) ON DELETE SET NULL;
+ALTER TABLE public.savings_plans ADD COLUMN IF NOT EXISTS monthly_target        NUMERIC;
+ALTER TABLE public.savings_plans ADD COLUMN IF NOT EXISTS target_date           DATE;
+ALTER TABLE public.savings_plans ADD COLUMN IF NOT EXISTS converted_booking_id  UUID REFERENCES public.bookings(id) ON DELETE SET NULL;
+ALTER TABLE public.savings_plans ADD COLUMN IF NOT EXISTS converted_at          TIMESTAMPTZ;
+
 ALTER TABLE public.savings_plans ENABLE ROW LEVEL SECURITY;
 
 CREATE INDEX IF NOT EXISTS idx_savings_plans_customer

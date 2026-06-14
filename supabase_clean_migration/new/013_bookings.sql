@@ -73,6 +73,21 @@ CREATE TABLE IF NOT EXISTS public.bookings (
   updated_at          TIMESTAMPTZ              NOT NULL DEFAULT NOW()
 );
 
+-- Jika tabel sudah ada dari schema lama, tambahkan kolom baru secara idempotent
+ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS agent_id            UUID REFERENCES public.agents(id) ON DELETE SET NULL;
+ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS branch_id           UUID REFERENCES public.branches(id) ON DELETE SET NULL;
+ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS handled_by          UUID REFERENCES public.profiles(id) ON DELETE SET NULL;
+ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS coupon_id           UUID REFERENCES public.coupons(id) ON DELETE SET NULL;
+ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS discount_amount     NUMERIC     NOT NULL DEFAULT 0;
+ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS payment_deadline    DATE;
+ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS special_requests    TEXT;
+ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS internal_notes      TEXT;
+ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS cancelled_at        TIMESTAMPTZ;
+ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS cancellation_reason TEXT;
+ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS confirmed_at        TIMESTAMPTZ;
+ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS completed_at        TIMESTAMPTZ;
+ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS source              TEXT DEFAULT 'staff';
+
 ALTER TABLE public.bookings ENABLE ROW LEVEL SECURITY;
 
 CREATE INDEX IF NOT EXISTS idx_bookings_customer    ON public.bookings(customer_id);

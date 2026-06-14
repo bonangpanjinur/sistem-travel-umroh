@@ -176,6 +176,36 @@ CREATE TABLE IF NOT EXISTS public.packages (
   updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Jika tabel sudah ada dari schema lama, tambahkan kolom baru secara idempotent
+ALTER TABLE public.packages ADD COLUMN IF NOT EXISTS airline_id           UUID    REFERENCES public.airlines(id) ON DELETE SET NULL;
+ALTER TABLE public.packages ADD COLUMN IF NOT EXISTS hotel_makkah_id      UUID    REFERENCES public.hotels(id) ON DELETE SET NULL;
+ALTER TABLE public.packages ADD COLUMN IF NOT EXISTS hotel_madinah_id     UUID    REFERENCES public.hotels(id) ON DELETE SET NULL;
+ALTER TABLE public.packages ADD COLUMN IF NOT EXISTS hotel_makkah_nights  INTEGER NOT NULL DEFAULT 4;
+ALTER TABLE public.packages ADD COLUMN IF NOT EXISTS hotel_madinah_nights INTEGER NOT NULL DEFAULT 4;
+ALTER TABLE public.packages ADD COLUMN IF NOT EXISTS room_type_default    TEXT    NOT NULL DEFAULT 'quad';
+ALTER TABLE public.packages ADD COLUMN IF NOT EXISTS base_price_triple    NUMERIC NOT NULL DEFAULT 0;
+ALTER TABLE public.packages ADD COLUMN IF NOT EXISTS base_price_double    NUMERIC NOT NULL DEFAULT 0;
+ALTER TABLE public.packages ADD COLUMN IF NOT EXISTS base_price_single    NUMERIC NOT NULL DEFAULT 0;
+ALTER TABLE public.packages ADD COLUMN IF NOT EXISTS includes             TEXT[];
+ALTER TABLE public.packages ADD COLUMN IF NOT EXISTS excludes             TEXT[];
+ALTER TABLE public.packages ADD COLUMN IF NOT EXISTS highlights           TEXT[];
+ALTER TABLE public.packages ADD COLUMN IF NOT EXISTS itinerary            JSONB;
+ALTER TABLE public.packages ADD COLUMN IF NOT EXISTS photos               TEXT[];
+ALTER TABLE public.packages ADD COLUMN IF NOT EXISTS thumbnail_url        TEXT;
+ALTER TABLE public.packages ADD COLUMN IF NOT EXISTS label_id             UUID    REFERENCES public.package_labels(id) ON DELETE SET NULL;
+ALTER TABLE public.packages ADD COLUMN IF NOT EXISTS group_id             UUID    REFERENCES public.package_groups(id) ON DELETE SET NULL;
+ALTER TABLE public.packages ADD COLUMN IF NOT EXISTS view_count           INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE public.packages ADD COLUMN IF NOT EXISTS is_featured          BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE public.packages ADD COLUMN IF NOT EXISTS sort_order           INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE public.packages ADD COLUMN IF NOT EXISTS seo_title            TEXT;
+ALTER TABLE public.packages ADD COLUMN IF NOT EXISTS seo_description      TEXT;
+ALTER TABLE public.packages ADD COLUMN IF NOT EXISTS seo_keywords         TEXT[];
+ALTER TABLE public.packages ADD COLUMN IF NOT EXISTS created_by           UUID    REFERENCES auth.users(id) ON DELETE SET NULL;
+ALTER TABLE public.packages ADD COLUMN IF NOT EXISTS slug                 TEXT;
+ALTER TABLE public.packages ADD COLUMN IF NOT EXISTS code                 TEXT;
+ALTER TABLE public.packages ADD COLUMN IF NOT EXISTS is_published         BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE public.packages ADD COLUMN IF NOT EXISTS is_active            BOOLEAN NOT NULL DEFAULT TRUE;
+
 ALTER TABLE public.packages ENABLE ROW LEVEL SECURITY;
 
 CREATE INDEX IF NOT EXISTS idx_packages_published

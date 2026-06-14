@@ -36,6 +36,22 @@ CREATE TABLE IF NOT EXISTS public.departures (
   CHECK (return_date >= departure_date)
 );
 
+-- Jika tabel sudah ada dari schema lama, tambahkan kolom baru secara idempotent
+ALTER TABLE public.departures ADD COLUMN IF NOT EXISTS airline_id           UUID REFERENCES public.airlines(id) ON DELETE SET NULL;
+ALTER TABLE public.departures ADD COLUMN IF NOT EXISTS hotel_makkah_id      UUID REFERENCES public.hotels(id) ON DELETE SET NULL;
+ALTER TABLE public.departures ADD COLUMN IF NOT EXISTS hotel_madinah_id     UUID REFERENCES public.hotels(id) ON DELETE SET NULL;
+ALTER TABLE public.departures ADD COLUMN IF NOT EXISTS price_quad           NUMERIC;
+ALTER TABLE public.departures ADD COLUMN IF NOT EXISTS price_triple         NUMERIC;
+ALTER TABLE public.departures ADD COLUMN IF NOT EXISTS price_double         NUMERIC;
+ALTER TABLE public.departures ADD COLUMN IF NOT EXISTS price_single         NUMERIC;
+ALTER TABLE public.departures ADD COLUMN IF NOT EXISTS flight_number        TEXT;
+ALTER TABLE public.departures ADD COLUMN IF NOT EXISTS flight_number_return TEXT;
+ALTER TABLE public.departures ADD COLUMN IF NOT EXISTS embarkation_city     TEXT;
+ALTER TABLE public.departures ADD COLUMN IF NOT EXISTS internal_notes       TEXT;
+ALTER TABLE public.departures ADD COLUMN IF NOT EXISTS lead_pic             UUID REFERENCES public.profiles(id) ON DELETE SET NULL;
+ALTER TABLE public.departures ADD COLUMN IF NOT EXISTS branch_id            UUID REFERENCES public.branches(id) ON DELETE SET NULL;
+ALTER TABLE public.departures ADD COLUMN IF NOT EXISTS created_by           UUID REFERENCES auth.users(id) ON DELETE SET NULL;
+
 ALTER TABLE public.departures ENABLE ROW LEVEL SECURITY;
 
 CREATE INDEX IF NOT EXISTS idx_departures_package    ON public.departures(package_id);
