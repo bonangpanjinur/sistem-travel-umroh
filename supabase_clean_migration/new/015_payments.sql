@@ -159,9 +159,11 @@ CREATE TABLE IF NOT EXISTS public.savings_schedules (
 );
 
 -- Guard: kolom baru di savings_schedules jika tabel sudah ada
-ALTER TABLE public.savings_schedules ADD COLUMN IF NOT EXISTS status        TEXT DEFAULT 'pending';
-ALTER TABLE public.savings_schedules ADD COLUMN IF NOT EXISTS deposit_id    UUID REFERENCES public.savings_deposits(id) ON DELETE SET NULL;
-ALTER TABLE public.savings_schedules ADD COLUMN IF NOT EXISTS reminder_sent BOOLEAN DEFAULT FALSE;
+ALTER TABLE public.savings_schedules ADD COLUMN IF NOT EXISTS scheduled_date DATE;
+ALTER TABLE public.savings_schedules ADD COLUMN IF NOT EXISTS amount         NUMERIC DEFAULT 0;
+ALTER TABLE public.savings_schedules ADD COLUMN IF NOT EXISTS status         TEXT DEFAULT 'pending';
+ALTER TABLE public.savings_schedules ADD COLUMN IF NOT EXISTS deposit_id     UUID REFERENCES public.savings_deposits(id) ON DELETE SET NULL;
+ALTER TABLE public.savings_schedules ADD COLUMN IF NOT EXISTS reminder_sent  BOOLEAN DEFAULT FALSE;
 
 ALTER TABLE public.savings_schedules ENABLE ROW LEVEL SECURITY;
 
