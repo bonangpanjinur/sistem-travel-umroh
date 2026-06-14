@@ -11,7 +11,6 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   full_name         TEXT,
   phone             TEXT,
   avatar_url        TEXT,
-  face_descriptor   FLOAT8[],
   is_active         BOOLEAN     NOT NULL DEFAULT TRUE,
   session_version   INTEGER     NOT NULL DEFAULT 0,
   last_sign_in_at   TIMESTAMPTZ,
@@ -19,9 +18,23 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Tambahkan face_descriptor jika belum ada (idempotent)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name   = 'profiles'
+      AND column_name  = 'face_descriptor'
+  ) THEN
+    ALTER TABLE public.profiles ADD COLUMN face_descriptor FLOAT8[];
+  END IF;
+END;
+$$;
+
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
-COMMENT ON TABLE public.profiles IS 'Extended user profile (1:1 auth.users). Role managed via user_roles table.';
+COMMENT ON TABLE  public.profiles IS 'Extended user profile (1:1 auth.users). Role managed via user_roles table.';
 COMMENT ON COLUMN public.profiles.session_version IS 'Increment to invalidate all existing JWT sessions for this user.';
 COMMENT ON COLUMN public.profiles.face_descriptor IS 'Float array for face recognition (optional feature).';
 
