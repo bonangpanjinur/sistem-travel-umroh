@@ -177,6 +177,13 @@ CREATE TABLE IF NOT EXISTS public.packages (
 );
 
 -- Jika tabel sudah ada dari schema lama, tambahkan kolom baru secara idempotent
+ALTER TABLE public.packages ADD COLUMN IF NOT EXISTS package_type         TEXT    NOT NULL DEFAULT 'umroh';
+ALTER TABLE public.packages ADD COLUMN IF NOT EXISTS duration_days        INTEGER NOT NULL DEFAULT 9;
+ALTER TABLE public.packages ADD COLUMN IF NOT EXISTS base_price_quad      NUMERIC NOT NULL DEFAULT 0;
+ALTER TABLE public.packages ADD COLUMN IF NOT EXISTS description          TEXT;
+ALTER TABLE public.packages ADD COLUMN IF NOT EXISTS photo_url            TEXT;
+ALTER TABLE public.packages ADD COLUMN IF NOT EXISTS is_active            BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE public.packages ADD COLUMN IF NOT EXISTS is_published         BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE public.packages ADD COLUMN IF NOT EXISTS airline_id           UUID    REFERENCES public.airlines(id) ON DELETE SET NULL;
 ALTER TABLE public.packages ADD COLUMN IF NOT EXISTS hotel_makkah_id      UUID    REFERENCES public.hotels(id) ON DELETE SET NULL;
 ALTER TABLE public.packages ADD COLUMN IF NOT EXISTS hotel_madinah_id     UUID    REFERENCES public.hotels(id) ON DELETE SET NULL;
@@ -203,8 +210,6 @@ ALTER TABLE public.packages ADD COLUMN IF NOT EXISTS seo_keywords         TEXT[]
 ALTER TABLE public.packages ADD COLUMN IF NOT EXISTS created_by           UUID    REFERENCES auth.users(id) ON DELETE SET NULL;
 ALTER TABLE public.packages ADD COLUMN IF NOT EXISTS slug                 TEXT;
 ALTER TABLE public.packages ADD COLUMN IF NOT EXISTS code                 TEXT;
-ALTER TABLE public.packages ADD COLUMN IF NOT EXISTS is_published         BOOLEAN NOT NULL DEFAULT FALSE;
-ALTER TABLE public.packages ADD COLUMN IF NOT EXISTS is_active            BOOLEAN NOT NULL DEFAULT TRUE;
 
 ALTER TABLE public.packages ENABLE ROW LEVEL SECURITY;
 
