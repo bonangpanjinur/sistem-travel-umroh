@@ -28,6 +28,22 @@ CREATE TABLE IF NOT EXISTS public.equipment_items (
 
 ALTER TABLE public.equipment_items ENABLE ROW LEVEL SECURITY;
 
+-- Add generated column if the table already existed without it
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name   = 'equipment_items'
+      AND column_name  = 'available_qty'
+  ) THEN
+    ALTER TABLE public.equipment_items
+      ADD COLUMN available_qty INTEGER
+        GENERATED ALWAYS AS (GREATEST(0, stock_qty - distributed_qty + returned_qty)) STORED;
+  END IF;
+END
+$$;
+
 CREATE INDEX IF NOT EXISTS idx_equipment_items_category
   ON public.equipment_items(category, is_active);
 
