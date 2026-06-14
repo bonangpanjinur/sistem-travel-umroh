@@ -30,9 +30,16 @@ CREATE TABLE IF NOT EXISTS public.coupons (
   updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Guard: kolom baru di coupons jika tabel sudah ada
+ALTER TABLE public.coupons ADD COLUMN IF NOT EXISTS usage_per_user    INTEGER     DEFAULT 1;
+ALTER TABLE public.coupons ADD COLUMN IF NOT EXISTS applicable_to     TEXT        DEFAULT 'all';
+ALTER TABLE public.coupons ADD COLUMN IF NOT EXISTS package_ids       UUID[];
+ALTER TABLE public.coupons ADD COLUMN IF NOT EXISTS created_by        UUID        REFERENCES auth.users(id) ON DELETE SET NULL;
+
 ALTER TABLE public.coupons ENABLE ROW LEVEL SECURITY;
 
-CREATE INDEX IF NOT EXISTS idx_coupons_code ON public.coupons(code);
+CREATE INDEX IF NOT EXISTS idx_coupons_code     ON public.coupons(code);
+CREATE INDEX IF NOT EXISTS idx_coupons_active   ON public.coupons(is_active);
 
 -- ---------------------------------------------------------------------------
 -- 2. BOOKINGS — Pemesanan utama
@@ -56,8 +63,6 @@ CREATE TABLE IF NOT EXISTS public.bookings (
   total_price         NUMERIC                  NOT NULL DEFAULT 0,
   discount_amount     NUMERIC                  NOT NULL DEFAULT 0,
   paid_amount         NUMERIC                  NOT NULL DEFAULT 0,
-  remaining_amount    NUMERIC                  GENERATED ALWAYS AS
-                                               (GREATEST(0, total_price - discount_amount - paid_amount)) STORED,
   payment_status      TEXT                     NOT NULL DEFAULT 'unpaid'
                                                CHECK (payment_status IN ('unpaid','partial','paid','refunded','overpaid')),
   payment_deadline    DATE,
@@ -73,12 +78,12 @@ CREATE TABLE IF NOT EXISTS public.bookings (
   updated_at          TIMESTAMPTZ              NOT NULL DEFAULT NOW()
 );
 
--- Jika tabel sudah ada dari schema lama, tambahkan kolom baru secara idempotent
+-- Guard: kolom baru di bookings jika tabel sudah ada
 ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS agent_id            UUID REFERENCES public.agents(id) ON DELETE SET NULL;
 ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS branch_id           UUID REFERENCES public.branches(id) ON DELETE SET NULL;
 ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS handled_by          UUID REFERENCES public.profiles(id) ON DELETE SET NULL;
 ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS coupon_id           UUID REFERENCES public.coupons(id) ON DELETE SET NULL;
-ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS discount_amount     NUMERIC     NOT NULL DEFAULT 0;
+ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS discount_amount     NUMERIC     DEFAULT 0;
 ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS payment_deadline    DATE;
 ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS special_requests    TEXT;
 ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS internal_notes      TEXT;
@@ -87,6 +92,10 @@ ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS cancellation_reason TEXT;
 ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS confirmed_at        TIMESTAMPTZ;
 ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS completed_at        TIMESTAMPTZ;
 ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS source              TEXT DEFAULT 'staff';
+
+-- Guard: tambah kolom remaining_amount sebagai kolom biasa jika belum ada
+-- (GENERATED ALWAYS AS tidak bisa di-ALTER, jadi kita buat sebagai kolom computed via trigger)
+ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS remaining_amount    NUMERIC     DEFAULT 0;
 
 ALTER TABLE public.bookings ENABLE ROW LEVEL SECURITY;
 
@@ -116,6 +125,11 @@ CREATE TABLE IF NOT EXISTS public.booking_line_items (
   created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Guard: kolom baru di booking_line_items jika tabel sudah ada
+ALTER TABLE public.booking_line_items ADD COLUMN IF NOT EXISTS category    TEXT DEFAULT 'package';
+ALTER TABLE public.booking_line_items ADD COLUMN IF NOT EXISTS unit_price  NUMERIC DEFAULT 0;
+ALTER TABLE public.booking_line_items ADD COLUMN IF NOT EXISTS notes       TEXT;
+
 ALTER TABLE public.booking_line_items ENABLE ROW LEVEL SECURITY;
 
 CREATE INDEX IF NOT EXISTS idx_booking_line_items_booking
@@ -134,8 +148,8 @@ CREATE TABLE IF NOT EXISTS public.booking_seat_locks (
   created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Jika tabel sudah ada dari schema lama, tambahkan kolom baru secara idempotent
-ALTER TABLE public.booking_seat_locks ADD COLUMN IF NOT EXISTS locked_until TIMESTAMPTZ NOT NULL DEFAULT NOW() + INTERVAL '15 minutes';
+-- Guard: kolom baru di booking_seat_locks jika tabel sudah ada
+ALTER TABLE public.booking_seat_locks ADD COLUMN IF NOT EXISTS locked_until TIMESTAMPTZ DEFAULT NOW() + INTERVAL '15 minutes';
 ALTER TABLE public.booking_seat_locks ADD COLUMN IF NOT EXISTS booking_id   UUID REFERENCES public.bookings(id) ON DELETE CASCADE;
 
 ALTER TABLE public.booking_seat_locks ENABLE ROW LEVEL SECURITY;
@@ -159,25 +173,42 @@ CREATE TABLE IF NOT EXISTS public.booking_access_tokens (
   created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Guard: kolom baru di booking_access_tokens jika tabel sudah ada
+ALTER TABLE public.booking_access_tokens ADD COLUMN IF NOT EXISTS purpose      TEXT DEFAULT 'view';
+ALTER TABLE public.booking_access_tokens ADD COLUMN IF NOT EXISTS expires_at   TIMESTAMPTZ DEFAULT NOW() + INTERVAL '30 days';
+ALTER TABLE public.booking_access_tokens ADD COLUMN IF NOT EXISTS last_used_at TIMESTAMPTZ;
+
 ALTER TABLE public.booking_access_tokens ENABLE ROW LEVEL SECURITY;
 
 CREATE INDEX IF NOT EXISTS idx_booking_tokens_token
   ON public.booking_access_tokens(token);
+CREATE INDEX IF NOT EXISTS idx_booking_tokens_booking
+  ON public.booking_access_tokens(booking_id);
 
 -- ---------------------------------------------------------------------------
 -- 6. BOOKING_DOCUMENT_LOGS — Log dokumen per booking
+-- CATATAN: kolom passenger_id tidak punya FK inline di sini karena
+-- tabel booking_passengers baru dibuat di file 014.
+-- FK-nya di-attach secara deferred di 014_booking_participants.sql.
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.booking_document_logs (
-  id           UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-  booking_id   UUID        NOT NULL REFERENCES public.bookings(id) ON DELETE CASCADE,
-  passenger_id UUID        REFERENCES public.booking_passengers(id) ON DELETE SET NULL,
-  document_type TEXT       NOT NULL,
-  action       TEXT        NOT NULL CHECK (action IN ('uploaded','verified','rejected','expired')),
-  file_url     TEXT,
-  notes        TEXT,
-  performed_by UUID        REFERENCES auth.users(id) ON DELETE SET NULL,
-  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  id            UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  booking_id    UUID        NOT NULL REFERENCES public.bookings(id) ON DELETE CASCADE,
+  passenger_id  UUID,
+  document_type TEXT        NOT NULL,
+  action        TEXT        NOT NULL CHECK (action IN ('uploaded','verified','rejected','expired')),
+  file_url      TEXT,
+  notes         TEXT,
+  performed_by  UUID        REFERENCES auth.users(id) ON DELETE SET NULL,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Guard: kolom baru di booking_document_logs jika tabel sudah ada
+ALTER TABLE public.booking_document_logs ADD COLUMN IF NOT EXISTS passenger_id  UUID;
+ALTER TABLE public.booking_document_logs ADD COLUMN IF NOT EXISTS document_type TEXT;
+ALTER TABLE public.booking_document_logs ADD COLUMN IF NOT EXISTS file_url      TEXT;
+ALTER TABLE public.booking_document_logs ADD COLUMN IF NOT EXISTS notes         TEXT;
+ALTER TABLE public.booking_document_logs ADD COLUMN IF NOT EXISTS performed_by  UUID REFERENCES auth.users(id) ON DELETE SET NULL;
 
 ALTER TABLE public.booking_document_logs ENABLE ROW LEVEL SECURITY;
 
@@ -188,19 +219,24 @@ CREATE INDEX IF NOT EXISTS idx_booking_doc_logs_booking
 -- 7. APPROVAL_CONFIGS — Konfigurasi workflow approval
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.approval_configs (
-  id             UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-  action_type    TEXT        NOT NULL UNIQUE
-                             CHECK (action_type IN ('cancel_booking','refund','discount',
-                                                     'override_price','reschedule','other')),
-  requires_role  public.app_role NOT NULL DEFAULT 'admin',
-  auto_approve   BOOLEAN     NOT NULL DEFAULT FALSE,
+  id                 UUID            PRIMARY KEY DEFAULT gen_random_uuid(),
+  action_type        TEXT            NOT NULL UNIQUE
+                                     CHECK (action_type IN ('cancel_booking','refund','discount',
+                                                             'override_price','reschedule','other')),
+  requires_role      public.app_role NOT NULL DEFAULT 'admin',
+  auto_approve       BOOLEAN         NOT NULL DEFAULT FALSE,
   auto_approve_below NUMERIC,
-  notify_roles   public.app_role[],
-  notes          TEXT,
-  is_active      BOOLEAN     NOT NULL DEFAULT TRUE,
-  created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  notify_roles       public.app_role[],
+  notes              TEXT,
+  is_active          BOOLEAN         NOT NULL DEFAULT TRUE,
+  created_at         TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
+  updated_at         TIMESTAMPTZ     NOT NULL DEFAULT NOW()
 );
+
+-- Guard: kolom baru di approval_configs jika tabel sudah ada
+ALTER TABLE public.approval_configs ADD COLUMN IF NOT EXISTS auto_approve_below NUMERIC;
+ALTER TABLE public.approval_configs ADD COLUMN IF NOT EXISTS notify_roles       public.app_role[];
+ALTER TABLE public.approval_configs ADD COLUMN IF NOT EXISTS notes              TEXT;
 
 ALTER TABLE public.approval_configs ENABLE ROW LEVEL SECURITY;
 
@@ -225,7 +261,17 @@ CREATE TABLE IF NOT EXISTS public.approval_requests (
   updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Guard: kolom baru di approval_requests jika tabel sudah ada
+ALTER TABLE public.approval_requests ADD COLUMN IF NOT EXISTS config_id      UUID REFERENCES public.approval_configs(id) ON DELETE SET NULL;
+ALTER TABLE public.approval_requests ADD COLUMN IF NOT EXISTS reference_type TEXT;
+ALTER TABLE public.approval_requests ADD COLUMN IF NOT EXISTS amount         NUMERIC;
+ALTER TABLE public.approval_requests ADD COLUMN IF NOT EXISTS reviewed_by    UUID REFERENCES auth.users(id) ON DELETE SET NULL;
+ALTER TABLE public.approval_requests ADD COLUMN IF NOT EXISTS reviewed_at    TIMESTAMPTZ;
+ALTER TABLE public.approval_requests ADD COLUMN IF NOT EXISTS reviewer_notes TEXT;
+
 ALTER TABLE public.approval_requests ENABLE ROW LEVEL SECURITY;
 
 CREATE INDEX IF NOT EXISTS idx_approval_requests_status
   ON public.approval_requests(status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_approval_requests_reference
+  ON public.approval_requests(reference_type, reference_id);
