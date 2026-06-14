@@ -134,6 +134,10 @@ CREATE TABLE IF NOT EXISTS public.booking_seat_locks (
   created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Jika tabel sudah ada dari schema lama, tambahkan kolom baru secara idempotent
+ALTER TABLE public.booking_seat_locks ADD COLUMN IF NOT EXISTS locked_until TIMESTAMPTZ NOT NULL DEFAULT NOW() + INTERVAL '15 minutes';
+ALTER TABLE public.booking_seat_locks ADD COLUMN IF NOT EXISTS booking_id   UUID REFERENCES public.bookings(id) ON DELETE CASCADE;
+
 ALTER TABLE public.booking_seat_locks ENABLE ROW LEVEL SECURITY;
 
 CREATE INDEX IF NOT EXISTS idx_seat_locks_departure
