@@ -79,6 +79,9 @@ CREATE INDEX IF NOT EXISTS idx_booking_passengers_booking
 CREATE INDEX IF NOT EXISTS idx_booking_passengers_customer
   ON public.booking_passengers(customer_id);
 
+-- Tambahkan kolom passenger_id ke booking_document_logs jika belum ada
+ALTER TABLE public.booking_document_logs ADD COLUMN IF NOT EXISTS passenger_id UUID;
+
 -- Update deferred FK di booking_document_logs yang referensi booking_passengers
 DO $$
 BEGIN
