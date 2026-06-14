@@ -3,8 +3,8 @@
 -- FILE 005: Role Helper Functions
 -- Fungsi pembantu untuk semua RLS policy.
 -- WAJIB dijalankan sebelum file 027_rls.sql.
--- Referensi ke user_roles table (file 007) — PostgreSQL lazy evaluation,
--- function body divalidasi saat runtime bukan saat CREATE.
+-- Referensi ke user_roles table (file 007) — menggunakan LANGUAGE plpgsql
+-- agar function body divalidasi saat runtime (lazy), bukan saat CREATE.
 -- =============================================================================
 
 -- ---------------------------------------------------------------------------
@@ -15,18 +15,20 @@ CREATE OR REPLACE FUNCTION public.has_role(
   r    public.app_role
 )
 RETURNS BOOLEAN
-LANGUAGE sql
+LANGUAGE plpgsql
 SECURITY DEFINER
 STABLE
 SET search_path = public
 AS $$
-  SELECT EXISTS (
+BEGIN
+  RETURN EXISTS (
     SELECT 1 FROM public.user_roles
     WHERE user_id = uid
       AND role::text = r::text
       AND is_active = TRUE
       AND (expires_at IS NULL OR expires_at > NOW())
   );
+END;
 $$;
 
 -- ---------------------------------------------------------------------------
@@ -37,18 +39,20 @@ CREATE OR REPLACE FUNCTION public.has_any_role(
   roles public.app_role[]
 )
 RETURNS BOOLEAN
-LANGUAGE sql
+LANGUAGE plpgsql
 SECURITY DEFINER
 STABLE
 SET search_path = public
 AS $$
-  SELECT EXISTS (
+BEGIN
+  RETURN EXISTS (
     SELECT 1 FROM public.user_roles
     WHERE user_id = uid
       AND role::text = ANY(roles::text[])
       AND is_active = TRUE
       AND (expires_at IS NULL OR expires_at > NOW())
   );
+END;
 $$;
 
 -- ---------------------------------------------------------------------------
@@ -56,15 +60,17 @@ $$;
 -- ---------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.is_staff(uid UUID)
 RETURNS BOOLEAN
-LANGUAGE sql
+LANGUAGE plpgsql
 SECURITY DEFINER
 STABLE
 SET search_path = public
 AS $$
-  SELECT public.has_any_role(uid, ARRAY[
+BEGIN
+  RETURN public.has_any_role(uid, ARRAY[
     'super_admin','owner','it','admin','branch_manager',
     'finance','operational','operator','sales','marketing','equipment'
   ]::public.app_role[]);
+END;
 $$;
 
 -- ---------------------------------------------------------------------------
@@ -72,27 +78,33 @@ $$;
 -- ---------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.is_admin_or_above(uid UUID)
 RETURNS BOOLEAN
-LANGUAGE sql
+LANGUAGE plpgsql
 SECURITY DEFINER
 STABLE
 SET search_path = public
 AS $$
-  SELECT public.has_any_role(uid, ARRAY[
+BEGIN
+  RETURN public.has_any_role(uid, ARRAY[
     'super_admin','owner','it','admin'
   ]::public.app_role[]);
+END;
 $$;
 
 -- ---------------------------------------------------------------------------
--- get_user_role(uid) — Ambil role tertinggi user (untuk display)
+-- get_user_primary_role(uid) — Ambil role tertinggi user (untuk display)
 -- ---------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.get_user_primary_role(uid UUID)
 RETURNS public.app_role
-LANGUAGE sql
+LANGUAGE plpgsql
 SECURITY DEFINER
 STABLE
 SET search_path = public
 AS $$
-  SELECT role FROM public.user_roles
+DECLARE
+  v_role public.app_role;
+BEGIN
+  SELECT role INTO v_role
+  FROM public.user_roles
   WHERE user_id = uid
     AND is_active = TRUE
     AND (expires_at IS NULL OR expires_at > NOW())
@@ -115,6 +127,9 @@ AS $$
       WHEN 'jamaah'         THEN 15
     END
   LIMIT 1;
+
+  RETURN v_role;
+END;
 $$;
 
 COMMENT ON FUNCTION public.has_role IS 'Gunakan di semua RLS policy. Jangan tulis role = ''admin'' langsung di policy.';
