@@ -28,14 +28,54 @@ CREATE TABLE IF NOT EXISTS public.equipment_items (
 
 ALTER TABLE public.equipment_items ENABLE ROW LEVEL SECURITY;
 
--- Add generated column if the table already existed without it
+-- Add any missing columns if the table already existed in an older state
 DO $$
 BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_schema = 'public'
-      AND table_name   = 'equipment_items'
-      AND column_name  = 'available_qty'
+    WHERE table_schema = 'public' AND table_name = 'equipment_items' AND column_name = 'stock_qty'
+  ) THEN
+    ALTER TABLE public.equipment_items ADD COLUMN stock_qty INTEGER NOT NULL DEFAULT 0;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'equipment_items' AND column_name = 'distributed_qty'
+  ) THEN
+    ALTER TABLE public.equipment_items ADD COLUMN distributed_qty INTEGER NOT NULL DEFAULT 0;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'equipment_items' AND column_name = 'returned_qty'
+  ) THEN
+    ALTER TABLE public.equipment_items ADD COLUMN returned_qty INTEGER NOT NULL DEFAULT 0;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'equipment_items' AND column_name = 'unit_cost'
+  ) THEN
+    ALTER TABLE public.equipment_items ADD COLUMN unit_cost NUMERIC NOT NULL DEFAULT 0;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'equipment_items' AND column_name = 'photo_url'
+  ) THEN
+    ALTER TABLE public.equipment_items ADD COLUMN photo_url TEXT;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'equipment_items' AND column_name = 'is_active'
+  ) THEN
+    ALTER TABLE public.equipment_items ADD COLUMN is_active BOOLEAN NOT NULL DEFAULT TRUE;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'equipment_items' AND column_name = 'available_qty'
   ) THEN
     ALTER TABLE public.equipment_items
       ADD COLUMN available_qty INTEGER
