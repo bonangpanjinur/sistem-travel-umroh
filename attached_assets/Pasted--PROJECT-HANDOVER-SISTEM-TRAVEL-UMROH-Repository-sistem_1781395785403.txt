@@ -1,0 +1,278 @@
+# PROJECT HANDOVER — SISTEM TRAVEL UMROH
+
+Repository:
+
+sistem-travel-umroh
+
+Target migration folder:
+
+sistem-travel-umroh/supabase_clean_migration
+
+Jangan membuat asumsi baru.
+Gunakan hasil audit yang sudah ada sebagai sumber kebenaran.
+
+---
+
+# CURRENT STATUS
+
+Audit database sudah selesai.
+
+Folder:
+
+database_audit/
+
+sudah berisi:
+
+* database_blueprint.md
+* dependency_map.md
+* permission_matrix.md
+* database_cleanup_plan.md
+* database_usage_report.md
+* table_inventory.md
+* role_audit.md
+* permission_audit.md
+* menu_permission_matrix.md
+* branch_access_model.md
+* user_model.md
+* authorization_architecture.md
+* rls_strategy.md
+* gap_analysis.md
+
+Baca seluruh file tersebut sebelum melakukan perubahan apa pun.
+
+---
+
+# IMPORTANT FINDINGS
+
+Gap Analysis menemukan:
+
+1. Lebih dari 30 tabel masih belum ada di migration baru.
+2. Lebih dari 130 permission keys belum di-seed ke database.
+3. Role admin masih ambigu.
+4. Ada perbedaan nama tabel antara migration lama dan schema lama.
+5. Ada fitur yang sudah ada di codebase tetapi belum memiliki tabel database.
+
+Jangan mengabaikan temuan ini.
+
+---
+
+# PRIORITY
+
+Prioritas utama proyek ini adalah:
+
+1. User Model
+2. Role System
+3. Permission System
+4. Branch Access
+5. Authorization Architecture
+6. RLS Strategy
+
+Semua desain database harus mengikuti hasil audit tersebut.
+
+---
+
+# USER MODEL (SOURCE OF TRUTH)
+
+Gunakan model:
+
+auth.users
+↓
+profiles
+↓
+employees
+
+profiles
+↓
+agents
+
+profiles
+↓
+customers
+
+Jangan membuat model user baru tanpa alasan kuat.
+
+---
+
+# ROLE MODEL (SOURCE OF TRUTH)
+
+Gunakan enum:
+
+public.app_role
+
+Isi:
+
+* super_admin
+* owner
+* it
+* admin
+* branch_manager
+* finance
+* operational
+* operator
+* sales
+* marketing
+* equipment
+* agent
+* sub_agent
+* customer
+* jamaah
+
+---
+
+# AUTHORIZATION MODEL
+
+Gunakan arsitektur RBAC yang sudah didokumentasikan pada:
+
+database_audit/authorization_architecture.md
+
+Pastikan migration mendukung:
+
+* roles
+* permissions
+* role_permissions
+* user_roles
+* user_permissions
+* user_permission_overrides
+
+Jangan menyederhanakan tanpa analisis.
+
+---
+
+# RLS RULES
+
+Ikuti:
+
+database_audit/rls_strategy.md
+
+Gunakan helper function:
+
+* public.has_role()
+* public.has_permission()
+* public.can_access_branch()
+
+Jangan membuat policy seperti:
+
+role = 'admin'
+
+atau
+
+role IN ('admin','owner')
+
+secara langsung.
+
+Gunakan enum casting yang benar.
+
+---
+
+# TASK NOW
+
+Jangan generate MASTER_MIGRATION.sql dulu.
+
+Lakukan review ulang seluruh folder:
+
+sistem-travel-umroh/supabase_clean_migration
+
+dan bandingkan dengan:
+
+database_audit/gap_analysis.md
+
+---
+
+# DELIVERABLE 1
+
+Buat file:
+
+database_audit/migration_gap_report.md
+
+Isi:
+
+Untuk setiap migration:
+
+001–030
+
+jelaskan:
+
+* domain
+* tabel yang dibuat
+* tabel yang hilang
+* FK yang hilang
+* index yang hilang
+* trigger yang hilang
+* RLS yang hilang
+* seed data yang hilang
+
+---
+
+# DELIVERABLE 2
+
+Buat:
+
+database_audit/final_database_coverage.md
+
+Isi:
+
+Semua tabel dari:
+
+* schema lama
+* blueprint
+* codebase
+
+Status:
+
+IMPLEMENTED
+PARTIAL
+MISSING
+
+---
+
+# DELIVERABLE 3
+
+Setelah audit coverage selesai,
+
+generate migration tambahan:
+
+031+
+di folder:
+
+sistem-travel-umroh/supabase_clean_migration
+
+untuk menutup seluruh gap yang ditemukan.
+
+Jangan mengubah migration 001–030 kecuali ada bug kritis.
+
+---
+
+# DELIVERABLE 4
+
+Setelah seluruh gap tertutup,
+
+buat:
+
+database_audit/final_readiness_report.md
+
+yang menjawab:
+
+* apakah semua domain sudah tercover
+* apakah semua role sudah tercover
+* apakah semua permission sudah tercover
+* apakah semua branch access sudah tercover
+* apakah semua menu sudah memiliki permission
+* apakah semua fitur codebase sudah memiliki tabel
+
+Berikan persentase coverage.
+
+Target:
+
+100% coverage sebelum membuat MASTER_MIGRATION.sql.
+
+---
+
+# IMPORTANT
+
+Jangan mulai dari nol.
+
+Jangan mengulang audit.
+
+Gunakan seluruh dokumen audit yang sudah ada.
+
+Fokus pada gap analysis, authorization, role, permission, dan database completeness.
