@@ -6,14 +6,16 @@
 --   - SEMUA policy menggunakan public.has_role() atau public.has_any_role()
 --   - DILARANG menulis role = 'admin' langsung di policy expression
 --   - Public read menggunakan: TO anon, authenticated
+--   - Setiap CREATE POLICY didahului DROP POLICY IF EXISTS (idempotent)
 -- =============================================================================
 
 -- ===========================================================================
 -- PROFILES
 -- ===========================================================================
-DROP POLICY IF EXISTS "profiles_select_own"   ON public.profiles;
-DROP POLICY IF EXISTS "profiles_select_admin" ON public.profiles;
-DROP POLICY IF EXISTS "profiles_update_own"   ON public.profiles;
+DROP POLICY IF EXISTS "profiles_select_own"    ON public.profiles;
+DROP POLICY IF EXISTS "profiles_select_admin"  ON public.profiles;
+DROP POLICY IF EXISTS "profiles_update_own"    ON public.profiles;
+DROP POLICY IF EXISTS "profiles_admin_update"  ON public.profiles;
 
 CREATE POLICY "profiles_select_own"
   ON public.profiles FOR SELECT
@@ -54,6 +56,11 @@ CREATE POLICY "user_roles_manage"
 -- ===========================================================================
 -- PERMISSIONS_LIST & ROLE_PERMISSIONS
 -- ===========================================================================
+DROP POLICY IF EXISTS "permissions_list_select" ON public.permissions_list;
+DROP POLICY IF EXISTS "permissions_list_manage" ON public.permissions_list;
+DROP POLICY IF EXISTS "role_permissions_select" ON public.role_permissions;
+DROP POLICY IF EXISTS "role_permissions_manage" ON public.role_permissions;
+
 CREATE POLICY "permissions_list_select"
   ON public.permissions_list FOR SELECT
   USING (auth.role() = 'authenticated');
@@ -73,6 +80,9 @@ CREATE POLICY "role_permissions_manage"
 -- ===========================================================================
 -- STAFF_INVITATIONS
 -- ===========================================================================
+DROP POLICY IF EXISTS "staff_invitations_select" ON public.staff_invitations;
+DROP POLICY IF EXISTS "staff_invitations_manage" ON public.staff_invitations;
+
 CREATE POLICY "staff_invitations_select"
   ON public.staff_invitations FOR SELECT
   USING (public.is_admin_or_above(auth.uid()));
@@ -84,6 +94,9 @@ CREATE POLICY "staff_invitations_manage"
 -- ===========================================================================
 -- BRANCHES
 -- ===========================================================================
+DROP POLICY IF EXISTS "branches_select" ON public.branches;
+DROP POLICY IF EXISTS "branches_manage" ON public.branches;
+
 CREATE POLICY "branches_select"
   ON public.branches FOR SELECT
   USING (auth.role() IN ('authenticated', 'anon'));
@@ -95,6 +108,10 @@ CREATE POLICY "branches_manage"
 -- ===========================================================================
 -- AGENTS
 -- ===========================================================================
+DROP POLICY IF EXISTS "agents_select_staff" ON public.agents;
+DROP POLICY IF EXISTS "agents_select_own"   ON public.agents;
+DROP POLICY IF EXISTS "agents_manage"       ON public.agents;
+
 CREATE POLICY "agents_select_staff"
   ON public.agents FOR SELECT
   USING (public.is_staff(auth.uid()));
@@ -110,6 +127,9 @@ CREATE POLICY "agents_manage"
 -- ===========================================================================
 -- EMPLOYEES
 -- ===========================================================================
+DROP POLICY IF EXISTS "employees_select" ON public.employees;
+DROP POLICY IF EXISTS "employees_manage" ON public.employees;
+
 CREATE POLICY "employees_select"
   ON public.employees FOR SELECT
   USING (
@@ -126,6 +146,10 @@ CREATE POLICY "employees_manage"
 -- ===========================================================================
 -- CUSTOMERS
 -- ===========================================================================
+DROP POLICY IF EXISTS "customers_select" ON public.customers;
+DROP POLICY IF EXISTS "customers_insert" ON public.customers;
+DROP POLICY IF EXISTS "customers_update" ON public.customers;
+
 CREATE POLICY "customers_select"
   ON public.customers FOR SELECT
   USING (
@@ -150,6 +174,10 @@ CREATE POLICY "customers_update"
 -- ===========================================================================
 -- CUSTOMER_ACCOUNTS
 -- ===========================================================================
+DROP POLICY IF EXISTS "customer_accounts_select_own"   ON public.customer_accounts;
+DROP POLICY IF EXISTS "customer_accounts_select_staff" ON public.customer_accounts;
+DROP POLICY IF EXISTS "customer_accounts_manage_own"   ON public.customer_accounts;
+
 CREATE POLICY "customer_accounts_select_own"
   ON public.customer_accounts FOR SELECT
   USING (user_id = auth.uid());
@@ -165,6 +193,17 @@ CREATE POLICY "customer_accounts_manage_own"
 -- ===========================================================================
 -- AIRLINES, AIRPORTS, HOTELS, VENDORS — Public read, admin write
 -- ===========================================================================
+DROP POLICY IF EXISTS "airlines_public_read"    ON public.airlines;
+DROP POLICY IF EXISTS "airlines_manage"         ON public.airlines;
+DROP POLICY IF EXISTS "airports_public_read"    ON public.airports;
+DROP POLICY IF EXISTS "airports_manage"         ON public.airports;
+DROP POLICY IF EXISTS "hotels_public_read"      ON public.hotels;
+DROP POLICY IF EXISTS "hotels_manage"           ON public.hotels;
+DROP POLICY IF EXISTS "hotel_room_cap_read"     ON public.hotel_room_capacities;
+DROP POLICY IF EXISTS "hotel_room_cap_manage"   ON public.hotel_room_capacities;
+DROP POLICY IF EXISTS "vendors_staff_read"      ON public.vendors;
+DROP POLICY IF EXISTS "vendors_manage"          ON public.vendors;
+
 CREATE POLICY "airlines_public_read"  ON public.airlines FOR SELECT TO anon, authenticated USING (TRUE);
 CREATE POLICY "airlines_manage"       ON public.airlines FOR ALL USING (public.is_admin_or_above(auth.uid()));
 
@@ -183,6 +222,10 @@ CREATE POLICY "vendors_manage"        ON public.vendors FOR ALL USING (public.is
 -- ===========================================================================
 -- PACKAGES — Public read (published), admin write
 -- ===========================================================================
+DROP POLICY IF EXISTS "packages_public_read" ON public.packages;
+DROP POLICY IF EXISTS "packages_staff_read"  ON public.packages;
+DROP POLICY IF EXISTS "packages_manage"      ON public.packages;
+
 CREATE POLICY "packages_public_read"
   ON public.packages FOR SELECT
   TO anon, authenticated
@@ -201,6 +244,10 @@ CREATE POLICY "packages_manage"
 -- ===========================================================================
 -- DEPARTURES — Public read (open), staff write
 -- ===========================================================================
+DROP POLICY IF EXISTS "departures_public_read" ON public.departures;
+DROP POLICY IF EXISTS "departures_staff_read"  ON public.departures;
+DROP POLICY IF EXISTS "departures_manage"      ON public.departures;
+
 CREATE POLICY "departures_public_read"
   ON public.departures FOR SELECT
   TO anon, authenticated
@@ -219,6 +266,10 @@ CREATE POLICY "departures_manage"
 -- ===========================================================================
 -- BOOKINGS
 -- ===========================================================================
+DROP POLICY IF EXISTS "bookings_staff_select" ON public.bookings;
+DROP POLICY IF EXISTS "bookings_agent_select" ON public.bookings;
+DROP POLICY IF EXISTS "bookings_manage"       ON public.bookings;
+
 CREATE POLICY "bookings_staff_select"
   ON public.bookings FOR SELECT
   USING (
@@ -248,6 +299,10 @@ CREATE POLICY "bookings_manage"
 -- ===========================================================================
 -- PAYMENTS
 -- ===========================================================================
+DROP POLICY IF EXISTS "payments_staff_select" ON public.payments;
+DROP POLICY IF EXISTS "payments_insert"       ON public.payments;
+DROP POLICY IF EXISTS "payments_manage"       ON public.payments;
+
 CREATE POLICY "payments_staff_select"
   ON public.payments FOR SELECT
   USING (
@@ -276,6 +331,10 @@ CREATE POLICY "payments_manage"
 -- ===========================================================================
 -- LEADS
 -- ===========================================================================
+DROP POLICY IF EXISTS "leads_staff_select" ON public.leads;
+DROP POLICY IF EXISTS "leads_agent_select" ON public.leads;
+DROP POLICY IF EXISTS "leads_manage"       ON public.leads;
+
 CREATE POLICY "leads_staff_select"
   ON public.leads FOR SELECT
   USING (public.is_staff(auth.uid()));
@@ -296,6 +355,9 @@ CREATE POLICY "leads_manage"
 -- ===========================================================================
 -- AUDIT_LOGS — Only staff can read, no one can update/delete
 -- ===========================================================================
+DROP POLICY IF EXISTS "audit_logs_select" ON public.audit_logs;
+DROP POLICY IF EXISTS "audit_logs_insert" ON public.audit_logs;
+
 CREATE POLICY "audit_logs_select"
   ON public.audit_logs FOR SELECT
   USING (public.is_admin_or_above(auth.uid()));
@@ -307,6 +369,20 @@ CREATE POLICY "audit_logs_insert"
 -- ===========================================================================
 -- WEBSITE CMS — Public read, admin write
 -- ===========================================================================
+DROP POLICY IF EXISTS "website_settings_public"  ON public.website_settings;
+DROP POLICY IF EXISTS "website_settings_manage"  ON public.website_settings;
+DROP POLICY IF EXISTS "faqs_public_read"         ON public.faqs;
+DROP POLICY IF EXISTS "faqs_manage"              ON public.faqs;
+DROP POLICY IF EXISTS "faqs_staff_manage"        ON public.faqs;
+DROP POLICY IF EXISTS "testimonials_public_read" ON public.testimonials;
+DROP POLICY IF EXISTS "testimonials_manage"      ON public.testimonials;
+DROP POLICY IF EXISTS "banners_public_read"      ON public.banners;
+DROP POLICY IF EXISTS "banners_manage"           ON public.banners;
+DROP POLICY IF EXISTS "announcements_public_read" ON public.announcements;
+DROP POLICY IF EXISTS "announcements_manage"     ON public.announcements;
+DROP POLICY IF EXISTS "gallery_items_public_read" ON public.gallery_items;
+DROP POLICY IF EXISTS "gallery_items_manage"     ON public.gallery_items;
+
 CREATE POLICY "website_settings_public"
   ON public.website_settings FOR SELECT TO anon, authenticated USING (TRUE);
 CREATE POLICY "website_settings_manage"
@@ -317,6 +393,8 @@ CREATE POLICY "faqs_public_read"
   ON public.faqs FOR SELECT TO anon, authenticated USING (is_published = TRUE);
 CREATE POLICY "faqs_manage"
   ON public.faqs FOR ALL USING (public.is_admin_or_above(auth.uid()));
+CREATE POLICY "faqs_staff_manage"
+  ON public.faqs FOR ALL USING (public.is_staff(auth.uid()));
 
 CREATE POLICY "testimonials_public_read"
   ON public.testimonials FOR SELECT TO anon, authenticated USING (is_published = TRUE);
@@ -338,12 +416,13 @@ CREATE POLICY "gallery_items_public_read"
 CREATE POLICY "gallery_items_manage"
   ON public.gallery_items FOR ALL USING (public.is_admin_or_above(auth.uid()));
 
-CREATE POLICY "faqs_staff_manage"
-  ON public.faqs FOR ALL USING (public.is_staff(auth.uid()));
-
 -- ===========================================================================
 -- COMPANY_SETTINGS
 -- ===========================================================================
+DROP POLICY IF EXISTS "company_settings_public_read" ON public.company_settings;
+DROP POLICY IF EXISTS "company_settings_staff_read"  ON public.company_settings;
+DROP POLICY IF EXISTS "company_settings_manage"      ON public.company_settings;
+
 CREATE POLICY "company_settings_public_read"
   ON public.company_settings FOR SELECT TO anon, authenticated USING (is_public = TRUE);
 CREATE POLICY "company_settings_staff_read"
@@ -355,6 +434,9 @@ CREATE POLICY "company_settings_manage"
 -- ===========================================================================
 -- NOTIFICATIONS
 -- ===========================================================================
+DROP POLICY IF EXISTS "notifications_own"          ON public.notifications;
+DROP POLICY IF EXISTS "notifications_admin_insert" ON public.notifications;
+
 CREATE POLICY "notifications_own"
   ON public.notifications FOR ALL
   USING (user_id = auth.uid());
@@ -366,6 +448,15 @@ CREATE POLICY "notifications_admin_insert"
 -- ===========================================================================
 -- FINANCE
 -- ===========================================================================
+DROP POLICY IF EXISTS "chart_of_accounts_read"   ON public.chart_of_accounts;
+DROP POLICY IF EXISTS "chart_of_accounts_manage" ON public.chart_of_accounts;
+DROP POLICY IF EXISTS "journal_entries_read"     ON public.journal_entries;
+DROP POLICY IF EXISTS "journal_entries_manage"   ON public.journal_entries;
+DROP POLICY IF EXISTS "journal_lines_read"       ON public.journal_lines;
+DROP POLICY IF EXISTS "payroll_read"             ON public.payroll;
+DROP POLICY IF EXISTS "payroll_manage"           ON public.payroll;
+DROP POLICY IF EXISTS "payroll_slips_read"       ON public.payroll_slips;
+
 CREATE POLICY "chart_of_accounts_read"
   ON public.chart_of_accounts FOR SELECT
   USING (public.is_staff(auth.uid()));
@@ -403,6 +494,11 @@ CREATE POLICY "payroll_slips_read"
 -- ===========================================================================
 -- EQUIPMENT
 -- ===========================================================================
+DROP POLICY IF EXISTS "equipment_items_staff_read" ON public.equipment_items;
+DROP POLICY IF EXISTS "equipment_items_manage"     ON public.equipment_items;
+DROP POLICY IF EXISTS "equipment_dist_read"        ON public.equipment_distributions;
+DROP POLICY IF EXISTS "equipment_dist_manage"      ON public.equipment_distributions;
+
 CREATE POLICY "equipment_items_staff_read"
   ON public.equipment_items FOR SELECT USING (public.is_staff(auth.uid()));
 CREATE POLICY "equipment_items_manage"
@@ -418,6 +514,10 @@ CREATE POLICY "equipment_dist_manage"
 -- ===========================================================================
 -- SAVINGS
 -- ===========================================================================
+DROP POLICY IF EXISTS "savings_plans_staff"  ON public.savings_plans;
+DROP POLICY IF EXISTS "savings_plans_own"    ON public.savings_plans;
+DROP POLICY IF EXISTS "savings_plans_manage" ON public.savings_plans;
+
 CREATE POLICY "savings_plans_staff"
   ON public.savings_plans FOR SELECT USING (public.is_staff(auth.uid()));
 CREATE POLICY "savings_plans_own"
@@ -436,6 +536,9 @@ CREATE POLICY "savings_plans_manage"
 -- ===========================================================================
 -- WHATSAPP CONFIG — Staff only
 -- ===========================================================================
+DROP POLICY IF EXISTS "whatsapp_config_read"   ON public.whatsapp_config;
+DROP POLICY IF EXISTS "whatsapp_config_manage" ON public.whatsapp_config;
+
 CREATE POLICY "whatsapp_config_read"
   ON public.whatsapp_config FOR SELECT USING (public.is_staff(auth.uid()));
 CREATE POLICY "whatsapp_config_manage"
