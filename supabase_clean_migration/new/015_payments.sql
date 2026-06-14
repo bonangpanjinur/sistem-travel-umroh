@@ -20,6 +20,12 @@ CREATE TABLE IF NOT EXISTS public.bank_accounts (
   updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Guard: kolom baru di bank_accounts jika tabel sudah ada
+ALTER TABLE public.bank_accounts ADD COLUMN IF NOT EXISTS branch_name  TEXT;
+ALTER TABLE public.bank_accounts ADD COLUMN IF NOT EXISTS is_primary   BOOLEAN DEFAULT FALSE;
+ALTER TABLE public.bank_accounts ADD COLUMN IF NOT EXISTS qr_code_url  TEXT;
+ALTER TABLE public.bank_accounts ADD COLUMN IF NOT EXISTS notes        TEXT;
+
 ALTER TABLE public.bank_accounts ENABLE ROW LEVEL SECURITY;
 
 -- ---------------------------------------------------------------------------
@@ -44,6 +50,16 @@ CREATE TABLE IF NOT EXISTS public.payments (
   created_at       TIMESTAMPTZ               NOT NULL DEFAULT NOW(),
   updated_at       TIMESTAMPTZ               NOT NULL DEFAULT NOW()
 );
+
+-- Guard: kolom baru di payments jika tabel sudah ada
+ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS payment_code     TEXT        UNIQUE;
+ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS bank_account_id  UUID        REFERENCES public.bank_accounts(id) ON DELETE SET NULL;
+ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS proof_url        TEXT;
+ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS notes            TEXT;
+ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS confirmed_by     UUID        REFERENCES auth.users(id) ON DELETE SET NULL;
+ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS confirmed_at     TIMESTAMPTZ;
+ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS rejected_reason  TEXT;
+ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS created_by       UUID        REFERENCES auth.users(id) ON DELETE SET NULL;
 
 ALTER TABLE public.payments ENABLE ROW LEVEL SECURITY;
 
@@ -76,20 +92,21 @@ CREATE TABLE IF NOT EXISTS public.savings_plans (
   updated_at           TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Jika tabel sudah ada dari schema lama, tambahkan kolom baru secara idempotent
+-- Guard: kolom baru di savings_plans jika tabel sudah ada
 ALTER TABLE public.savings_plans ADD COLUMN IF NOT EXISTS agent_id             UUID REFERENCES public.agents(id) ON DELETE SET NULL;
 ALTER TABLE public.savings_plans ADD COLUMN IF NOT EXISTS branch_id            UUID REFERENCES public.branches(id) ON DELETE SET NULL;
-ALTER TABLE public.savings_plans ADD COLUMN IF NOT EXISTS monthly_target        NUMERIC;
-ALTER TABLE public.savings_plans ADD COLUMN IF NOT EXISTS target_date           DATE;
-ALTER TABLE public.savings_plans ADD COLUMN IF NOT EXISTS converted_booking_id  UUID REFERENCES public.bookings(id) ON DELETE SET NULL;
-ALTER TABLE public.savings_plans ADD COLUMN IF NOT EXISTS converted_at          TIMESTAMPTZ;
+ALTER TABLE public.savings_plans ADD COLUMN IF NOT EXISTS target_package_id    UUID REFERENCES public.packages(id) ON DELETE SET NULL;
+ALTER TABLE public.savings_plans ADD COLUMN IF NOT EXISTS monthly_target       NUMERIC;
+ALTER TABLE public.savings_plans ADD COLUMN IF NOT EXISTS target_date          DATE;
+ALTER TABLE public.savings_plans ADD COLUMN IF NOT EXISTS converted_booking_id UUID REFERENCES public.bookings(id) ON DELETE SET NULL;
+ALTER TABLE public.savings_plans ADD COLUMN IF NOT EXISTS converted_at         TIMESTAMPTZ;
+ALTER TABLE public.savings_plans ADD COLUMN IF NOT EXISTS notes                TEXT;
 
 ALTER TABLE public.savings_plans ENABLE ROW LEVEL SECURITY;
 
-CREATE INDEX IF NOT EXISTS idx_savings_plans_customer
-  ON public.savings_plans(customer_id);
-CREATE INDEX IF NOT EXISTS idx_savings_plans_status
-  ON public.savings_plans(status);
+CREATE INDEX IF NOT EXISTS idx_savings_plans_customer ON public.savings_plans(customer_id);
+CREATE INDEX IF NOT EXISTS idx_savings_plans_status   ON public.savings_plans(status);
+CREATE INDEX IF NOT EXISTS idx_savings_plans_agent    ON public.savings_plans(agent_id);
 
 -- ---------------------------------------------------------------------------
 -- 4. SAVINGS_DEPOSITS — Setoran tabungan
@@ -111,10 +128,17 @@ CREATE TABLE IF NOT EXISTS public.savings_deposits (
   updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Guard: kolom baru di savings_deposits jika tabel sudah ada
+ALTER TABLE public.savings_deposits ADD COLUMN IF NOT EXISTS deposit_code   TEXT        UNIQUE;
+ALTER TABLE public.savings_deposits ADD COLUMN IF NOT EXISTS proof_url      TEXT;
+ALTER TABLE public.savings_deposits ADD COLUMN IF NOT EXISTS verified_by    UUID        REFERENCES auth.users(id) ON DELETE SET NULL;
+ALTER TABLE public.savings_deposits ADD COLUMN IF NOT EXISTS verified_at    TIMESTAMPTZ;
+ALTER TABLE public.savings_deposits ADD COLUMN IF NOT EXISTS notes          TEXT;
+
 ALTER TABLE public.savings_deposits ENABLE ROW LEVEL SECURITY;
 
-CREATE INDEX IF NOT EXISTS idx_savings_deposits_plan
-  ON public.savings_deposits(plan_id);
+CREATE INDEX IF NOT EXISTS idx_savings_deposits_plan   ON public.savings_deposits(plan_id);
+CREATE INDEX IF NOT EXISTS idx_savings_deposits_status ON public.savings_deposits(status);
 
 -- ---------------------------------------------------------------------------
 -- 5. SAVINGS_SCHEDULES — Jadwal setoran terjadwal
@@ -131,7 +155,15 @@ CREATE TABLE IF NOT EXISTS public.savings_schedules (
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Guard: kolom baru di savings_schedules jika tabel sudah ada
+ALTER TABLE public.savings_schedules ADD COLUMN IF NOT EXISTS deposit_id    UUID REFERENCES public.savings_deposits(id) ON DELETE SET NULL;
+ALTER TABLE public.savings_schedules ADD COLUMN IF NOT EXISTS reminder_sent BOOLEAN DEFAULT FALSE;
+
 ALTER TABLE public.savings_schedules ENABLE ROW LEVEL SECURITY;
+
+CREATE INDEX IF NOT EXISTS idx_savings_schedules_plan   ON public.savings_schedules(plan_id);
+CREATE INDEX IF NOT EXISTS idx_savings_schedules_date   ON public.savings_schedules(scheduled_date);
+CREATE INDEX IF NOT EXISTS idx_savings_schedules_status ON public.savings_schedules(status);
 
 -- ---------------------------------------------------------------------------
 -- 6. PAYMENT_DEADLINE_REMINDERS — Konfigurasi reminder deadline bayar
@@ -148,10 +180,17 @@ CREATE TABLE IF NOT EXISTS public.payment_deadline_reminders (
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Guard: kolom baru di payment_deadline_reminders jika tabel sudah ada
+ALTER TABLE public.payment_deadline_reminders ADD COLUMN IF NOT EXISTS reminder_days INTEGER DEFAULT 3;
+ALTER TABLE public.payment_deadline_reminders ADD COLUMN IF NOT EXISTS sent_at      TIMESTAMPTZ;
+ALTER TABLE public.payment_deadline_reminders ADD COLUMN IF NOT EXISTS error        TEXT;
+
 ALTER TABLE public.payment_deadline_reminders ENABLE ROW LEVEL SECURITY;
 
 CREATE INDEX IF NOT EXISTS idx_payment_reminders_booking
   ON public.payment_deadline_reminders(booking_id);
+CREATE INDEX IF NOT EXISTS idx_payment_reminders_status
+  ON public.payment_deadline_reminders(status);
 
 -- ---------------------------------------------------------------------------
 -- 7. MIDTRANS_WEBHOOK_LOGS — Log webhook Midtrans
@@ -170,10 +209,19 @@ CREATE TABLE IF NOT EXISTS public.midtrans_webhook_logs (
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Guard: kolom baru di midtrans_webhook_logs jika tabel sudah ada
+ALTER TABLE public.midtrans_webhook_logs ADD COLUMN IF NOT EXISTS transaction_id TEXT;
+ALTER TABLE public.midtrans_webhook_logs ADD COLUMN IF NOT EXISTS gross_amount   NUMERIC;
+ALTER TABLE public.midtrans_webhook_logs ADD COLUMN IF NOT EXISTS payment_type   TEXT;
+ALTER TABLE public.midtrans_webhook_logs ADD COLUMN IF NOT EXISTS processed_at   TIMESTAMPTZ;
+ALTER TABLE public.midtrans_webhook_logs ADD COLUMN IF NOT EXISTS error          TEXT;
+
 ALTER TABLE public.midtrans_webhook_logs ENABLE ROW LEVEL SECURITY;
 
 CREATE INDEX IF NOT EXISTS idx_midtrans_order_id
   ON public.midtrans_webhook_logs(order_id);
+CREATE INDEX IF NOT EXISTS idx_midtrans_processed
+  ON public.midtrans_webhook_logs(processed, created_at DESC);
 
 -- ---------------------------------------------------------------------------
 -- 8. WITHDRAWAL_REQUESTS — Permintaan pencairan (komisi/tabungan)
@@ -199,7 +247,19 @@ CREATE TABLE IF NOT EXISTS public.withdrawal_requests (
   updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Guard: kolom baru di withdrawal_requests jika tabel sudah ada
+ALTER TABLE public.withdrawal_requests ADD COLUMN IF NOT EXISTS reviewed_by      UUID REFERENCES auth.users(id) ON DELETE SET NULL;
+ALTER TABLE public.withdrawal_requests ADD COLUMN IF NOT EXISTS reviewed_at      TIMESTAMPTZ;
+ALTER TABLE public.withdrawal_requests ADD COLUMN IF NOT EXISTS transfer_proof   TEXT;
+ALTER TABLE public.withdrawal_requests ADD COLUMN IF NOT EXISTS rejection_reason TEXT;
+ALTER TABLE public.withdrawal_requests ADD COLUMN IF NOT EXISTS notes            TEXT;
+
 ALTER TABLE public.withdrawal_requests ENABLE ROW LEVEL SECURITY;
+
+CREATE INDEX IF NOT EXISTS idx_withdrawal_requests_status
+  ON public.withdrawal_requests(status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_withdrawal_requests_requester
+  ON public.withdrawal_requests(requested_by);
 
 -- ---------------------------------------------------------------------------
 -- 9. INVOICE_TEMPLATES — Template PDF invoice
@@ -219,6 +279,14 @@ CREATE TABLE IF NOT EXISTS public.invoice_templates (
   created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Guard: kolom baru di invoice_templates jika tabel sudah ada
+ALTER TABLE public.invoice_templates ADD COLUMN IF NOT EXISTS header_html   TEXT;
+ALTER TABLE public.invoice_templates ADD COLUMN IF NOT EXISTS footer_html   TEXT;
+ALTER TABLE public.invoice_templates ADD COLUMN IF NOT EXISTS body_template TEXT;
+ALTER TABLE public.invoice_templates ADD COLUMN IF NOT EXISTS css           TEXT;
+ALTER TABLE public.invoice_templates ADD COLUMN IF NOT EXISTS is_default    BOOLEAN DEFAULT FALSE;
+ALTER TABLE public.invoice_templates ADD COLUMN IF NOT EXISTS created_by    UUID REFERENCES auth.users(id) ON DELETE SET NULL;
 
 ALTER TABLE public.invoice_templates ENABLE ROW LEVEL SECURITY;
 
@@ -240,7 +308,13 @@ CREATE TABLE IF NOT EXISTS public.booking_installment_schedules (
   UNIQUE (booking_id, installment_no)
 );
 
+-- Guard: kolom baru di booking_installment_schedules jika tabel sudah ada
+ALTER TABLE public.booking_installment_schedules ADD COLUMN IF NOT EXISTS payment_id    UUID REFERENCES public.payments(id) ON DELETE SET NULL;
+ALTER TABLE public.booking_installment_schedules ADD COLUMN IF NOT EXISTS reminder_sent BOOLEAN DEFAULT FALSE;
+
 ALTER TABLE public.booking_installment_schedules ENABLE ROW LEVEL SECURITY;
 
 CREATE INDEX IF NOT EXISTS idx_installments_booking
   ON public.booking_installment_schedules(booking_id);
+CREATE INDEX IF NOT EXISTS idx_installments_status
+  ON public.booking_installment_schedules(status, due_date);
