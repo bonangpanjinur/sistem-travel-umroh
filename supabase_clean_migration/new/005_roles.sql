@@ -23,7 +23,7 @@ AS $$
   SELECT EXISTS (
     SELECT 1 FROM public.user_roles
     WHERE user_id = uid
-      AND role    = r
+      AND role::text = r::text
       AND is_active = TRUE
       AND (expires_at IS NULL OR expires_at > NOW())
   );
@@ -45,7 +45,7 @@ AS $$
   SELECT EXISTS (
     SELECT 1 FROM public.user_roles
     WHERE user_id = uid
-      AND role    = ANY(roles)
+      AND role::text = ANY(roles::text[])
       AND is_active = TRUE
       AND (expires_at IS NULL OR expires_at > NOW())
   );
