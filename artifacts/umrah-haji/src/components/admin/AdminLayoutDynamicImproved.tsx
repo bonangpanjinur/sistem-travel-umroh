@@ -35,6 +35,7 @@ const SETTINGS_PATH_TO_CATEGORY: Record<string, SettingsCategoryKey> = {
   '/admin/security-audit': 'security',
   '/admin/activity-log': 'security',
   '/admin/supabase-setup': 'backend',
+  '/admin/migration-health': 'backend',
 };
 import { useAuth } from '@/hooks/useAuth';
 import { useDynamicMenus } from '@/hooks/useDynamicMenus';

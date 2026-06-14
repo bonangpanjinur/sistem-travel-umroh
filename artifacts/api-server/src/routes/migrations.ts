@@ -22,7 +22,13 @@ const _dir =
     : dirname(fileURLToPath(import.meta.url));
 
 function sqlDir(): string {
-  return resolve(_dir, "sql");
+  if (process.env["MIGRATION_SQL_DIR"]) return resolve(process.env["MIGRATION_SQL_DIR"]);
+  const candidates = [
+    resolve(_dir, "../../../../supabase_clean_migration/new"), // from src/routes/
+    resolve(_dir, "../../../supabase_clean_migration/new"),    // from dist/
+    resolve(_dir, "sql"),                                      // legacy fallback
+  ];
+  return candidates.find(p => existsSync(p)) ?? candidates[candidates.length - 1];
 }
 
 // ── Auth guard: super_admin only ──────────────────────────────────────────────

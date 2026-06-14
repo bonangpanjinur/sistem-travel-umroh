@@ -426,6 +426,7 @@ const AdminIntegrationSettings = lazy(
   () => import("@/pages/admin/AdminIntegrationSettings"),
 );
 const AdminSystemHealth = lazy(() => import("@/pages/admin/AdminSystemHealth"));
+const AdminMigrationHealth = lazy(() => import("@/pages/admin/AdminMigrationHealth"));
 
 const ALL_STAFF_ROLES = [
   "super_admin",
@@ -1601,6 +1602,16 @@ export default function AdminRoutes() {
           <P k={PERMISSIONS.API_CONNECT}>
             <LazyPage>
               <AdminSystemHealth />
+            </LazyPage>
+          </P>
+        }
+      />
+      <Route
+        path="migration-health"
+        element={
+          <P k={PERMISSIONS.SUPABASE_SETUP}>
+            <LazyPage>
+              <AdminMigrationHealth />
             </LazyPage>
           </P>
         }

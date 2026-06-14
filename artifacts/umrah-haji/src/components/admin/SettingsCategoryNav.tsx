@@ -6,7 +6,7 @@ import {
   Users2, ShieldCheck, LayoutGrid, ShieldAlert, ShieldQuestion, UserCog,
   Plug, Webhook, Mail, Bell as BellIcon, Activity,
   Shield, KeyRound, ScanSearch, ClipboardList,
-  Database, BookOpen,
+  Database, BookOpen, HeartPulse,
 } from "lucide-react";
 
 type Item = { label: string; path: string; icon: any };
@@ -62,6 +62,7 @@ const CATEGORIES: Record<string, { title: string; items: Item[] }> = {
     title: "Panduan Backend",
     items: [
       { label: "Setup Backend", path: "/admin/supabase-setup", icon: Database },
+      { label: "Migration Health", path: "/admin/migration-health", icon: HeartPulse },
       { label: "Dokumentasi", path: "/admin/supabase-setup#docs", icon: BookOpen },
     ],
   },
