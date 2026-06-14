@@ -17,6 +17,12 @@ CREATE TABLE IF NOT EXISTS public.user_roles (
   UNIQUE (user_id, role, branch_id)
 );
 
+-- Jika tabel sudah ada dari schema lama tanpa kolom-kolom ini, tambahkan secara idempotent.
+ALTER TABLE public.user_roles ADD COLUMN IF NOT EXISTS is_active   BOOLEAN     NOT NULL DEFAULT TRUE;
+ALTER TABLE public.user_roles ADD COLUMN IF NOT EXISTS granted_by  UUID        REFERENCES auth.users(id) ON DELETE SET NULL;
+ALTER TABLE public.user_roles ADD COLUMN IF NOT EXISTS granted_at  TIMESTAMPTZ NOT NULL DEFAULT NOW();
+ALTER TABLE public.user_roles ADD COLUMN IF NOT EXISTS expires_at  TIMESTAMPTZ;
+
 ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
 
 -- Index paling penting — hot path untuk semua RLS policy
