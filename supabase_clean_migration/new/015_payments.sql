@@ -53,6 +53,7 @@ CREATE TABLE IF NOT EXISTS public.payments (
 
 -- Guard: kolom baru di payments jika tabel sudah ada
 ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS payment_code     TEXT        UNIQUE;
+ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS status           TEXT        DEFAULT 'pending';
 ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS bank_account_id  UUID        REFERENCES public.bank_accounts(id) ON DELETE SET NULL;
 ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS proof_url        TEXT;
 ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS notes            TEXT;
@@ -93,6 +94,7 @@ CREATE TABLE IF NOT EXISTS public.savings_plans (
 );
 
 -- Guard: kolom baru di savings_plans jika tabel sudah ada
+ALTER TABLE public.savings_plans ADD COLUMN IF NOT EXISTS status               TEXT DEFAULT 'active';
 ALTER TABLE public.savings_plans ADD COLUMN IF NOT EXISTS agent_id             UUID REFERENCES public.agents(id) ON DELETE SET NULL;
 ALTER TABLE public.savings_plans ADD COLUMN IF NOT EXISTS branch_id            UUID REFERENCES public.branches(id) ON DELETE SET NULL;
 ALTER TABLE public.savings_plans ADD COLUMN IF NOT EXISTS target_package_id    UUID REFERENCES public.packages(id) ON DELETE SET NULL;
@@ -129,6 +131,7 @@ CREATE TABLE IF NOT EXISTS public.savings_deposits (
 );
 
 -- Guard: kolom baru di savings_deposits jika tabel sudah ada
+ALTER TABLE public.savings_deposits ADD COLUMN IF NOT EXISTS status         TEXT DEFAULT 'pending';
 ALTER TABLE public.savings_deposits ADD COLUMN IF NOT EXISTS deposit_code   TEXT        UNIQUE;
 ALTER TABLE public.savings_deposits ADD COLUMN IF NOT EXISTS proof_url      TEXT;
 ALTER TABLE public.savings_deposits ADD COLUMN IF NOT EXISTS verified_by    UUID        REFERENCES auth.users(id) ON DELETE SET NULL;
@@ -156,6 +159,7 @@ CREATE TABLE IF NOT EXISTS public.savings_schedules (
 );
 
 -- Guard: kolom baru di savings_schedules jika tabel sudah ada
+ALTER TABLE public.savings_schedules ADD COLUMN IF NOT EXISTS status        TEXT DEFAULT 'pending';
 ALTER TABLE public.savings_schedules ADD COLUMN IF NOT EXISTS deposit_id    UUID REFERENCES public.savings_deposits(id) ON DELETE SET NULL;
 ALTER TABLE public.savings_schedules ADD COLUMN IF NOT EXISTS reminder_sent BOOLEAN DEFAULT FALSE;
 
@@ -181,6 +185,7 @@ CREATE TABLE IF NOT EXISTS public.payment_deadline_reminders (
 );
 
 -- Guard: kolom baru di payment_deadline_reminders jika tabel sudah ada
+ALTER TABLE public.payment_deadline_reminders ADD COLUMN IF NOT EXISTS status       TEXT DEFAULT 'pending';
 ALTER TABLE public.payment_deadline_reminders ADD COLUMN IF NOT EXISTS reminder_days INTEGER DEFAULT 3;
 ALTER TABLE public.payment_deadline_reminders ADD COLUMN IF NOT EXISTS sent_at      TIMESTAMPTZ;
 ALTER TABLE public.payment_deadline_reminders ADD COLUMN IF NOT EXISTS error        TEXT;
@@ -248,6 +253,7 @@ CREATE TABLE IF NOT EXISTS public.withdrawal_requests (
 );
 
 -- Guard: kolom baru di withdrawal_requests jika tabel sudah ada
+ALTER TABLE public.withdrawal_requests ADD COLUMN IF NOT EXISTS status           TEXT DEFAULT 'pending';
 ALTER TABLE public.withdrawal_requests ADD COLUMN IF NOT EXISTS reviewed_by      UUID REFERENCES auth.users(id) ON DELETE SET NULL;
 ALTER TABLE public.withdrawal_requests ADD COLUMN IF NOT EXISTS reviewed_at      TIMESTAMPTZ;
 ALTER TABLE public.withdrawal_requests ADD COLUMN IF NOT EXISTS transfer_proof   TEXT;
@@ -309,6 +315,7 @@ CREATE TABLE IF NOT EXISTS public.booking_installment_schedules (
 );
 
 -- Guard: kolom baru di booking_installment_schedules jika tabel sudah ada
+ALTER TABLE public.booking_installment_schedules ADD COLUMN IF NOT EXISTS status        TEXT DEFAULT 'pending';
 ALTER TABLE public.booking_installment_schedules ADD COLUMN IF NOT EXISTS payment_id    UUID REFERENCES public.payments(id) ON DELETE SET NULL;
 ALTER TABLE public.booking_installment_schedules ADD COLUMN IF NOT EXISTS reminder_sent BOOLEAN DEFAULT FALSE;
 
